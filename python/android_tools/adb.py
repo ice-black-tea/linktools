@@ -137,7 +137,6 @@ class device(object):
         执行shell
         :param capture_output: 捕获输出，填False使用标准输出
         :param command: shell命令
-        :param background: 是否后台运行
         :return: adb输出结果
         """
         return self.exec("shell", command, capture_output=capture_output)
@@ -155,7 +154,7 @@ class device(object):
         设置属性值
         :param prop: 属性名
         :param value: 属性值
-        :return: 输出结果
+        :return: adb输出结果
         """
         return self.shell("setprop %s %s" % (prop, value))
 
@@ -163,7 +162,7 @@ class device(object):
         """
         关闭进程
         :param package_name: 关闭的包名
-        :return: 输出结果
+        :return: adb输出结果
         """
         package_name = self._fix_package_name(package_name)
         return self.shell('am kill %s' % package_name)
@@ -172,7 +171,7 @@ class device(object):
         """
         关闭进程
         :param package_name: 关闭的包名
-        :return: 输出结果
+        :return: adb输出结果
         """
         package_name = self._fix_package_name(package_name)
         return self.shell('am force-stop %s' % package_name)
@@ -222,7 +221,7 @@ class device(object):
         """
         self.exec("forward", "tcp:%s" % port, "jdwp:%s" % pid)
         jdb_command = "jdb -connect com.sun.jdi.SocketAttach:hostname=127.0.0.1,port=%s" % port
-        return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=None)
+        return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=utils.PIPE)
 
     @staticmethod
     def _fix_package_name(package_name) -> str:
