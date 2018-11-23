@@ -1,0 +1,4 @@
+colorama
+requests
+tqdm
+frida < 12.1.0
