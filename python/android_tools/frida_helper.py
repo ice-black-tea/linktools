@@ -32,7 +32,7 @@ class frida_helper:
         \"\"\"
 
         if __name__ == '__main__':
-            frida_helper.run("com.hu.test", jscode=jscode)
+            frida_helper().run("com.hu.test", jscode=jscode)
 
     ----------------------------------------------------------------------
 
@@ -121,7 +121,7 @@ class frida_helper:
         else:
             print(str(message))
 
-    def run_script(self, package: str, jscode: str, on_message=on_message) -> None:
+    def run_script(self, package: str, jscode: str, on_message=None) -> None:
         """
         向指定包名的进程中注入并执行js代码
         :param package: 指定包名/进程名
