@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import subprocess
 import warnings
+from typing import overload
 from urllib.request import urlopen
 
 import requests
@@ -44,6 +46,80 @@ class utils:
     STDOUT = subprocess.STDOUT
 
     @staticmethod
+    def int(obj: object, default: int = 0) -> int:
+        """
+        转为int
+        :param obj: 需要转换的值
+        :param default: 默认值
+        :return: 转换后的值
+        """
+        try:
+            # noinspection PyTypeChecker
+            return int(obj)
+        except:
+            return default
+
+    @staticmethod
+    def bool(obj: object, default: bool = False) -> bool:
+        """
+        转为bool
+        :param obj: 需要转换的值
+        :param default: 默认值
+        :return: 转换后的值
+        """
+        try:
+            return bool(obj)
+        except:
+            return default
+
+    @staticmethod
+    def findall(string: str, reg: str) -> [str]:
+        """
+        找到所有匹配的子串
+        :param string: 字符串
+        :param reg: 子串（正则表达式）
+        :return: 匹配的子串
+        """
+        return re.compile(reg).findall(string)
+
+    @staticmethod
+    def replace(string: str, reg: str, val: str, count=0) -> str:
+        """
+        替换子串
+        :param string: 字符串
+        :param reg: 子串（正则表达式）
+        :param val: 替换的值
+        :param count: 替换次数，为0替换所有
+        :return: 替换后的值
+        """
+        return re.sub(reg, val, string, count=count)
+
+    @staticmethod
+    def match(string: str, reg: str) -> bool:
+        """
+        是否匹配子串
+        :param string: 字符串
+        :param reg: 子串（正则表达式）
+        :return: 是否包含
+        """
+        return re.search(reg, string) is not None
+
+    @staticmethod
+    def contain(obj: object, key: object, value: object = None) -> bool:
+        """
+        是否包含内容
+        :param obj: 对象
+        :param key: 键
+        :param value: 值
+        :return: 是否包含
+        """
+        if object is None:
+            return False
+        if isinstance(obj, dict):
+            return key in obj and (value is None or obj[key] == value)
+        return key in obj
+
+    @staticmethod
     def is_empty(obj: object):
         """
         对象是否为空
@@ -52,39 +128,10 @@ class utils:
         """
         if obj is None:
             return True
-        if type(obj) in [str, bytes, tuple, list, dict]:
+        if hasattr(1, "__len__"):
             # noinspection PyTypeChecker
             return obj is None or len(obj) == 0
         return True
-
-    @staticmethod
-    def is_contain(obj: object, key: object, value=None):
-        """
-        是否包含内容
-        :param obj: 对象
-        :param key: 键
-        :param value: 值
-        :return: 是否包含
-        """
-        if obj is None:
-            return False
-        if type(obj) is dict:
-            return key in obj and (value is None or obj[key] == value)
-        return key in obj
-
-    @staticmethod
-    def int(obj, default: int = 0):
-        try:
-            return int(obj)
-        except:
-            return default
-
-    @staticmethod
-    def bool(obj, default: bool = False):
-        try:
-            return bool(obj)
-        except:
-            return default
 
     @staticmethod
     def exec(command: str, stdin=PIPE, stdout=PIPE, stderr=PIPE) -> _process:
@@ -94,7 +141,6 @@ class utils:
         :param stdin: 输入流，默认为utils.PIPE，标准输入为None
         :param stdout: 输出流，默认为utils.PIPE，标准输出为None
         :param stderr: 错误输出流，默认为utils.PIPE，输出到输出流为utils.STDOUT，标准输出为None
-        :param background: 是否后台运行
         :return: 子进程
         """
         process = _process(command, stdin, stdout, stderr)
@@ -102,18 +148,18 @@ class utils:
         return process
 
     @staticmethod
-    def download_from_url(url: str, file_path: str) -> int:
+    def download(url: str, path: str) -> int:
         """
         从指定url下载文件
         :param url: 下载链接
-        :param file_path: 下载路径
+        :param path: 保存路径
         :return: 文件大小
         """
-        file_dir = os.path.dirname(file_path)
+        file_dir = os.path.dirname(path)
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
-        if os.path.exists(file_path):
-            first_byte = os.path.getsize(file_path)
+        if os.path.exists(path):
+            first_byte = os.path.getsize(path)
         else:
             first_byte = 0
         file_size = int(urlopen(url).info().get('Content-Length', -1))
@@ -124,7 +170,7 @@ class utils:
             warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             pbar = tqdm(total=file_size, initial=first_byte, unit='B', unit_scale=True, desc=url.split('/')[-1])
             req = requests.get(url, headers=header, stream=True)
-            with (open(file_path, 'ab')) as f:
+            with (open(path, 'ab')) as f:
                 for chunk in req.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)

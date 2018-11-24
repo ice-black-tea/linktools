@@ -1,18 +1,104 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import _frida
+import lzma
+import os
+import shutil
 import sys
+import tempfile
+import time
+from concurrent.futures import thread
+from collections import Callable
 
+import _frida
 import colorama
+import frida
 from colorama import Fore
 
 from .adb import device
-from .frida_server import frida_server
 from .utils import utils
 
 
-class frida_helper:
+class server:
+
+    def __init__(self, device_id: str = None):
+        """
+        :param device_id: 设备号
+        """
+        self.device = device(device_id=device_id)
+        self.server_name = "frida-server-{0}-android-{1}".format(frida.__version__, self.device.abi)
+        self.server_dir = os.path.join(os.path.expanduser('~'), ".frida")
+        self.server_file = os.path.join(self.server_dir, self.server_name)
+        self.server_url = "https://github.com/frida/frida/releases/download/{0}/{1}.xz".format(frida.__version__,
+                                                                                               self.server_name)
+        self.server_target_file = "/data/local/tmp/{0}".format(self.server_name)
+        if not os.path.exists(self.server_dir):
+            os.makedirs(self.server_dir)
+
+    def start(self) -> bool:
+        """
+        根据frida版本和设备abi类型下载并运行server
+        :return: 运行成功为True，否则为False
+        """
+        if self.is_running():
+            print("[*] Frida server is running ...")
+            return True
+        else:
+            if self._start():
+                print("[*] Frida server is running ...")
+                return True
+            else:
+                print("[*] Frida server failed to run ...")
+                return False
+
+    def _start(self) -> bool:
+        print("[*] Start frida server ...")
+        command = "'%s'" % self.server_target_file
+        if self.device.uid != 0:
+            command = "su -c '%s'" % self.server_target_file
+
+        if not self.device.exist_file(self.server_target_file):
+            if not os.path.exists(self.server_file):
+                print("[*] Download frida server ...")
+                tmp_path = tempfile.mktemp()
+                utils.download(self.server_url, tmp_path)
+                with lzma.open(tmp_path, "rb") as read, open(self.server_file, "wb") as write:
+                    shutil.copyfileobj(read, write)
+                os.remove(tmp_path)
+            print("[*] Push frida server to %s" % self.server_target_file)
+            self.device.exec("push", self.server_file, "/data/local/tmp/")
+            self.device.shell("chmod 755 '%s'" % self.server_target_file)
+
+        self.device.exec("forward", "tcp:27042", "tcp:27042")
+        self.device.exec("forward", "tcp:27043", "tcp:27043")
+        thread.start_new_thread(lambda d, c: d.shell(c, capture_output=False), (self.device, command))
+        time.sleep(1)
+
+        return self.is_running()
+
+    def is_running(self) -> bool:
+        """
+        判断服务端运行状态
+        :return: 是否正在运行
+        """
+        try:
+            self.frida_device.enumerate_processes()
+            return True
+        except frida.ServerNotRunningError:
+            return False
+        except Exception as e:
+            raise e
+
+    @property
+    def frida_device(self) -> _frida.Device:
+        """
+        获取frida设备对象
+        :return: frida设备对象
+        """
+        return frida.get_device(self.device.id)
+
+
+class helper:
     """
     ----------------------------------------------------------------------
 
@@ -100,7 +186,7 @@ class frida_helper:
         """
         colorama.init(True)
         self.device = device(device_id)
-        self.server = frida_server(self.device.id)
+        self.server = server(self.device.id)
         self.server.start()
 
     @staticmethod
@@ -108,20 +194,20 @@ class frida_helper:
         """
         执行脚本回调函数
         """
-        if utils.is_contain(message, 'type', 'send') and utils.is_contain(message, 'payload'):
+        if utils.contain(message, 'type', 'send') and utils.contain(message, 'payload'):
             payload = message['payload']
-            if utils.is_contain(payload, 'frida_stack'):
-                print(Fore.LIGHTYELLOW_EX + frida_helper._format('*', payload['frida_stack']))
-            elif utils.is_contain(payload, 'frida_method'):
-                print(Fore.LIGHTMAGENTA_EX + frida_helper._format('*', payload['frida_method']))
+            if utils.contain(payload, 'frida_stack'):
+                print(Fore.LIGHTYELLOW_EX + helper._format('*', payload['frida_stack']))
+            elif utils.contain(payload, 'frida_method'):
+                print(Fore.LIGHTMAGENTA_EX + helper._format('*', payload['frida_method']))
             else:
-                print(frida_helper._format('*', payload))
-        elif utils.is_contain(message, 'type', 'error') and utils.is_contain(message, 'stack'):
-            print(Fore.RED + frida_helper._format('*', message['stack']))
+                print(helper._format('*', payload))
+        elif utils.contain(message, 'type', 'error') and utils.contain(message, 'stack'):
+            print(Fore.RED + helper._format('*', message['stack']))
         else:
             print(str(message))
 
-    def run_script(self, package: str, jscode: str, on_message=None) -> None:
+    def run_script(self, package: str, jscode: str, on_message: Callable = None) -> None:
         """
         向指定包名的进程中注入并执行js代码
         :param package: 指定包名/进程名
@@ -134,7 +220,7 @@ class frida_helper:
             print('[*] Attach process: %s (%d)' % (process.name, process.pid))
             session = self.server.frida_device.attach(process.pid)
             script = session.create_script(jscode)
-            script.on('message', frida_helper.on_message if on_message is None else on_message)
+            script.on('message', helper.on_message if on_message is None else on_message)
             script.load()
         print('[*] Running ...')
         sys.stdin.read()
@@ -258,3 +344,7 @@ class frida_helper:
                 return ret;
             }
         """.replace("\n", "")
+
+
+if __name__ == '__main__':
+    server().start()

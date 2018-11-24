@@ -1,12 +1,5 @@
 # Android Tools
 
-## 配置环境
-
-```bash
-$ cd android-library/python
-$ python3 -m pip install -r requirements.txt -e .
-```
-
 ## 使用
 
 ### 运行frida hook脚本
@@ -28,7 +21,7 @@ Java.perform(function () {
 """
 
 if __name__ == '__main__':
-    frida_helper().run_script("com.hu.test", jscode=jscode)
+    frida_helper().run_script("com.xxx.xxx", jscode=jscode)
 ```
 
 输出效果

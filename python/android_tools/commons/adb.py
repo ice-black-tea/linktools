@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import re
 
 from .utils import utils, _process
@@ -29,7 +30,6 @@ class adb(object):
         执行命令
         :param args: 命令
         :param capture_output: 捕获输出，填False使用标准输出
-        :param background: 是否后台运行
         :return: 输出结果
         """
         if len(args) == 0:
@@ -47,6 +47,8 @@ class adb(object):
 
     @staticmethod
     def _filter(arg: str) -> str:
+        if arg is None:
+            return ""
         return "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 
@@ -64,7 +66,7 @@ class device(object):
                 raise AdbError("more than one device/emulator")
             self._device_id = device_ids[0]
         else:
-            if not utils.is_contain(device_ids, device_id):
+            if not utils.contain(device_ids, device_id):
                 raise AdbError("no device %s found" % device_id)
             self._device_id = device_id
 
@@ -102,46 +104,54 @@ class device(object):
         default = -1
 
         result = self.shell("echo -n ${USER_ID}")
-        id = utils.int(result, default=default)
-        if id != default:
-            return id
+        uid = utils.int(result, default=default)
+        if uid != default:
+            return uid
 
         result = self.shell("id -u")
-        id = utils.int(result, default=default)
-        if id != default:
-            return id
+        uid = utils.int(result, default=default)
+        if uid != default:
+            return uid
 
-        pattern = re.compile(r"(?<=uid=)[\d]+")
-        result = pattern.findall(result)
+        result = utils.findall(result, r"(?<=uid=)[\d]+")
         if not utils.is_empty(result):
-            id = utils.int(result[0], default=default)
-        if id != default:
-            return id
+            uid = utils.int(result[0], default=default)
+        if uid != default:
+            return uid
 
         raise AdbError("unknown adb uid: %s" % result)
+
+    @property
+    def safe_path(self) -> str:
+        """
+        获取有权限的路径
+        :return: 路径
+        """
+        return "/sdcard/"
 
     def exec(self, *args: [str], capture_output: bool = True) -> str:
         """
         执行命令
         :param args: 命令
         :param capture_output: 捕获输出，填False使用标准输出
-        :param background: 是否后台运行
         :return: adb输出结果
         """
         command = ["-s", self.id]
         command += args
         return adb.exec(*command, capture_output=capture_output)
 
-    def shell(self, command: str, capture_output: bool = True) -> str:
+    def shell(self, *args: [str], capture_output: bool = True) -> str:
         """
         执行shell
         :param capture_output: 捕获输出，填False使用标准输出
-        :param command: shell命令
+        :param args: shell命令
         :return: adb输出结果
         """
-        return self.exec("shell", command, capture_output=capture_output)
+        command = ["-s", self.id, "shell"]
+        command += args
+        return adb.exec(*command, capture_output=capture_output)
 
-    def get_prop(self, prop: str):
+    def get_prop(self, prop: str) -> str:
         """
         获取属性值
         :param prop: 属性名
@@ -164,7 +174,7 @@ class device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        package_name = self._fix_package_name(package_name)
+        package_name = self._fix_package(package_name)
         return self.shell('am kill %s' % package_name)
 
     def force_stop(self, package_name) -> str:
@@ -173,7 +183,7 @@ class device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        package_name = self._fix_package_name(package_name)
+        package_name = self._fix_package(package_name)
         return self.shell('am force-stop %s' % package_name)
 
     def exist_file(self, path) -> bool:
@@ -201,7 +211,7 @@ class device(object):
 
         raise AdbError("unknown package: %s" % result)
 
-    def top_activity(self):
+    def top_activity(self) -> str:
         """
         获取顶层activity名
         :return: 顶层activity名
@@ -211,6 +221,25 @@ class device(object):
         if items is not None and len(items) >= 2:
             return items[1]
         raise AdbError("unknown activity: %s" % result)
+
+    def apk_path(self, package: str) -> str:
+        """
+        获取apk路径
+        :return: apk路径
+        """
+        return utils.replace(self.shell("pm path %s" % package), r"^.*package:[ ]*|\r|\n", "")
+
+    def capture_screen(self, path: str = None) -> str:
+        """
+        截屏
+        :param path: 存放路径，默认为sdcard
+        :return: 截屏文件路径
+        """
+        if utils.is_empty(path):
+            now = datetime.datetime.now()
+            path = self.safe_path + "screenshot_" + now.strftime("%Y-%m-%d %H:%M:%S") + ".png"
+        self.shell("screencap -p %s" % path)
+        return path
 
     def jdb_connect(self, pid: str, port: str = "8699") -> _process:
         """
@@ -224,7 +253,7 @@ class device(object):
         return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=utils.PIPE)
 
     @staticmethod
-    def _fix_package_name(package_name) -> str:
+    def _fix_package(package_name) -> str:
         index = package_name.find(":")
         if index == -1:
             return package_name
