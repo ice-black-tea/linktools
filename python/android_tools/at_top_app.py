@@ -41,15 +41,15 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--serial', action='store', default=None,
                         help='use device with given serial')
     parser.add_argument('--show', action='store_const', const=True, default=False,
-                        help='show top package path')
-    parser.add_argument('--package', action='store_const', const=True, default=False,
                         help='show top-level app\'s basic infomation')
+    parser.add_argument('--package', action='store_const', const=True, default=False,
+                        help='show top-level package name')
     parser.add_argument('--activity', action='store_const', const=True, default=False,
-                        help='show top activity name')
+                        help='show top-level activity name')
     parser.add_argument('--path', action='store_const', const=True, default=False,
-                        help='show top package path')
+                        help='show top-level package path')
     parser.add_argument('--apk', dest='apk_path', action='store', type=str, nargs='?', default=None,
-                        help='pull apk file')
+                        help='pull top-level apk file')
     parser.add_argument('--screen', dest='screen_path', action='store', type=str,  nargs='?', default=None,
                         help='capture screen and pull file')
 

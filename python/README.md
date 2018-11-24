@@ -1,8 +1,8 @@
 # Android Tools
 
-## 使用
+## frida
 
-### 运行frida hook脚本
+运行frida hook脚本
 
 如：
 ```python
@@ -44,4 +44,26 @@ if __name__ == '__main__':
         Arguments[0]: __topic__
         Arguments[1]: android-app
         Return: null
+```
+
+## at_top_app
+
+```bash
+$ at_top_app.py -h
+usage: at_top_app.py [-h] [-s SERIAL] [--show] [--package] [--activity]
+                     [--path] [--apk [APK_PATH]] [--screen [SCREEN_PATH]]
+
+do something with top-level application
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SERIAL, --serial SERIAL
+                        use device with given serial
+  --show                show top-level app's basic infomation
+  --package             show top-level package name
+  --activity            show top-level activity name
+  --path                show top-level package path
+  --apk [APK_PATH]      pull top-level apk file
+  --screen [SCREEN_PATH]
+                        capture screen and pull file
 ```
