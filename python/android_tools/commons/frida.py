@@ -27,16 +27,15 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
+import _frida
+import _thread as thread
 import lzma
 import os
 import shutil
-import sys
 import tempfile
 import time
-from concurrent.futures import thread
 from collections import Callable
 
-import _frida
 import colorama
 import frida
 from colorama import Fore
@@ -45,7 +44,16 @@ from .adb import device
 from .utils import utils
 
 
-class server:
+def _log(tag: str, message: object, fore: Fore = None):
+    log = '[{0}] {1}'.format(tag, str(message).replace('\n', '\n    '))
+    if fore is not None:
+        log = fore + log
+    print(log)
+
+
+class server(object):
+
+    log = _log
 
     def __init__(self, device_id: str = None):
         """
@@ -67,31 +75,30 @@ class server:
         :return: 运行成功为True，否则为False
         """
         if self.is_running():
-            print("[*] Frida server is running ...")
+            server.log("*", "Frida server is running ...")
+            return True
+        elif self._start():
+            server.log("*", "Frida server is running ...")
             return True
         else:
-            if self._start():
-                print("[*] Frida server is running ...")
-                return True
-            else:
-                print("[*] Frida server failed to run ...")
-                return False
+            server.log("*", "Frida server failed to run ...")
+            return False
 
     def _start(self) -> bool:
-        print("[*] Start frida server ...")
+        server.log("*", "Start frida server ...")
         command = "'%s'" % self.server_target_file
         if self.device.uid != 0:
             command = "su -c '%s'" % self.server_target_file
 
         if not self.device.exist_file(self.server_target_file):
             if not os.path.exists(self.server_file):
-                print("[*] Download frida server ...")
+                server.log("*", "Download frida server ...")
                 tmp_path = tempfile.mktemp()
                 utils.download(self.server_url, tmp_path)
                 with lzma.open(tmp_path, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
                 os.remove(tmp_path)
-            print("[*] Push frida server to %s" % self.server_target_file)
+            server.log("*", "Push frida server to %s" % self.server_target_file)
             self.device.exec("push", self.server_file, "/data/local/tmp/")
             self.device.shell("chmod 755 '%s'" % self.server_target_file)
 
@@ -124,7 +131,7 @@ class server:
         return frida.get_device(self.device.id)
 
 
-class helper:
+class helper(object):
     """
     ----------------------------------------------------------------------
 
@@ -151,9 +158,9 @@ class helper:
     js内置函数：
 
         /*
-         * byte数组转字符串，如果转不了就返回byte[]
-         * bytes:       字符数组
-         * charset:     字符集(可选)
+         * byte数组转字符串，如果转不了就返回null
+         * :param bytes:       字符数组
+         * :param charset:     字符集(可选)
          */
         function BytesToString(bytes, charset);
 
@@ -164,20 +171,20 @@ class helper:
 
         /*
          * 调用当前函数，并输出参数返回值
-         * object:      对象(一般直接填this)
-         * arguments:   arguments(固定填这个)
-         * showStack:   是否打印栈(默认为false，可不填)
-         * showArgs:    是否打印参数(默认为false，可不填)
+         * :param object:      对象(一般直接填this)
+         * :param arguments:   arguments(固定填这个)
+         * :param showStack:   是否打印栈(默认为false，可不填)
+         * :param showArgs:    是否打印参数(默认为false，可不填)
          */
         function CallMethod(object, arguments, showStack, showArgs);
 
         /*
          * 打印栈，调用当前函数，并输出参数返回值
-         * object:      对象(一般直接填this)
-         * arguments:   arguments(固定填这个)
-         * show:        是否打印栈和参数(默认为true，可不填)
+         * :param object:      对象(一般直接填this)
+         * :param arguments:   arguments(固定填这个)
+         * :param show:        是否打印栈和参数(默认为true，可不填)
          */
-        function PrintStackAndCallMethod(object, arguments, show)
+        function PrintStackAndCallMethod(object, arguments, show);
 
         /*
          * hook native
@@ -206,11 +213,14 @@ class helper:
     ----------------------------------------------------------------------
     """
 
+    log = _log
+
     def __init__(self, device_id: str = None):
         """
         :param device_id: 设备号
         """
         colorama.init(True)
+        self.sessions = []
         self.device = device(device_id)
         self.server = server(self.device.id)
         self.server.start()
@@ -223,33 +233,41 @@ class helper:
         if utils.contain(message, 'type', 'send') and utils.contain(message, 'payload'):
             payload = message['payload']
             if utils.contain(payload, 'frida_stack'):
-                print(Fore.LIGHTYELLOW_EX + helper._format('*', payload['frida_stack']))
+                helper.log('*', payload['frida_stack'], fore=Fore.LIGHTYELLOW_EX)
             elif utils.contain(payload, 'frida_method'):
-                print(Fore.LIGHTMAGENTA_EX + helper._format('*', payload['frida_method']))
+                helper.log('*', payload['frida_method'], fore=Fore.LIGHTMAGENTA_EX)
             else:
-                print(helper._format('*', payload))
+                helper.log('*', payload)
         elif utils.contain(message, 'type', 'error') and utils.contain(message, 'stack'):
-            print(Fore.RED + helper._format('*', message['stack']))
+            helper.log('*', message['stack'], fore=Fore.RED)
         else:
-            print(str(message))
+            helper.log('?', message, fore=Fore.RED)
 
-    def run_script(self, package: str, jscode: str, on_message: Callable = None) -> None:
+    def run_script(self, package: str, jscode: str, callback: Callable = None) -> None:
         """
         向指定包名的进程中注入并执行js代码
         :param package: 指定包名/进程名
         :param jscode: 注入的js代码
-        :param on_message: 消息回调，为None采用默认回调，on_message(message, data)
+        :param callback: 消息回调，为None采用默认回调，on_message(message, data)
         :return: None
         """
         jscode = self._preset_jscode + jscode
         for process in self.get_processes(package):
-            print('[*] Attach process: %s (%d)' % (process.name, process.pid))
+            helper.log('*', 'Attach process: %s (%d)' % (process.name, process.pid))
             session = self.server.frida_device.attach(process.pid)
             script = session.create_script(jscode)
-            script.on('message', helper.on_message if on_message is None else on_message)
+            script.on('message', helper.on_message if callback is None else callback)
             script.load()
-        print('[*] Running ...')
-        sys.stdin.read()
+            self.sessions.append(session)
+        helper.log('*', 'Running ...')
+
+    def detach_all(self) -> None:
+        """
+        结束所有会话
+        :return: None
+        """
+        for session in self.sessions:
+            session.detach()
 
     def get_processes(self, package) -> [_frida.Process]:
         """
@@ -262,10 +280,6 @@ class helper:
             if process.name.find(package) > -1:
                 processes.append(process)
         return processes
-
-    @staticmethod
-    def _format(tag: str, message: object):
-        return '[{0}] {1}'.format(tag, str(message).replace('\n', '\n    '))
 
     @property
     def _preset_jscode(self) -> str:
@@ -283,7 +297,7 @@ class helper:
             });
 
             /*
-             * byte数组转字符串，如果转不了就返回byte[]
+             * byte数组转字符串，如果转不了就返回null
              * bytes:       字符数组
              * charset:     字符集(可选)
              */

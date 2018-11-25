@@ -2,13 +2,14 @@
 
 ## frida
 
-运行frida hook脚本
+### 方法1：运行frida hook脚本
 
-如：
+如hook.py：
 ```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 from android_tools import frida_helper
 
 jscode = """
@@ -21,10 +22,48 @@ Java.perform(function () {
 """
 
 if __name__ == '__main__':
-    frida_helper().run_script("com.xxx.xxx", jscode=jscode)
+    frida_helper().run_script("xxx.xxx.xxx", jscode=jscode)
+    sys.stdin.read()
 ```
 
-输出效果
+
+### 方法2：使用at_frida.py
+
+注入js文件或js代码到指定进程，支持js文件实时刷新
+
+```bash
+$ at_frida.py -h
+usage: at_frida.py [-h] [-v] [-s SERIAL] -p PACKAGE (-f FILE | -c CODE)
+
+show top-level app's basic information
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -s SERIAL, --serial SERIAL
+                        use device with given serial
+  -p PACKAGE, --package PACKAGE
+                        target package/process
+  -f FILE, --file FILE  javascript file
+  -c CODE, --code CODE  javascript code
+```
+
+如hook.js文件：
+```javascript
+Java.perform(function () {
+    var HashMap = Java.use("java.util.HashMap");
+    HashMap.put.implementation = function() {
+        return CallMethod(this, arguments, true, true);
+    }
+});
+```
+
+在终端中运行
+```bash
+at_frida.py -p xxx.xxx.xxx -f hook.js
+```
+
+### 输出效果
 
 ```
 [*] Stack: java.util.HashMap.put(Native Method)

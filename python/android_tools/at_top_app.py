@@ -31,14 +31,15 @@ import argparse
 import datetime
 import sys
 
-from android_tools import __version__
+import android_tools
+
 from android_tools import adb_device
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='show top-level app\'s basic information')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
     parser.add_argument('-s', '--serial', action='store', default=None,
                         help='use device with given serial')
 

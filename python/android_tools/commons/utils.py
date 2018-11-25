@@ -31,6 +31,7 @@ import os
 import re
 import subprocess
 import warnings
+from collections import Iterable
 from urllib.request import urlopen
 
 import requests
@@ -142,7 +143,9 @@ class utils:
             return False
         if isinstance(obj, dict):
             return key in obj and (value is None or obj[key] == value)
-        return key in obj
+        if isinstance(obj, Iterable):
+            return key in obj
+        return False
 
     @staticmethod
     def is_empty(obj: object):
@@ -153,10 +156,10 @@ class utils:
         """
         if obj is None:
             return True
-        if hasattr(1, "__len__"):
+        if isinstance(obj, Iterable):
             # noinspection PyTypeChecker
             return obj is None or len(obj) == 0
-        return True
+        return False
 
     @staticmethod
     def exec(command: str, stdin=PIPE, stdout=PIPE, stderr=PIPE) -> _process:
