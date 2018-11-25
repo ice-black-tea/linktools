@@ -1,83 +1,82 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
+"""
+@author  : Hu Ji
+@file    : at_top_app.py
+@time    : 2018/11/25
+@site    :
+@software: PyCharm
+
+              ,----------------,              ,---------,
+         ,-----------------------,          ,"        ,"|
+       ,"                      ,"|        ,"        ,"  |
+      +-----------------------+  |      ,"        ,"    |
+      |  .-----------------.  |  |     +---------+      |
+      |  |                 |  |  |     | -==----'|      |
+      |  | $ sudo rm -rf / |  |  |     |         |      |
+      |  |                 |  |  |/----|`---=    |      |
+      |  |                 |  |  |   ,/|==== ooo |      ;
+      |  |                 |  |  |  // |(((( [33]|    ,"
+      |  `-----------------'  |," .;'| |((((     |  ,"
+      +-----------------------+  ;;  | |         |,"
+         /_)______________(_/  //'   | +---------+
+    ___________________________/___  `,
+   /  oooooooooooooooo  .o.  oooo /,   \,"-----------
+  / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
+ /_==__==========__==_ooo__ooo=_/'   /___________,"
+"""
+
 import argparse
 import datetime
+import sys
 
-import android_tools
-from android_tools import device
-
-
-class _top_app(object):
-
-    def __init__(self, d: device = None):
-        self._device = d
-        self._package = None
-        self._activity = None
-        self._path = None
-
-    @property
-    def package(self):
-        if self._package is None:
-            self._package = self._device.top_package()
-        return self._package
-
-    @property
-    def activity(self):
-        if self._activity is None:
-            self._activity = self._device.top_activity()
-        return self._activity
-
-    @property
-    def path(self):
-        if self._path is None:
-            self._path = self._device.apk_path(self.package)
-        return self._path
+from android_tools import __version__
+from android_tools import adb_device
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="do something with top-level application")
+
+    parser = argparse.ArgumentParser(description='show top-level app\'s basic information')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
     parser.add_argument('-s', '--serial', action='store', default=None,
                         help='use device with given serial')
-    parser.add_argument('--show', action='store_const', const=True, default=False,
-                        help='show top-level app\'s basic infomation')
-    parser.add_argument('--package', action='store_const', const=True, default=False,
-                        help='show top-level package name')
-    parser.add_argument('--activity', action='store_const', const=True, default=False,
-                        help='show top-level activity name')
-    parser.add_argument('--path', action='store_const', const=True, default=False,
-                        help='show top-level package path')
-    parser.add_argument('--apk', dest='apk_path', action='store', type=str, nargs='?', default=None,
-                        help='pull top-level apk file')
-    parser.add_argument('--screen', dest='screen_path', action='store', type=str,  nargs='?', default=None,
-                        help='capture screen and pull file')
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--package', action='store_const', const=True, default=False,
+                       help='show top-level package name')
+    group.add_argument('--activity', action='store_const', const=True, default=False,
+                       help='show top-level activity name')
+    group.add_argument('--path', action='store_const', const=True, default=False,
+                       help='show top-level package path')
+    group.add_argument('--apk', metavar='path', action='store', type=str, nargs='?', default="",
+                       help='pull top-level apk file')
+    group.add_argument('--screen', metavar='path', action='store', type=str, nargs='?', default="",
+                       help='capture screen and pull file')
 
     args = parser.parse_args()
-    if len(sys.argv) == 1:
-        args.show = True
+    device = adb_device(args.serial)
 
-    dev = device(args.serial)
-    app = _top_app(dev)
-
-    if args.show:
-        args.package = True
-        args.activity = True
-        args.path = True
     if args.package:
-        print("package: ", app.package)
-    if args.activity:
-        print("activity:", app.activity)
-    if args.path:
-        print("path:    ", app.path)
-    if "--apk" in sys.argv:
-        path = dev.safe_path + app.package + ".apk"
-        dev.shell("cp", app.path, path, capture_output=False)
-        dev.exec("pull", path, args.apk_path, capture_output=False)
-        dev.shell("rm", path)
-    if "--screen" in sys.argv:
+        print(device.top_package())
+    elif args.activity:
+        print(device.top_activity())
+    elif args.path:
+        print(device.apk_path(device.top_package()))
+    elif "--apk" in sys.argv:
+        package = device.top_package()
+        path = device.save_path + package + ".apk"
+        device.shell("cp", device.apk_path(package), path, capture_output=False)
+        device.exec("pull", path, args.apk, capture_output=False)
+        device.shell("rm", path)
+    elif "--screen" in sys.argv:
         now = datetime.datetime.now()
-        path = dev.safe_path + "screenshot_" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png"
-        dev.shell("screencap", "-p", path, capture_output=False)
-        dev.exec("pull", path, args.screen_path, capture_output=False)
-        dev.shell("rm", path)
+        path = device.save_path + "screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png"
+        device.shell("screencap", "-p", path, capture_output=False)
+        device.exec("pull", path, args.screen, capture_output=False)
+        device.shell("rm", path)
+    else:
+        package = device.top_package()
+        print("package: ", package)
+        print("activity:", device.top_activity())
+        print("path:    ", device.apk_path(package))

@@ -1,7 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import re
+"""
+@author  : Hu Ji
+@file    : adb.py
+@time    : 2018/11/25
+@site    :
+@software: PyCharm
+
+              ,----------------,              ,---------,
+         ,-----------------------,          ,"        ,"|
+       ,"                      ,"|        ,"        ,"  |
+      +-----------------------+  |      ,"        ,"    |
+      |  .-----------------.  |  |     +---------+      |
+      |  |                 |  |  |     | -==----'|      |
+      |  | $ sudo rm -rf / |  |  |     |         |      |
+      |  |                 |  |  |/----|`---=    |      |
+      |  |                 |  |  |   ,/|==== ooo |      ;
+      |  |                 |  |  |  // |(((( [33]|    ,"
+      |  `-----------------'  |," .;'| |((((     |  ,"
+      +-----------------------+  ;;  | |         |,"
+         /_)______________(_/  //'   | +---------+
+    ___________________________/___  `,
+   /  oooooooooooooooo  .o.  oooo /,   \,"-----------
+  / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
+ /_==__==========__==_ooo__ooo=_/'   /___________,"
+"""
 
 from .utils import utils, _process
 
@@ -122,12 +146,20 @@ class device(object):
         raise AdbError("unknown adb uid: %s" % result)
 
     @property
-    def safe_path(self) -> str:
+    def save_path(self) -> str:
         """
-        获取有权限的路径
+        存储文件路径
         :return: 路径
         """
         return "/sdcard/"
+
+    @property
+    def exec_path(self) -> str:
+        """
+        可执行程序路径
+        :return: 路径
+        """
+        return "/data/local/tmp/"
 
     def exec(self, *args: [str], capture_output: bool = True) -> str:
         """
@@ -227,7 +259,7 @@ class device(object):
         获取apk路径
         :return: apk路径
         """
-        return utils.replace(self.shell("pm path %s" % package), r"^.*package:[ ]*|\r|\n", "")
+        return utils.replace(self.shell("pm path %s" % package), r"^.*:[ ]*|\r|\n", "")
 
     def capture_screen(self, path: str = None) -> str:
         """
@@ -237,7 +269,7 @@ class device(object):
         """
         if utils.is_empty(path):
             now = datetime.datetime.now()
-            path = self.safe_path + "screenshot_" + now.strftime("%Y-%m-%d %H:%M:%S") + ".png"
+            path = self.save_path + "screenshot_" + now.strftime("%Y-%m-%d %H:%M:%S") + ".png"
         self.shell("screencap -p %s" % path)
         return path
 

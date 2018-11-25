@@ -1,6 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+@author  : Hu Ji
+@file    : at_set_env.py
+@time    : 2018/11/25
+@site    :
+@software: PyCharm
+
+              ,----------------,              ,---------,
+         ,-----------------------,          ,"        ,"|
+       ,"                      ,"|        ,"        ,"  |
+      +-----------------------+  |      ,"        ,"    |
+      |  .-----------------.  |  |     +---------+      |
+      |  |                 |  |  |     | -==----'|      |
+      |  | $ sudo rm -rf / |  |  |     |         |      |
+      |  |                 |  |  |/----|`---=    |      |
+      |  |                 |  |  |   ,/|==== ooo |      ;
+      |  |                 |  |  |  // |(((( [33]|    ,"
+      |  `-----------------'  |," .;'| |((((     |  ,"
+      +-----------------------+  ;;  | |         |,"
+         /_)______________(_/  //'   | +---------+
+    ___________________________/___  `,
+   /  oooooooooooooooo  .o.  oooo /,   \,"-----------
+  / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
+ /_==__==========__==_ooo__ooo=_/'   /___________,"
+"""
+
 import os
 import platform
 import re
@@ -10,9 +36,12 @@ import shutil
 
 if platform.system() == "Windows":
     if sys.hexversion <= 0x03000000:
+        # noinspection PyUnresolvedReferences
         import _winreg as winreg
     else:
+        # noinspection PyUnresolvedReferences
         import winreg
+pass
 
 
 class user_env:
@@ -92,10 +121,10 @@ class user_env:
     def is_windows(self) -> bool:
         return self._system == "Windows"
 
-    def is_linux(self):
+    def is_linux(self) -> bool:
         return self._system == "Linux"
 
-    def is_macos(self):
+    def is_macos(self) -> bool:
         return self._system == "Darwin"
 
 

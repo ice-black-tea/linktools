@@ -3,7 +3,7 @@
 
 """
 @author  : Hu Ji
-@file    : __init__.py
+@file    : version.py
 @time    : 2018/11/25
 @site    :
 @software: PyCharm
@@ -26,3 +26,5 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+__version__ = "0.0.1"

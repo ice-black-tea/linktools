@@ -50,20 +50,20 @@ if __name__ == '__main__':
 
 ```bash
 $ at_top_app.py -h
-usage: at_top_app.py [-h] [-s SERIAL] [--show] [--package] [--activity]
-                     [--path] [--apk [APK_PATH]] [--screen [SCREEN_PATH]]
+usage: at_top_app.py [-h] [-v] [-s SERIAL]
+                     [--package | --activity | --path | --apk [path] |
+                     --screen [path]]
 
-do something with top-level application
+show top-level app's basic information
 
 optional arguments:
   -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
   -s SERIAL, --serial SERIAL
                         use device with given serial
-  --show                show top-level app's basic infomation
   --package             show top-level package name
   --activity            show top-level activity name
   --path                show top-level package path
-  --apk [APK_PATH]      pull top-level apk file
-  --screen [SCREEN_PATH]
-                        capture screen and pull file
+  --apk [path]          pull top-level apk file
+  --screen [path]       capture screen and pull file
 ```
