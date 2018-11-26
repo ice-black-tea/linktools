@@ -254,11 +254,14 @@ class helper(object):
         jscode = self._preset_jscode + jscode
         for process in self.get_processes(package):
             helper.log('*', 'Attach process: %s (%d)' % (process.name, process.pid))
-            session = self.server.frida_device.attach(process.pid)
-            script = session.create_script(jscode)
-            script.on('message', helper.on_message if callback is None else callback)
-            script.load()
-            self.sessions.append(session)
+            try:
+                session = self.server.frida_device.attach(process.pid)
+                script = session.create_script(jscode)
+                script.on('message', helper.on_message if callback is None else callback)
+                script.load()
+                self.sessions.append(session)
+            except Exception as e:
+                helper.log('!', str(e), fore=Fore.RED)
         helper.log('*', 'Running ...')
 
     def detach_all(self) -> None:
