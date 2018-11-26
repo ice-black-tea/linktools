@@ -65,7 +65,7 @@ class adb(object):
         if capture_output is True:
             stdout, stderr = utils.PIPE, utils.PIPE
         process = utils.exec(command, stdin=None, stdout=stdout, stderr=stderr)
-        if not utils.is_empty(process.err):
+        if process.returncode != 0 and not utils.is_empty(process.err):
             raise AdbError(process.err)
         return process.out
 
