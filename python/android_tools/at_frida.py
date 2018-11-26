@@ -71,7 +71,7 @@ class frida_event_handler(FileSystemEventHandler):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='show top-level app\'s basic information')
+    parser = argparse.ArgumentParser(description='easy to use frida')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
     parser.add_argument('-s', '--serial', action='store', default=None,
                         help='use device with given serial')

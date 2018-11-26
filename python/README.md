@@ -35,7 +35,7 @@ if __name__ == '__main__':
 $ at_frida.py -h
 usage: at_frida.py [-h] [-v] [-s SERIAL] -p PACKAGE (-f FILE | -c CODE)
 
-show top-level app's basic information
+easy to use frida
 
 optional arguments:
   -h, --help            show this help message and exit
