@@ -47,11 +47,8 @@ def get_version(path, key="__version__"):
 
 if __name__ == '__main__':
 
-    if sys.version_info.major != 3:
-        raise Exception("support python3 only")
-
     setup(
-        name="android tools",
+        name="android-tools",
         author="Hu Ji",
         version=get_version("android_tools/commons/version.py"),
         author_email="669898595@qq.com",

@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : at_set_env.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : install.py 
+@time    : 2018/11/26
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,13 +26,12 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
 import os
 import platform
 import re
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 
 if platform.system() == "Windows":
     if sys.hexversion <= 0x03000000:
@@ -130,9 +129,20 @@ class user_env:
 
 if __name__ == '__main__':
 
-    tools_key = "ANDROID_TOOLS_PATH"
-    tools_path = os.path.abspath(os.path.dirname(__file__))
+    if sys.version_info.major != 3:
+        raise Exception("support python3 only")
 
+    tools_key = "ANDROID_TOOLS_PATH"
+    install_path = os.path.abspath(os.path.dirname(__file__))
+    requirements_path = os.path.join(install_path, "requirements.txt")
+    tools_path = os.path.join(install_path, "android_tools")
+
+    # pip install -r requirements.txt -e .
+    subprocess.check_call([sys.executable, "-m", "pip", "install",
+                           "-r", requirements_path, "-e", install_path],
+                          stdin=None, stdout=None, stderr=None)
+
+    # add path to user env
     env = user_env()
     env.set(tools_key, tools_path)
     if env.is_windows():
@@ -141,4 +151,4 @@ if __name__ == '__main__':
             path_env = "%s;%%%s%%" % (path_env, tools_key)
             env.set("PATH", path_env)
     else:
-        env.set("PATH",  "$PATH:$%s" % tools_key)
+        env.set("PATH", "$PATH:$%s" % tools_key)
