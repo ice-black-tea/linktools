@@ -38,7 +38,7 @@ from android_tools import frida_helper, utils
 
 def load_script(helper: frida_helper, package: str, path: str):
     jscode = ""
-    frida_helper.log("*", "loading script: %s" % path)
+    frida_helper.log("*", "Loading script: %s" % path)
     with open(path, "r") as fd:
         jscode = fd.read()
     helper.detach_all()
@@ -85,8 +85,8 @@ if __name__ == "__main__":
                        help='javascript code')
 
     args = parser.parse_args()
-    helper = frida_helper(device_id=args.serial)
 
+    helper = frida_helper(device_id=args.serial)
     package = args.package
     if utils.is_empty(package):
         package = helper.device.top_package()

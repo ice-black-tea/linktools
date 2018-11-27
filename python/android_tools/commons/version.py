@@ -28,7 +28,7 @@
 """
 
 __module__ = "android-tools"
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __author__ = "Hu Ji"
 __email__ = "669898595@qq.com"
 __url__ = "https://github.com/ice-black-tea/android-library"

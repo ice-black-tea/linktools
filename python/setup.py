@@ -32,7 +32,7 @@ import ast
 from distutils.core import setup
 
 
-def get_version(source, key):
+def get_module_value(source, key):
     module = ast.parse(source)
     for e in module.body:
         if isinstance(e, ast.Assign) and \
@@ -45,14 +45,14 @@ def get_version(source, key):
 
 if __name__ == '__main__':
 
-    with open("android_tools/commons/version.py") as f:
+    with open("android_tools/commons/version.py", "rt") as f:
         source = f.read()
 
     setup(
-        name=get_version(source, "__module__"),
-        author=get_version(source, "__author__"),
-        version=get_version(source, "__version__"),
-        author_email=get_version(source, "__email__"),
+        name=get_module_value(source, "__module__"),
+        author=get_module_value(source, "__author__"),
+        version=get_module_value(source, "__version__"),
+        author_email=get_module_value(source, "__email__"),
         packages=["android_tools", "android_tools/commons"],
-        url=get_version(source, "__url__"),
+        url=get_module_value(source, "__url__"),
     )
