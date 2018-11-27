@@ -117,8 +117,9 @@ class user_env:
         elif system.is_linux() or system.is_macos():
             command_begin = "\n#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
             command_end = "\n#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
+            command_tip = "# do not modify \n"
             command = "export \"%s\"=\"%s\"" % (key, value)
-            command = command_begin + command + command_end
+            command = command_begin + command_tip + command + command_end
 
             bash_command = ""
             if os.path.exists(self.bash_file):
@@ -126,7 +127,7 @@ class user_env:
                     bash_command = fd.read()
                 shutil.copyfile(self.bash_file, self.bash_file_bak)
 
-            result = re.search(r"%s.+%s" % (command_begin, command_end), bash_command)
+            result = re.search(r"%s[\s\S]+%s" % (command_begin, command_end), bash_command)
             if result is not None:
                 span = result.span()
                 bash_command = bash_command[:span[0]] + command + bash_command[span[1]:]
@@ -142,10 +143,10 @@ class user_env:
         :param key: 键
         """
         if system.is_windows():
-            reg_key = winreg.OpenKey(self.root, self.sub_key, 0, winreg.KEY_READ)
+            reg_key = winreg.OpenKey(self.root, self.sub_key, 0, winreg.KEY_WRITE)
             try:
-                winreg.DeleteKey(reg_key, key)
-            except WindowsError:
+                winreg.DeleteValue(reg_key, key)
+            except WindowsError as e:
                 pass
         elif system.is_linux() or system.is_macos():
             command_begin = "\n#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
@@ -155,7 +156,7 @@ class user_env:
                 with open(self.bash_file, "r") as fd:
                     bash_command = fd.read()
 
-                result = re.search(r"%s.+%s" % (command_begin, command_end), bash_command)
+                result = re.search(r"%s[\s\S]+%s" % (command_begin, command_end), bash_command)
                 if result is not None:
                     span = result.span()
                     bash_command = bash_command[:span[0]] + bash_command[span[1]:]
@@ -189,8 +190,8 @@ def install_module(install):
                          "-r", requirements_path, "-e", install_path],
                         stdin=None, stdout=None, stderr=None)
     else:
-        # python -m easy_install -m android_tools
-        subprocess.call([sys.executable, "-m", "easy_install", "-m", get_module_value(source, "__module__")],
+        # python -m pip uninstall android_tools
+        subprocess.call([sys.executable, "-m", "pip", "uninstall", get_module_value(source, "__module__")],
                         stdin=None, stdout=None, stderr=None)
 
 
@@ -213,8 +214,8 @@ def install_env(install):
         env.delete(tools_key)
         if system.is_windows():
             path_env = env.get("PATH")
-            if tools_key not in path_env:
-                env.set("PATH", path_env.replace(";%%%s%%", ""))
+            if tools_key in path_env:
+                env.set("PATH", path_env.replace(";%%%s%%" % tools_key, ""))
         elif system.is_linux() or system.is_macos():
             env.delete("PATH")
 
@@ -224,11 +225,11 @@ def install_require(install):
     requirements_path = os.path.join(install_path, "requirements.txt")
 
     if install:
-        # python -m pip install -r requirements.txt -e .
+        # python -m pip install -r requirements.txt
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path],
                               stdin=None, stdout=None, stderr=None)
     else:
-        # python -m easy_install -m android_tools
+        # python -m pip uninstall -r requirements.txt
         subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-r", requirements_path],
                               stdin=None, stdout=None, stderr=None)
 
