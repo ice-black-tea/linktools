@@ -28,13 +28,11 @@
 """
 
 import ast
-import sys
-from setuptools import setup
+
+from distutils.core import setup
 
 
-def get_version(path, key="__version__"):
-    with open(path) as f:
-        source = f.read()
+def get_version(source, key):
     module = ast.parse(source)
     for e in module.body:
         if isinstance(e, ast.Assign) and \
@@ -47,11 +45,14 @@ def get_version(path, key="__version__"):
 
 if __name__ == '__main__':
 
+    with open("android_tools/commons/version.py") as f:
+        source = f.read()
+
     setup(
-        name="android-tools",
-        author="Hu Ji",
-        version=get_version("android_tools/commons/version.py"),
-        author_email="669898595@qq.com",
+        name=get_version(source, "__module__"),
+        author=get_version(source, "__author__"),
+        version=get_version(source, "__version__"),
+        author_email=get_version(source, "__email__"),
         packages=["android_tools", "android_tools/commons"],
-        url="https://github.com/ice-black-tea/android-library",
+        url=get_version(source, "__url__"),
     )

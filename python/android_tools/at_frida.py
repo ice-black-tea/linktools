@@ -76,8 +76,8 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--serial', action='store', default=None,
                         help='use device with given serial')
 
-    parser.add_argument('-p', '--package', action='store', required=True, default=None,
-                        help='target package/process')
+    parser.add_argument('-p', '--package', action='store', default=None,
+                        help='target package/process [default top-level package]')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-f', '--file', action='store', type=str, default=None,
                        help='javascript file')
@@ -85,12 +85,11 @@ if __name__ == "__main__":
                        help='javascript code')
 
     args = parser.parse_args()
+    helper = frida_helper(device_id=args.serial)
 
     package = args.package
     if utils.is_empty(package):
-        raise Exception("unspecified process")
-
-    helper = frida_helper(device_id=args.serial)
+        package = helper.device.top_package()
 
     if "-f" in sys.argv or "--file" in sys.argv:
         observer = Observer()
@@ -105,5 +104,8 @@ if __name__ == "__main__":
             observer.stop()
         observer.join()
     elif "-c" in sys.argv or "--code" in sys.argv:
-        helper.run_script(package, args.code)
-        sys.stdin.read()
+        try:
+            helper.run_script(package, args.code)
+            sys.stdin.read()
+        except KeyboardInterrupt:
+            pass
