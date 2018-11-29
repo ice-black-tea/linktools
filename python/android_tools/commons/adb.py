@@ -261,18 +261,6 @@ class device(object):
         """
         return utils.replace(self.shell("pm path %s" % package), r"^.*:[ ]*|\r|\n", "")
 
-    def capture_screen(self, path: str = None) -> str:
-        """
-        截屏
-        :param path: 存放路径，默认为sdcard
-        :return: 截屏文件路径
-        """
-        if utils.is_empty(path):
-            now = datetime.datetime.now()
-            path = self.save_path + "screenshot_" + now.strftime("%Y-%m-%d %H:%M:%S") + ".png"
-        self.shell("screencap -p %s" % path)
-        return path
-
     def jdb_connect(self, pid: str, port: str = "8699") -> _process:
         """
         连接jdb，取消等待调试器附加状态，让应用继续运行

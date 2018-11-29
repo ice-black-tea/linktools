@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import argparse
+import hashlib
 import sys
 
 import android_tools
@@ -36,37 +37,47 @@ from watchdog.observers import Observer
 from android_tools import frida_helper, utils
 
 
-def load_script(helper: frida_helper, package: str, path: str):
-    jscode = ""
-    frida_helper.log("*", "Loading script: %s" % path)
-    with open(path, "r") as fd:
-        jscode = fd.read()
-    helper.detach_all()
-    helper.run_script(package, jscode)
+class frida_script(object):
+
+    def __init__(self, path: str, helper: frida_helper, package: str):
+        self.helper = helper
+        self.package = package
+        self.path = path
+        self._md5 = ""
+
+    def load(self):
+        with open(path, "r") as fd:
+            jscode = fd.read()
+        # check md5
+        md5 = hashlib.md5(jscode.encode("utf-8")).hexdigest()
+        if self._md5 == md5:
+            return
+        self._md5 = md5
+        frida_helper.log("*", "Loading script: %s" % path)
+        helper.detach_all()
+        helper.run_script(package, jscode)
 
 
 class frida_event_handler(FileSystemEventHandler):
 
-    def __init__(self, helper: frida_helper, package: str, path: str):
+    def __init__(self, script: frida_script):
         FileSystemEventHandler.__init__(self)
-        self.helper = helper
-        self.package = package
-        self.path = path
+        self.script = script
 
     def on_moved(self, event):
-        if event.dest_path == self.path:
-            load_script(self.helper, self.package, self.path)
+        if event.dest_path == self.script.path:
+            self.script.load()
 
     def on_created(self, event):
-        if event.src_path == self.path:
-            load_script(self.helper, self.package, self.path)
+        if event.src_path == self.script.path:
+            self.script.load()
 
     def on_deleted(self, event):
         pass
 
     def on_modified(self, event):
-        if event.src_path == self.path:
-            load_script(self.helper, self.package, self.path)
+        if event.src_path == self.script.path:
+            self.script.load()
 
 
 if __name__ == "__main__":
@@ -95,10 +106,11 @@ if __name__ == "__main__":
         observer = Observer()
         try:
             path = os.path.abspath(os.path.expanduser(args.file))
-            event_handler = frida_event_handler(helper, package, path)
+            script = frida_script(path, helper, package)
+            event_handler = frida_event_handler(script)
             observer.schedule(event_handler, os.path.dirname(path))
             observer.start()
-            load_script(helper, package, path)
+            script.load()
             sys.stdin.read()
         except KeyboardInterrupt:
             observer.stop()
