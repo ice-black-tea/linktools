@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import shutil
 
 from .utils import utils, _process
 
@@ -37,6 +38,8 @@ class AdbError(Exception):
 
 
 class adb(object):
+
+    executable = None
 
     @staticmethod
     def devices() -> [str]:
@@ -56,11 +59,12 @@ class adb(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: 输出结果
         """
+        adb._check_executable()
         if len(args) == 0:
             raise AdbError("args cannot be empty")
-        command = "adb "
+        command = adb.executable
         for arg in args:
-            command = command + adb._filter(arg) + " "
+            command = command + " " + adb._filter(arg)
         stdout, stderr = None, None
         if capture_output is True:
             stdout, stderr = utils.PIPE, utils.PIPE
@@ -74,6 +78,15 @@ class adb(object):
         if arg is None:
             return ""
         return "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+    @staticmethod
+    def _check_executable() -> bool:
+        if not utils.is_empty(adb.executable):
+            return True
+        adb.executable = shutil.which("adb")
+        if utils.is_empty(adb.executable):
+            raise AdbError("adb: command not found")
+        return True
 
 
 class device(object):
