@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : version.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : resource.py 
+@time    : 2018/12/01
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,9 +26,24 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import json
+import os
 
-__name__ = "android-tools"
-__version__ = "0.0.2"
-__author__ = "Hu Ji"
-__email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/android-library"
+
+class _resource(object):
+
+    def __init__(self):
+        self.res_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "resource")
+        self.config_path = os.path.join(self.res_path, ".config")
+
+    def get_config(self):
+        with open(self.config_path, "rt") as fd:
+            config = json.load(fd)
+        return config
+
+    def save_config(self, config):
+        with open(self.config_path, "wt") as fd:
+            json.dump(fd, config)
+
+    def get_path(self, name):
+        return os.path.join(self.res_path, name)

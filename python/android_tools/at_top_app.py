@@ -66,13 +66,13 @@ if __name__ == '__main__':
         print(device.apk_path(device.top_package()))
     elif "--apk" in sys.argv:
         package = device.top_package()
-        path = device.save_path + package + ".apk"
+        path = device.save_path(package + ".apk")
         device.shell("cp", device.apk_path(package), path, capture_output=False)
         device.exec("pull", path, args.apk, capture_output=False)
         device.shell("rm", path)
     elif "--screen" in sys.argv:
         now = datetime.datetime.now()
-        path = device.save_path + "screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png"
+        path = device.save_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
         device.shell("screencap", "-p", path, capture_output=False)
         device.exec("pull", path, args.screen, capture_output=False)
         device.shell("rm", path)

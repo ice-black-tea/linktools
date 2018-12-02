@@ -28,7 +28,9 @@
 """
 import shutil
 
+from .resource import _resource
 from .utils import utils, _process
+from .version import __name__, __version__
 
 
 class AdbError(Exception):
@@ -107,6 +109,8 @@ class device(object):
                 raise AdbError("no device %s found" % device_id)
             self._device_id = device_id
 
+        self.dex = None
+
     @property
     def id(self) -> str:
         """
@@ -145,34 +149,18 @@ class device(object):
         if uid != default:
             return uid
 
-        result = self.shell("id -u")
-        uid = utils.int(result, default=default)
-        if uid != default:
-            return uid
-
-        result = utils.findall(result, r"(?<=uid=)[\d]+")
-        if not utils.is_empty(result):
-            uid = utils.int(result[0], default=default)
-        if uid != default:
-            return uid
+        # result = self.shell("id -u")
+        # uid = utils.int(result, default=default)
+        # if uid != default:
+        #     return uid
+        #
+        # result = utils.findall(result, r"(?<=uid=)[\d]+")
+        # if not utils.is_empty(result):
+        #     uid = utils.int(result[0], default=default)
+        # if uid != default:
+        #     return uid
 
         raise AdbError("unknown adb uid: %s" % result)
-
-    @property
-    def save_path(self) -> str:
-        """
-        存储文件路径
-        :return: 路径
-        """
-        return "/sdcard/"
-
-    @property
-    def exec_path(self) -> str:
-        """
-        可执行程序路径
-        :return: 路径
-        """
-        return "/data/local/tmp/"
 
     def exec(self, *args: [str], capture_output: bool = True) -> str:
         """
@@ -193,6 +181,20 @@ class device(object):
         :return: adb输出结果
         """
         command = ["-s", self.id, "shell"]
+        command += args
+        return adb.exec(*command, capture_output=capture_output)
+
+    def call_dex(self, *args: [str], capture_output: bool = True):
+        """
+        调用
+        :param args:
+        :param capture_output:
+        :return:
+        """
+        if not self._check_dex():
+            raise AdbError("%s does not exist" % self.dex["path"])
+        command = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
+                   "app_process", "/", self.dex["main"]]
         command += args
         return adb.exec(*command, capture_output=capture_output)
 
@@ -245,15 +247,10 @@ class device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        result = self.shell("dumpsys activity top | grep '^TASK' | tail -n 1")
-
-        items = result.split()
+        result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
+        items = result[result.find("\n"):].split()
         if items is not None and len(items) >= 2:
-            if items[1] == "null":
-                return self.top_activity().split("/")[0]
-            else:
-                return items[1]
-
+            return items[1].split("/")[0]
         raise AdbError("unknown package: %s" % result)
 
     def top_activity(self) -> str:
@@ -261,8 +258,8 @@ class device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        result = self.shell("dumpsys activity top | grep '^TASK' -A 1 | tail -n 1")
-        items = result.split()
+        result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
+        items = result[result.find("\n"):].split()
         if items is not None and len(items) >= 2:
             return items[1]
         raise AdbError("unknown activity: %s" % result)
@@ -273,6 +270,14 @@ class device(object):
         :return: apk路径
         """
         return utils.replace(self.shell("pm path %s" % package), r"^.*:[ ]*|\r|\n", "")
+
+    def save_path(self, name: str = None) -> str:
+        """
+        存储文件路径
+        :param name: 文件名
+        :return: 路径
+        """
+        return "/sdcard/%s/%s/%s" % (__name__, __version__, name)
 
     def jdb_connect(self, pid: str, port: str = "8699") -> _process:
         """
@@ -291,3 +296,14 @@ class device(object):
         if index == -1:
             return package_name
         return package_name[0:index]
+
+    def _check_dex(self):
+        if utils.is_empty(self.dex) or not self.exist_file(self.dex["path"]):
+            res = _resource()
+            path = self.save_path("dex")
+            self.dex = res.get_config()["framework_dex"]
+            self.dex["path"] = path + "/" + self.dex["name"]
+            self.shell("rm", "-rf", path)
+            self.exec("push", res.get_path(self.dex["name"]), self.dex["path"])
+            return self.exist_file(self.dex["path"])
+        return True

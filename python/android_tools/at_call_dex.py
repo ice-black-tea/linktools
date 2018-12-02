@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : version.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : at_call_dex.py 
+@time    : 2018/12/02
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,9 +26,10 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import sys
 
-__name__ = "android-tools"
-__version__ = "0.0.2"
-__author__ = "Hu Ji"
-__email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/android-library"
+from android_tools import adb, adb_device
+
+if __name__ == '__main__':
+    device = adb_device(adb.devices()[0])
+    device.call_dex(*sys.argv[1:], capture_output=False)

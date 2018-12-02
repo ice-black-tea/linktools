@@ -49,7 +49,7 @@ if __name__ == '__main__':
         source = f.read()
 
     setup(
-        name=get_module_value(source, "__module__"),
+        name=get_module_value(source, "__name__"),
         author=get_module_value(source, "__author__"),
         version=get_module_value(source, "__version__"),
         author_email=get_module_value(source, "__email__"),

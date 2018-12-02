@@ -191,7 +191,7 @@ def install_module(install):
                         stdin=None, stdout=None, stderr=None)
     else:
         # python -m pip uninstall android_tools
-        subprocess.call([sys.executable, "-m", "pip", "uninstall", get_module_value(source, "__module__")],
+        subprocess.call([sys.executable, "-m", "pip", "uninstall", get_module_value(source, "__name__")],
                         stdin=None, stdout=None, stderr=None)
 
 

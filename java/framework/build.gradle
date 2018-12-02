@@ -1,8 +1,12 @@
+import groovy.json.JsonSlurper
+import groovy.json.JsonBuilder
+import java.security.MessageDigest
+
 apply plugin: 'com.android.library'
+apply plugin: "com.mobbeel.plugin"
 
 android {
     compileSdkVersion 28
-
 
 
     defaultConfig {
@@ -24,12 +28,89 @@ android {
 
 }
 
+
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     compileOnly 'ice.black.tea:android-17:1.0.0'
+    api "com.beust:jcommander:1.71"
+    api 'com.google.code.gson:gson:2.8.5'
 
-    implementation 'com.android.support:appcompat-v7:28.0.0'
+    // implementation 'com.android.support:appcompat-v7:28.0.0'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+}
+
+
+static def calcMd5(path) {
+    MessageDigest md = null;
+    try {
+        md = MessageDigest.getInstance("MD5")
+    } catch (ignored) {
+        return ""
+    }
+    new File(path).eachByte 4096, {
+        bytes, size -> md.update(bytes, 0, size)
+    }
+    return md.digest().collect { String.format "%02x", it }.join()
+}
+
+
+static def readConfig(path) {
+    try {
+        return new JsonSlurper().parseText(new File(path).text)
+    } catch (ignore) {
+        return [:]
+    }
+}
+
+
+static def writeConfig(path, json) {
+    def file = new File(path)
+    if (file.exists() || file.createNewFile()){
+        file.withPrintWriter { printWriter ->
+            printWriter.println(new JsonBuilder(json))
+        }
+    }
+}
+
+
+def buildDex(dependPath, dexPath) {
+    def dxPath = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}/dx"
+    def command = [ dxPath, '--dex', '--output', dexPath, "${dependPath}/classes.jar" ]
+    fileTree("${dependPath}/libs").each { file ->
+        if (!file.name.contains("rs.jar"))
+            command.add(file.path)
+    }
+    println command
+    exec { commandLine command }
+}
+
+
+tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
+    doLast {
+        def name = "release"
+        def dependPath = "${project.buildDir}/tmp/copy${name.capitalize()}Dependencies/${name}/"
+        def dexName = "android-tools-${System.currentTimeMillis()}.dex"
+        def targetPath = "${rootDir}/../python/android_tools/resource"
+        def dexPath = "${targetPath}/${dexName}"
+        def configPath = "${targetPath}/.config"
+
+        buildDex(dependPath, dexPath)
+        def md5 = calcMd5(dexPath)
+        def config = readConfig(configPath)
+        if (config.framework_dex == null || config.framework_dex.md5 != md5) {
+            if (config.framework_dex != null)
+                file("${targetPath}/${config.framework_dex.name}").delete()
+            config.framework_dex = [:]
+            config.framework_dex.name = dexName
+            config.framework_dex.md5 = md5
+            config.framework_dex.size = file(dexPath).length()
+            config.framework_dex.main = "android.tools.Main"
+            writeConfig(configPath, config)
+
+        } else {
+            file("${dexPath}").delete()
+        }
+    }
 }
