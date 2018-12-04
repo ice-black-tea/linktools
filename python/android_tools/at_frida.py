@@ -105,7 +105,7 @@ if __name__ == "__main__":
     if "-f" in sys.argv or "--file" in sys.argv:
         observer = Observer()
         try:
-            path = os.path.abspath(os.path.expanduser(args.file))
+            path = utils.abspath(args.file)
             script = frida_script(path, helper, package)
             event_handler = frida_event_handler(script)
             observer.schedule(event_handler, os.path.dirname(path))

@@ -167,6 +167,8 @@ CallStack(callStack, logtag, 10);
 
 ## at_top_app
 
+显示顶层应用信息、获取顶层应用apk、截屏等
+
 ```bash
 $ at_top_app.py -h
 usage: at_top_app.py [-h] [-v] [-s SERIAL]
@@ -186,3 +188,35 @@ optional arguments:
   --apk [path]          pull top-level apk file
   --screen [path]       capture screen and pull file
 ```
+
+## at_intent
+
+打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
+
+```bash
+$ at_intent.py -h
+usage: at_intent.py [-h] [-v] [-s SERIAL]
+                    (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
+
+common intent action
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -s SERIAL, --serial SERIAL
+                        use device with given serial
+  --setting             start setting activity
+  --setting-dev         start development setting activity
+  --setting-dev2        start development setting activity
+  --setting-app [PACKAGE]
+                        start application setting activity [default top-level
+                        package]
+  --setting-cert PATH   start cert installer activity and install cert (need
+                        '/data/local/tmp' write permission)
+  --browser URL         start browser activity and jump to url (need scheme,
+                        such as https://antiy.cn)
+```
+
+## at_call_dex
+
+测试android-tools.dex时使用

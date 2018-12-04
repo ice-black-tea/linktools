@@ -176,6 +176,24 @@ class utils:
         return process
 
     @staticmethod
+    def abspath(path: str) -> str:
+        """
+        获取绝对路径
+        :param path: 任意路径
+        :return: 绝对路径
+        """
+        return os.path.abspath(os.path.expanduser(path))
+
+    @staticmethod
+    def basename(path: str) -> str:
+        """
+        获取文件名
+        :param path: 任意路径
+        :return: 文件名
+        """
+        return os.path.basename(path)
+
+    @staticmethod
     def download(url: str, path: str) -> int:
         """
         从指定url下载文件
