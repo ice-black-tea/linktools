@@ -1,23 +1,25 @@
 package org.ironman.framework.helper;
 
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.Application;
 import android.content.Context;
 
 import org.ironman.framework.AtEnvironment;
 
-public class ActivityManagerHelper {
+public class ActivityHelper {
 
-    private static ActivityManagerHelper sInstance = new ActivityManagerHelper();
+    @SuppressLint("StaticFieldLeak")
+    private static ActivityHelper sInstance = new ActivityHelper();
 
-    public static ActivityManagerHelper get() {
+    public static ActivityHelper get() {
         return sInstance;
     }
 
     private Application mApplication;
     private ActivityManager mActivityManager;
 
-    private ActivityManagerHelper() {
+    private ActivityHelper() {
         mApplication = AtEnvironment.getApplication();
         mActivityManager = (ActivityManager) mApplication.getSystemService(Context.ACTIVITY_SERVICE);
     }

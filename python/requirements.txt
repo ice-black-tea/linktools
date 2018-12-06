@@ -1,5 +1,5 @@
 colorama
 requests
 tqdm
-frida < 12.2.0
+frida >= 12.2.26
 watchdog

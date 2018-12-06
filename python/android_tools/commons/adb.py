@@ -79,7 +79,7 @@ class adb(object):
     def _filter(arg: str) -> str:
         if arg is None:
             return ""
-        return "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        return "\"" + utils.replace(arg, r"(?=\\|\"|\$)", r"\\") + "\""
 
     @staticmethod
     def _check_executable() -> bool:
@@ -144,7 +144,7 @@ class device(object):
         """
         default = -1
 
-        result = self.shell("echo -n ${USER_ID}")
+        result = self.shell("echo", "-n", "${USER_ID}")
         uid = utils.int(result, default=default)
         if uid != default:
             return uid
