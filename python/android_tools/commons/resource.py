@@ -30,10 +30,10 @@ import json
 import os
 
 
-class _resource(object):
+class resource(object):
 
     def __init__(self):
-        self.res_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "resource")
+        self.res_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "resource"))
         self.config_path = os.path.join(self.res_path, ".config")
 
     def get_config(self):
@@ -47,3 +47,9 @@ class _resource(object):
 
     def get_path(self, name):
         return os.path.join(self.res_path, name)
+
+    def get_store_path(self, name):
+        store_path = os.path.join(self.res_path, ".files")
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        return os.path.join(store_path, name)

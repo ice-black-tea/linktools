@@ -68,7 +68,7 @@ if __name__ == '__main__':
         device.shell("am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
                      capture_output=False)
     elif "--setting-app" in sys.argv:
-        package = args.package if not utils.is_empty(args.package) else device.top_package()
+        package = args.package if not utils.empty(args.package) else device.top_package()
         device.shell("am", "start", "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,
                      capture_output=False)

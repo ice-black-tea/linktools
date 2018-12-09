@@ -29,11 +29,11 @@ if __name__ == '__main__':
 
 ### 方法2：使用at_frida.py
 
-注入js文件或js代码到指定进程，支持下载server，打开server，js文件监控等功能
+注入js文件或js代码到指定进程，支持下载server，打开server，js文件实时加载，应用重启后注入等功能
 
 ```bash
 $ at_frida.py -h
-usage: at_frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE)
+usage: at_frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
 
 easy to use frida
 
@@ -43,9 +43,10 @@ optional arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial
   -p PACKAGE, --package PACKAGE
-                        target package/process [default top-level package]
+                        target package [default top-level package]
   -f FILE, --file FILE  javascript file
   -c CODE, --code CODE  javascript code
+  -r, --restart         inject after restart [default false]
 ```
 
 如hook.js文件：

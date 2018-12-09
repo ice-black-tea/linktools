@@ -39,10 +39,11 @@ from android_tools import frida_helper, utils
 
 class frida_script(object):
 
-    def __init__(self, path: str, helper: frida_helper, package: str):
+    def __init__(self, path: str, helper: frida_helper, name: str, restart: bool):
         self.helper = helper
-        self.package = package
+        self.name = name
         self.path = path
+        self.restart = restart
         self._md5 = ""
 
     def load(self):
@@ -53,9 +54,9 @@ class frida_script(object):
         if self._md5 == md5:
             return
         self._md5 = md5
-        frida_helper.log("*", "Loading script: %s" % path)
-        helper.detach_all()
-        helper.run_script(package, jscode)
+        helper.on_log("*", "Loading script: %s" % path)
+        helper.detach_sessions()
+        helper.run_script(package, jscode, restart=self.restart)
 
 
 class frida_event_handler(FileSystemEventHandler):
@@ -88,36 +89,38 @@ if __name__ == "__main__":
                         help='use device with given serial')
 
     parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package/process [default top-level package]')
+                        help='target package [default top-level package]')
+
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-f', '--file', action='store', type=str, default=None,
                        help='javascript file')
     group.add_argument('-c', '--code', action='store', type=str, default=None,
                        help='javascript code')
 
+    parser.add_argument('-r', '--restart', action='store_true', default=False,
+                       help='inject after restart [default false]')
+
     args = parser.parse_args()
 
+    observer = None
     helper = frida_helper(device_id=args.serial)
     package = args.package
-    if utils.is_empty(package):
+    if utils.empty(package):
         package = helper.device.top_package()
+    restart = args.restart
 
     if "-f" in sys.argv or "--file" in sys.argv:
         observer = Observer()
-        try:
-            path = utils.abspath(args.file)
-            script = frida_script(path, helper, package)
-            event_handler = frida_event_handler(script)
-            observer.schedule(event_handler, os.path.dirname(path))
-            observer.start()
-            script.load()
-            sys.stdin.read()
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
+        path = utils.abspath(args.file)
+        script = frida_script(path, helper, package, restart)
+        event_handler = frida_event_handler(script)
+        observer.schedule(event_handler, os.path.dirname(path))
+        observer.start()
+        script.load()
     elif "-c" in sys.argv or "--code" in sys.argv:
-        try:
-            helper.run_script(package, args.code)
-            sys.stdin.read()
-        except KeyboardInterrupt:
-            pass
+        helper.run_script(package, args.code, restart=restart)
+
+    try:
+        sys.stdin.read()
+    except KeyboardInterrupt:
+        pass

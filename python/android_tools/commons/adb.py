@@ -28,7 +28,7 @@
 """
 import shutil
 
-from .resource import _resource
+from .resource import resource
 from .utils import utils, _process
 from .version import __name__, __version__
 
@@ -50,7 +50,7 @@ class adb(object):
         :return: 设备号数组
         """
         result = adb.exec("devices")
-        devices = result.partition('\n')[2].replace('\n', '').split('\tdevice')
+        devices = result.partition("\n")[2].replace("\n", "").split("\tdevice")
         return [d for d in devices if len(d) > 2]
 
     @staticmethod
@@ -71,7 +71,7 @@ class adb(object):
         if capture_output is True:
             stdout, stderr = utils.PIPE, utils.PIPE
         process = utils.exec(command, stdin=None, stdout=stdout, stderr=stderr)
-        if process.returncode != 0 and not utils.is_empty(process.err):
+        if process.returncode != 0 and not utils.empty(process.err):
             raise AdbError(process.err)
         return process.out
 
@@ -83,10 +83,10 @@ class adb(object):
 
     @staticmethod
     def _check_executable() -> bool:
-        if not utils.is_empty(adb.executable):
+        if not utils.empty(adb.executable):
             return True
         adb.executable = shutil.which("adb")
-        if utils.is_empty(adb.executable):
+        if utils.empty(adb.executable):
             raise AdbError("adb: command not found")
         return True
 
@@ -204,7 +204,7 @@ class device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        return self.shell("getprop %s" % prop).rstrip('\r\n')
+        return self.shell("getprop %s" % prop).rstrip("\r\n")
 
     def set_prop(self, prop: str, value: str) -> str:
         """
@@ -222,7 +222,7 @@ class device(object):
         :return: adb输出结果
         """
         package_name = self._fix_package(package_name)
-        return self.shell('am kill %s' % package_name)
+        return self.shell("am kill %s" % package_name)
 
     def force_stop(self, package_name) -> str:
         """
@@ -231,7 +231,7 @@ class device(object):
         :return: adb输出结果
         """
         package_name = self._fix_package(package_name)
-        return self.shell('am force-stop %s' % package_name)
+        return self.shell("am force-stop %s" % package_name)
 
     def exist_file(self, path) -> bool:
         """
@@ -298,8 +298,8 @@ class device(object):
         return package_name[0:index]
 
     def _check_dex(self):
-        if utils.is_empty(self.dex) or not self.exist_file(self.dex["path"]):
-            res = _resource()
+        if utils.empty(self.dex) or not self.exist_file(self.dex["path"]):
+            res = resource()
             path = self.save_path("dex")
             self.dex = res.get_config()["framework_dex"]
             self.dex["path"] = path + "/" + self.dex["name"]

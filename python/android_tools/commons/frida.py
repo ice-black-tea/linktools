@@ -34,7 +34,6 @@ import os
 import shutil
 import tempfile
 import time
-from collections import Callable
 
 import colorama
 import frida
@@ -42,68 +41,63 @@ from colorama import Fore
 
 from .adb import device
 from .utils import utils
+from .resource import resource
+from .version import __name__
 
 
-def _log(tag: str, message: object, fore: Fore = None):
-    log = '[{0}] {1}'.format(tag, str(message).replace('\n', '\n    '))
-    if fore is not None:
-        log = fore + log
-    print(log)
-
-
-class server(object):
-
-    log = _log
+class base_helper(object):
 
     def __init__(self, device_id: str = None):
         """
         :param device_id: 设备号
         """
         self.device = device(device_id=device_id)
-        self.server_name = "frida-server-{0}-android-{1}".format(frida.__version__, self.device.abi)
-        self.server_dir = os.path.join(os.path.expanduser('~'), ".frida")
-        self.server_file = os.path.join(self.server_dir, self.server_name)
-        self.server_url = "https://github.com/frida/frida/releases/download/{0}/{1}.xz".format(frida.__version__,
-                                                                                               self.server_name)
-        self.server_target_file = "/data/local/tmp/{0}".format(self.server_name)
-        if not os.path.exists(self.server_dir):
-            os.makedirs(self.server_dir)
+        self.frida_device = frida.get_device(self.device.id)
+        self.server_name = "frida-server-%s-android-%s" % (frida.__version__, self.device.abi)
+        self.server_file = resource().get_store_path(self.server_name)
+        self.server_url = "https://github.com/frida/frida/releases/download/%s/%s.xz" % (frida.__version__, self.server_name)
+        self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 
-    def start(self) -> bool:
+    def on_log(self, tag: object, message: object, **kwargs):
+        pass
+
+    def start_server(self) -> bool:
         """
         根据frida版本和设备abi类型下载并运行server
         :return: 运行成功为True，否则为False
         """
         if self.is_running():
-            server.log("*", "Frida server is running ...")
+            self.device.exec("forward", "tcp:27042", "tcp:27042")
+            self.device.exec("forward", "tcp:27043", "tcp:27043")
+            self.on_log("*", "Frida server is running ...")
             return True
-        elif self._start():
-            server.log("*", "Frida server is running ...")
+        elif self._start_server():
+            self.device.exec("forward", "tcp:27042", "tcp:27042")
+            self.device.exec("forward", "tcp:27043", "tcp:27043")
+            self.on_log("*", "Frida server is running ...")
             return True
         else:
-            server.log("*", "Frida server failed to run ...")
+            self.on_log("*", "Frida server failed to run ...")
             return False
 
-    def _start(self) -> bool:
-        server.log("*", "Start frida server ...")
+    def _start_server(self) -> bool:
+        self.on_log("*", "Start frida server ...")
         command = "'%s'" % self.server_target_file
         if self.device.uid != 0:
             command = "su -c '%s'" % self.server_target_file
 
         if not self.device.exist_file(self.server_target_file):
             if not os.path.exists(self.server_file):
-                server.log("*", "Download frida server ...")
+                self.on_log("*", "Download frida server ...")
                 tmp_path = tempfile.mktemp()
                 utils.download(self.server_url, tmp_path)
                 with lzma.open(tmp_path, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
                 os.remove(tmp_path)
-            server.log("*", "Push frida server to %s" % self.server_target_file)
-            self.device.exec("push", self.server_file, "/data/local/tmp/")
+            self.on_log("*", "Push frida server to %s" % self.server_target_file)
+            self.device.exec("push", self.server_file, self.server_target_file, capture_output=False)
             self.device.shell("chmod 755 '%s'" % self.server_target_file)
 
-        self.device.exec("forward", "tcp:27042", "tcp:27042")
-        self.device.exec("forward", "tcp:27043", "tcp:27043")
         thread.start_new_thread(lambda d, c: d.shell(c, capture_output=False), (self.device, command))
         time.sleep(1)
 
@@ -115,23 +109,35 @@ class server(object):
         :return: 是否正在运行
         """
         try:
-            self.frida_device.enumerate_processes()
+            self.frida_device.get_process(self.server_name)
             return True
         except frida.ServerNotRunningError:
             return False
         except Exception as e:
             raise e
 
-    @property
-    def frida_device(self) -> _frida.Device:
+    def get_process(self, name) -> _frida.Process:
         """
-        获取frida设备对象
-        :return: frida设备对象
+        通过进程名到的所有进程
+        :param name: 进程名
+        :return: 进程
         """
-        return frida.get_device(self.device.id)
+        return self.frida_device.get_process(name)
+
+    def get_processes(self, name) -> [_frida.Process]:
+        """
+        根据进程名通过正则表达式进行匹配
+        :param name: 进程名（支持正则）
+        :return: 进程列表
+        """
+        processes = []
+        for process in self.frida_device.enumerate_processes():
+            if utils.match(process.name, name):
+                processes.append(process)
+        return processes
 
 
-class helper(object):
+class frida_helper(base_helper):
     """
     ----------------------------------------------------------------------
 
@@ -150,139 +156,120 @@ class helper(object):
         });
         \"\"\"
 
-        if __name__ == '__main__':
-            frida_helper().run("com.hu.test", jscode=jscode)
-
-    ----------------------------------------------------------------------
-
-    js内置函数：
-
-        /*
-         * byte数组转字符串，如果转不了就返回null
-         * :param bytes:       字符数组
-         * :param charset:     字符集(可选)
-         */
-        function BytesToString(bytes, charset);
-
-        /*
-         * 输出当前调用堆栈
-         */
-        function PrintStack();
-
-        /*
-         * 调用当前函数，并输出参数返回值
-         * :param object:      对象(一般直接填this)
-         * :param arguments:   arguments(固定填这个)
-         * :param showStack:   是否打印栈(默认为false，可不填)
-         * :param showArgs:    是否打印参数(默认为false，可不填)
-         */
-        function CallMethod(object, arguments, showStack, showArgs);
-
-        /*
-         * 打印栈，调用当前函数，并输出参数返回值
-         * :param object:      对象(一般直接填this)
-         * :param arguments:   arguments(固定填这个)
-         * :param show:        是否打印栈和参数(默认为true，可不填)
-         */
-        function PrintStackAndCallMethod(object, arguments, show);
-
-        /*
-         * hook native
-         */
-        Interceptor.attach(Module.findExportByName(null, 'xxxxxx'), {
-            onEnter: function (args) {
-                send("xxxxxx called from:\\n" +
-                    Thread.backtrace(this.context, Backtracer.ACCURATE)
-                        .map(DebugSymbol.fromAddress).join("\\n"));
-            },
-            onLeave: function (retval) {
-                send("xxxxxx retval: " + retval);
-            }
-        });
-
-        /*
-         * 调用native函数
-         * 例： CallStack callStack("ABCDEFG", 10);
-         */
-        var CallStackPtr = Module.findExportByName(null, '_ZN7android9CallStackC1EPKci');
-        var CallStack = new NativeFunction(CallStackPtr, 'pointer', ['pointer', 'pointer', 'int']);
-        var callStack = Memory.alloc(1000);
-        var logtag = Memory.allocUtf8String("ABCDEFG");
-        CallStack(callStack, logtag, 10);
+        if __name__ == "__main__":
+            frida_helper().run_script("xxx.xxx.xxx", jscode)
 
     ----------------------------------------------------------------------
     """
-
-    log = _log
 
     def __init__(self, device_id: str = None):
         """
         :param device_id: 设备号
         """
-        colorama.init(True)
+        super().__init__(device_id)
         self.sessions = []
-        self.device = device(device_id)
-        self.server = server(self.device.id)
-        self.server.start()
+        self.start_server()
+        colorama.init(True)
 
-    @staticmethod
-    def on_message(message: object, data: object) -> None:
+    # noinspection PyMethodMayBeStatic
+    def on_log(self, tag: object, message: object, **kwargs) -> None:
         """
-        执行脚本回调函数
+        消息回调函数
+        :param tag: 标签
+        :param message: 收到的消息
+        :param kwargs: 字体颜色（fore）
         """
-        if utils.contain(message, 'type', 'send') and utils.contain(message, 'payload'):
-            payload = message['payload']
-            if utils.contain(payload, 'frida_stack'):
-                helper.log('*', payload['frida_stack'], fore=Fore.LIGHTYELLOW_EX)
-            elif utils.contain(payload, 'frida_method'):
-                helper.log('*', payload['frida_method'], fore=Fore.LIGHTMAGENTA_EX)
+        log = "[{0}] {1}".format(tag, str(message).replace("\n", "\n    "))
+        if utils.contain(kwargs, "fore"):
+            log = utils.item(kwargs, "fore") + log
+        print(log)
+
+    def on_message(self, process_id: int, process_name: str, message: object) -> None:
+        """
+        消息回调函数
+        :param process_id: 进程号
+        :param process_name: 进程名
+        :param message: 收到的消息
+        """
+        type = utils.item(message, "type")
+        payload = utils.item(message, "payload")
+        stack = utils.item(message, "stack")
+        if type == "send" and payload is not None:
+            helper_stack = utils.item(payload, "helper_stack")
+            helper_method = utils.item(payload, "helper_method")
+            if helper_stack is not None:
+                self.on_log("*", helper_stack, fore=Fore.BLUE)
+            elif helper_method is not None:
+                self.on_log("*", helper_method, fore=Fore.LIGHTMAGENTA_EX)
             else:
-                helper.log('*', payload)
-        elif utils.contain(message, 'type', 'error') and utils.contain(message, 'stack'):
-            helper.log('*', message['stack'], fore=Fore.RED)
+                self.on_log("*", payload)
+        elif type == "error" and stack is not None:
+            self.on_log("*", stack, fore=Fore.RED)
         else:
-            helper.log('?', message, fore=Fore.RED)
+            self.on_log("?", message, fore=Fore.RED)
 
-    def run_script(self, package: str, jscode: str, callback: Callable = None) -> None:
+    def on_destroyed(self, process_id: int, process_name: str, session: _frida.Session) -> None:
+        """
+        脚本结束回调函数
+        :param process_id: 进程号
+        :param process_name: 进程名
+        :param session: 会话
+        """
+        self.on_log("*", "Detach process: %s (%d)" % (process_name, process_id))
+        if utils.contain(self.sessions, session):
+            self.sessions.remove(session)
+
+    def on_detached(self, process_id: int, process_name: str, session: _frida.Session, jscode: str, reason: str) -> None:
+        """
+        会话结束回调函数
+        :param process_id: 进程号
+        :param process_name: 进程名
+        :param session: 会话
+        :param jscode: js脚本
+        :param reason:
+        """
+        if reason == "process-terminated":
+            self._run_script(process_id, process_name, jscode, restart=True)
+        if utils.contain(self.sessions, session):
+            self.sessions.remove(session)
+
+    def _run_script(self, process_id: int, process_name: str, jscode: str, restart: bool = False) -> None:
+        try:
+            if restart:
+                process_id = self.frida_device.spawn([process_name])
+            self.on_log("*", "Attach process: %s (%d)" % (process_name, process_id))
+            session = self.frida_device.attach(process_id)
+            session.on("detached", lambda reason: self.on_detached(process_id, process_name, session, jscode, reason))
+            script = session.create_script(jscode)
+            script.on("message", lambda message, data: self.on_message(process_id, process_name, message))
+            script.on("destroyed", lambda reason: self.on_destroyed(process_id, process_name, session))
+            script.load()
+            if restart:
+                self.frida_device.resume(process_id)
+            self.sessions.append(session)
+        except Exception as e:
+            self.on_log("!", str(e), fore=Fore.RED)
+
+    def run_script(self, name: str, jscode: str, restart: bool = False) -> None:
         """
         向指定包名的进程中注入并执行js代码
-        :param package: 指定包名/进程名
+        :param name: 进程名（支持正则）
         :param jscode: 注入的js代码
-        :param callback: 消息回调，为None采用默认回调，on_message(message, data)
+        :param restart: 是否重启应用
         :return: None
         """
         jscode = self._preset_jscode + jscode
-        for process in self.get_processes(package):
-            helper.log('*', 'Attach process: %s (%d)' % (process.name, process.pid))
-            try:
-                session = self.server.frida_device.attach(process.pid)
-                script = session.create_script(jscode)
-                script.on('message', helper.on_message if callback is None else callback)
-                script.load()
-                self.sessions.append(session)
-            except Exception as e:
-                helper.log('!', str(e), fore=Fore.RED)
-        helper.log('*', 'Running ...')
+        for process in self.get_processes(name):
+            self._run_script(process.pid, process.name, jscode, restart)
+        self.on_log("*", "Running ...")
 
-    def detach_all(self) -> None:
+    def detach_sessions(self) -> None:
         """
         结束所有会话
         :return: None
         """
         for session in self.sessions:
             session.detach()
-
-    def get_processes(self, package) -> [_frida.Process]:
-        """
-        获取指定包名的所有进程
-        :param package: 指定包名/进程名
-        :return: 进程列表
-        """
-        processes = []
-        for process in self.server.frida_device.enumerate_processes():
-            if process.name.find(package) > -1:
-                processes.append(process)
-        return processes
 
     @property
     def _preset_jscode(self) -> str:
@@ -295,27 +282,25 @@ class helper(object):
             var Charset = null;
             Java.perform(function () {
                 Throwable = Java.use("java.lang.Throwable");
-                JavaString = Java.use('java.lang.String');
-                Charset = Java.use('java.nio.charset.Charset');
+                JavaString = Java.use("java.lang.String");
+                Charset = Java.use("java.nio.charset.Charset");
             });
 
             /*
              * byte数组转字符串，如果转不了就返回null
-             * bytes:       字符数组
-             * charset:     字符集(可选)
+             * :param bytes:       字符数组
+             * :param charset:     字符集(可选)
              */
             function BytesToString(bytes, charset) {
-                if (bytes !== undefined && bytes != null) {
+                if (bytes === undefined || bytes == null) {
+                    return null;
+                }
+                try {
                     charset = charset || Charset.defaultCharset();
-                    var str = JavaString.$new.
-                        overload('[B', 'java.nio.charset.Charset').
-                        call(JavaString, bytes, charset).toString();
-                    try {
-                        return str.toString();
-                    } catch(e) {
-                        return null;
-                    }
-                } else {
+                    return JavaString.$new
+                        .overload("[B", "java.nio.charset.Charset")
+                        .call(JavaString, bytes, charset).toString();
+                } catch(e) {
                     return null;
                 }
             }
@@ -329,10 +314,10 @@ class helper(object):
 
             /*
              * 调用当前函数，并输出参数返回值
-             * object:      对象(一般直接填this)
-             * arguments:   arguments(固定填这个)
-             * showStack:   是否打印栈(默认为false，可不填)
-             * showArgs:    是否打印参数(默认为false，可不填)
+             * :param object:      对象(一般直接填this)
+             * :param arguments:   arguments(固定填这个)
+             * :param showStack:   是否打印栈(默认为false，可不填)
+             * :param showArgs:    是否打印参数(默认为false，可不填)
              */
             function CallMethod(object, arguments, showStack, showArgs) {
                 showStack = showStack === true;
@@ -344,9 +329,9 @@ class helper(object):
 
             /*
              * 打印栈，调用当前函数，并输出参数返回值
-             * object:      对象(一般直接填this)
-             * arguments:   arguments(固定填这个)
-             * show:        是否打印栈和参数(默认为true，可不填)
+             * :param object:      对象(一般直接填this)
+             * :param arguments:   arguments(固定填这个)
+             * :param show:        是否打印栈和参数(默认为true，可不填)
              */
             function PrintStackAndCallMethod(object, arguments, show) {
                 return CallMethod(object, arguments, show !== false, show !== false);
@@ -360,7 +345,7 @@ class helper(object):
                 for (var i = 0; i < stackElements.length; i++) {
                     body += "\\n    at " + stackElements[i];
                 }
-                send({"frida_stack": body});
+                send({"helper_stack": body});
             }
 
             function __CallMethod(stackElement, object, arguments, showArgs) {
@@ -383,11 +368,11 @@ class helper(object):
                 if (ret !== undefined) {
                     body += "\\n    Return: " + ret;
                 }
-                send({"frida_method": body});
+                send({"helper_method": body});
                 return ret;
             }
         """.replace("\n", "")
 
 
-if __name__ == '__main__':
-    server().start()
+if __name__ == "__main__":
+    frida_helper().start_server()

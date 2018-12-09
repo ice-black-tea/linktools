@@ -131,24 +131,21 @@ class utils:
         return re.search(reg, string) is not None
 
     @staticmethod
-    def contain(obj: object, key: object, value: object = None) -> bool:
+    def contain(obj: object, key: object) -> bool:
         """
         是否包含内容
         :param obj: 对象
         :param key: 键
-        :param value: 值
         :return: 是否包含
         """
         if object is None:
             return False
-        if isinstance(obj, dict):
-            return key in obj and (value is None or obj[key] == value)
         if isinstance(obj, Iterable):
             return key in obj
         return False
 
     @staticmethod
-    def is_empty(obj: object):
+    def empty(obj: object):
         """
         对象是否为空
         :param obj: 对象
@@ -160,6 +157,15 @@ class utils:
             # noinspection PyTypeChecker
             return obj is None or len(obj) == 0
         return False
+
+    @staticmethod
+    def item(obj: object, *keys):
+        try:
+            for key in keys:
+                obj = obj.__getitem__(key)
+        except:
+            obj = None
+        return obj
 
     @staticmethod
     def exec(command: str, stdin=PIPE, stdout=PIPE, stderr=PIPE) -> _process:
