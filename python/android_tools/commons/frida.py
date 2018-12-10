@@ -51,13 +51,12 @@ class base_helper(object):
         """
         :param device_id: 设备号
         """
-        res = resource()
-        server = res.get_config()["frida_server"]
+        server = resource.get_config("frida_server")
         self.device = device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
-        self.server_name = server["name"].replace("{version}", frida.__version__).replace("{abi}", self.device.abi)
-        self.server_url = server["url"].replace("{version}", frida.__version__).replace("{abi}", self.device.abi)
-        self.server_file = res.get_download_path(self.server_name)
+        self.server_name = server["name"].format(version=frida.__version__, abi=self.device.abi)
+        self.server_url = server["url"].format(version=frida.__version__, abi=self.device.abi)
+        self.server_file = resource.download_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 
     def on_log(self, tag: object, message: object, **kwargs):
@@ -91,7 +90,7 @@ class base_helper(object):
         if not self.device.exist_file(self.server_target_file):
             if not os.path.exists(self.server_file):
                 self.on_log("*", "Download frida server ...")
-                tmp_path = tempfile.mktemp()
+                tmp_path = resource.download_path(self.server_name + ".tmp")
                 utils.download(self.server_url, tmp_path)
                 with lzma.open(tmp_path, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
@@ -228,7 +227,7 @@ class frida_helper(base_helper):
         :param process_name: 进程名
         :param session: 会话
         :param jscode: js脚本
-        :param reason:
+        :param reason: 结束原因
         """
         if reason == "process-terminated":
             self._run_script(process_id, process_name, jscode, restart=True)

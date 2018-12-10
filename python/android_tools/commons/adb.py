@@ -29,7 +29,7 @@
 import shutil
 
 from .resource import resource
-from .utils import utils, _process
+from .utils import utils
 from .version import __name__, __version__
 
 
@@ -40,7 +40,6 @@ class AdbError(Exception):
 
 
 class adb(object):
-
     executable = None
 
     @staticmethod
@@ -64,22 +63,14 @@ class adb(object):
         adb._check_executable()
         if len(args) == 0:
             raise AdbError("args cannot be empty")
-        command = adb.executable
-        for arg in args:
-            command = command + " " + adb._filter(arg)
+        args = [adb.executable, *args]
         stdout, stderr = None, None
         if capture_output is True:
             stdout, stderr = utils.PIPE, utils.PIPE
-        process = utils.exec(command, stdin=None, stdout=stdout, stderr=stderr)
+        process = utils.exec(*args, stdin=None, stdout=stdout, stderr=stderr)
         if process.returncode != 0 and not utils.empty(process.err):
             raise AdbError(process.err)
         return process.out
-
-    @staticmethod
-    def _filter(arg: str) -> str:
-        if arg is None:
-            return ""
-        return "\"" + utils.replace(arg, r"(?=\\|\"|\$)", r"\\") + "\""
 
     @staticmethod
     def _check_executable() -> bool:
@@ -143,23 +134,10 @@ class device(object):
         :return: uid
         """
         default = -1
-
         result = self.shell("echo", "-n", "${USER_ID}")
         uid = utils.int(result, default=default)
         if uid != default:
             return uid
-
-        # result = self.shell("id -u")
-        # uid = utils.int(result, default=default)
-        # if uid != default:
-        #     return uid
-        #
-        # result = utils.findall(result, r"(?<=uid=)[\d]+")
-        # if not utils.is_empty(result):
-        #     uid = utils.int(result[0], default=default)
-        # if uid != default:
-        #     return uid
-
         raise AdbError("unknown adb uid: %s" % result)
 
     def exec(self, *args: [str], capture_output: bool = True) -> str:
@@ -169,9 +147,8 @@ class device(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
-        command = ["-s", self.id]
-        command += args
-        return adb.exec(*command, capture_output=capture_output)
+        args = ["-s", self.id, *args]
+        return adb.exec(*args, capture_output=capture_output)
 
     def shell(self, *args: [str], capture_output: bool = True) -> str:
         """
@@ -180,9 +157,8 @@ class device(object):
         :param args: shell命令
         :return: adb输出结果
         """
-        command = ["-s", self.id, "shell"]
-        command += args
-        return adb.exec(*command, capture_output=capture_output)
+        args = ["-s", self.id, "shell", *args]
+        return adb.exec(*args, capture_output=capture_output)
 
     def call_dex(self, *args: [str], capture_output: bool = True):
         """
@@ -193,10 +169,9 @@ class device(object):
         """
         if not self._check_dex():
             raise AdbError("%s does not exist" % self.dex["path"])
-        command = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
-                   "app_process", "/", self.dex["main"]]
-        command += args
-        return adb.exec(*command, capture_output=capture_output)
+        args = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
+                "app_process", "/", self.dex["main"], *args]
+        return adb.exec(*args, capture_output=capture_output)
 
     def get_prop(self, prop: str) -> str:
         """
@@ -279,16 +254,16 @@ class device(object):
         """
         return "/sdcard/%s/%s/%s" % (__name__, __version__, name)
 
-    def jdb_connect(self, pid: str, port: str = "8699") -> _process:
-        """
-        连接jdb，取消等待调试器附加状态，让应用继续运行
-        :param pid: 进程号
-        :param port: 端口号
-        :return: jdb子进程
-        """
-        self.exec("forward", "tcp:%s" % port, "jdwp:%s" % pid)
-        jdb_command = "jdb -connect com.sun.jdi.SocketAttach:hostname=127.0.0.1,port=%s" % port
-        return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=utils.PIPE)
+    # def jdb_connect(self, pid: str, port: str = "8699") -> _process:
+    #     """
+    #     连接jdb，取消等待调试器附加状态，让应用继续运行
+    #     :param pid: 进程号
+    #     :param port: 端口号
+    #     :return: jdb子进程
+    #     """
+    #     self.exec("forward", "tcp:%s" % port, "jdwp:%s" % pid)
+    #     jdb_command = "jdb -connect com.sun.jdi.SocketAttach:hostname=127.0.0.1,port=%s" % port
+    #     return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=utils.PIPE)
 
     @staticmethod
     def _fix_package(package_name) -> str:
@@ -299,11 +274,10 @@ class device(object):
 
     def _check_dex(self):
         if utils.empty(self.dex) or not self.exist_file(self.dex["path"]):
-            res = resource()
             path = self.save_path("dex")
-            self.dex = res.get_config()["framework_dex"]
+            self.dex = resource.get_config("framework_dex")
             self.dex["path"] = path + "/" + self.dex["name"]
             self.shell("rm", "-rf", path)
-            self.exec("push", res.get_store_path(self.dex["name"]), self.dex["path"])
+            self.exec("push", resource.store_path(self.dex["name"]), self.dex["path"])
             return self.exist_file(self.dex["path"])
         return True

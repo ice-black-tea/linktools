@@ -48,7 +48,7 @@ class system:
         return system._system == "Linux"
 
     @staticmethod
-    def is_macos():  # -> bool:
+    def is_darwin():  # -> bool:
         return system._system == "Darwin"
 
 
@@ -79,7 +79,7 @@ class user_env:
         elif system.is_linux():
             self.bash_file = os.path.expanduser("~/.bashrc")
             self.bash_file_bak = self.bash_file + ".bak"
-        elif system.is_macos():
+        elif system.is_darwin():
             self.bash_file = os.path.expanduser("~/.bash_profile")
             self.bash_file_bak = self.bash_file + ".bak"
 
@@ -114,7 +114,7 @@ class user_env:
             command = "setx \"%s\" \"%s\"" % (key, value)
             subprocess.call(command, stdout=subprocess.PIPE)
 
-        elif system.is_linux() or system.is_macos():
+        elif system.is_linux() or system.is_darwin():
             command_begin = "\n#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
             command_end = "\n#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
             command_tip = "# do not modify \n"
@@ -148,7 +148,7 @@ class user_env:
                 winreg.DeleteValue(reg_key, key)
             except WindowsError as e:
                 pass
-        elif system.is_linux() or system.is_macos():
+        elif system.is_linux() or system.is_darwin():
             command_begin = "\n#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
             command_end = "\n#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
 
@@ -208,7 +208,7 @@ def install_env(install):
             if tools_key not in path_env:
                 path_env = "%s;%%%s%%" % (path_env, tools_key)
                 env.set("PATH", path_env)
-        elif system.is_linux() or system.is_macos():
+        elif system.is_linux() or system.is_darwin():
             env.set("PATH", "$PATH:$%s" % tools_key)
     else:
         env.delete(tools_key)
@@ -216,7 +216,7 @@ def install_env(install):
             path_env = env.get("PATH")
             if tools_key in path_env:
                 env.set("PATH", path_env.replace(";%%%s%%" % tools_key, ""))
-        elif system.is_linux() or system.is_macos():
+        elif system.is_linux() or system.is_darwin():
             env.delete("PATH")
 
 
