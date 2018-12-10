@@ -1,5 +1,5 @@
 import groovy.json.JsonSlurper
-import groovy.json.JsonBuilder
+import groovy.json.JsonOutput
 import java.security.MessageDigest
 
 apply plugin: 'com.android.library'
@@ -65,11 +65,12 @@ static def readConfig(path) {
 }
 
 
-static def writeConfig(path, json) {
+static def writeConfig(path, config) {
     def file = new File(path)
     if (file.exists() || file.createNewFile()){
+        def jsonOutput = new JsonOutput()
         file.withPrintWriter { printWriter ->
-            printWriter.println(new JsonBuilder(json))
+            printWriter.println(jsonOutput.prettyPrint(jsonOutput.toJson(config)))
         }
     }
 }
@@ -79,11 +80,14 @@ def buildDex(dependPath, dexPath) {
     def dxPath = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}/dx"
     def command = [ dxPath, '--dex', '--output', dexPath, "${dependPath}/classes.jar" ]
     fileTree("${dependPath}/libs").each { file ->
-        if (!file.name.contains("rs.jar"))
+        if (!file.name.contains("rs.jar")) {
             command.add(file.path)
+        }
     }
-    println command
-    exec { commandLine command }
+    exec {
+        println command
+        commandLine command
+    }
 }
 
 
@@ -93,7 +97,8 @@ tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
         def dependPath = "${project.buildDir}/tmp/copy${name.capitalize()}Dependencies/${name}/"
         def dexName = "android-tools-${System.currentTimeMillis()}.dex"
         def targetPath = "${rootDir}/../python/android_tools/resource"
-        def dexPath = "${targetPath}/${dexName}"
+        def storePath = "${targetPath}/store"
+        def dexPath = "${storePath}/${dexName}"
         def configPath = "${targetPath}/.config"
 
         buildDex(dependPath, dexPath)
@@ -101,7 +106,7 @@ tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
         def config = readConfig(configPath)
         if (config.framework_dex == null || config.framework_dex.md5 != md5) {
             if (config.framework_dex != null)
-                file("${targetPath}/${config.framework_dex.name}").delete()
+                file("${storePath}/${config.framework_dex.name}").delete()
             config.framework_dex = [:]
             config.framework_dex.name = dexName
             config.framework_dex.md5 = md5

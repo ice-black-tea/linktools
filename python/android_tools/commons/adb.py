@@ -304,6 +304,6 @@ class device(object):
             self.dex = res.get_config()["framework_dex"]
             self.dex["path"] = path + "/" + self.dex["name"]
             self.shell("rm", "-rf", path)
-            self.exec("push", res.get_path(self.dex["name"]), self.dex["path"])
+            self.exec("push", res.get_store_path(self.dex["name"]), self.dex["path"])
             return self.exist_file(self.dex["path"])
         return True

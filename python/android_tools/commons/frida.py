@@ -51,11 +51,13 @@ class base_helper(object):
         """
         :param device_id: 设备号
         """
+        res = resource()
+        server = res.get_config()["frida_server"]
         self.device = device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
-        self.server_name = "frida-server-%s-android-%s" % (frida.__version__, self.device.abi)
-        self.server_file = resource().get_store_path(self.server_name)
-        self.server_url = "https://github.com/frida/frida/releases/download/%s/%s.xz" % (frida.__version__, self.server_name)
+        self.server_name = server["name"].replace("{version}", frida.__version__).replace("{abi}", self.device.abi)
+        self.server_url = server["url"].replace("{version}", frida.__version__).replace("{abi}", self.device.abi)
+        self.server_file = res.get_download_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 
     def on_log(self, tag: object, message: object, **kwargs):

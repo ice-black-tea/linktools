@@ -29,7 +29,6 @@
 import json
 import os
 
-
 class resource(object):
 
     def __init__(self):
@@ -43,13 +42,16 @@ class resource(object):
 
     def save_config(self, config):
         with open(self.config_path, "wt") as fd:
-            json.dump(fd, config)
-
-    def get_path(self, name):
-        return os.path.join(self.res_path, name)
+            json.dump(fd, config, sort_keys=True, indent=4)
 
     def get_store_path(self, name):
-        store_path = os.path.join(self.res_path, ".files")
+        store_path = os.path.join(self.res_path, "store")
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        return os.path.join(store_path, name)
+
+    def get_download_path(self, name):
+        store_path = os.path.join(self.res_path, "download")
         if not os.path.exists(store_path):
             os.makedirs(store_path)
         return os.path.join(store_path, name)
