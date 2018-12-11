@@ -28,6 +28,7 @@
 """
 import shutil
 
+from .tools import _config_tools
 from .resource import resource
 from .utils import utils
 from .version import __name__, __version__
@@ -40,7 +41,8 @@ class AdbError(Exception):
 
 
 class adb(object):
-    executable = None
+
+    _t = _config_tools("adb", cmd="adb")
 
     @staticmethod
     def devices() -> [str]:
@@ -60,10 +62,10 @@ class adb(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: 输出结果
         """
-        adb._check_executable()
         if len(args) == 0:
             raise AdbError("args cannot be empty")
-        args = [adb.executable, *args]
+        adb._t.check_executable()
+        args = [adb._t.executable, *args]
         stdout, stderr = None, None
         if capture_output is True:
             stdout, stderr = utils.PIPE, utils.PIPE
@@ -71,15 +73,6 @@ class adb(object):
         if process.returncode != 0 and not utils.empty(process.err):
             raise AdbError(process.err)
         return process.out
-
-    @staticmethod
-    def _check_executable() -> bool:
-        if not utils.empty(adb.executable):
-            return True
-        adb.executable = shutil.which("adb")
-        if utils.empty(adb.executable):
-            raise AdbError("adb: command not found")
-        return True
 
 
 class device(object):
@@ -159,6 +152,20 @@ class device(object):
         """
         args = ["-s", self.id, "shell", *args]
         return adb.exec(*args, capture_output=capture_output)
+
+    def sudo(self, *args: [str], capture_output: bool = True) -> str:
+        """
+        以root权限执行shell
+        :param capture_output: 捕获输出，填False使用标准输出
+        :param args: shell命令
+        :return: adb输出结果
+        """
+        if self.uid != 0:
+            args = ["-s", self.id, "shell", "su", "-c", *args]
+        else:
+            args = ["-s", self.id, "shell", *args]
+        return adb.exec(*args, capture_output=capture_output)
+
 
     def call_dex(self, *args: [str], capture_output: bool = True):
         """

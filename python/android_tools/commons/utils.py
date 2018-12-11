@@ -159,28 +159,29 @@ class utils:
         return False
 
     @staticmethod
-    def item(obj: object, *keys):
+    def item(obj: object, *keys, default: object = None):
         """
         获取子项
         :param obj: 对象
         :param keys: 键
+        :param default: 默认值
         :return: 子项
         """
         try:
             for key in keys:
                 obj = obj.__getitem__(key)
         except:
-            obj = None
+            obj = default
         return obj
 
     @staticmethod
-    def exec(*args: str, stdin=PIPE, stdout=PIPE, stderr=PIPE) -> _process:
+    def exec(*args: str, stdin=None, stdout=None, stderr=None) -> _process:
         """
         执行命令
         :param args: 参数
-        :param stdin: 输入流，默认为utils.PIPE，标准输入为None
-        :param stdout: 输出流，默认为utils.PIPE，标准输出为None
-        :param stderr: 错误输出流，默认为utils.PIPE，输出到输出流为utils.STDOUT，标准输出为None
+        :param stdin: 输入流，标准输入为None，使用管道为utils.PIPE
+        :param stdout: 输出流，标准输出为None，使用管道为utils.PIPE
+        :param stderr: 错误输出流，输出到输出流为utils.STDOUT，标准输出为None，使用管道为utils.PIPE
         :return: 子进程
         """
         process = _process(*args, stdin=stdin, stdout=stdout, stderr=stderr)

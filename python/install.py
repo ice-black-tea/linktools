@@ -67,8 +67,6 @@ class user_env:
     用户环境变量
     """
 
-    _system = platform.system()
-
     def __init__(self):
         """
         初始化

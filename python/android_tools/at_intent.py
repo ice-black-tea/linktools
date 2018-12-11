@@ -27,7 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import argparse
-import datetime
 import sys
 
 import android_tools

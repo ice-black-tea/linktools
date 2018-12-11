@@ -83,25 +83,20 @@ class base_helper(object):
 
     def _start_server(self) -> bool:
         self.on_log("*", "Start frida server ...")
-        command = "'%s'" % self.server_target_file
-        if self.device.uid != 0:
-            command = "su -c '%s'" % self.server_target_file
-
         if not self.device.exist_file(self.server_target_file):
             if not os.path.exists(self.server_file):
                 self.on_log("*", "Download frida server ...")
-                tmp_path = resource.download_path(self.server_name + ".tmp")
-                utils.download(self.server_url, tmp_path)
-                with lzma.open(tmp_path, "rb") as read, open(self.server_file, "wb") as write:
+                tmp_file = resource.download_path(self.server_name + ".tmp")
+                utils.download(self.server_url, tmp_file)
+                with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
-                os.remove(tmp_path)
+                os.remove(tmp_file)
             self.on_log("*", "Push frida server to %s" % self.server_target_file)
             self.device.exec("push", self.server_file, self.server_target_file, capture_output=False)
             self.device.shell("chmod 755 '%s'" % self.server_target_file)
 
-        thread.start_new_thread(lambda d, c: d.shell(c, capture_output=False), (self.device, command))
+        thread.start_new_thread(lambda : self.device.sudo(self.server_target_file, capture_output=False), ( ))
         time.sleep(1)
-
         return self.is_running()
 
     def is_running(self) -> bool:

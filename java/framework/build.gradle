@@ -85,8 +85,18 @@ def buildDex(dependPath, dexPath) {
         }
     }
     exec {
-        println command
+        println "build dex file: ${dexPath}"
         commandLine command
+    }
+}
+
+
+def deleteDex(storePath, dexPrefix, exclude) {
+    fileTree(storePath).each { file ->
+        if (file.name.startsWith(dexPrefix) && !file.name.contains(exclude)) {
+            println "delete dex file: ${file.path}"
+            file.delete()
+        }
     }
 }
 
@@ -95,7 +105,8 @@ tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
     doLast {
         def name = "release"
         def dependPath = "${project.buildDir}/tmp/copy${name.capitalize()}Dependencies/${name}/"
-        def dexName = "android-tools-${System.currentTimeMillis()}.dex"
+        def dexPrefix = "android-tools"
+        def dexName = "${dexPrefix}-${System.currentTimeMillis()}.dex"
         def targetPath = "${rootDir}/../python/android_tools/resource"
         def storePath = "${targetPath}/store"
         def dexPath = "${storePath}/${dexName}"
@@ -105,17 +116,14 @@ tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
         def md5 = calcMd5(dexPath)
         def config = readConfig(configPath)
         if (config.framework_dex == null || config.framework_dex.md5 != md5) {
-            if (config.framework_dex != null)
-                file("${storePath}/${config.framework_dex.name}").delete()
             config.framework_dex = [:]
             config.framework_dex.name = dexName
             config.framework_dex.md5 = md5
             config.framework_dex.size = file(dexPath).length()
             config.framework_dex.main = "android.tools.Main"
             writeConfig(configPath, config)
-
-        } else {
-            file("${dexPath}").delete()
         }
+
+        deleteDex(storePath, dexPrefix, config.framework_dex.name)
     }
 }
