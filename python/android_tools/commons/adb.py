@@ -26,10 +26,9 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import shutil
 
-from .tools import _config_tools
 from .resource import resource
+from .tools import tools
 from .utils import utils
 from .version import __name__, __version__
 
@@ -42,15 +41,13 @@ class AdbError(Exception):
 
 class adb(object):
 
-    _t = _config_tools("adb", cmd="adb")
-
     @staticmethod
     def devices() -> [str]:
         """
         获取所有设备列表
         :return: 设备号数组
         """
-        result = adb.exec("devices")
+        result = adb.exec("devices", capture_output=True)
         devices = result.partition("\n")[2].replace("\n", "").split("\tdevice")
         return [d for d in devices if len(d) > 2]
 
@@ -62,14 +59,10 @@ class adb(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: 输出结果
         """
-        if len(args) == 0:
-            raise AdbError("args cannot be empty")
-        adb._t.check_executable()
-        args = [adb._t.executable, *args]
         stdout, stderr = None, None
         if capture_output is True:
             stdout, stderr = utils.PIPE, utils.PIPE
-        process = utils.exec(*args, stdin=None, stdout=stdout, stderr=stderr)
+        process = tools.adb.exec(*args, stdin=None, stdout=stdout, stderr=stderr)
         if process.returncode != 0 and not utils.empty(process.err):
             raise AdbError(process.err)
         return process.out
@@ -166,7 +159,6 @@ class device(object):
             args = ["-s", self.id, "shell", *args]
         return adb.exec(*args, capture_output=capture_output)
 
-
     def call_dex(self, *args: [str], capture_output: bool = True):
         """
         调用
@@ -231,6 +223,7 @@ class device(object):
         """
         result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
         items = result[result.find("\n"):].split()
+        print(items)
         if items is not None and len(items) >= 2:
             return items[1].split("/")[0]
         raise AdbError("unknown package: %s" % result)

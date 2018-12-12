@@ -32,11 +32,10 @@ import shutil
 from urllib.parse import quote
 
 from .resource import resource
-from .utils import utils
+from .utils import utils, _process
 
 
 class _config_tools(object):
-
     _system = platform.system().lower()
 
     def __init__(self, keyword: str, cmd: str = None):
@@ -74,35 +73,82 @@ class _config_tools(object):
                 os.remove(tmp_file)
             os.chmod(self.executable, 0o0755)
 
+    def exec(self, *args: [str], **kwargs):
+        pass
 
-class apktool(object):
 
-    _t = _config_tools("apktool")
+class _adb(_config_tools):
 
-    @staticmethod
-    def exec(*args: [str], **kwargs):
-        apktool._t.check_executable()
-        args = ["java", "-jar", apktool._t.executable, *args]
+    def __init__(self):
+        super().__init__("adb", cmd="adb")
+
+    def exec(self, *args: [str], **kwargs) -> _process:
+        self.check_executable()
+        args = [self.executable, *args]
         return utils.exec(*args, **kwargs)
 
 
-class smali(object):
+class _java(_config_tools):
 
-    _t = _config_tools("smali")
+    def __init__(self):
+        super().__init__("java", cmd="java")
 
-    @staticmethod
-    def exec(*args: [str], **kwargs):
-        smali._t.check_executable()
-        args = ["java", "-jar", smali._t.executable, *args]
+    def exec(self, *args: [str], **kwargs) -> _process:
+        self.check_executable()
+        args = [self.executable, *args]
         return utils.exec(*args, **kwargs)
 
 
-class baksmali(object):
+class _apktool(_config_tools):
 
-    _t = _config_tools("baksmali")
+    def __init__(self):
+        super().__init__("apktool")
+
+    def exec(self, *args: [str], **kwargs) -> _process:
+        self.check_executable()
+        args = ["-jar", self.executable, *args]
+        return tools.java.exec(*args, **kwargs)
+
+
+class _smali(_config_tools):
+
+    def __init__(self):
+        super().__init__("smali")
+
+    def exec(self, *args: [str], **kwargs) -> _process:
+        self.check_executable()
+        args = ["-jar", self.executable, *args]
+        return tools.java.exec(*args, **kwargs)
+
+
+class _baksmali(_config_tools):
+
+    def __init__(self):
+        super().__init__("baksmali")
+
+    def exec(self, *args: [str], **kwargs) -> _process:
+        self.check_executable()
+        args = ["-jar", self.executable, *args]
+        return tools.java.exec(*args, **kwargs)
+
+
+class tools(object):
+
+    adb = _adb()
+    java = _java()
+    apktool = _apktool()
+    smali = _smali()
+    baksmali = _baksmali()
+
+    _items = None
 
     @staticmethod
-    def exec(*args: [str], **kwargs):
-        baksmali._t.check_executable()
-        args = ["java", "-jar", baksmali._t.executable, *args]
-        return utils.exec(*args, **kwargs)
+    def items() -> dict:
+        if utils.empty(tools._items):
+            items = {}
+            attrs = vars(tools)
+            for key in attrs.keys():
+                if isinstance(attrs[key], _config_tools):
+                    items[key] = attrs[key]
+            tools._items = items
+        return tools._items

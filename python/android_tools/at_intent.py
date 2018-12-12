@@ -50,6 +50,8 @@ if __name__ == '__main__':
                        help='start application setting activity [default top-level package]')
     group.add_argument('--setting-cert', dest='path', action='store', default="",
                        help='start cert installer activity and install cert (need \'/data/local/tmp\' write permission)')
+    group.add_argument('--install', dest='path', action='store', default="",
+                       help='install apk file')
     group.add_argument('--browser', dest='url', action='store', default="",
                        help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
@@ -57,27 +59,43 @@ if __name__ == '__main__':
     device = adb_device(args.serial)
 
     if "--setting" in sys.argv:
-        device.shell("am start -a android.settings.SETTINGS",
+        device.shell("am", "start", "--user", "0",
+                     "-a", "android.settings.SETTINGS",
                      capture_output=False)
     elif "--setting-dev" in sys.argv:
-        device.shell("am start -a android.intent.action.View "
+        device.shell("am", "start", "--user", "0",
+                     "-a", "android.intent.action.View",
                      "com.android.settings/com.android.settings.DevelopmentSettings",
                      capture_output=False)
     elif "--setting-dev2" in sys.argv:
-        device.shell("am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
+        device.shell("am", "start", "--user", "0",
+                     "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
                      capture_output=False)
     elif "--setting-app" in sys.argv:
         package = args.package if not utils.empty(args.package) else device.top_package()
-        device.shell("am", "start", "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
+        device.shell("am", "start", "--user", "0",
+                     "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,
                      capture_output=False)
     elif "--setting-cert" in sys.argv:
         path = "/data/local/tmp/%s/cert/%s" % (android_tools.__name__, utils.basename(args.path))
         device.exec("push", args.path, path, capture_output=False)
-        device.shell("am", "start", "-n", "com.android.certinstaller/.CertInstallerMain",
-                     "-a", "android.intent.action.VIEW", "-t", "application/x-x509-ca-cert",
-                     "-d", "file://" + path,
+        device.shell("am", "start", "--user", "0",
+                     "-n", "com.android.certinstaller/.CertInstallerMain",
+                     "-a", "android.intent.action.VIEW",
+                     "-t", "application/x-x509-ca-cert",
+                     "-d", "file://%s" % path,
+                     capture_output = False)
+    elif "--install" in sys.argv:
+        path = device.save_path(utils.basename(args.path))
+        device.exec("push", args.path, path, capture_output=False)
+        device.shell("am", "start", "--user", "0",
+                     "-a", "android.intent.action.VIEW",
+                     "-t", "application/vnd.android.package-archive",
+                     "-d", "file://%s" % path,
                      capture_output = False)
     elif "--browser" in sys.argv:
-        device.shell("am", "start", "-a", "android.intent.action.VIEW", "-d", args.url,
+        device.shell("am", "start", "-a", "android.intent.action.VIEW",
+                     "-d", args.url,
                      capture_output = False)
+

@@ -32,7 +32,6 @@ import _thread as thread
 import lzma
 import os
 import shutil
-import tempfile
 import time
 
 import colorama
@@ -40,8 +39,8 @@ import frida
 from colorama import Fore
 
 from .adb import device
-from .utils import utils
 from .resource import resource
+from .utils import utils
 from .version import __name__
 
 
@@ -51,11 +50,15 @@ class base_helper(object):
         """
         :param device_id: 设备号
         """
-        server = resource.get_config("frida_server")
         self.device = device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
-        self.server_name = server["name"].format(version=frida.__version__, abi=self.device.abi)
-        self.server_url = server["url"].format(version=frida.__version__, abi=self.device.abi)
+
+        self.config = resource.get_config("frida_server")
+        self.config["version"] = frida.__version__
+        self.config["abi"] = self.device.abi
+
+        self.server_name = self.config["name"].format(**self.config)
+        self.server_url = self.config["url"].format(**self.config)
         self.server_file = resource.download_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 
@@ -83,6 +86,7 @@ class base_helper(object):
 
     def _start_server(self) -> bool:
         self.on_log("*", "Start frida server ...")
+
         if not self.device.exist_file(self.server_target_file):
             if not os.path.exists(self.server_file):
                 self.on_log("*", "Download frida server ...")
@@ -95,7 +99,7 @@ class base_helper(object):
             self.device.exec("push", self.server_file, self.server_target_file, capture_output=False)
             self.device.shell("chmod 755 '%s'" % self.server_target_file)
 
-        thread.start_new_thread(lambda : self.device.sudo(self.server_target_file, capture_output=False), ( ))
+        thread.start_new_thread(lambda: self.device.sudo(self.server_target_file, capture_output=False), ( ))
         time.sleep(1)
         return self.is_running()
 
@@ -215,7 +219,8 @@ class frida_helper(base_helper):
         if utils.contain(self.sessions, session):
             self.sessions.remove(session)
 
-    def on_detached(self, process_id: int, process_name: str, session: _frida.Session, jscode: str, reason: str) -> None:
+    def on_detached(self, process_id: int, process_name: str, session: _frida.Session, jscode: str,
+                    reason: str) -> None:
         """
         会话结束回调函数
         :param process_id: 进程号
