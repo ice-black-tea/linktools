@@ -34,7 +34,7 @@ from android_tools import tools, utils
 
 def get_parser():
     parser = argparse.ArgumentParser(description='tools wrapper')
-    parser.add_argument('tool', choices=sorted([key for key in tools.items()]))
+    parser.add_argument('tool', choices=sorted([key for key in tools.items]))
     return parser
 
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     opt = sys.argv[1]
     args = sys.argv[2:]
 
-    tool = utils.item(tools.items(), opt)
+    tool = utils.item(tools.items, opt)
     if tool is not None:
         process = tool.exec(*args)
         exit(process.returncode)

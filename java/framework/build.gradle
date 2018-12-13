@@ -137,7 +137,7 @@ task buildDex(dependsOn: fatJar) {
             config.framework_dex = [:]
             config.framework_dex.name = dexMd5Name
             config.framework_dex.md5 = md5
-            config.framework_dex.size = file(dexPath).length()
+            config.framework_dex.size = file(dexMd5Path).length()
             config.framework_dex.main = "android.tools.Main"
             writeConfig(configPath, config)
         }

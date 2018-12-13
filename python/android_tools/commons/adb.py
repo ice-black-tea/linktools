@@ -223,7 +223,6 @@ class device(object):
         """
         result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
         items = result[result.find("\n"):].split()
-        print(items)
         if items is not None and len(items) >= 2:
             return items[1].split("/")[0]
         raise AdbError("unknown package: %s" % result)
