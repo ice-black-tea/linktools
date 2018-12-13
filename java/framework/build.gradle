@@ -3,7 +3,6 @@ import groovy.json.JsonOutput
 import java.security.MessageDigest
 
 apply plugin: 'com.android.library'
-apply plugin: "com.mobbeel.plugin"
 
 android {
     compileSdkVersion 28
@@ -31,9 +30,9 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation "com.beust:jcommander:1.71"
+    implementation 'com.google.code.gson:gson:2.8.5'
     compileOnly 'ice.black.tea:android-17:1.0.0'
-    api "com.beust:jcommander:1.71"
-    api 'com.google.code.gson:gson:2.8.5'
 
     // implementation 'com.android.support:appcompat-v7:28.0.0'
     testImplementation 'junit:junit:4.12'
@@ -76,17 +75,11 @@ static def writeConfig(path, config) {
 }
 
 
-def buildDex(dependPath, dexPath) {
+def buildDex(jarPath, dexPath) {
     def dxPath = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}/dx"
-    def command = [ dxPath, '--dex', '--output', dexPath, "${dependPath}/classes.jar" ]
-    fileTree("${dependPath}/libs").each { file ->
-        if (!file.name.contains("rs.jar")) {
-            command.add(file.path)
-        }
-    }
     exec {
         println "build dex file: ${dexPath}"
-        commandLine command
+        commandLine dxPath, '--dex', '--output', dexPath, jarPath
     }
 }
 
@@ -101,12 +94,32 @@ def deleteDex(storePath, dexPrefix, exclude) {
 }
 
 
-tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
+configurations {
+    libs.extendsFrom implementation
+}
+
+
+task fatJar(type: Jar) {
+    from "${project.buildDir}/intermediates/classes/release"
+    from {
+        configurations.libs.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    tasks.all {
+        if (it.name == 'compileReleaseJavaWithJavac') {
+            fatJar.dependsOn it
+        }
+    }
+    classifier = 'fat'
+}
+
+
+task buildDex(dependsOn: fatJar) {
     doLast {
-        def name = "release"
-        def dependPath = "${project.buildDir}/tmp/copy${name.capitalize()}Dependencies/${name}/"
+        def dependPath = "${project.buildDir}/libs/${project.name}-fat.jar"
         def dexPrefix = "android-tools"
-        def dexName = "${dexPrefix}-${System.currentTimeMillis()}.dex"
+        def dexName = "${dexPrefix}-tmp.dex"
         def targetPath = "${rootDir}/../python/android_tools/resource"
         def storePath = "${targetPath}/store"
         def dexPath = "${storePath}/${dexName}"
@@ -116,8 +129,13 @@ tasks.create(name: "buildDex", dependsOn: "assembleRelease") {
         def md5 = calcMd5(dexPath)
         def config = readConfig(configPath)
         if (config.framework_dex == null || config.framework_dex.md5 != md5) {
+
+            def dexMd5Name = "${dexPrefix}-${md5}.dex"
+            def dexMd5Path = "${storePath}/${dexMd5Name}"
+            file(dexPath).renameTo(dexMd5Path)
+
             config.framework_dex = [:]
-            config.framework_dex.name = dexName
+            config.framework_dex.name = dexMd5Name
             config.framework_dex.md5 = md5
             config.framework_dex.size = file(dexPath).length()
             config.framework_dex.main = "android.tools.Main"
