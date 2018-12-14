@@ -30,6 +30,7 @@ public class Main {
             packageCmd.run();
         } else {
             commander.usage();
+            test();
         }
     }
 

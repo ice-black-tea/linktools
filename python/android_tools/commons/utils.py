@@ -223,6 +223,8 @@ class utils:
         else:
             offset = 0
         size = int(urlopen(url).info().get('Content-Length', -1))
+        if size == -1:
+            raise Exception("error Content-Length")
         if offset >= size:
             return size
         header = {"Range": "bytes=%s-%s" % (offset, size)}

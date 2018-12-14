@@ -53,7 +53,7 @@ class base_helper(object):
         self.device = device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
 
-        self.config = resource.get_config("frida_server")
+        self.config = resource.get_config("frida_server").copy()
         self.config["version"] = frida.__version__
         self.config["abi"] = self.device.abi
 

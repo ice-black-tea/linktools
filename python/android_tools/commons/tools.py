@@ -36,90 +36,88 @@ from .utils import utils, _process
 
 
 class _config_tools(object):
-    _system = platform.system().lower()
 
-    def __init__(self):
-        self.config = resource.get_config(self.__class__.__name__)
+    def __init__(self, config: dict):
 
-        # darwin, linux or windows
-        if utils.contain(self.config, _config_tools._system):
-            self.config = utils.item(self.config, _config_tools._system)
+        self.config = config.copy()
 
-        # 1.url [default ""]
-        self.url = utils.item(self.config, "url", default="").format(**self.config)
+        # download url
+        url = utils.item(self.config, "url", default="").format(**self.config)
+        if not utils.empty(url):
+            self.config["url"] = url
 
-        # 2.unzip [default ""]
-        self.unzip = utils.item(self.config, "unzip", default="").format(**self.config)
-        if not utils.empty(self.unzip):
-            self.unzip = resource.download_path(self.unzip)
+        # unzip path
+        unzip = utils.item(self.config, "unzip", default="").format(**self.config)
+        self.config["unzip"] = resource.download_path(unzip) if not utils.empty(unzip) else ""
 
-        # 3.executable [default ""]
-        executable = None
+        # file path
+        path = utils.item(self.config, "path", default="").format(**self.config)
+        if not utils.empty(path):
+            self.config["path"] = resource.download_path(path)
+
+        # set executable
         cmd = utils.item(self.config, "cmd", default="")
         if not utils.empty(cmd):
-            executable = shutil.which(cmd)
-        if utils.empty(executable):
-            executable = utils.item(self.config, "executable", default="").format(**self.config)
-            executable = resource.download_path(executable)
-        self.executable = executable
+            cmd = shutil.which(cmd)
+        if not utils.empty(cmd):
+            self.config["path"] = cmd
+            self.config["executable"] = [cmd]
+        else:
+            executable = utils.item(self.config, "executable", default=[self.config["path"]]).copy()
+            for i in range(len(executable)):
+                executable[i] = executable[i].format(**self.config)
+            self.config["executable"] = executable
 
-    def check_executable(self):
-        if not os.path.exists(self.executable):
-            file = resource.download_path(quote(self.url, safe=''))
-            utils.download(self.url, file)
-            if not utils.empty(self.unzip):
-                shutil.unpack_archive(file, self.unzip)
+    def check_executable(self) -> None:
+        if not os.path.exists(self.config["path"]):
+            print(self.config["url"])
+            file = resource.download_path(quote(self.config["url"], safe=''))
+            utils.download(self.config["url"], file)
+            if not utils.empty(self.config["unzip"]):
+                shutil.unpack_archive(file, self.config["unzip"])
                 os.remove(file)
             else:
-                os.rename(file, self.executable)
-            os.chmod(self.executable, 0o0755)
+                os.rename(file, self.config["path"])
+            os.chmod(self.config["path"], 0o0755)
+        elif not os.access(self.config["path"], os.X_OK):
+            os.chmod(self.config["path"], 0o0755)
 
-    def exec(self, *args: [str], **kwargs):
-        raise Exception("not yet implemented")
+    def exec(self, *args: [str], **kwargs) -> _process:
+        self.check_executable()
+        executable = self.config["executable"]
+        if executable[0] in tools.items:
+            tool = tools.items[executable[0]]
+            return tool.exec(*[*executable[1:], *args], **kwargs)
+        return utils.exec(*[*executable, *args], **kwargs)
 
 
 class _tools:
-    class adb(_config_tools):
 
-        def exec(self, *args: [str], **kwargs) -> _process:
-            self.check_executable()
-            args = [self.executable, *args]
-            return utils.exec(*args, **kwargs)
-
-    class java(_config_tools):
-
-        def exec(self, *args: [str], **kwargs) -> _process:
-            self.check_executable()
-            args = [self.executable, *args]
-            return utils.exec(*args, **kwargs)
-
-    class apktool(_config_tools):
-
-        def exec(self, *args: [str], **kwargs) -> _process:
-            self.check_executable()
-            args = ["-jar", self.executable, *args]
-            return tools.java.exec(*args, **kwargs)
-
-    class smali(_config_tools):
-
-        def exec(self, *args: [str], **kwargs) -> _process:
-            self.check_executable()
-            args = ["-jar", self.executable, *args]
-            return tools.java.exec(*args, **kwargs)
-
-    class baksmali(_config_tools):
-
-        def exec(self, *args: [str], **kwargs) -> _process:
-            self.check_executable()
-            args = ["-jar", self.executable, *args]
-            return tools.java.exec(*args, **kwargs)
+    _system = platform.system().lower()
 
     def __init__(self):
         self.items = {}
-        for key, value in _tools.__dict__.items():
-            if not key.startswith("__"):
-                self.items[key] = value()
-                setattr(self, key, self.items[key])
+        for name, config in resource.get_config("tools").items():
+            # darwin, linux or windows
+            config = utils.item(config, _tools._system, default=config)
+            for sub_name, sub_config in utils.item(config, "items", default={}).items():
+                sub_config = self._copy_config(config, sub_config)
+                self._add_tool(sub_name, _config_tools(sub_config))
+            config = self._copy_config(config)
+            self._add_tool(name, _config_tools(config))
+
+    def _add_tool(self, name, tool):
+        self.items[name] = tool
+        setattr(self, name, tool)
+
+    @staticmethod
+    def _copy_config(config, sub_config=None) -> dict:
+        config = config.copy()
+        # merge sub config
+        if not utils.empty(sub_config):
+            for key, value in sub_config.items():
+                config[key] = value
+        return config
 
 
 tools = _tools()
