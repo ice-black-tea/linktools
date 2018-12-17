@@ -5,7 +5,7 @@ package org.ironman.framework.bean;
  */
 
 public enum AppType {
-    ALL,
-    SYSTEM,
-    NON_SYSTEM
+    all,
+    system,
+    normal
 }

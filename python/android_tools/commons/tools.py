@@ -102,13 +102,15 @@ class _tools:
             config = utils.item(config, _tools._system, default=config)
             for sub_name, sub_config in utils.item(config, "items", default={}).items():
                 sub_config = self._copy_config(config, sub_config)
-                self._add_tool(sub_name, _config_tools(sub_config))
+                self._add_tool(sub_name, sub_config)
             config = self._copy_config(config)
-            self._add_tool(name, _config_tools(config))
+            self._add_tool(name, config)
 
-    def _add_tool(self, name, tool):
-        self.items[name] = tool
-        setattr(self, name, tool)
+    def _add_tool(self, name, config):
+        if not utils.empty(config):
+            tool = _config_tools(config)
+            self.items[name] = tool
+            setattr(self, name, tool)
 
     @staticmethod
     def _copy_config(config, sub_config=None) -> dict:

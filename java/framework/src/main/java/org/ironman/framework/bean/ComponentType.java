@@ -5,8 +5,8 @@ package org.ironman.framework.bean;
  */
 
 public enum ComponentType {
-    ACTIVITY,
-    RECEIVER,
-    SERVICE,
-    PROVIDER
+    activity,
+    receiver,
+    service,
+    provider
 }

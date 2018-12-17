@@ -1,13 +1,13 @@
 package org.ironman.framework;
 
+import android.app.ActivityManager;
 import android.app.ActivityThread;
 import android.app.Application;
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Looper;
 
-import com.beust.jcommander.internal.Nullable;
-
 import java.io.Closeable;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -15,33 +15,55 @@ import java.lang.ref.WeakReference;
 
 public final class AtEnvironment {
 
+    private static final String DEV_NULL = "/dev/null";
     private static WeakReference<Application> sApplication = null;
+    private static WeakReference<PackageManager> sPackageManager = null;
+    private static WeakReference<ActivityManager> sActivityManager = null;
 
     public static Application getApplication() {
-        
-        if (sApplication != null) {
-            return sApplication.get();
-        }
-
-        synchronized (AtEnvironment.class) {
-
-            if (Looper.getMainLooper() == null) {
-                Looper.prepareMainLooper();
-            }
-
-            if (ActivityThread.currentActivityThread() == null) {
-                runSilently(new Runnable() {
-                    @Override
-                    public void run() {
-                        ActivityThread.systemMain();
+        if (sApplication == null) {
+            synchronized (AtEnvironment.class) {
+                if (sApplication == null) {
+                    if (Looper.getMainLooper() == null) {
+                        Looper.prepareMainLooper();
                     }
-                });
+                    if (ActivityThread.currentActivityThread() == null) {
+                        runSilently(new Runnable() {
+                            @Override
+                            public void run() {
+                                ActivityThread.systemMain();
+                            }
+                        });
+                    }
+                    sApplication = new WeakReference<>(ActivityThread.currentApplication());
+                }
             }
         }
-
-        sApplication = new WeakReference<>(ActivityThread.currentApplication());
 
         return sApplication.get();
+    }
+
+    public static PackageManager getPackageManager() {
+        if (sPackageManager == null) {
+            synchronized (AtEnvironment.class) {
+                if (sPackageManager == null) {
+                    sPackageManager = new WeakReference<>(getApplication().getPackageManager());
+                }
+            }
+        }
+        return sPackageManager.get();
+    }
+
+    public static ActivityManager getActivityManager() {
+        if (sActivityManager == null) {
+            synchronized (AtEnvironment.class) {
+                if (sActivityManager == null) {
+                    sActivityManager = new WeakReference<>((ActivityManager)
+                            getApplication().getSystemService(Context.ACTIVITY_SERVICE));
+                }
+            }
+        }
+        return sActivityManager.get();
     }
 
     private static void runSilently(Runnable runnable) {
@@ -51,7 +73,7 @@ public final class AtEnvironment {
         PrintStream ps = null;
         try {
             try {
-                os = new FileOutputStream("/dev/null");
+                os = new FileOutputStream(DEV_NULL);
                 ps = new PrintStream(os);
                 System.setOut(ps);
                 System.setErr(ps);

@@ -225,7 +225,7 @@ class device(object):
         items = result[result.find("\n"):].split()
         if items is not None and len(items) >= 2:
             return items[1].split("/")[0]
-        raise AdbError("unknown package: %s" % result)
+        raise AdbError("can not fetch top package")
 
     def top_activity(self) -> str:
         """
@@ -236,7 +236,7 @@ class device(object):
         items = result[result.find("\n"):].split()
         if items is not None and len(items) >= 2:
             return items[1]
-        raise AdbError("unknown activity: %s" % result)
+        raise AdbError("can not fetch top activity")
 
     def apk_path(self, package: str) -> str:
         """
