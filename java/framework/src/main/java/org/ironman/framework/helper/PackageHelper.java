@@ -1,36 +1,26 @@
 package org.ironman.framework.helper;
 
 import android.annotation.SuppressLint;
-import android.app.ActivityManager;
-import android.app.Application;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.ComponentInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.PermissionInfo;
-import android.content.pm.ProviderInfo;
-import android.content.pm.ServiceInfo;
-import android.text.TextUtils;
-import android.util.Log;
+import android.graphics.drawable.Drawable;
+import android.os.Build;
 
 import org.ironman.framework.AtEnvironment;
-import org.ironman.framework.bean.AppInfo;
 import org.ironman.framework.bean.AppType;
+import org.ironman.framework.util.LogUtil;
 
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 public class PackageHelper {
+
+    private static String TAG = PackageHelper.class.getSimpleName();
 
     @SuppressLint("StaticFieldLeak")
     private static PackageHelper sInstance = new PackageHelper();
@@ -39,102 +29,89 @@ public class PackageHelper {
         return sInstance;
     }
 
-    private Application mApplication;
-    private PackageManager mPackageManager;
-
     private PackageHelper() {
-        mApplication = AtEnvironment.getApplication();
-        mPackageManager = mApplication.getPackageManager();
+
     }
 
-    public Application getApplication() {
-        return mApplication;
-    }
-
-    public PackageManager getPackageManager() {
-        return mPackageManager;
-    }
-
-    public AppInfo getAppInfo(String packageName) {
-        Context context = getApplication();
+    @SuppressLint({"WrongConstant", "PackageManagerGetSignatures"})
+    public PackageInfo getAppInfo(String packageName) {
+        Context context = AtEnvironment.getApplication();
         try {
-            PackageInfo packageInfos = context.getPackageManager().getPackageInfo(packageName, -1);
-            return new AppInfo(context, packageInfos);
+            return context.getPackageManager().getPackageInfo(packageName, 0xffff);
         } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
+            LogUtil.printErrStackTrace(TAG, e, null);
         }
         return null;
     }
 
-    public List<AppInfo> getInstalledAppInfos() {
-        return getInstalledAppInfos(AppType.ALL);
+    public List<PackageInfo> getInstalledPackages() {
+        return this.getInstalledPackages(AppType.all);
     }
 
     @SuppressLint("WrongConstant")
-    public List<AppInfo> getInstalledAppInfos(AppType type) {
-        Context context = getApplication();
-        List<AppInfo> appInfos = new ArrayList<>();
-        List<PackageInfo> packageInfos = context.getPackageManager().getInstalledPackages(PackageManager.MATCH_DEFAULT_ONLY - 1);
-        for (PackageInfo packageInfo : packageInfos) {
+    public List<PackageInfo> getInstalledPackages(AppType type) {
+        List<PackageInfo> packageInfos = new ArrayList<>();
+        for (PackageInfo packageInfo : AtEnvironment.getPackageManager().getInstalledPackages(0xffff)) {
             switch (type) {
-                case SYSTEM:
+                case system:
                     if (isSystemPackage(packageInfo)) {
-                        appInfos.add(new AppInfo(context, packageInfo));
+                        packageInfos.add(packageInfo);
                     }
                     break;
-                case NON_SYSTEM:
+                case normal:
                     if (!isSystemPackage(packageInfo)) {
-                        appInfos.add(new AppInfo(context, packageInfo));
+                        packageInfos.add(packageInfo);
                     }
                     break;
                 default:
-                    appInfos.add(new AppInfo(context, packageInfo));
+                    packageInfos.add(packageInfo);
                     break;
             }
         }
 
-        Collections.sort(appInfos, new Comparator<AppInfo>() {
-            @Override
-            public int compare(AppInfo info1, AppInfo info2) {
-                int uid1 = info1.getPackageInfo().applicationInfo.uid;
-                int uid2 = info2.getPackageInfo().applicationInfo.uid;
-                if (uid1 != uid2) {
-                    return uid1 > uid2 ? 1 : -1;
-                }
-                String name1 = info1.getPackageName();
-                String name2 = info2.getPackageName();
-                return name1.compareTo(name2);
-            }
-        });
-
-        return appInfos;
+        return packageInfos;
     }
 
     public boolean isSystemPackage(PackageInfo packageInfo) {
         return (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
     }
 
-    public static String getTaskPackname(Context context) {
-        String currentApp = "";
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            @SuppressLint("WrongConstant")
-            UsageStatsManager usm = (UsageStatsManager) context.getSystemService(Context.USAGE_STATS_SERVICE);
-            long time = System.currentTimeMillis();
-            List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 1000, time);
-            if (appList != null && appList.size() > 0) {
-                SortedMap<Long, UsageStats> mySortedMap = new TreeMap<Long, UsageStats>();
-                for (UsageStats usageStats : appList) {
-                    mySortedMap.put(usageStats.getLastTimeUsed(), usageStats);
-                }
-                if (!mySortedMap.isEmpty()) {
-                    currentApp = mySortedMap.get(mySortedMap.lastKey()).getPackageName();
+    public CharSequence getApplicationName(PackageInfo packageInfo) {
+        return packageInfo.applicationInfo.loadLabel(AtEnvironment.getPackageManager());
+    }
+
+    public Drawable getApplicationIcon(PackageInfo packageInfo) {
+        return packageInfo.applicationInfo.loadIcon(AtEnvironment.getPackageManager());
+    }
+
+    public String getTopPackage() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+            UsageStatsManager usm = (UsageStatsManager) AtEnvironment.getApplication()
+                    .getSystemService(Context.USAGE_STATS_SERVICE);
+            if (usm != null) {
+                long end = System.currentTimeMillis();
+                long start = end - 1000 * 1000;
+                List<UsageStats> uss = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end);
+                if (uss == null || uss.size() == 0) {
+                    ActivityHelper.get().startUsageAccessSettings();
+                } else {
+                    UsageStats lastStats = null;
+                    for (UsageStats stats : uss) {
+                        if (lastStats == null || lastStats.getLastTimeUsed() < stats.getLastTimeUsed()) {
+                            lastStats = stats;
+                        }
+                    }
+                    if (lastStats != null) {
+                        return lastStats.getPackageName();
+                    }
                 }
             }
         } else {
-            ActivityManager am = ActivityHelper.get().getActivityManager();
-            List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(0);
-            currentApp = tasks.get(0).topActivity.getPackageName();
+            ComponentName topActivity = ActivityHelper.get().getTopActivity();
+            if (topActivity != null) {
+                return topActivity.getPackageName();
+            }
         }
-        return currentApp;
+        return null;
     }
 }
