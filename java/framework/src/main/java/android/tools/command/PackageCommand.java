@@ -115,7 +115,7 @@ public class PackageCommand extends Command {
                         continue;
                     }
                     if (component == Component.dangerous && !PermissionUtil.isDangerousOrNormal(info.readPermission)
-                        && !PermissionUtil.isDangerousOrNormal(info.writePermission)) {
+                            && !PermissionUtil.isDangerousOrNormal(info.writePermission)) {
                         continue;
                     }
                     Output.out.println("    [P] %s", info.name);
