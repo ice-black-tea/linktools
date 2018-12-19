@@ -49,8 +49,8 @@ public class Main {
     public static void main(String[] args) {
         try {
             parseArgs(args);
-        } catch (Throwable e) {
-            e.printStackTrace(System.err);
+        } catch (Throwable th) {
+            Output.err.println(th);
         }
     }
 
@@ -59,27 +59,27 @@ public class Main {
 
         @Override
         public void v(final String tag, final String format, final Object... args) {
-            System.out.println((args == null || args.length == 0) ? format : String.format(format, args));
+            Output.out.println((args == null || args.length == 0) ? format : String.format(format, args));
         }
 
         @Override
         public void i(final String tag, final String format, final Object... args) {
-            System.out.println((args == null || args.length == 0) ? format : String.format(format, args));
+            Output.out.println((args == null || args.length == 0) ? format : String.format(format, args));
         }
 
         @Override
         public void d(final String tag, final String format, final Object... args) {
-            System.out.println((args == null || args.length == 0) ? format : String.format(format, args));
+            Output.out.println((args == null || args.length == 0) ? format : String.format(format, args));
         }
 
         @Override
         public void w(final String tag, final String format, final Object... args) {
-            System.out.println((args == null || args.length == 0) ? format : String.format(format, args));
+            Output.out.println((args == null || args.length == 0) ? format : String.format(format, args));
         }
 
         @Override
         public void e(final String tag, final String format, final Object... args) {
-            System.err.println((args == null || args.length == 0) ? format : String.format(format, args));
+            Output.err.println((args == null || args.length == 0) ? format : String.format(format, args));
         }
 
         @Override
@@ -88,7 +88,7 @@ public class Main {
             if (log == null) {
                 log = "";
             }
-            System.err.println(log + "  " + Log.getStackTraceString(tr));
+            Output.err.println(log + "  " + Log.getStackTraceString(tr));
         }
     }
 

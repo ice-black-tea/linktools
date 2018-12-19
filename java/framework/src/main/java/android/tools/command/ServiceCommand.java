@@ -5,11 +5,13 @@ import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.tools.Command;
+import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by hu on 18-12-18.
@@ -18,8 +20,11 @@ import java.util.Arrays;
 @Parameters(commandDescription = "")
 public class ServiceCommand extends Command {
 
-    @Parameter(names = {"-f", "--fuzz"}, order = 1, description = "fuzz system service")
-    private boolean fuzz = false;
+    @Parameter(names = {"-f", "--fuzz"}, order = 1, variableArity = true, description = "Fuzz system service")
+    public List<String> fuzz = new ArrayList<>();
+
+    @Parameter(names = {"-e", "--except"}, order = 1, variableArity = true, description = "Fuzz system service")
+    public boolean except = false;
 
     @Override
     public void run() {
@@ -36,19 +41,21 @@ public class ServiceCommand extends Command {
         }
 
         for (String service : services) {
-            System.out.print("[*] " + service);
 
             IBinder binder = null;
-            String desc = null;
+            String desc = "";
             try {
                 binder = ServiceManager.getService(service);
                 desc = binder.getInterfaceDescriptor();
-                System.out.print(" (" + desc + ") ");
             } catch (Exception e) {
-                e.printStackTrace();
+                // e.printStackTrace();
             }
 
-            if (binder == null) {
+            Output.out.println(">>> %s [%s]", service, desc);
+
+            boolean contains = fuzz.contains(service);
+            if (binder == null || (!except && !contains)) {
+                Output.out.println();
                 continue;
             }
 
@@ -58,21 +65,27 @@ public class ServiceCommand extends Command {
 //                data.writeInt(0);
 //            }
 
-            for (int i = 1; i < 1000; i++) {
+            for (int i = 1; i <= 1000; i++) {
                 try {
                     Parcel reply = Parcel.obtain();
-                    binder.transact(i, data, reply, 0);
-                    reply.readException();
-                    if (reply.dataPosition() < reply.dataSize()) {
-                        System.out.println(Arrays.toString(reply.marshall()));
+                    if (binder.transact(i, data, reply, 0)) {
+                        try {
+                            reply.readException();
+                            Output.out.println("    %d", i);
+                            reply.recycle();
+                        } catch (Exception e) {
+                            Output.out.println("    %d -> %s: %s", i, e.getClass().getName(), e.getMessage());
+                        }
                     }
-                    reply.recycle();
+                } catch (RemoteException e) {
+                    Output.out.println("    %d -> %s: %s", i, e.getClass().getName(), e.getMessage());
                 } catch (Exception e) {
-                    System.err.println(i + "  " + e.getClass() + "  " + e.getMessage());
-                    e.printStackTrace();
+                    // e.printStackTrace();
                 }
             }
             data.recycle();
+
+            Output.out.println();
         }
     }
 }

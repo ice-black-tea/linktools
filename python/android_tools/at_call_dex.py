@@ -28,8 +28,8 @@
 """
 import sys
 
-from android_tools import adb, adb_device
+from android_tools import adb_device
 
 if __name__ == '__main__':
-    device = adb_device(adb.devices()[0])
+    device = adb_device()
     device.call_dex(*sys.argv[1:], capture_output=False)

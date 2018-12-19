@@ -5,6 +5,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
 import android.tools.Command;
+import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -20,14 +21,16 @@ import java.util.List;
 @Parameters(commandDescription = "")
 public class PackageCommand extends Command {
 
-    @Parameter(names = {"-t", "--type"}, order = 0, description = "package type.")
+    enum Component {
+        export,
+        dangerous
+    }
+
+    @Parameter(names = {"-t", "--type"}, order = 0, description = "Package type.")
     private AppType type = AppType.all;
 
-    @Parameter(names = {"-e", "--export"}, order = 5, description = "Show exported company only.")
-    private boolean export = false;
-
-    @Parameter(names = {"-d", "--dangerous"}, order = 6, description = "Show dangerous and normal permission only.")
-    private boolean dangerous = false;
+    @Parameter(names = {"-c", "--component"}, order = 4, description = "Show components.")
+    private Component component = null;
 
     @Parameter(names = {"-f", "--fuzz"}, order = 7, description = "fuzz components (not implemented)")
     private boolean fuzz = false;
@@ -42,24 +45,27 @@ public class PackageCommand extends Command {
             }
         });
 
-
         for (PackageInfo packageInfo : packageInfos) {
-            System.out.println(String.format("[%s] %s (uid=%d, name=%s, path=%s)",
-                    PackageUtil.isSystemPackage(packageInfo) ? "*" : "-",
+            Output.out.println("[*] %s\n    uid=%d, name=%s, path=%s, system=%s",
                     packageInfo.packageName,
                     packageInfo.applicationInfo.uid,
                     PackageUtil.getApplicationName(packageInfo),
-                    packageInfo.applicationInfo.publicSourceDir));
+                    packageInfo.applicationInfo.publicSourceDir,
+                    PackageUtil.isSystemPackage(packageInfo) ? "true" : "false");
+
+            if (component == null) {
+                continue;
+            }
 
             if (packageInfo.activities != null) {
                 for (ActivityInfo info : packageInfo.activities) {
-                    if (export && !info.exported) {
+                    if ((component == Component.export || component == Component.dangerous) && !info.exported) {
                         continue;
                     }
-                    if (dangerous && !PermissionUtil.isDangerousOrNormal(info.permission)) {
+                    if (component == Component.dangerous && !PermissionUtil.isDangerousOrNormal(info.permission)) {
                         continue;
                     }
-                    System.out.println(String.format("    [A] %s", info.name));
+                    Output.out.println("    [A] %s", info.name);
 //                    try {
 //                        Intent intent = new Intent(Intent.ACTION_VIEW);
 //                        intent.addFlags(-1);
@@ -67,54 +73,56 @@ public class PackageCommand extends Command {
 //                        intent.setComponent(new ComponentName(info.packageName, info.name));
 //                        AtEnvironment.getApplication().startActivity(intent);
 //                    } catch (Exception e) {
-//                        System.IO.print(" --> ");
-//                        System.IO.print(e.getClass().getName());
-//                        System.IO.print(": ");
-//                        System.IO.print(e.getMessage());
-//                        System.IO.println();
-//                        System.IO.println(Log.getStackTraceString(e));
+//                        System.Output.print(" --> ");
+//                        System.Output.print(e.getClass().getName());
+//                        System.Output.print(": ");
+//                        System.Output.print(e.getMessage());
+//                        System.Output.println();
+//                        System.Output.println(Log.getStackTraceString(e));
 //                    } finally {
-//                        System.IO.println();
+//                        System.Output.println();
 //                    }
                 }
             }
 
             if (packageInfo.services != null) {
                 for (ServiceInfo info : packageInfo.services) {
-                    if (export && !info.exported) {
+                    if ((component == Component.export || component == Component.dangerous) && !info.exported) {
                         continue;
                     }
-                    if (dangerous && !PermissionUtil.isDangerousOrNormal(info.permission)) {
+                    if (component == Component.dangerous && !PermissionUtil.isDangerousOrNormal(info.permission)) {
                         continue;
                     }
-                    System.out.println(String.format("    [S] %s", info.name));
+                    Output.out.println("    [S] %s", info.name);
                 }
             }
 
             if (packageInfo.receivers != null) {
                 for (ActivityInfo info : packageInfo.receivers) {
-                    if (export && !info.exported) {
+                    if ((component == Component.export || component == Component.dangerous) && !info.exported) {
                         continue;
                     }
-                    if (dangerous && !PermissionUtil.isDangerousOrNormal(info.permission)) {
+                    if (component == Component.dangerous && !PermissionUtil.isDangerousOrNormal(info.permission)) {
                         continue;
                     }
-                    System.out.println(String.format("    [R] %s", info.name));
+                    Output.out.println("    [R] %s", info.name);
                 }
             }
 
             if (packageInfo.providers != null) {
-                for (ProviderInfo providerInfo : packageInfo.providers) {
-                    if (export && !providerInfo.exported) {
+                for (ProviderInfo info : packageInfo.providers) {
+                    if ((component == Component.export || component == Component.dangerous) && !info.exported) {
                         continue;
                     }
-                    if (dangerous && !PermissionUtil.isDangerousOrNormal(providerInfo.readPermission)
-                        && !PermissionUtil.isDangerousOrNormal(providerInfo.writePermission)) {
+                    if (component == Component.dangerous && !PermissionUtil.isDangerousOrNormal(info.readPermission)
+                        && !PermissionUtil.isDangerousOrNormal(info.writePermission)) {
                         continue;
                     }
-                    System.out.println(String.format("    [P] %s", providerInfo.name));
+                    Output.out.println("    [P] %s", info.name);
                 }
             }
+
+            Output.out.println();
         }
     }
 }
