@@ -23,21 +23,20 @@ import java.util.List;
 public class ServiceCommand extends Command {
 
     @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
-    public boolean list = false;
+    private boolean list = false;
 
     @Parameter(names = {"-s", "--simplify"}, order = 1, description = "Display Simplified information.")
     private boolean simplify = false;
 
     @Parameter(names = {"-f", "--fuzz"}, order = 100, variableArity = true, description = "Fuzz system services")
-    public List<String> fuzz = new ArrayList<>();
+    private List<String> fuzz = new ArrayList<>();
 
     @Parameter(names = {"-e", "--except-mode"}, order = 101, description = "Fuzz system services (except mode)")
-    public boolean except = false;
+    private boolean except = false;
 
     @Override
     public void run() {
         String[] services = null;
-
         try {
             services = ServiceManager.listServices();
         } catch (RemoteException e) {
@@ -59,11 +58,9 @@ public class ServiceCommand extends Command {
             Service service = new Service(name);
             service.print(simplify);
 
-            if (!service.valid() || !needFuzz) {
-                continue;
+            if (service.valid() && needFuzz) {
+                service.fuzz();
             }
-
-            service.fuzz();
 
             Output.out.println();
         }
@@ -113,6 +110,10 @@ public class ServiceCommand extends Command {
             for (int i = 1; i <= 1000; i++) {
                 Parcel reply = Parcel.obtain();
                 try {
+                    if (!binder.isBinderAlive()) {
+                        binder = ServiceManager.getService(name);
+                    }
+
                     if (binder.transact(i, data, reply, 0)) {
                         try {
                             reply.readException();
@@ -124,11 +125,7 @@ public class ServiceCommand extends Command {
                     }
                 } catch (RemoteException e) {
                     Output.out.indent(4).println("%d -> %s: %s",
-                            i, e.getClass().getName(), e.getMessage());
-                    if (e instanceof DeadObjectException) {
-                        Output.out.indent(4).println("%s service is died", name);
-                        break;
-                    }
+                            i, e.getClass().getName(), e.getMessage() != null);
                 } catch (Exception e) {
                     // e.printStackTrace();
                 }
