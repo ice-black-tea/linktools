@@ -42,17 +42,15 @@ public class PackageUtil {
         for (PackageInfo packageInfo : AtEnvironment.getPackageManager().getInstalledPackages(0xffff)) {
             switch (type) {
                 case system:
-                    if (isSystemPackage(packageInfo)) {
-                        packageInfos.add(packageInfo);
-                    }
+                    if (isSystemPackage(packageInfo)) packageInfos.add(packageInfo);
                     break;
                 case normal:
-                    if (!isSystemPackage(packageInfo)) {
-                        packageInfos.add(packageInfo);
-                    }
+                    if (!isSystemPackage(packageInfo)) packageInfos.add(packageInfo);
+                    break;
+                case all:
+                    packageInfos.add(packageInfo);
                     break;
                 default:
-                    packageInfos.add(packageInfo);
                     break;
             }
         }

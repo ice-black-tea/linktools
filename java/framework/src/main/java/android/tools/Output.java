@@ -22,14 +22,24 @@ public interface Output {
         }
 
         @Override
+        public Output indent(int indent) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < indent; i++) {
+                sb.append(" ");
+            }
+            printStream.print(sb.toString());
+            return this;
+        }
+
+        @Override
         public Output print(String format, Object... args) {
-            printStream.print(args.length > 0 ? String.format(format, args): args);
+            printStream.print(args.length > 0 ? String.format(format, args): format);
             return this;
         }
 
         @Override
         public Output println(String format, Object... args) {
-            printStream.println(args.length > 0 ? String.format(format, args): args);
+            printStream.println(args.length > 0 ? String.format(format, args): format);
             return this;
         }
 
@@ -46,6 +56,7 @@ public interface Output {
         }
     }
 
+    Output indent(int indent);
     Output print(String format, Object... args);
     Output println(String format, Object... args);
     Output println(Throwable th);

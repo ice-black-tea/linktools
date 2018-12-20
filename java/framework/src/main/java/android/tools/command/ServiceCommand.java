@@ -1,9 +1,11 @@
 package android.tools.command;
 
+import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.text.TextUtils;
 import android.tools.Command;
 import android.tools.Output;
 
@@ -20,10 +22,16 @@ import java.util.List;
 @Parameters(commandDescription = "")
 public class ServiceCommand extends Command {
 
-    @Parameter(names = {"-f", "--fuzz"}, order = 1, variableArity = true, description = "Fuzz system service")
+    @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
+    public boolean list = false;
+
+    @Parameter(names = {"-s", "--simplify"}, order = 1, description = "Display Simplified information.")
+    private boolean simplify = false;
+
+    @Parameter(names = {"-f", "--fuzz"}, order = 100, variableArity = true, description = "Fuzz system services")
     public List<String> fuzz = new ArrayList<>();
 
-    @Parameter(names = {"-e", "--except"}, order = 1, variableArity = true, description = "Fuzz system service")
+    @Parameter(names = {"-e", "--except-mode"}, order = 101, description = "Fuzz system services (except mode)")
     public boolean except = false;
 
     @Override
@@ -40,25 +48,62 @@ public class ServiceCommand extends Command {
             return;
         }
 
-        for (String service : services) {
+        for (String name : services) {
 
-            IBinder binder = null;
-            String desc = "";
-            try {
-                binder = ServiceManager.getService(service);
-                desc = binder.getInterfaceDescriptor();
-            } catch (Exception e) {
-                // e.printStackTrace();
-            }
+            boolean needFuzz = inFuzzList(name);
 
-            Output.out.println(">>> %s [%s]", service, desc);
-
-            boolean contains = fuzz.contains(service);
-            if (binder == null || (!except && !contains)) {
-                Output.out.println();
+            if (!needFuzz && !list) {
                 continue;
             }
 
+            Service service = new Service(name);
+            service.print(simplify);
+
+            if (!service.valid() || !needFuzz) {
+                continue;
+            }
+
+            service.fuzz();
+
+            Output.out.println();
+        }
+    }
+
+    private boolean inFuzzList(String service) {
+        boolean contains = fuzz.contains(service);
+        return !(!except && !contains) && !(except && contains);
+    }
+
+    private static class Service {
+
+        String name = "";
+        String desc = "";
+        IBinder binder = null;
+
+        Service(String name) {
+            this.name = name;
+            try {
+                this.binder = ServiceManager.getService(name);
+                this.desc = this.binder.getInterfaceDescriptor();
+            } catch (Exception e) {
+                this.binder = null;
+                this.desc = "";
+            }
+        }
+
+        boolean valid() {
+            return binder != null && !TextUtils.isEmpty(desc);
+        }
+
+        void print(boolean simplify) {
+            if (!simplify) {
+                Output.out.println("[*] %s: [%s]", name, desc);
+            } else {
+                Output.out.println(name);
+            }
+        }
+
+        void fuzz() {
             Parcel data = Parcel.obtain();
             data.writeInterfaceToken(desc);
 //            while (data.dataSize() < 0x1000) {
@@ -66,26 +111,30 @@ public class ServiceCommand extends Command {
 //            }
 
             for (int i = 1; i <= 1000; i++) {
+                Parcel reply = Parcel.obtain();
                 try {
-                    Parcel reply = Parcel.obtain();
                     if (binder.transact(i, data, reply, 0)) {
                         try {
                             reply.readException();
-                            Output.out.println("    %d", i);
-                            reply.recycle();
+                            Output.out.indent(4).println("%d", i);
                         } catch (Exception e) {
-                            Output.out.println("    %d -> %s: %s", i, e.getClass().getName(), e.getMessage());
+                            Output.out.indent(4).println("%d -> %s: %s",
+                                    i, e.getClass().getName(), e.getMessage());
                         }
                     }
                 } catch (RemoteException e) {
-                    Output.out.println("    %d -> %s: %s", i, e.getClass().getName(), e.getMessage());
+                    Output.out.indent(4).println("%d -> %s: %s",
+                            i, e.getClass().getName(), e.getMessage());
+                    if (e instanceof DeadObjectException) {
+                        Output.out.indent(4).println("%s service is died", name);
+                        break;
+                    }
                 } catch (Exception e) {
                     // e.printStackTrace();
                 }
+                reply.recycle();
             }
             data.recycle();
-
-            Output.out.println();
         }
     }
 }
