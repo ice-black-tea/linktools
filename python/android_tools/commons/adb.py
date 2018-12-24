@@ -36,7 +36,7 @@ from .version import __name__, __version__
 class AdbError(Exception):
 
     def __init__(self, message: str):
-        Exception.__init__(self, message)
+        super().__init__(self, message)
 
 
 class adb(object):

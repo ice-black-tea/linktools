@@ -29,6 +29,7 @@
 import os
 import platform
 import shutil
+import sys
 from urllib.parse import quote
 
 from .resource import resource
@@ -37,36 +38,52 @@ from .utils import utils, _process
 
 class _config_tools(object):
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, parent: object = None):
+        self._config = config
+        self.config = None
+        self.parent: _config_tools = parent
 
-        self.config = config.copy()
+    def init_config(self) -> None:
+        if self.config is not None:
+            return
+
+        # merge config
+        if self.parent is not None:
+            config = self.parent._config.copy()
+            if not utils.empty(self.parent):
+                for key, value in self._config.items():
+                    config[key] = value
+        else:
+            config = self._config.copy()
 
         # download url
-        url = utils.item(self.config, "url", default="").format(**self.config)
+        url = utils.item(config, "url", default="").format(**config)
         if not utils.empty(url):
-            self.config["url"] = url
+            config["url"] = url
 
         # unzip path
-        unzip = utils.item(self.config, "unzip", default="").format(**self.config)
-        self.config["unzip"] = resource.download_path(unzip) if not utils.empty(unzip) else ""
+        unzip = utils.item(config, "unzip", default="").format(**config)
+        config["unzip"] = resource.download_path(unzip) if not utils.empty(unzip) else ""
 
         # file path
-        path = utils.item(self.config, "path", default="").format(**self.config)
+        path = utils.item(config, "path", default="").format(**config)
         if not utils.empty(path):
-            self.config["path"] = resource.download_path(path)
+            config["path"] = resource.download_path(path)
 
         # set executable
-        cmd = utils.item(self.config, "cmd", default="")
+        cmd = utils.item(config, "cmd", default="")
         if not utils.empty(cmd):
             cmd = shutil.which(cmd)
         if not utils.empty(cmd):
-            self.config["path"] = cmd
-            self.config["executable"] = [cmd]
+            config["path"] = cmd
+            config["executable"] = [cmd]
         else:
-            executable = utils.item(self.config, "executable", default=[self.config["path"]]).copy()
+            executable = utils.item(config, "executable", default=[config["path"]]).copy()
             for i in range(len(executable)):
-                executable[i] = executable[i].format(**self.config)
-            self.config["executable"] = executable
+                executable[i] = executable[i].format(**config)
+            config["executable"] = executable
+
+        self.config = config
 
     def check_executable(self) -> None:
         if not os.path.exists(self.config["path"]):
@@ -83,9 +100,13 @@ class _config_tools(object):
             os.chmod(self.config["path"], 0o0755)
 
     def exec(self, *args: [str], **kwargs) -> _process:
+        self.init_config()
         self.check_executable()
         executable = self.config["executable"]
-        if executable[0] in tools.items:
+        if executable[0] == "python":
+            args = [sys.executable, *executable[1:], *args]
+            return utils.exec(*args, **kwargs)
+        elif executable[0] in tools.items:
             tool = tools.items[executable[0]]
             return tool.exec(*[*executable[1:], *args], **kwargs)
         return utils.exec(*[*executable, *args], **kwargs)
@@ -100,26 +121,15 @@ class _tools:
         for name, config in resource.get_config("tools").items():
             # darwin, linux or windows
             config = utils.item(config, _tools._system, default=config)
-            for sub_name, sub_config in utils.item(config, "items", default={}).items():
-                sub_config = self._copy_config(config, sub_config)
-                self._add_tool(sub_name, sub_config)
-            config = self._copy_config(config)
-            self._add_tool(name, config)
-
-    def _add_tool(self, name, config):
-        if not utils.empty(config):
             tool = _config_tools(config)
-            self.items[name] = tool
-            setattr(self, name, tool)
+            self._add_tool(name, tool)
+            for sub_name, sub_config in utils.item(config, "items", default={}).items():
+                sub_tool = _config_tools(sub_config, tool)
+                self._add_tool(sub_name, sub_tool)
 
-    @staticmethod
-    def _copy_config(config, sub_config=None) -> dict:
-        config = config.copy()
-        # merge sub config
-        if not utils.empty(sub_config):
-            for key, value in sub_config.items():
-                config[key] = value
-        return config
+    def _add_tool(self, name, tool):
+        self.items[name] = tool
+        setattr(self, name, tool)
 
 
 tools = _tools()

@@ -49,9 +49,9 @@ if __name__ == '__main__':
                        help='show top-level activity name')
     group.add_argument('--path', action='store_const', const=True, default=False,
                        help='show top-level package path')
-    group.add_argument('--apk', metavar='dest', action='store', type=str, nargs='?', default="",
+    group.add_argument('--apk', dest='dest', action='store', type=str, nargs='?', default="",
                        help='pull top-level apk file')
-    group.add_argument('--screen', metavar='dest', action='store', type=str, nargs='?', default="",
+    group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
                        help='capture screen and pull file')
 
     args = parser.parse_args()
@@ -66,14 +66,14 @@ if __name__ == '__main__':
     elif "--apk" in sys.argv:
         package = device.top_package()
         path = device.save_path(package + ".apk")
-        dest = args.dest if utils.empty(args.dest) else "."
+        dest = args.dest if not utils.empty(args.dest) else "."
         device.shell("cp", device.apk_path(package), path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
     elif "--screen" in sys.argv:
         now = datetime.datetime.now()
         path = device.save_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
-        dest = args.dest if utils.empty(args.dest) else "."
+        dest = args.dest if not utils.empty(args.dest) else "."
         device.shell("screencap", "-p", path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)

@@ -39,7 +39,7 @@ public class ServiceCommand extends Command {
         String[] services = null;
         try {
             services = ServiceManager.listServices();
-        } catch (RemoteException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

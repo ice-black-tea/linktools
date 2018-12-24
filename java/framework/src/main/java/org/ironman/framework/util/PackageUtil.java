@@ -23,9 +23,8 @@ public class PackageUtil {
 
     @SuppressLint({"WrongConstant", "PackageManagerGetSignatures"})
     public static PackageInfo getPackage(String packageName) {
-        Context context = AtEnvironment.getApplication();
         try {
-            return context.getPackageManager().getPackageInfo(packageName, 0xffff);
+            return AtEnvironment.getPackageManager().getPackageInfo(packageName, 0xffff);
         } catch (PackageManager.NameNotFoundException e) {
             LogUtil.printErrStackTrace(TAG, e, null);
         }
@@ -79,7 +78,7 @@ public class PackageUtil {
                 long start = end - 1000 * 1000;
                 List<UsageStats> uss = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end);
                 if (uss == null || uss.size() == 0) {
-                    // ActivityUtil.startUsageAccessSettings();
+                    ActivityUtil.startUsageAccessSettings();
                 } else {
                     UsageStats lastStats = null;
                     for (UsageStats stats : uss) {

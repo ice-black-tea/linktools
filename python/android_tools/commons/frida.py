@@ -113,8 +113,6 @@ class base_helper(object):
             return True
         except frida.ServerNotRunningError:
             return False
-        except Exception as e:
-            raise e
 
     def get_process(self, name) -> _frida.Process:
         """
@@ -191,10 +189,8 @@ class frida_helper(base_helper):
         :param process_name: 进程名
         :param message: 收到的消息
         """
-        type = utils.item(message, "type")
-        payload = utils.item(message, "payload")
-        stack = utils.item(message, "stack")
-        if type == "send" and payload is not None:
+        if utils.item(message, "type") == "send" and utils.contain(message, "payload"):
+            payload = utils.item(message, "payload")
             helper_stack = utils.item(payload, "helper_stack")
             helper_method = utils.item(payload, "helper_method")
             if helper_stack is not None:
@@ -203,8 +199,8 @@ class frida_helper(base_helper):
                 self.on_log("*", helper_method, fore=Fore.LIGHTMAGENTA_EX)
             else:
                 self.on_log("*", payload)
-        elif type == "error" and stack is not None:
-            self.on_log("*", stack, fore=Fore.RED)
+        elif utils.item(message, "type") == "error" and utils.contain(message, "stack"):
+            self.on_log("*", utils.item(message, "stack"), fore=Fore.RED)
         else:
             self.on_log("?", message, fore=Fore.RED)
 
@@ -310,7 +306,7 @@ class frida_helper(base_helper):
              * 输出当前调用堆栈
              */
             function PrintStack() {
-                __PrintStack(Throwable.$new().getStackTrace(), true);
+                _PrintStack(Throwable.$new().getStackTrace(), true);
             };
 
             /*
@@ -324,21 +320,24 @@ class frida_helper(base_helper):
                 showStack = showStack === true;
                 showArgs = showArgs === true;
                 var stackElements = Throwable.$new().getStackTrace();
-                __PrintStack(stackElements, showStack);
-                return __CallMethod(stackElements[0], object, arguments, showArgs);
+                _PrintStack(stackElements, showStack);
+                return _CallMethod(stackElements[0], object, arguments, showArgs);
             };
 
             /*
              * 打印栈，调用当前函数，并输出参数返回值
              * :param object:      对象(一般直接填this)
              * :param arguments:   arguments(固定填这个)
-             * :param show:        是否打印栈和参数(默认为true，可不填)
+             * :param showStack:   是否打印栈(默认为true，可不填)
+             * :param showArgs:    是否打印参数(默认为true，可不填)
              */
-            function PrintStackAndCallMethod(object, arguments, show) {
-                return CallMethod(object, arguments, show !== false, show !== false);
+            function PrintStackAndCallMethod(object, arguments, showStack, showArgs) {
+                showStack = showStack !== false;
+                showArgs = showArgs !== false;
+                return CallMethod(object, arguments, showStack, showArgs);
             }
 
-            function __PrintStack(stackElements, showStack) {
+            function _PrintStack(stackElements, showStack) {
                 if (!showStack) {
                     return;
                 }
@@ -349,7 +348,7 @@ class frida_helper(base_helper):
                 send({"helper_stack": body});
             }
 
-            function __CallMethod(stackElement, object, arguments, showArgs) {
+            function _CallMethod(stackElement, object, arguments, showArgs) {
                 var args = "";
                 for (var i = 0; i < arguments.length; i++) {
                     args += "arguments[" + i + "],";

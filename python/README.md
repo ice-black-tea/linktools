@@ -58,20 +58,12 @@ Java.perform(function () {
 
     HashMap.put.implementation = function() {
 
-        // show origin field
-        var value = this.threshold.value;
-        send(value);
+        send("this.threshold = " + this.threshold.value);
 
-        // modify field by reflection
-        var field = Java.cast(this.getClass(), Clazz).getDeclaredField("threshold");
+        var clazz = Java.cast(this.getClass(), Clazz);
+        var field = clazz.getDeclaredField("threshold");
         field.setAccessible(true);
-        field.setInt(this, 1);
-
-        // show modified field
-        send(this.threshold.value);
-
-        // restore origin field
-        this.threshold.value = value;
+        send("this.threshold = " + field.getInt(this));
 
         // call origin method (show args and stack)
         return CallMethod(this, arguments, true, true);
@@ -86,25 +78,8 @@ at_frida.py -f hook.js
 
 ### 输出效果
 
-```
-[*] Stack: java.util.HashMap.put(Native Method)
-        at java.util.HashMap.put(Native Method)
-        at com.alibaba.fastjson.JSONObject.put(JSONObject.java:329)
-        at com.aliyun.sls.android.sdk.a.b.a(LogGroup.java:41)
-        at com.aliyun.sls.android.sdk.a.a(LOGClient.java:145)
-        at com.wosai.cashbar.utils.log.d$2.run(AliyunSlsLogger.java:57)
-        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:422)
-        at java.util.concurrent.FutureTask.runAndReset(FutureTask.java:279)
-        at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$301(ScheduledThreadPoolExecutor.java:152)
-        at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:266)
-        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1112)
-        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:587)
-        at java.lang.Thread.run(Thread.java:818)
-[*] Method: java.util.HashMap.put(Native Method)
-        Arguments[0]: __topic__
-        Arguments[1]: android-app
-        Return: null
-```
+![frida](imgs/frida.png)
+
 
 ### js使用
 
@@ -136,9 +111,10 @@ function CallMethod(object, arguments, showStack, showArgs);
  * 打印栈，调用当前函数，并输出参数返回值
  * :param object:      对象(一般直接填this)
  * :param arguments:   arguments(固定填这个)
- * :param show:        是否打印栈和参数(默认为true，可不填)
+ * :param showStack:   是否打印栈(默认为true，可不填)
+ * :param showArgs:    是否打印参数(默认为true，可不填)
  */
-function PrintStackAndCallMethod(object, arguments, show);
+function PrintStackAndCallMethod(object, arguments, showStack, showArgs);
 ```
 
 hook native方法
