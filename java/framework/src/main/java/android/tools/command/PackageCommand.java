@@ -5,67 +5,99 @@ import android.content.pm.ComponentInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
-import android.tools.Command;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.gson.Gson;
 
-import org.ironman.framework.bean.AppType;
+import org.ironman.framework.bean.Package;
 import org.ironman.framework.util.PackageUtil;
 import org.ironman.framework.util.PermissionUtil;
 
-import java.security.Provider;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 
-@Parameters(commandDescription = "")
+@Parameters(commandNames = "package", commandDescription = "")
 public class PackageCommand extends Command {
 
-    @Parameter(names = {"-l", "--list"}, order = 0, description = "List packages")
-    public AppType list = null;
-
-    @Parameter(names = {"-s", "--simplify"}, order = 1, description = "Display Simplified information.")
-    private boolean simplify = false;
-
-    @Parameter(names = {"-c", "--component"}, order = 100, description = "Display components.")
-    private Component component = null;
-
-    @Parameter(names = {"-f", "--fuzz"}, order = 101, description = "Fuzz components (not implemented)")
-    private boolean fuzz = false;
+    @Parameter(names = {"-p", "--packages"}, variableArity = true, order = 0,
+               description = "List packages, list all packages if not set")
+    private List<String> packages = new ArrayList<>();
 
     @Override
     public void run() {
-        List<PackageInfo> packageInfos = PackageUtil.getInstalledPackages(list);
-        Collections.sort(packageInfos, new Comparator<PackageInfo>() {
-            @Override
-            public int compare(PackageInfo o1, PackageInfo o2) {
-                return o1.packageName.compareTo(o2.packageName);
-            }
-        });
-
-        for (PackageInfo packageInfo : packageInfos) {
-            Package pkg = new Package(packageInfo);
-            pkg.print(simplify);
-            if (component != null) {
-                pkg.fuzz(component);
-                Output.out.println();
-            }
+        List<PackageInfo> packageInfos;
+        if (packages.size() > 0) {
+            packageInfos = PackageUtil.getPackages(packages.toArray(new String[packages.size()]));
+        } else {
+            packageInfos = PackageUtil.getInstalledPackages();
         }
+
+        List<Package> packages = new ArrayList<>(packageInfos.size());
+        for (PackageInfo packageInfo : packageInfos) {
+            packages.add(new Package(packageInfo));
+        }
+
+        Output.out.println(new Gson().toJson(packages));
     }
 
-    private enum Component {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    private enum Component1 {
         all,
         exported,
         dangerous
     }
 
-    private static class Package {
+    private static class Package1 {
 
         PackageInfo info;
 
-        Package(PackageInfo info) {
+        Package1(PackageInfo info) {
             this.info = info;
         }
 
@@ -82,39 +114,38 @@ public class PackageCommand extends Command {
             }
         }
 
-        void fuzz(Component component) {
+        void fuzz(Component1 component) {
             if (info.activities != null) {
                 for (ActivityInfo info : info.activities) {
-                    if (component == Component.exported && !exported(info)) {
+                    if (component == Component1.exported && !exported(info)) {
                         continue;
-                    } else if (component == Component.dangerous  && !dangerous(info)) {
+                    } else if (component == Component1.dangerous  && !dangerous(info)) {
                         continue;
                     }
                     Output.out.indent(4).println("[A] %s", info.name);
+
 //                    try {
 //                        Intent intent = new Intent(Intent.ACTION_VIEW);
-//                        intent.addFlags(-1);
 //                        intent.addCategory(Intent.CATEGORY_LAUNCHER);
 //                        intent.setComponent(new ComponentName(info.packageName, info.name));
-//                        AtEnvironment.getApplication().startActivity(intent);
+//                        ActivityUtil.startActivity(intent);
 //                    } catch (Exception e) {
-//                        System.Output.print(" --> ");
-//                        System.Output.print(e.getClass().getName());
-//                        System.Output.print(": ");
-//                        System.Output.print(e.getMessage());
-//                        System.Output.println();
-//                        System.Output.println(Log.getStackTraceString(e));
+//                        Output.out.print(" --> ");
+//                        Output.out.print(e.getClass().getName());
+//                        Output.out.print(": ");
+//                        Output.out.print(e.getMessage());
+//                        Output.out.println();
 //                    } finally {
-//                        System.Output.println();
+//                        Output.out.println();
 //                    }
                 }
             }
 
             if (info.services != null) {
                 for (ServiceInfo info : info.services) {
-                    if (component == Component.exported && !exported(info)) {
+                    if (component == Component1.exported && !exported(info)) {
                         continue;
-                    } else if (component == Component.dangerous  && !dangerous(info)) {
+                    } else if (component == Component1.dangerous  && !dangerous(info)) {
                         continue;
                     }
                     Output.out.indent(4).println("[S] %s", info.name);
@@ -123,9 +154,9 @@ public class PackageCommand extends Command {
 
             if (info.receivers != null) {
                 for (ActivityInfo info : info.receivers) {
-                    if (component == Component.exported && !exported(info)) {
+                    if (component == Component1.exported && !exported(info)) {
                         continue;
-                    } else if (component == Component.dangerous  && !dangerous(info)) {
+                    } else if (component == Component1.dangerous  && !dangerous(info)) {
                         continue;
                     }
                     Output.out.indent(4).println("[R] %s", info.name);
@@ -134,9 +165,9 @@ public class PackageCommand extends Command {
 
             if (info.providers != null) {
                 for (ProviderInfo info : info.providers) {
-                    if (component == Component.exported && !exported(info)) {
+                    if (component == Component1.exported && !exported(info)) {
                         continue;
-                    } else if (component == Component.dangerous  && !dangerous(info)) {
+                    } else if (component == Component1.dangerous  && !dangerous(info)) {
                         continue;
                     }
                     Output.out.indent(4).println("[P] %s", info.name);

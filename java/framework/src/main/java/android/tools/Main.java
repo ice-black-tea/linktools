@@ -1,6 +1,8 @@
 package android.tools;
 
 import android.tools.command.ActivityCommand;
+import android.tools.command.Command;
+import android.tools.command.ListCommand;
 import android.tools.command.PackageCommand;
 import android.tools.command.ServiceCommand;
 import android.util.Log;
@@ -13,36 +15,28 @@ public class Main {
 
     private static void parseArgs(String[] args) throws Throwable {
         Main main = new Main();
-        ActivityCommand activityCommand = new ActivityCommand();
-        PackageCommand packageCommand = new PackageCommand();
-        ServiceCommand serviceCommand = new ServiceCommand();
 
-        JCommander commander = JCommander.newBuilder()
-                .addObject(main)
-                .addCommand("activity", activityCommand)
-                .addCommand("package", packageCommand)
-                .addCommand("service", serviceCommand)
-                .build();
+        JCommander.Builder builder = JCommander.newBuilder().addObject(main);
+
+        builder.addCommand(new ListCommand());
+        builder.addCommand(new ActivityCommand());
+        builder.addCommand(new PackageCommand());
+        builder.addCommand(new ServiceCommand());
+
+        JCommander commander = builder.build();
 
         if (args.length == 0) {
             commander.usage();
-            System.exit(-1);
+            return;
         }
 
         commander.parse(args);
-        switch (args[0]) {
-            case "activity":
-                activityCommand.run();
-                break;
-            case "package":
-                packageCommand.run();
-                break;
-            case "service":
-                serviceCommand.run();
-                break;
-            default:
-                commander.usage();
-                break;
+
+        JCommander jCommander = commander.getCommands().get(args[0]);
+        if (jCommander != null) {
+            ((Command) jCommander.getObjects().get(0)).run();
+        } else {
+            commander.usage();
         }
     }
 
@@ -50,7 +44,7 @@ public class Main {
         try {
             parseArgs(args);
         } catch (Throwable th) {
-            Output.err.println(th);
+            Output.out.println(th);
         }
     }
 

@@ -1,12 +1,9 @@
 package android.tools.command;
 
-import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.ServiceManager;
-import android.text.TextUtils;
-import android.tools.Command;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
@@ -19,7 +16,7 @@ import java.util.List;
  * Created by hu on 18-12-18.
  */
 
-@Parameters(commandDescription = "")
+@Parameters(commandNames = "service", commandDescription = "")
 public class ServiceCommand extends Command {
 
     @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
@@ -50,7 +47,6 @@ public class ServiceCommand extends Command {
         for (String name : services) {
 
             boolean needFuzz = inFuzzList(name);
-
             if (!needFuzz && !list) {
                 continue;
             }
@@ -60,9 +56,8 @@ public class ServiceCommand extends Command {
 
             if (service.valid() && needFuzz) {
                 service.fuzz();
+                Output.out.println();
             }
-
-            Output.out.println();
         }
     }
 
@@ -89,7 +84,7 @@ public class ServiceCommand extends Command {
         }
 
         boolean valid() {
-            return binder != null && !TextUtils.isEmpty(desc);
+            return binder != null;
         }
 
         void print(boolean simplify) {
@@ -98,6 +93,40 @@ public class ServiceCommand extends Command {
             } else {
                 Output.out.println(name);
             }
+        }
+
+        void transact(int code, Parcel data, Parcel reply, int flags) {
+            try {
+                if (!binder.isBinderAlive()) {
+                    binder = ServiceManager.getService(name);
+                }
+
+                if (binder.transact(code, data, reply, flags)) {
+                    try {
+                        reply.readException();
+                        Output.out.indent(4).println("%d", code);
+                        // Thread.sleep(0);
+                    } catch (Exception e) {
+                        Output.out.indent(4).println("%d -> %s: %s",
+                                code, e.getClass().getName(), e.getMessage());
+                    }
+                }
+            } catch (RemoteException e) {
+                Output.out.indent(4).println("%d -> %s: %s",
+                        code, e.getClass().getName(), e.getMessage() != null);
+            } catch (Exception e) {
+                // e.printStackTrace();
+            }
+        }
+
+        void list() {
+            Parcel data = Parcel.obtain();
+            for (int i = 1; i <= 1000; i++) {
+                Parcel reply = Parcel.obtain();
+                transact(i, data, reply, 0);
+                reply.recycle();
+            }
+            data.recycle();
         }
 
         void fuzz() {
@@ -109,26 +138,7 @@ public class ServiceCommand extends Command {
 
             for (int i = 1; i <= 1000; i++) {
                 Parcel reply = Parcel.obtain();
-                try {
-                    if (!binder.isBinderAlive()) {
-                        binder = ServiceManager.getService(name);
-                    }
-
-                    if (binder.transact(i, data, reply, 0)) {
-                        try {
-                            reply.readException();
-                            Output.out.indent(4).println("%d", i);
-                        } catch (Exception e) {
-                            Output.out.indent(4).println("%d -> %s: %s",
-                                    i, e.getClass().getName(), e.getMessage());
-                        }
-                    }
-                } catch (RemoteException e) {
-                    Output.out.indent(4).println("%d -> %s: %s",
-                            i, e.getClass().getName(), e.getMessage() != null);
-                } catch (Exception e) {
-                    // e.printStackTrace();
-                }
+                transact(i, data, reply, 0);
                 reply.recycle();
             }
             data.recycle();

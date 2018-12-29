@@ -47,21 +47,31 @@ public class ActivityUtil {
             if (sInstance == null) {
                 sInstance = new ActivityManagerService();
             } else if (sInstance.mAm != null) {
-                return;
+                return; // hooked
             }
 
+            // android.app.ActivityManagerNative.gDefault
             String targetClass = "android.app.ActivityManagerNative";
             String targetField = "gDefault";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // android.app.ActivityManager.IActivityManagerSingleton
                 targetClass = "android.app.ActivityManager";
                 targetField = "IActivityManagerSingleton";
             }
 
             try {
+                // sdk < 8.0: singleton = android.app.ActivityManagerNative.gDefault
+                // sdk >= 8.0: singleton = android.app.ActivityManager.IActivityManagerSingleton
                 Object singleton = ReflectUtil.get(targetClass, targetField);
+
+                // am = singleton.get()
                 sInstance.mAm = ReflectUtil.invoke(singleton, "get");
+
+                // create am proxy
                 Object proxy = Proxy.newProxyInstance(sInstance.mAm.getClass().getClassLoader(),
                         sInstance.mAm.getClass().getInterfaces(), sInstance);
+
+                // singleton.mInstance = proxy
                 ReflectUtil.set(singleton, "mInstance", proxy);
             } catch (Exception e) {
                 // ignore
@@ -74,6 +84,7 @@ public class ActivityUtil {
                 case "startActivity":
                 case "startService":
                 case "broadcastIntent":
+                    // applicationThread = null;
                     args[0] = null;
                     break;
             }
