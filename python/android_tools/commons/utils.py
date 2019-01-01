@@ -106,7 +106,7 @@ class utils:
         :param reg: 子串（正则表达式）
         :return: 匹配的子串
         """
-        return re.compile(reg).findall(string)
+        return re.findall(reg, string)
 
     @staticmethod
     def replace(string: str, reg: str, val: str, count=0) -> str:
@@ -240,3 +240,38 @@ class utils:
             pbar.close()
         os.rename(tmp_path, path)
         return size
+
+
+class file_matcher(object):
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def match(self):
+        """
+        开始匹配
+        :return: None
+        """
+        if not os.path.exists(self.name):
+            raise Exception("")
+        handler = self.on_dir if os.path.isdir(self.name) else self.on_file
+        handler(self.name)
+
+    def on_file(self, filename: str):
+        """
+        匹配文件
+        :param filename: 文件名
+        :return: None
+        """
+        raise Exception("not yet implemented")
+
+    def on_dir(self, dirname: str):
+        """
+        匹配目录
+        :param dirname: 目录名
+        :return: None
+        """
+        for name in os.listdir(dirname):
+            filename = os.path.join(dirname, name)
+            handler = self.on_dir if os.path.isdir(filename) else self.on_file
+            handler(filename)

@@ -13,3 +13,7 @@ sudo python3 android-library/python/install.py
 # 重启终端后生效
 sudo python3 android-library/python/install.py -u
 ```
+
+# python工具
+
+[README.md](python/README.md)

@@ -102,7 +102,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    observer = None
     helper = frida_helper(device_id=args.serial)
     package = args.package
     if utils.empty(package):

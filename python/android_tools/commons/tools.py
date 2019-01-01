@@ -41,7 +41,7 @@ class _config_tools(object):
     def __init__(self, config: dict, parent: object = None):
         self._config = config
         self.config = None
-        self.parent: _config_tools = parent
+        self.parent = parent
 
     def init_config(self) -> None:
         if self.config is not None:
@@ -49,6 +49,7 @@ class _config_tools(object):
 
         # merge config
         if self.parent is not None:
+            # noinspection PyProtectedMember,PyUnresolvedReferences
             config = self.parent._config.copy()
             if not utils.empty(self.parent):
                 for key, value in self._config.items():
@@ -121,6 +122,8 @@ class _tools:
         for name, config in resource.get_config("tools").items():
             # darwin, linux or windows
             config = utils.item(config, _tools._system, default=config)
+            if utils.empty(config):
+                continue
             tool = _config_tools(config)
             self._add_tool(name, tool)
             for sub_name, sub_config in utils.item(config, "items", default={}).items():

@@ -194,6 +194,37 @@ optional arguments:
                         such as https://antiy.cn)
 ```
 
+## at_grep
+
+正则匹配文件内容（含zip文件内容）
+
+```bash
+$ at_grep.py -h
+usage: at_grep.py [-h] [-v] [-i] pattern [file [file ...]]
+
+match files with regular expressions
+
+positional arguments:
+  pattern            regular expression
+  file               target files path
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -v, --version      show program's version number and exit
+  -i, --ignore-case  ignore case
+```
+
+## at_tools
+
+读取[配置文件](android_tools/resource/.config)，下载使用对应工具
+
+```bash
+$ at_tools.py 
+usage: at_tools.py [-h]
+                   {adb,apktool,baksmali,compact_dex_converter,fastboot,java,mipay_extract,smali,vdex_extractor}
+```
+
+
 ## at_call_dex
 
 测试android-tools.dex时使用

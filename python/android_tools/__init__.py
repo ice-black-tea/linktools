@@ -29,7 +29,7 @@
 
 
 from .commons.version import __version__
-from .commons.utils import utils
+from .commons.utils import utils, file_matcher
 from .commons.adb import adb, device as adb_device
 from .commons.frida import frida_helper
 from .commons.tools import tools

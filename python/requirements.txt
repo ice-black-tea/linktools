@@ -3,3 +3,5 @@ requests
 tqdm
 frida
 watchdog
+python-magic-bin
+python-magic
