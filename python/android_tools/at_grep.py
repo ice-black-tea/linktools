@@ -91,7 +91,7 @@ class grep_matcher(file_matcher):
                     out = out + Fore.RED + str(line[match.span()[0]:match.span()[1]], encoding = "utf-8")
                     last = match.span()[1]
                 if not utils.empty(out):
-                    print(Fore.BLUE + filename +
+                    print(Fore.CYAN + filename +
                           Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
                           Fore.RESET + ": " + out +
                           Fore.RESET + str(line[last:], encoding = "utf-8"))
@@ -100,7 +100,7 @@ class grep_matcher(file_matcher):
         with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
-                    print(Fore.BLUE + filename + Fore.RESET + ": binary file match")
+                    print(Fore.CYAN + filename + Fore.RESET + ": binary file match")
                     return
 
 

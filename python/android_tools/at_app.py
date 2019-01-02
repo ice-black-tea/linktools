@@ -30,15 +30,33 @@ import argparse
 import json
 
 import colorama
-from colorama import Fore, Style
+from colorama import Fore, Style, Back
 
 import android_tools
 from android_tools import adb_device, utils
 
+STYLE_TITLE = {"fore": None, "back": None, "style": Style.BRIGHT}
+STYLE_NORMAL = {"fore": None, "back": None, "style": None}
+STYLE_USELESS = {"fore": Fore.YELLOW, "back": Back.WHITE, "style": Style.BRIGHT}
+STYLE_IMPORTANT = {"fore": Fore.RED, "back": Back.WHITE, "style": Style.BRIGHT}
 
-FORE_NORMAL = None
-FORE_USELESS = Fore.MAGENTA
-FORE_IMPORTANT = Fore.YELLOW
+
+class write_stream:
+
+    def __init__(self, file=None):
+        colorama.init(True)
+        self.file = file
+
+    def print(self, text="", fore: Fore = None, back: Back = None, style: Style = None, indent: int = 0):
+        if style is not None:
+            text = style + text
+        if back is not None:
+            text = back + text
+        if fore is not None:
+            text = fore + text
+        if indent > 0:
+            text = " " * indent + text
+        return print(text, file=self.file)
 
 
 class permission_info:
@@ -53,8 +71,12 @@ class permission_info:
     def is_defined(self):
         return not utils.empty(self.name)
 
-    def __str__(self):
-        return "%s %s" % (self.name, self.protection)
+    def dump(self, stream: write_stream, identity: str = "Permission", indent: int = 0, **kwargs):
+        if self.is_defined():
+            style = STYLE_NORMAL
+            if not self.is_secure():
+                style = STYLE_IMPORTANT
+            stream.print("%s [%s] %s" % (identity, self.name, self.protection), **style, indent=indent)
 
 
 class component_info:
@@ -64,8 +86,8 @@ class component_info:
         self.exported = utils.item(obj, "exported", default=False)
         self.enabled = utils.item(obj, "enabled", default=False)
 
-    def __str__(self):
-        return "%s %s %s" % (self.name, self.exported, self.enabled)
+    def dump(self, stream: write_stream, identity: str = "Component", indent: int = 0, **kwargs):
+        raise Exception("not yet implmented")
 
 
 class activity_info(component_info):
@@ -74,8 +96,18 @@ class activity_info(component_info):
         super().__init__(obj)
         self.permission = permission_info(utils.item(obj, "permission", default={}))
 
-    def __str__(self):
-        return "%s %s %s" % (self.name, self.exported, self.enabled)
+    def dump(self, stream: write_stream, identity: str = "Activity", indent: int = 0, **kwargs):
+        style = STYLE_NORMAL
+        text = "%s [%s]" % (identity, self.name)
+        if not self.enabled:
+            style = STYLE_USELESS
+            text = text + " enable=false"
+        elif self.exported:
+            if not self.permission.is_secure():
+                style = STYLE_IMPORTANT
+            text = text + " exported=true"
+        stream.print(text, **style, indent=indent)
+        self.permission.dump(stream, indent=indent+4)
 
 
 class service_info(component_info):
@@ -84,8 +116,18 @@ class service_info(component_info):
         super().__init__(obj)
         self.permission = permission_info(utils.item(obj, "permission", default={}))
 
-    def __str__(self):
-        return "%s %s %s" % (self.name, self.exported, self.enabled)
+    def dump(self, stream: write_stream, identity: str = "Service", indent: int = 0, **kwargs):
+        style = STYLE_NORMAL
+        text = "%s [%s]" % (identity, self.name)
+        if not self.enabled:
+            style = STYLE_USELESS
+            text = text + " enable=false"
+        elif self.exported:
+            if not self.permission.is_secure():
+                style = STYLE_IMPORTANT
+            text = text + " exported=true"
+        stream.print(text, **style, indent=indent)
+        self.permission.dump(stream, indent=indent+4)
 
 
 class receiver_info(component_info):
@@ -94,8 +136,18 @@ class receiver_info(component_info):
         super().__init__(obj)
         self.permission = permission_info(utils.item(obj, "permission", default={}))
 
-    def __str__(self):
-        return "%s %s %s" % (self.name, self.exported, self.enabled)
+    def dump(self, stream: write_stream, identity: str = "Receiver", indent: int = 0, **kwargs):
+        style = STYLE_NORMAL
+        text = "%s [%s]" % (identity, self.name)
+        if not self.enabled:
+            style = STYLE_USELESS
+            text = text + " enable=false"
+        elif self.exported:
+            if not self.permission.is_secure():
+                style = STYLE_IMPORTANT
+            text = text + " exported=true"
+        stream.print(text, **style, indent=indent)
+        self.permission.dump(stream, indent=indent+4)
 
 
 class pattern_matcher:
@@ -104,19 +156,25 @@ class pattern_matcher:
         self.path = utils.item(obj, "path", default="")
         self.type = utils.item(obj, "type", default="literal")
 
-    def __str__(self):
-        return "%s %s" % (self.path, self.type)
+    def dump(self, stream: write_stream, identity: str = "PatternMatcher", indent: int = 0, **kwargs):
+        style = STYLE_NORMAL
+        stream.print("%s [path=%s, type=%s]" % (identity, self.path, self.type), **style, indent=indent)
 
 
 class path_permission(pattern_matcher):
 
     def __init__(self, obj: dict):
         super().__init__(obj)
-        self.path = permission_info(utils.item(obj, "readPermission", default={}))
-        self.type = permission_info(utils.item(obj, "readPermission", default={}))
+        self.readPermission = permission_info(utils.item(obj, "readPermission", default={}))
+        self.writePermission = permission_info(utils.item(obj, "writePermission", default={}))
 
-    def __str__(self):
-        return "%s %s" % (self.path, self.type)
+    def dump(self, stream: write_stream, identity: str = "PathPermission", indent: int = 0, **kwargs):
+        style = STYLE_NORMAL
+        if not self.readPermission.is_secure() or not self.writePermission.is_secure():
+            style = STYLE_IMPORTANT
+        stream.print("%s [path=%s, type=%s]" % (identity, self.path, self.type), **style, indent=indent)
+        self.readPermission.dump(stream, indent=indent + 4, identity="ReadPermission")
+        self.writePermission.dump(stream, indent=indent + 4, identity="WritePermission")
 
 
 class provider_info(component_info):
@@ -125,12 +183,38 @@ class provider_info(component_info):
         super().__init__(obj)
         self.authority = utils.item(obj, "authority", default="")
         self.readPermission = permission_info(utils.item(obj, "readPermission", default={}))
-        self.readPermission = permission_info(utils.item(obj, "readPermission", default={}))
-        self.readPermission = permission_info(utils.item(obj, "readPermission", default={}))
-        self.readPermission = permission_info(utils.item(obj, "readPermission", default={}))
+        self.writePermission = permission_info(utils.item(obj, "writePermission", default={}))
+        self.uriPermissionPatterns = utils.item(obj, "uriPermissionPatterns", default=[])
+        self.pathPermissions = utils.item(obj, "pathPermissions", default=[])
 
-    def __str__(self):
-        return "%s %s %s" % (self.name, self.exported, self.enabled)
+    def dump(self, stream: write_stream, identity: str = "Provider", indent: int = 0, **kwargs):
+        style = STYLE_NORMAL
+        text = "%s [%s]" % (identity, self.name)
+        if not self.enabled:
+            style = STYLE_USELESS
+            text = text + " enable=false"
+        elif self.exported:
+            if not self.readPermission.is_secure() or not self.writePermission.is_secure():
+                style = STYLE_IMPORTANT
+            text = text + " exported=true"
+        stream.print(text, **style, indent=indent)
+
+        self.readPermission.dump(stream, indent=indent + 4, identity="ReadPermission")
+        self.writePermission.dump(stream, indent=indent + 4, identity="WritePermission")
+
+        if not utils.empty(self.uriPermissionPatterns):
+            stream.print("uriPermissionPatterns:", indent=indent + 4)
+            for uriPermissionPattern in self.uriPermissionPatterns:
+                matcher = pattern_matcher(uriPermissionPattern)
+                matcher.dump(stream, indent=indent + 8, identity="UriPermissionPattern")
+                del matcher
+
+        if not utils.empty(self.pathPermissions):
+            stream.print("pathPermissions:", indent=indent + 4)
+            for pathPermission in self.pathPermissions:
+                permission = path_permission(pathPermission)
+                permission.dump(stream, indent=indent + 8, identity="PathPermission")
+                del permission
 
 
 class package_info:
@@ -154,149 +238,82 @@ class package_info:
         self.receivers = utils.item(obj, "receivers", default=[])
         self.providers = utils.item(obj, "providers", default=[])
 
-    def __str__(self):
-        return "%s %s %s" % (self.name, self.exported, self.enabled)
+    def dump(self, stream: write_stream, indent: int = 0, identity: str = "Package"):
+        stream.print("%s [%s]" % (identity, self.name), style=Style.BRIGHT, indent=indent)
+        stream.print("name=%s" % self.appName, indent=indent + 4)
+        stream.print("userId=%s" % self.userId, indent=indent + 4)
+        stream.print("gids=%s" % self.gids, indent=indent + 4)
+        stream.print("sourceDir=%s" % self.sourceDir, indent=indent + 4)
+        stream.print("versionCode=%s" % self.versionCode, indent=indent + 4)
+        stream.print("versionName=%s" % self.versionName, indent=indent + 4)
+        stream.print("enabled=%s" % self.enabled, indent=indent + 4)
+        stream.print("system=%s" % self.system, indent=indent + 4)
+        stream.print("debuggable=%s" % self.debuggable, **STYLE_IMPORTANT if self.debuggable else STYLE_NORMAL,
+                     indent=indent + 4)
+        stream.print("allowBackup=%s" % self.allowBackup, **STYLE_IMPORTANT if self.allowBackup else STYLE_NORMAL,
+                     indent=indent + 4)
+        stream.print()
 
+        if not utils.empty(self.permissions):
+            stream.print("permissions:", indent=indent + 4)
+            for permission in self.activities:
+                info = permission_info(permission)
+                info.dump(stream, indent=indent + 8)
+                del info
+            stream.print()
 
-def printex(text="", fore=None, back=None, style=None, **kwargs):
-    if fore is not None:
-        text = fore + text
-    if back is not None:
-        text = back + text
-    if style is not None:
-        text = style + text
-    return print(text, **kwargs)
+        if not utils.empty(self.activities):
+            stream.print("activitys:", indent=indent + 4)
+            for activity in self.activities:
+                info = activity_info(activity)
+                info.dump(stream, indent=indent + 8)
+                del info
+            stream.print()
 
+        if not utils.empty(self.services):
+            stream.print("services:", indent=indent + 4)
+            for service in self.services:
+                info = service_info(service)
+                info.dump(stream, indent=indent + 8)
+                del info
+            stream.print()
 
-def dump_activities(pkg: str, activities: tuple):
-    if utils.empty(activities):
-        return
+        if not utils.empty(self.receivers):
+            stream.print("receivers:", indent=indent + 4)
+            for receiver in self.receivers:
+                info = receiver_info(receiver)
+                info.dump(stream, indent=indent + 8)
+                del info
+            stream.print()
 
-    printex("    activitys:")
-    for activity in activities:
-        info = activity_info(activity)
+        if not utils.empty(self.providers):
+            stream.print("providers:", indent=indent + 4)
+            for provider in self.providers:
+                info = provider_info(provider)
+                info.dump(stream, indent=indent + 8)
+                del info
+            stream.print()
 
-        text = "        Activity [%s/%s]" % (pkg, info.name)
-        if not info.enabled:
-            fore = FORE_USELESS
-            text = text + "  disable"
-        elif info.exported:
-            fore = FORE_IMPORTANT if not info.permission.is_secure() else FORE_NORMAL
-            text = text + "  exported"
-        else:
-            fore = FORE_NORMAL
-        if info.permission.is_defined():
-            text = text + "\r\n" \
-                   "            permission=%s  %s" % (info.permission.name, info.permission.protection)
-        printex(text, fore=fore)
-
-
-def dump_services(pkg: str, services: tuple):
-    if utils.empty(services):
-        return
-
-    printex("    services:")
-    for service in services:
-        info = service_info(service)
-
-        text = "        Service [%s/%s]" % (pkg, info.name)
-        if not info.enabled:
-            fore = FORE_USELESS
-            text = text + "  disable"
-        elif info.exported:
-            fore = FORE_IMPORTANT if not info.permission.is_secure() else FORE_NORMAL
-            text = text + "  exported"
-        else:
-            fore = FORE_NORMAL
-        if info.permission.is_defined():
-            text = text + "\r\n" \
-                   "            permission=%s  %s" % (info.permission.name, info.permission.protection)
-        printex(text, fore=fore)
-
-
-def dump_receivers(pkg: str, receivers: tuple):
-    if utils.empty(receivers):
-        return
-
-    printex("    receivers:")
-    for receiver in receivers:
-        info = receiver_info(receiver)
-
-        text = "        Receiver [%s/%s]" % (pkg, info.name)
-        if not info.enabled:
-            fore = FORE_USELESS
-            text = text + "  disable"
-        elif info.exported:
-            fore = FORE_IMPORTANT if not info.permission.is_secure() else FORE_NORMAL
-            text = text + "  exported"
-        else:
-            fore = FORE_NORMAL
-        if info.permission.is_defined():
-            text = text + "\r\n" \
-                   "            permission=%s  %s" % (info.permission.name, info.permission.protection)
-        printex(text, fore=fore)
-
-
-def dump_providers(pkg: str, providers: tuple):
-    if utils.empty(providers):
-        return
-
-    printex("    providers:")
-    for provider in providers:
-        info = provider_info(provider)
-
-        text = "        Provider [%s/%s]" % (pkg, info.name)
-        if not info.enabled:
-            fore = FORE_USELESS
-            text = text + "  disable"
-        elif info.exported:
-            fore = FORE_IMPORTANT if info.authority in ["dangerous", "normal"] else FORE_NORMAL
-            text = text + "  exported"
-        else:
-            fore = FORE_NORMAL
-        if not utils.empty(info.authority):
-            text = text + "\r\n            authority=%s  " % info.authority
-        printex(text, fore=fore)
-
-
-def dump_package(package: dict):
-    info = package_info(package)
-    printex("Package [%s]" % info.name, style=Style.BRIGHT)
-    printex("    name=%s" % info.appName)
-    printex("    userId=%s" % info.userId)
-    printex("    gids=%s" % info.gids)
-    printex("    sourceDir=%s" % info.sourceDir)
-    printex("    versionCode=%s" % info.versionCode)
-    printex("    versionName=%s" % info.versionName)
-    printex("    enabled=%s" % info.enabled)
-    printex("    system=%s" % info.system)
-    printex("    debuggable=%s" % info.debuggable, fore=FORE_IMPORTANT if info.debuggable else None)
-    printex("    allowBackup=%s" % info.allowBackup, fore=FORE_IMPORTANT if info.allowBackup else None)
-
-    printex()
-    dump_activities(info.name, info.activities)
-    printex()
-    dump_services(info.name, info.services)
-    printex()
-    dump_receivers(info.name, info.receivers)
-    printex()
-    dump_providers(info.name, info.providers)
-    printex()
+        stream.print()
 
 
 if __name__ == '__main__':
-    colorama.init(True)
-
-    parser = argparse.ArgumentParser(description='get app info')
+    parser = argparse.ArgumentParser(description='fetch application info')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
     parser.add_argument('-s', '--serial', action='store', default=None,
                         help='use device with given serial')
 
+    parser.add_argument('-p', '--packages', metavar="package", action='store', nargs='*', default=None,
+                        help='target packages [default all packages]')
+
     args = parser.parse_args()
 
     device = adb_device(args.serial)
-    packages = json.loads(device.call_dex("package", "-p", device.top_package(), capture_output=True))
 
+    args = ["package"] if utils.empty(args.packages) else ["package", "-p", *args.packages]
+    packages = json.loads(device.call_dex(*args, capture_output=True))
+
+    stream = write_stream()
     for package in packages:
-        dump_package(package)
-
+        info = package_info(package)
+        info.dump(stream)

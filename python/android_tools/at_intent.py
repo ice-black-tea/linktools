@@ -95,7 +95,8 @@ if __name__ == '__main__':
                      "-d", "file://%s" % path,
                      capture_output = False)
     elif "--browser" in sys.argv:
-        device.shell("am", "start", "-a", "android.intent.action.VIEW",
+        device.shell("am", "start", "--user", "0",
+                     "-a", "android.intent.action.VIEW",
                      "-d", args.url,
                      capture_output = False)
 

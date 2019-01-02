@@ -1,1 +1,1 @@
-python-magic-win64
+python-magic-bin

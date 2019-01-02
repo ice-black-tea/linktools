@@ -214,6 +214,29 @@ optional arguments:
   -i, --ignore-case  ignore case
 ```
 
+## at_app
+
+展示app基本信息
+
+```bash
+$ at_app.py -h
+usage: at_app.py [-h] [-v] [-s SERIAL] [-p [package [package ...]]]
+
+fetch application info
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -s SERIAL, --serial SERIAL
+                        use device with given serial
+  -p [package [package ...]], --packages [package [package ...]]
+                        target packages [default all packages]
+```
+
+### 输出效果
+
+![apps](imgs/apps.png)
+
 ## at_tools
 
 读取[配置文件](android_tools/resource/.config)，下载使用对应工具
