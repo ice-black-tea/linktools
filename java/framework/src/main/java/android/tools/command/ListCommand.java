@@ -7,7 +7,7 @@ import com.beust.jcommander.Parameters;
  * Created by hu on 18-12-29.
  */
 
-@Parameters(commandNames = "list", commandDescription = "")
+@Parameters(commandNames = "list")
 public class ListCommand extends Command {
 
     private enum PackageType {

@@ -19,8 +19,8 @@ public class Main {
         JCommander.Builder builder = JCommander.newBuilder().addObject(main);
 
         builder.addCommand(new ListCommand());
-        builder.addCommand(new ActivityCommand());
         builder.addCommand(new PackageCommand());
+        builder.addCommand(new ActivityCommand());
         builder.addCommand(new ServiceCommand());
 
         JCommander commander = builder.build();
@@ -42,9 +42,12 @@ public class Main {
 
     public static void main(String[] args) {
         try {
+            Output.out.setPrintStream(System.out);
+            Output.err.setPrintStream(System.err);
             parseArgs(args);
         } catch (Throwable th) {
-            Output.out.println(th);
+            Output.err.println(th);
+            System.exit(-1);
         }
     }
 

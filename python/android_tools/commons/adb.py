@@ -52,17 +52,14 @@ class adb(object):
         return [d for d in devices if len(d) > 2]
 
     @staticmethod
-    def exec(*args: [str], capture_output: bool = True) -> str:
+    def exec(*args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
         :param capture_output: 捕获输出，填False使用标准输出
         :return: 输出结果
         """
-        stdout, stderr = None, None
-        if capture_output is True:
-            stdout, stderr = utils.PIPE, utils.PIPE
-        process = tools.adb.exec(*args, stdin=None, stdout=stdout, stderr=stderr)
+        process = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
         if process.returncode != 0 and not utils.empty(process.err):
             raise AdbError(process.err)
         return process.out
@@ -126,7 +123,7 @@ class device(object):
             return uid
         raise AdbError("unknown adb uid: %s" % result)
 
-    def exec(self, *args: [str], capture_output: bool = True) -> str:
+    def exec(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
@@ -134,43 +131,43 @@ class device(object):
         :return: adb输出结果
         """
         args = ["-s", self.id, *args]
-        return adb.exec(*args, capture_output=capture_output)
+        return adb.exec(*args, capture_output=capture_output, **kwargs)
 
-    def shell(self, *args: [str], capture_output: bool = True) -> str:
+    def shell(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         执行shell
-        :param capture_output: 捕获输出，填False使用标准输出
         :param args: shell命令
+        :param capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, "shell", *args]
-        return adb.exec(*args, capture_output=capture_output)
+        return adb.exec(*args, capture_output=capture_output, **kwargs)
 
-    def sudo(self, *args: [str], capture_output: bool = True) -> str:
+    def sudo(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         以root权限执行shell
-        :param capture_output: 捕获输出，填False使用标准输出
         :param args: shell命令
+        :param capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         if self.uid != 0:
             args = ["-s", self.id, "shell", "su", "-c", *args]
         else:
             args = ["-s", self.id, "shell", *args]
-        return adb.exec(*args, capture_output=capture_output)
+        return adb.exec(*args, capture_output=capture_output, **kwargs)
 
-    def call_dex(self, *args: [str], capture_output: bool = True):
+    def call_dex(self, *args: [str], capture_output: bool = True, **kwargs):
         """
-        调用
-        :param args:
-        :param capture_output:
+        调用dex功能
+        :param args: dex参数
+        :param capture_output: 捕获输出，填False使用标准输出
         :return:
         """
         if not self._check_dex():
             raise AdbError("%s does not exist" % self.dex["path"])
         args = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
                 "app_process", "/", self.dex["main"], *args]
-        return adb.exec(*args, capture_output=capture_output)
+        return adb.exec(*args, capture_output=capture_output, **kwargs)
 
     def get_prop(self, prop: str) -> str:
         """
@@ -222,7 +219,7 @@ class device(object):
         :return: 顶层包名
         """
         result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
-        items = result[result.find("\n"):].split()
+        items = result[result.rfind("\n"):].split()
         if items is not None and len(items) >= 2:
             return items[1].split("/")[0]
         raise AdbError("can not fetch top package")
@@ -233,7 +230,7 @@ class device(object):
         :return: 顶层activity名
         """
         result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
-        items = result[result.find("\n"):].split()
+        items = result[result.rfind("\n"):].split()
         if items is not None and len(items) >= 2:
             return items[1]
         raise AdbError("can not fetch top activity")
@@ -272,10 +269,12 @@ class device(object):
         return package_name[0:index]
 
     def _check_dex(self):
-        if utils.empty(self.dex) or not self.exist_file(self.dex["path"]):
+        if utils.empty(self.dex):
             path = self.save_path("dex")
             self.dex = resource.get_config("framework_dex")
             self.dex["path"] = path + "/" + self.dex["name"]
+        if not self.exist_file(self.dex["path"]):
+            path = self.save_path("dex")
             self.shell("rm", "-rf", path)
             self.exec("push", resource.store_path(self.dex["name"]), self.dex["path"])
             return self.exist_file(self.dex["path"])

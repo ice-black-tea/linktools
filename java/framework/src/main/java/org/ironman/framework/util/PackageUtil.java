@@ -12,57 +12,35 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 
 import org.ironman.framework.AtEnvironment;
-import org.ironman.framework.bean.AppType;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class PackageUtil {
 
-    private static String TAG = PackageUtil.class.getSimpleName();
+    private static final String TAG = PackageUtil.class.getSimpleName();
+    private static final int GET_INFO_FLAGS = 0xffff;
 
     @SuppressLint({"WrongConstant", "PackageManagerGetSignatures"})
-    public static PackageInfo getPackage(String packageName) {
-        try {
-            return AtEnvironment.getPackageManager().getPackageInfo(packageName, 0xffff);
-        } catch (PackageManager.NameNotFoundException e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+    public static List<PackageInfo> getPackages(String... packageNames) {
+        List<PackageInfo> packages = new ArrayList<>();
+        for (String packageName : packageNames) {
+            try {
+                packages.add(AtEnvironment.getPackageManager().getPackageInfo(packageName, GET_INFO_FLAGS));
+            } catch (PackageManager.NameNotFoundException e) {
+                LogUtil.printErrStackTrace(TAG, e, null);
+            }
         }
-        return null;
-    }
-
-    public static List<PackageInfo> getInstalledPackages() {
-        return getInstalledPackages(AppType.all);
+        return packages;
     }
 
     @SuppressLint("WrongConstant")
-    public static List<PackageInfo> getInstalledPackages(AppType type) {
-        List<PackageInfo> packageInfos = new ArrayList<>();
-        for (PackageInfo packageInfo : AtEnvironment.getPackageManager().getInstalledPackages(0xffff)) {
-            switch (type) {
-                case system:
-                    if (isSystemPackage(packageInfo)) packageInfos.add(packageInfo);
-                    break;
-                case normal:
-                    if (!isSystemPackage(packageInfo)) packageInfos.add(packageInfo);
-                    break;
-                case all:
-                    packageInfos.add(packageInfo);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        return packageInfos;
+    public static List<PackageInfo> getInstalledPackages() {
+        return AtEnvironment.getPackageManager().getInstalledPackages(GET_INFO_FLAGS);
     }
 
-    public static boolean isSystemPackage(PackageInfo packageInfo) {
-        return (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-    }
-
-    public static CharSequence getApplicationName(PackageInfo packageInfo) {
-        return packageInfo.applicationInfo.loadLabel(AtEnvironment.getPackageManager());
+    public static String getApplicationName(PackageInfo packageInfo) {
+        return packageInfo.applicationInfo.loadLabel(AtEnvironment.getPackageManager()).toString();
     }
 
     public static Drawable getApplicationIcon(PackageInfo packageInfo) {

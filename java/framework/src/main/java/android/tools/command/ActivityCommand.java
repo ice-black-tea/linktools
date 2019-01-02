@@ -4,7 +4,7 @@ import com.beust.jcommander.Parameters;
 
 import org.ironman.framework.util.ActivityUtil;
 
-@Parameters(commandNames = "activity", commandDescription = "")
+@Parameters(commandNames = "activity")
 public class ActivityCommand extends Command {
 
     @Override

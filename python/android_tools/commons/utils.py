@@ -40,17 +40,19 @@ from tqdm import tqdm, TqdmSynchronisationWarning
 
 class _process(subprocess.Popen):
 
-    def __init__(self, *args, stdin, stdout, stderr):
+    def __init__(self, *args, **kwargs):
         """
         :param args: 参数
-        :param stdin: 输入流
-        :param stdout: 输出流
-        :param stderr: 错误输出流
         """
         self.out = ""
         self.err = ""
-        self.returncode = -0x7fffffff
-        subprocess.Popen.__init__(self, args, shell=False, stdin=stdin, stdout=stdout, stderr=stderr)
+        capture_output = utils.item(kwargs, "capture_output")
+        if capture_output is True:
+            kwargs["stdout"] = utils.PIPE
+            kwargs["stderr"] = utils.PIPE
+        if capture_output is not None:
+            del kwargs["capture_output"]
+        subprocess.Popen.__init__(self, args, shell=False, **kwargs)
 
     def communicate(self, **kwargs):
         out, err = None, None
@@ -169,22 +171,23 @@ class utils:
         """
         try:
             for key in keys:
-                obj = obj.__getitem__(key)
+                if obj is not None and isinstance(obj, Iterable) and key in obj:
+                    # noinspection PyUnresolvedReferences
+                    obj = obj.__getitem__(key)
+                else:
+                    return default
         except:
             obj = default
         return obj
 
     @staticmethod
-    def exec(*args: str, stdin=None, stdout=None, stderr=None) -> _process:
+    def exec(*args, **kwargs) -> _process:
         """
         执行命令
         :param args: 参数
-        :param stdin: 输入流，标准输入为None，使用管道为utils.PIPE
-        :param stdout: 输出流，标准输出为None，使用管道为utils.PIPE
-        :param stderr: 错误输出流，输出到输出流为utils.STDOUT，标准输出为None，使用管道为utils.PIPE
         :return: 子进程
         """
-        process = _process(*args, stdin=stdin, stdout=stdout, stderr=stderr)
+        process = _process(*args, **kwargs)
         process.communicate()
         return process
 

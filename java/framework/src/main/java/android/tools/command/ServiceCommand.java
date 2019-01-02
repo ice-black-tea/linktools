@@ -16,7 +16,7 @@ import java.util.List;
  * Created by hu on 18-12-18.
  */
 
-@Parameters(commandNames = "service", commandDescription = "")
+@Parameters(commandNames = "service")
 public class ServiceCommand extends Command {
 
     @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")

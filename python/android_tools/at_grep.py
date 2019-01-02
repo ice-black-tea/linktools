@@ -58,7 +58,7 @@ class grep_matcher(file_matcher):
     def on_file(self, filename: str):
         try:
             mime = magic.from_file(filename, mime=True)
-            handler = utils.item(self.handler, mime, default=None)
+            handler = utils.item(self.handler, mime)
             if handler is not None:
                 handler(filename)
                 return
@@ -66,7 +66,8 @@ class grep_matcher(file_matcher):
             pass
         try:
             self.on_binary(filename)
-        except:
+        except Exception as e:
+            # print(filename, e)
             pass
 
     def on_zip(self, filename: str):
@@ -81,22 +82,22 @@ class grep_matcher(file_matcher):
             shutil.rmtree(dirname, ignore_errors=True)
 
     def on_text(self, filename: str):
-        with open(filename, "r") as fd:
+        with open(filename, "rb") as fd:
             lines = fd.readlines()
             for i in range(0, len(lines)):
-                out, last, line = "", 0, lines[i].rstrip("\n")
+                out, last, line = "", 0, lines[i].rstrip(b"\n")
                 for match in self.pattern.finditer(line):
-                    out = out + Fore.RESET + line[last:match.span()[0]]
-                    out = out + Fore.RED + line[match.span()[0]:match.span()[1]]
+                    out = out + Fore.RESET + str(line[last:match.span()[0]], encoding = "utf-8")
+                    out = out + Fore.RED + str(line[match.span()[0]:match.span()[1]], encoding = "utf-8")
                     last = match.span()[1]
                 if not utils.empty(out):
                     print(Fore.BLUE + filename +
-                          Fore.RESET + "(" + Fore.GREEN + str(i + 1) + Fore.RESET + ")" +
+                          Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
                           Fore.RESET + ": " + out +
-                          Fore.RESET + line[last:])
+                          Fore.RESET + str(line[last:], encoding = "utf-8"))
 
     def on_binary(self, filename: str):
-        with open(filename, "r") as fd:
+        with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
                     print(Fore.BLUE + filename + Fore.RESET + ": binary file match")
@@ -119,7 +120,7 @@ if __name__ == '__main__':
     flags = 0
     if args.ignore_case:
         flags = flags | re.I
-    pattern = re.compile(args.pattern, flags=flags)
+    pattern = re.compile(bytes(args.pattern, encoding="utf8"), flags=flags)
 
     if utils.empty(args.files):
         args.files = ["."]

@@ -32,8 +32,7 @@ import ast
 from distutils.core import setup
 
 
-def get_module_value(source, key):
-    module = ast.parse(source)
+def get_value(module, key):
     for e in module.body:
         if isinstance(e, ast.Assign) and \
                 len(e.targets) == 1 and \
@@ -46,13 +45,13 @@ def get_module_value(source, key):
 if __name__ == '__main__':
 
     with open("android_tools/commons/version.py", "rt") as f:
-        source = f.read()
+        _module = ast.parse(f.read())
 
     setup(
-        name=get_module_value(source, "__name__"),
-        author=get_module_value(source, "__author__"),
-        version=get_module_value(source, "__version__"),
-        author_email=get_module_value(source, "__email__"),
+        name=get_value(_module, "__name__"),
+        author=get_value(_module, "__author__"),
+        version=get_value(_module, "__version__"),
+        author_email=get_value(_module, "__email__"),
         packages=["android_tools", "android_tools/commons"],
-        url=get_module_value(source, "__url__"),
+        url=get_value(_module, "__url__"),
     )

@@ -51,9 +51,8 @@ class _config_tools(object):
         if self.parent is not None:
             # noinspection PyProtectedMember,PyUnresolvedReferences
             config = self.parent._config.copy()
-            if not utils.empty(self.parent):
-                for key, value in self._config.items():
-                    config[key] = value
+            for key, value in self._config.items():
+                config[key] = value
         else:
             config = self._config.copy()
 
@@ -62,9 +61,9 @@ class _config_tools(object):
         if not utils.empty(url):
             config["url"] = url
 
-        # unzip path
-        unzip = utils.item(config, "unzip", default="").format(**config)
-        config["unzip"] = resource.download_path(unzip) if not utils.empty(unzip) else ""
+        # unpack path
+        unpack = utils.item(config, "unpack", default="").format(**config)
+        config["unpack"] = resource.download_path(unpack) if not utils.empty(unpack) else ""
 
         # file path
         path = utils.item(config, "path", default="").format(**config)
@@ -91,14 +90,11 @@ class _config_tools(object):
             print(self.config["url"])
             file = resource.download_path(quote(self.config["url"], safe=''))
             utils.download(self.config["url"], file)
-            if not utils.empty(self.config["unzip"]):
-                shutil.unpack_archive(file, self.config["unzip"])
+            if not utils.empty(self.config["unpack"]):
+                shutil.unpack_archive(file, self.config["unpack"])
                 os.remove(file)
             else:
                 os.rename(file, self.config["path"])
-            os.chmod(self.config["path"], 0o0755)
-        elif not os.access(self.config["path"], os.X_OK):
-            os.chmod(self.config["path"], 0o0755)
 
     def exec(self, *args: [str], **kwargs) -> _process:
         self.init_config()
@@ -107,9 +103,11 @@ class _config_tools(object):
         if executable[0] == "python":
             args = [sys.executable, *executable[1:], *args]
             return utils.exec(*args, **kwargs)
-        elif executable[0] in tools.items:
+        if executable[0] in tools.items:
             tool = tools.items[executable[0]]
             return tool.exec(*[*executable[1:], *args], **kwargs)
+        if not os.access(executable[0], os.X_OK):
+            os.chmod(executable[0], 0o0755)
         return utils.exec(*[*executable, *args], **kwargs)
 
 

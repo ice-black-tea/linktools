@@ -12,6 +12,37 @@ import org.ironman.framework.AtEnvironment;
 
 public class PermissionUtil {
 
+    public enum Protection {
+        dangerous,
+        normal,
+        signature,
+        signatureOrSystem,
+    }
+
+    public static Protection getProtection(String permission) {
+        try {
+            return getProtection(AtEnvironment.getPackageManager().getPermissionInfo(permission, -1));
+        } catch (PackageManager.NameNotFoundException e) {
+            // e.printStackTrace();
+        }
+        return Protection.normal;
+    }
+
+    public static Protection getProtection(PermissionInfo permissionInfo) {
+        switch (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) {
+            case PermissionInfo.PROTECTION_DANGEROUS:
+                return Protection.dangerous;
+            case PermissionInfo.PROTECTION_NORMAL:
+                return Protection.normal;
+            case PermissionInfo.PROTECTION_SIGNATURE:
+                return Protection.signature;
+            case PermissionInfo.PROTECTION_SIGNATURE_OR_SYSTEM:
+                return Protection.signatureOrSystem;
+            default:
+                return Protection.normal;
+        }
+    }
+
     public static boolean isDangerousOrNormal(PermissionInfo permissionInfo) {
         switch (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) {
             case PermissionInfo.PROTECTION_DANGEROUS:

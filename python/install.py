@@ -37,19 +37,19 @@ import sys
 
 
 class system:
-    _system = platform.system()
+    name = platform.system().lower()
 
     @staticmethod
     def is_windows():  # -> bool:
-        return system._system == "Windows"
+        return system.name == "windows"
 
     @staticmethod
     def is_linux():  # -> bool:
-        return system._system == "Linux"
+        return system.name == "linux"
 
     @staticmethod
     def is_darwin():  # -> bool:
-        return system._system == "Darwin"
+        return system.name == "darwin"
 
 
 if system.is_windows():
@@ -163,8 +163,7 @@ class user_env:
                     fd.write(bash_command)
 
 
-def get_module_value(source, key):
-    module = ast.parse(source)
+def get_value(module, key):
     for e in module.body:
         if isinstance(e, ast.Assign) and \
                 len(e.targets) == 1 and \
@@ -176,20 +175,19 @@ def get_module_value(source, key):
 
 def install_module(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
-    requirements_path = os.path.join(install_path, "requirements.txt")
 
     version_path = os.path.join(install_path, "android_tools/commons/version.py")
     with open(version_path, "rt") as f:
-        source = f.read()
+        _module = ast.parse(f.read())
 
     if install:
-        # python -m pip install -r requirements.txt -e .
-        subprocess.call([sys.executable, "-m", "pip", "install",
-                         "-r", requirements_path, "-e", install_path],
+        install_require(True)
+        # python -m pip install -e .
+        subprocess.call([sys.executable, "-m", "pip", "install", "-e", install_path],
                         stdin=None, stdout=None, stderr=None)
     else:
         # python -m pip uninstall android_tools
-        subprocess.call([sys.executable, "-m", "pip", "uninstall", get_module_value(source, "__name__")],
+        subprocess.call([sys.executable, "-m", "pip", "uninstall", get_value(_module, "__name__")],
                         stdin=None, stdout=None, stderr=None)
 
 
@@ -221,14 +219,15 @@ def install_env(install):
 def install_require(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
     requirements_path = os.path.join(install_path, "requirements.txt")
+    platform_path = os.path.join(install_path, "requirements", "%s.txt" % system.name)
 
     if install:
         # python -m pip install -r requirements.txt
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path],
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path, "-r", platform_path],
                               stdin=None, stdout=None, stderr=None)
     else:
         # python -m pip uninstall -r requirements.txt
-        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-r", requirements_path],
+        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-r", requirements_path, "-r", platform_path],
                               stdin=None, stdout=None, stderr=None)
 
 
