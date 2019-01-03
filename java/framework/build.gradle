@@ -106,6 +106,9 @@ task fatJar(type: Jar) {
             it.isDirectory() ? it : zipTree(it)
         }
     }
+    exclude {
+        it.name in ['BuildConfig.class', 'R.class'] || it.name.startsWith('R$')
+    }
     tasks.all {
         if (it.name == 'compileReleaseJavaWithJavac') {
             fatJar.dependsOn it

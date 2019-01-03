@@ -28,7 +28,7 @@ public final class AtEnvironment {
                         Looper.prepareMainLooper();
                     }
                     if (ActivityThread.currentActivityThread() == null) {
-                        runSilently(new Runnable() {
+                        runQuietly(new Runnable() {
                             @Override
                             public void run() {
                                 ActivityThread.systemMain();
@@ -66,7 +66,7 @@ public final class AtEnvironment {
         return sActivityManager.get();
     }
 
-    private static void runSilently(Runnable runnable) {
+    private static void runQuietly(Runnable runnable) {
         PrintStream out = System.out;
         PrintStream err = System.err;
         FileOutputStream os = null;
@@ -85,13 +85,13 @@ public final class AtEnvironment {
 
         } finally {
             if (out != System.out) System.setOut(out);
-            if (err != System.err) System.setOut(err);
-            if (ps != null) closeSilently(ps);
-            if (os != null) closeSilently(os);
+            if (err != System.err) System.setErr(err);
+            if (ps != null) closeQuietly(ps);
+            if (os != null) closeQuietly(os);
         }
     }
 
-    private static void closeSilently(Closeable closeable) {
+    private static void closeQuietly(Closeable closeable) {
         try {
             closeable.close();
         } catch (IOException e) {

@@ -220,7 +220,8 @@ optional arguments:
 
 ```bash
 $ at_app.py -h
-usage: at_app.py [-h] [-v] [-s SERIAL] [-p [package [package ...]]]
+usage: at_app.py [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
+                 [-o field [field ...]]
 
 fetch application info
 
@@ -229,8 +230,12 @@ optional arguments:
   -v, --version         show program's version number and exit
   -s SERIAL, --serial SERIAL
                         use device with given serial
-  -p [package [package ...]], --packages [package [package ...]]
-                        target packages [default all packages]
+  -a, --all             fetch all apps
+  -t, --top             fetch top-level app only
+  -p pkg [pkg ...], --packages pkg [pkg ...]
+                        fetch target apps
+  -o field [field ...], --order-by field [field ...]
+                        order by target field
 ```
 
 ### 输出效果

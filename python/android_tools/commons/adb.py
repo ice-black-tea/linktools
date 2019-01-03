@@ -161,13 +161,20 @@ class device(object):
         调用dex功能
         :param args: dex参数
         :param capture_output: 捕获输出，填False使用标准输出
-        :return:
+        :return: dex输出结果
         """
         if not self._check_dex():
             raise AdbError("%s does not exist" % self.dex["path"])
+        # exec app_process
         args = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
                 "app_process", "/", self.dex["main"], *args]
-        return adb.exec(*args, capture_output=capture_output, **kwargs)
+        out = adb.exec(*args, capture_output=capture_output, **kwargs)
+        # check flag
+        flag = " -- exec main command (output by android-tools) -- "
+        index = out.find(flag)
+        if index >= 0:
+            out = out[index + len(flag):]
+        return out
 
     def get_prop(self, prop: str) -> str:
         """

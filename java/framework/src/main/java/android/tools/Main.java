@@ -34,6 +34,7 @@ public class Main {
 
         JCommander jCommander = commander.getCommands().get(args[0]);
         if (jCommander != null) {
+            Output.out.print(" -- exec main command (output by android-tools) -- ");
             ((Command) jCommander.getObjects().get(0)).run();
         } else {
             commander.usage();

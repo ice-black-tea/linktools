@@ -10,14 +10,15 @@ import java.io.PrintStream;
 
 public interface Output {
 
-    Output out = new OutputImpl(System.out);
-    Output err = new OutputImpl(System.err);
+    Output out = new OutputImpl();
+    Output err = new OutputImpl();
 
     class OutputImpl implements Output {
 
         private PrintStream printStream = null;
 
-        public OutputImpl(PrintStream printStream) {
+        @Override
+        public void setPrintStream(PrintStream printStream) {
             this.printStream = printStream;
         }
 
@@ -56,6 +57,7 @@ public interface Output {
         }
     }
 
+    void setPrintStream(PrintStream printStream);
     Output indent(int indent);
     Output print(String format, Object... args);
     Output println(String format, Object... args);
