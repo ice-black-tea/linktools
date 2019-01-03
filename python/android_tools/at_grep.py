@@ -52,7 +52,7 @@ class grep_matcher(file_matcher):
             "application/zip": self.on_zip,
             "application/x-gzip": self.on_zip,
             "application/java-archive": self.on_zip,
-            "text/plain": self.on_text,
+            "application/xml": self.on_text,
         }
 
     def on_file(self, filename: str):
@@ -62,12 +62,14 @@ class grep_matcher(file_matcher):
             if handler is not None:
                 handler(filename)
                 return
+            elif mime.startswith("text/"):
+                self.on_text(filename)
+                return
         except:
             pass
         try:
             self.on_binary(filename)
-        except Exception as e:
-            # print(filename, e)
+        except:
             pass
 
     def on_zip(self, filename: str):
@@ -87,14 +89,16 @@ class grep_matcher(file_matcher):
             for i in range(0, len(lines)):
                 out, last, line = "", 0, lines[i].rstrip(b"\n")
                 for match in self.pattern.finditer(line):
-                    out = out + Fore.RESET + str(line[last:match.span()[0]], encoding = "utf-8")
-                    out = out + Fore.RED + str(line[match.span()[0]:match.span()[1]], encoding = "utf-8")
+                    start = match.span()[0]
+                    end = match.span()[1]
+                    out = out + Fore.RESET + str(line[last:start], encoding="utf-8")
+                    out = out + Fore.RED + str(line[start:end], encoding="utf-8")
                     last = match.span()[1]
                 if not utils.empty(out):
                     print(Fore.CYAN + filename +
                           Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
                           Fore.RESET + ": " + out +
-                          Fore.RESET + str(line[last:], encoding = "utf-8"))
+                          Fore.RESET + str(line[last:], encoding="utf-8"))
 
     def on_binary(self, filename: str):
         with open(filename, "rb") as fd:
