@@ -52,18 +52,17 @@ class resource(object):
     #         json.dump(fd, config, sort_keys=True, indent=4)
 
     @staticmethod
-    def store_path(*names: [str]):
-        return resource._get_path("store", *names)
+    def store_path(*paths: [str]):
+        path = os.path.join(resource._res_path, "store", *paths)
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        return path
 
     @staticmethod
-    def download_path(*names: [str]):
-        return resource._get_path("download", *names)
-
-    @staticmethod
-    def _get_path(keyword, *names: [str]):
-        path = os.path.join(resource._res_path, keyword)
-        for name in names:
-            if not os.path.exists(path):
-                os.makedirs(path)
-            path = os.path.join(path, name)
+    def download_path(*paths: [str]):
+        path = os.path.join(resource._res_path, "download", *paths)
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         return path

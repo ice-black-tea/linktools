@@ -261,8 +261,7 @@ public class ReflectUtil {
         return type;
     }
 
-    private static Object[] getParameters(Object[] parameters, int offset, int length)
-            throws ClassNotFoundException {
+    private static Object[] getParameters(Object[] parameters, int offset, int length) {
         Object[] params = new Object[length];
         System.arraycopy(parameters, offset, params, 0, length);
         return params;
@@ -289,6 +288,7 @@ public class ReflectUtil {
                 }
             }
         }
+        //noinspection ConstantConditions
         throw exception;
     }
 

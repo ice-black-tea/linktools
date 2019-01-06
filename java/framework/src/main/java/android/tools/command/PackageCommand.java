@@ -7,7 +7,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 
-import org.ironman.framework.bean.Package;
+import org.ironman.framework.bean.JPackage;
 import org.ironman.framework.util.PackageUtil;
 
 import java.util.ArrayList;
@@ -29,9 +29,9 @@ public class PackageCommand extends Command {
             packageInfos = PackageUtil.getInstalledPackages();
         }
 
-        List<Package> packages = new ArrayList<>(packageInfos.size());
+        List<JPackage> packages = new ArrayList<>(packageInfos.size());
         for (PackageInfo packageInfo : packageInfos) {
-            packages.add(new Package(packageInfo));
+            packages.add(new JPackage(packageInfo));
         }
 
         Output.out.println(new Gson().toJson(packages));

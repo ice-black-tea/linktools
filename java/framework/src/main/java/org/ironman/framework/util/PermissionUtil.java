@@ -4,7 +4,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
 import android.text.TextUtils;
 
-import org.ironman.framework.AtEnvironment;
+import org.ironman.framework.JEnvironment;
+import org.ironman.framework.bean.JPermission;
 
 /**
  * Created by hu on 18-12-17.
@@ -12,34 +13,29 @@ import org.ironman.framework.AtEnvironment;
 
 public class PermissionUtil {
 
-    public enum Protection {
-        dangerous,
-        normal,
-        signature,
-        signatureOrSystem,
-    }
+    private static final String TAG = PermissionUtil.class.getSimpleName();
 
-    public static Protection getProtection(String permission) {
+    public static JPermission.Protection getProtection(String permission) {
         try {
-            return getProtection(AtEnvironment.getPackageManager().getPermissionInfo(permission, -1));
+            return getProtection(JEnvironment.getPackageManager().getPermissionInfo(permission, -1));
         } catch (PackageManager.NameNotFoundException e) {
-            // e.printStackTrace();
+            LogUtil.printErrStackTrace(TAG, e, null);
         }
-        return Protection.normal;
+        return JPermission.Protection.normal;
     }
 
-    public static Protection getProtection(PermissionInfo permissionInfo) {
+    public static JPermission.Protection getProtection(PermissionInfo permissionInfo) {
         switch (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) {
             case PermissionInfo.PROTECTION_DANGEROUS:
-                return Protection.dangerous;
+                return JPermission.Protection.dangerous;
             case PermissionInfo.PROTECTION_NORMAL:
-                return Protection.normal;
+                return JPermission.Protection.normal;
             case PermissionInfo.PROTECTION_SIGNATURE:
-                return Protection.signature;
+                return JPermission.Protection.signature;
             case PermissionInfo.PROTECTION_SIGNATURE_OR_SYSTEM:
-                return Protection.signatureOrSystem;
+                return JPermission.Protection.signatureOrSystem;
             default:
-                return Protection.normal;
+                return JPermission.Protection.normal;
         }
     }
 
@@ -59,14 +55,13 @@ public class PermissionUtil {
     }
 
     public static boolean isDangerousOrNormal(String permission) {
-        if (TextUtils.isEmpty(permission)) {
-            return true;
-        }
-        try {
-            PackageManager pm = AtEnvironment.getPackageManager();
-            return isDangerousOrNormal(pm.getPermissionInfo(permission, -1));
-        } catch (PackageManager.NameNotFoundException e) {
-            // e.printStackTrace();
+        if (!TextUtils.isEmpty(permission)) {
+            try {
+                PackageManager pm = JEnvironment.getPackageManager();
+                return isDangerousOrNormal(pm.getPermissionInfo(permission, -1));
+            } catch (PackageManager.NameNotFoundException e) {
+                LogUtil.printErrStackTrace(TAG, e, null);
+            }
         }
         return true;
     }

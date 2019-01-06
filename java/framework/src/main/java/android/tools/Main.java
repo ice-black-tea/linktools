@@ -2,42 +2,50 @@ package android.tools;
 
 import android.tools.command.ActivityCommand;
 import android.tools.command.Command;
-import android.tools.command.ListCommand;
 import android.tools.command.PackageCommand;
 import android.tools.command.ServiceCommand;
 import android.util.Log;
 
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 
 import org.ironman.framework.util.LogUtil;
 
 public class Main {
 
+    @Parameter(names = "--add-flag", hidden = true)
+    private boolean flag = false;
+
     private static void parseArgs(String[] args) throws Throwable {
         Main main = new Main();
 
         JCommander.Builder builder = JCommander.newBuilder().addObject(main);
-
-        builder.addCommand(new ListCommand());
         builder.addCommand(new PackageCommand());
         builder.addCommand(new ActivityCommand());
         builder.addCommand(new ServiceCommand());
 
         JCommander commander = builder.build();
-
-        if (args.length == 0) {
-            commander.usage();
-            return;
-        }
-
         commander.parse(args);
 
-        JCommander jCommander = commander.getCommands().get(args[0]);
-        if (jCommander != null) {
-            Output.out.print(" -- exec main command (output by android-tools) -- ");
-            ((Command) jCommander.getObjects().get(0)).run();
+        int index = 0;
+        if (main.flag) {
+            index++;
+            Output.out.print(" -*- output -*- by -*- android -*- tools -*- begin -*- ");
+        }
+
+        if (args.length > index) {
+            JCommander jCommander = commander.getCommands().get(args[index]);
+            if (jCommander != null) {
+                ((Command) jCommander.getObjects().get(0)).run();
+            } else {
+                commander.usage();
+            }
         } else {
             commander.usage();
+        }
+
+        if (main.flag) {
+            Output.out.print(" -*- output -*- by -*- android -*- tools -*- end -*- ");
         }
     }
 

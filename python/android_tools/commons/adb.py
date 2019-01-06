@@ -165,15 +165,20 @@ class device(object):
         """
         if not self._check_dex():
             raise AdbError("%s does not exist" % self.dex["path"])
-        # exec app_process
+        if capture_output:
+            args = ["--add-flag", *args]
         args = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
                 "app_process", "/", self.dex["main"], *args]
         out = adb.exec(*args, capture_output=capture_output, **kwargs)
-        # check flag
-        flag = " -- exec main command (output by android-tools) -- "
-        index = out.find(flag)
-        if index >= 0:
-            out = out[index + len(flag):]
+        if capture_output:
+            f_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
+            f_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
+            begin = out.find(f_begin)
+            end = out.rfind(f_end)
+            if begin >= 0 and end >= 0:
+                out = out[begin + len(f_begin): end]
+            elif begin >= 0:
+                raise AdbError(out[begin + len(f_begin):])
         return out
 
     def get_prop(self, prop: str) -> str:

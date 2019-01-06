@@ -68,9 +68,9 @@ public class ServiceCommand extends Command {
 
     private static class Service {
 
-        String name = "";
-        String desc = "";
-        IBinder binder = null;
+        String name;
+        String desc;
+        IBinder binder;
 
         Service(String name) {
             this.name = name;
