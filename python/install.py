@@ -233,8 +233,8 @@ def install_require(install):
 
 if __name__ == '__main__':
 
-    if sys.version_info.major != 3:
-        raise Exception("support python3 only")
+    if (sys.version_info.major, sys.version_info.minor) < (3, 5):
+        raise Exception("only supports python 3.5 or higher")
 
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()

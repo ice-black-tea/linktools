@@ -1,3 +1,7 @@
+# 依赖项
+
+python & pip (3.5及以上): https://www.python.org/downloads/
+
 # 安装
 
 ```bash

@@ -1,6 +1,6 @@
 package org.ironman.framework.bean;
 
-import android.content.pm.ProviderInfo;
+import android.content.pm.PackageParser;
 import android.text.TextUtils;
 
 import java.util.ArrayList;
@@ -14,24 +14,25 @@ public class JProvider extends JComponent {
     public List<JPatternMatcher> uriPermissionPatterns;
     public List<JPathPermission> pathPermissions;
 
-    public JProvider(ProviderInfo info) {
-        super(info);
-        authority = info.authority;
-        if (!TextUtils.isEmpty(info.readPermission)) {
-            readPermission = new JPermission(info.readPermission);
+    public JProvider(PackageParser.Provider provider) {
+        super(provider, provider.info);
+
+        authority = provider.info.authority;
+        if (!TextUtils.isEmpty(provider.info.readPermission)) {
+            readPermission = new JPermission(provider.info.readPermission);
         }
-        if (!TextUtils.isEmpty(info.writePermission)) {
-            writePermission = new JPermission(info.writePermission);
+        if (!TextUtils.isEmpty(provider.info.writePermission)) {
+            writePermission = new JPermission(provider.info.writePermission);
         }
-        if (info.uriPermissionPatterns != null) {
-            uriPermissionPatterns = new ArrayList<>(info.uriPermissionPatterns.length);
-            for (android.os.PatternMatcher uriPermissionPattern : info.uriPermissionPatterns) {
+        if (provider.info.uriPermissionPatterns != null) {
+            uriPermissionPatterns = new ArrayList<>(provider.info.uriPermissionPatterns.length);
+            for (android.os.PatternMatcher uriPermissionPattern : provider.info.uriPermissionPatterns) {
                 uriPermissionPatterns.add(new JPatternMatcher(uriPermissionPattern));
             }
         }
-        if (info.pathPermissions != null) {
-            pathPermissions = new ArrayList<>(info.pathPermissions.length);
-            for (android.content.pm.PathPermission pathPermission : info.pathPermissions) {
+        if (provider.info.pathPermissions != null) {
+            pathPermissions = new ArrayList<>(provider.info.pathPermissions.length);
+            for (android.content.pm.PathPermission pathPermission : provider.info.pathPermissions) {
                 pathPermissions.add(new JPathPermission(pathPermission));
             }
         }

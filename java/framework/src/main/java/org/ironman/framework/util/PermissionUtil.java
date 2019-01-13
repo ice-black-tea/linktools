@@ -16,10 +16,12 @@ public class PermissionUtil {
     private static final String TAG = PermissionUtil.class.getSimpleName();
 
     public static JPermission.Protection getProtection(String permission) {
-        try {
-            return getProtection(JEnvironment.getPackageManager().getPermissionInfo(permission, -1));
-        } catch (PackageManager.NameNotFoundException e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+        if (!TextUtils.isEmpty(permission)) {
+            try {
+                return getProtection(JEnvironment.getPackageManager().getPermissionInfo(permission, -1));
+            } catch (PackageManager.NameNotFoundException e) {
+                LogUtil.printErrStackTrace(TAG, e, null);
+            }
         }
         return JPermission.Protection.normal;
     }

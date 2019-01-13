@@ -49,6 +49,8 @@ if __name__ == '__main__':
                        help='show top-level activity name')
     group.add_argument('--path', action='store_const', const=True, default=False,
                        help='show top-level package path')
+    group.add_argument('--kill', action='store_const', const=True, default=False,
+                       help='kill top-level package')
     group.add_argument('--apk', dest='dest', action='store', type=str, nargs='?', default="",
                        help='pull top-level apk file')
     group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
@@ -63,6 +65,8 @@ if __name__ == '__main__':
         print(device.top_activity())
     elif args.path:
         print(device.apk_path(device.top_package()))
+    elif args.kill:
+        device.shell("am", "force-stop", device.top_package(), capture_output=False)
     elif "--apk" in sys.argv:
         package = device.top_package()
         path = device.save_path(package + ".apk")
@@ -78,7 +82,6 @@ if __name__ == '__main__':
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
     else:
-        package = device.top_package()
-        print("package: ", package)
+        print("package: ", device.top_package())
         print("activity:", device.top_activity())
-        print("path:    ", device.apk_path(package))
+        print("path:    ", device.apk_path(device.top_package()))

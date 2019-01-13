@@ -2,7 +2,6 @@ package org.ironman.framework.util;
 
 import android.annotation.TargetApi;
 import android.app.ActivityManager;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.os.Build;
 import android.provider.Settings;
@@ -23,11 +22,11 @@ public class ActivityUtil {
         }
     };
 
-    public static ComponentName getTopActivity() {
+    public static String getTopActivity() {
         ActivityManager am = JEnvironment.getActivityManager();
         List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(0);
         if (tasks != null && tasks.size() > 0) {
-            return tasks.get(0).topActivity;
+            return tasks.get(0).topActivity.getClassName();
         }
         return null;
     }

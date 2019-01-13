@@ -1,5 +1,6 @@
 package org.ironman.framework.bean;
 
+import android.content.pm.PackageParser;
 import android.content.pm.PermissionInfo;
 
 import org.ironman.framework.util.PermissionUtil;
@@ -21,8 +22,8 @@ public class JPermission {
         this.protection = PermissionUtil.getProtection(name);
     }
 
-    public JPermission(PermissionInfo info) {
-        this.name = info.name;
-        this.protection = PermissionUtil.getProtection(info);
+    public JPermission(PackageParser.Permission perm) {
+        this.name = perm.info.name;
+        this.protection = PermissionUtil.getProtection(perm.info);
     }
 }

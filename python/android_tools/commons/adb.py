@@ -66,6 +66,8 @@ class adb(object):
 
 
 class device(object):
+    _flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
+    _flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
 
     def __init__(self, device_id: str = None):
         """
@@ -171,14 +173,14 @@ class device(object):
                 "app_process", "/", self.dex["main"], *args]
         out = adb.exec(*args, capture_output=capture_output, **kwargs)
         if capture_output:
-            f_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
-            f_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
-            begin = out.find(f_begin)
-            end = out.rfind(f_end)
+            begin = out.find(self._flag_begin)
+            end = out.rfind(self._flag_end)
             if begin >= 0 and end >= 0:
-                out = out[begin + len(f_begin): end]
+                begin = begin + len(self._flag_begin)
+                out = out[begin: end]
             elif begin >= 0:
-                raise AdbError(out[begin + len(f_begin):])
+                begin = begin + len(self._flag_begin)
+                raise AdbError(out[begin:])
         return out
 
     def get_prop(self, prop: str) -> str:
@@ -230,10 +232,15 @@ class device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
-        items = result[result.rfind("\n"):].split()
-        if items is not None and len(items) >= 2:
-            return items[1].split("/")[0]
+        if self.uid < 10000:
+            result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
+            items = result[result.rfind("\n"):].split()
+            if items is not None and len(items) >= 2:
+                return items[1].split("/")[0]
+        # use dex instead of dumpsys
+        result = self.call_dex("common", "--top-package")
+        if not utils.empty(result):
+            return result
         raise AdbError("can not fetch top package")
 
     def top_activity(self) -> str:
@@ -252,7 +259,9 @@ class device(object):
         获取apk路径
         :return: apk路径
         """
-        return utils.replace(self.shell("pm path %s" % package), r"^.*:[ ]*|\r|\n", "")
+        if self.uid < 10000:
+            return utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
+        return self.call_dex("common", "--apk-path", package)
 
     def save_path(self, name: str = None) -> str:
         """

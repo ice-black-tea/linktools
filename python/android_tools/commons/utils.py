@@ -46,11 +46,11 @@ class _process(subprocess.Popen):
         """
         self.out = ""
         self.err = ""
-        capture_output = utils.item(kwargs, "capture_output")
-        if capture_output is True:
+        self.capture_output = utils.item(kwargs, "capture_output")
+        if self.capture_output is True:
             kwargs["stdout"] = utils.PIPE
             kwargs["stderr"] = utils.PIPE
-        if capture_output is not None:
+        if self.capture_output is not None:
             del kwargs["capture_output"]
         subprocess.Popen.__init__(self, args, shell=False, **kwargs)
 
@@ -58,9 +58,9 @@ class _process(subprocess.Popen):
         out, err = None, None
         try:
             out, err = subprocess.Popen.communicate(self, **kwargs)
-            if out is not None:
+            if self.capture_output and out is not None:
                 self.out = self.out + out.decode(errors='ignore')
-            if err is not None:
+            if self.capture_output and err is not None:
                 self.err = self.err + err.decode(errors='ignore')
             return out, err
         except Exception as e:
@@ -69,9 +69,23 @@ class _process(subprocess.Popen):
 
 
 class utils:
-
     PIPE = subprocess.PIPE
     STDOUT = subprocess.STDOUT
+
+    # noinspection PyShadowingBuiltins
+    @staticmethod
+    def cast(type: type, obj: object, default: type(object) = None) -> type(object):
+        """
+        类型转换
+        :param type: 目标类型
+        :param obj: 对象
+        :param default: 默认值
+        :return: 转换后的值
+        """
+        try:
+            return type(obj)
+        except:
+            return default
 
     @staticmethod
     def int(obj: object, default: int = 0) -> int:
@@ -81,11 +95,7 @@ class utils:
         :param default: 默认值
         :return: 转换后的值
         """
-        try:
-            # noinspection PyTypeChecker
-            return int(obj)
-        except:
-            return default
+        return utils.cast(int, obj, default=default)
 
     @staticmethod
     def bool(obj: object, default: bool = False) -> bool:
@@ -95,10 +105,7 @@ class utils:
         :param default: 默认值
         :return: 转换后的值
         """
-        try:
-            return bool(obj)
-        except:
-            return default
+        return utils.cast(bool, obj, default=default)
 
     @staticmethod
     def findall(string: str, reg: str) -> [str]:
@@ -147,7 +154,7 @@ class utils:
         return False
 
     @staticmethod
-    def empty(obj: object):
+    def empty(obj: object) -> bool:
         """
         对象是否为空
         :param obj: 对象
@@ -160,25 +167,47 @@ class utils:
             return obj is None or len(obj) == 0
         return False
 
+    # noinspection PyShadowingBuiltins
     @staticmethod
-    def item(obj: object, *keys, default: object = None):
+    def item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
         """
         获取子项
         :param obj: 对象
         :param keys: 键
+        :param type: 对应类型
         :param default: 默认值
         :return: 子项
         """
-        try:
-            for key in keys:
-                if obj is not None and isinstance(obj, Iterable) and key in obj:
-                    # noinspection PyUnresolvedReferences
-                    obj = obj.__getitem__(key)
-                else:
-                    return default
-        except:
-            obj = default
+        for key in keys:
+            if obj is None:
+                return default
+            try:
+                obj = obj[key]
+            except:
+                return default
+        if type is not None:
+            try:
+                obj = type(obj)
+            except:
+                return default
         return obj
+
+    # noinspection PyShadowingBuiltins
+    @staticmethod
+    def array_item(obj: object, *keys, type: type = None, default: [type(object)] = None) -> [type(object)]:
+        objs = utils.item(obj, *keys, default=None)
+        if objs is None or not isinstance(objs, Iterable):
+            return default
+        array = []
+        for obj in objs:
+            try:
+                if type is not None:
+                    array.append(type(obj))
+                else:
+                    array.append(obj)
+            except:
+                pass
+        return array
 
     @staticmethod
     def exec(*args, **kwargs) -> _process:
@@ -243,38 +272,3 @@ class utils:
             pbar.close()
         os.rename(tmp_path, path)
         return size
-
-
-class file_matcher(object):
-
-    def __init__(self, name: str):
-        self.name = name
-
-    def match(self):
-        """
-        开始匹配
-        :return: None
-        """
-        if not os.path.exists(self.name):
-            raise Exception("")
-        handler = self.on_dir if os.path.isdir(self.name) else self.on_file
-        handler(self.name)
-
-    def on_file(self, filename: str):
-        """
-        匹配文件
-        :param filename: 文件名
-        :return: None
-        """
-        raise Exception("not yet implemented")
-
-    def on_dir(self, dirname: str):
-        """
-        匹配目录
-        :param dirname: 目录名
-        :return: None
-        """
-        for name in os.listdir(dirname):
-            filename = os.path.join(dirname, name)
-            handler = self.on_dir if os.path.isdir(filename) else self.on_file
-            handler(filename)

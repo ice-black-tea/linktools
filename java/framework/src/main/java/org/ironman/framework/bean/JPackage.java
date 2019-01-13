@@ -3,9 +3,11 @@ package org.ironman.framework.bean;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageParser;
 import android.content.pm.PermissionInfo;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
+import android.tools.Output;
 
 import org.ironman.framework.util.PackageUtil;
 
@@ -30,6 +32,7 @@ public class JPackage {
     public boolean debuggable;
     public boolean allowBackup;
 
+    public List<JPermission> requestedPermissions;
     public List<JPermission> permissions;
     public List<JActivity> activities;
     public List<JService> services;
@@ -49,37 +52,46 @@ public class JPackage {
         debuggable = (info.applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         allowBackup = (info.applicationInfo.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0;
 
-        if (info.permissions != null) {
-            permissions = new ArrayList<>(info.permissions.length);
-            for (PermissionInfo p : info.permissions) {
-                permissions.add(new JPermission(p));
+        PackageParser.Package pkg = PackageUtil.parsePackage(sourceDir);
+
+        if (pkg.requestedPermissions != null && pkg.requestedPermissions.size() > 0) {
+            requestedPermissions = new ArrayList<>(pkg.requestedPermissions.size());
+            for (String permission : pkg.requestedPermissions) {
+                requestedPermissions.add(new JPermission(permission));
             }
         }
 
-        if (info.activities != null) {
-            activities = new ArrayList<>(info.activities.length);
-            for (ActivityInfo a : info.activities) {
+        if (pkg.permissions != null && pkg.permissions.size() > 0) {
+            permissions = new ArrayList<>(pkg.permissions.size());
+            for (PackageParser.Permission p : pkg.permissions) {
+                permissions.add(new JPermission(p.info.name));
+            }
+        }
+
+        if (pkg.activities != null && pkg.activities.size() > 0) {
+            activities = new ArrayList<>(pkg.activities.size());
+            for (PackageParser.Activity a : pkg.activities) {
                 activities.add(new JActivity(a));
             }
         }
 
-        if (info.services != null) {
-            services = new ArrayList<>(info.services.length);
-            for (ServiceInfo s : info.services) {
+        if (pkg.services != null && pkg.services.size() > 0) {
+            services = new ArrayList<>(pkg.services.size());
+            for (PackageParser.Service s : pkg.services) {
                 services.add(new JService(s));
             }
         }
 
-        if (info.receivers != null) {
-            receivers = new ArrayList<>(info.receivers.length);
-            for (ActivityInfo r : info.receivers) {
+        if (pkg.receivers != null && pkg.receivers.size() > 0) {
+            receivers = new ArrayList<>(pkg.receivers.size());
+            for (PackageParser.Activity r : pkg.receivers) {
                 receivers.add(new JReceiver(r));
             }
         }
 
-        if (info.providers != null) {
-            providers = new ArrayList<>(info.providers.length);
-            for (ProviderInfo p : info.providers) {
+        if (pkg.providers != null && pkg.providers.size() > 0) {
+            providers = new ArrayList<>(pkg.providers.size());
+            for (PackageParser.Provider p : pkg.providers) {
                 providers.add(new JProvider(p));
             }
         }
