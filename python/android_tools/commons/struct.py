@@ -3,7 +3,7 @@
 
 """
 @author  : Hu Ji
-@file    : package.py 
+@file    : struct.py
 @time    : 2019/01/11
 @site    :  
 @software: PyCharm 

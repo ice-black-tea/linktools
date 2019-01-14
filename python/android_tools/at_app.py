@@ -38,13 +38,13 @@ from android_tools import package, permission, component, activity, service, rec
 
 
 class print_level:
+    min = 0
     useless = 100
     normal = 200
     dangerous_normal = 250
     dangerous = 300
     title = 400
-    min = useless
-    max = title
+    max = 1000
 
 
 class print_stream(print_level):
@@ -78,7 +78,7 @@ class print_stream_wrapper(print_level):
         self.max_level = max_level
         self.min_level = min_level
 
-    def print(self, text: str ="", indent: int = 0, level=print_level.normal):
+    def print(self, text: str = "", indent: int = 0, level=print_level.normal):
         if level > self.max_level:
             level = self.max_level
         elif level < self.min_level:
@@ -189,22 +189,27 @@ class package_printer:
             package_printer._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
         elif isinstance(component, provider):
             stream.print("Authority [%s]" % component.authority, indent=indent + 4, level=level)
-            package_printer._print_permission(stream, component.readPermission, indent=indent + 4, identity="ReadPermission")
-            package_printer._print_permission(stream, component.writePermission, indent=indent + 4, identity="writePermission")
+            package_printer._print_permission(stream, component.readPermission, indent=indent + 4,
+                                              identity="ReadPermission")
+            package_printer._print_permission(stream, component.writePermission, indent=indent + 4,
+                                              identity="writePermission")
             for pattern in component.uriPermissionPatterns:
                 stream.print("UriPermissionPattern [%s]" % pattern, indent=indent + 4, level=level)
             for permission in component.pathPermissions:
                 stream.print("PathPermission [%s]" % permission, indent=indent + 4,
                              level=stream.dangerous if permission.is_dangerous() else stream.normal)
-                package_printer._print_permission(stream, permission.readPermission, indent=indent + 8, identity="ReadPermission")
-                package_printer._print_permission(stream, permission.writePermission, indent=indent + 8, identity="writePermission")
+                package_printer._print_permission(stream, permission.readPermission, indent=indent + 8,
+                                                  identity="ReadPermission")
+                package_printer._print_permission(stream, permission.writePermission, indent=indent + 8,
+                                                  identity="writePermission")
 
         if not utils.empty(component.intents):
             for intent in component.intents:
                 package_printer._print_intent(stream, intent, indent=indent + 4, level=level)
 
     @staticmethod
-    def _print_intent(stream: print_stream_wrapper, intent: intent_filter, indent: int = 0, level: int = print_level.normal):
+    def _print_intent(stream: print_stream_wrapper, intent: intent_filter, indent: int = 0,
+                      level: int = print_level.normal):
         stream.print("IntentFilter:", indent=indent, level=level)
         for action in intent.actions:
             stream.print("Action [%s]" % action, indent=indent + 4, level=level)
@@ -256,6 +261,7 @@ if __name__ == '__main__':
         dex_args = ["package", "-p", device.top_package()]
     elif not utils.empty(args.packages):
         dex_args = ["package", "-p", *args.packages]
+
     objs = json.loads(device.call_dex(*dex_args, capture_output=True))
     if not utils.empty(args.order_by):
         objs = sorted(objs, key=lambda x: [utils.item(x, k, default="") for k in args.order_by])

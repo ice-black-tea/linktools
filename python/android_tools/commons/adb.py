@@ -66,8 +66,13 @@ class adb(object):
 
 
 class device(object):
-    _flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
-    _flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
+
+    class dex:
+        name = resource.get_config("framework_dex", "name")
+        path = resource.store_path(name)
+        main_class = resource.get_config("framework_dex", "main")
+        flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
+        flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
 
     def __init__(self, device_id: str = None):
         """
@@ -84,8 +89,6 @@ class device(object):
             if not utils.contain(device_ids, device_id):
                 raise AdbError("no device %s found" % device_id)
             self._device_id = device_id
-
-        self.dex = None
 
     @property
     def id(self) -> str:
@@ -158,30 +161,39 @@ class device(object):
             args = ["-s", self.id, "shell", *args]
         return adb.exec(*args, capture_output=capture_output, **kwargs)
 
-    def call_dex(self, *args: [str], capture_output: bool = True, **kwargs):
+    def call_dex(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         调用dex功能
         :param args: dex参数
         :param capture_output: 捕获输出，填False使用标准输出
         :return: dex输出结果
         """
-        if not self._check_dex():
-            raise AdbError("%s does not exist" % self.dex["path"])
+        target_dir = self.save_path("dex")
+        target_path = self.save_path("dex", self.dex.name)
+        # check dex path
+        if not self.exist_file(target_path):
+            self.shell("rm", "-rf", target_dir)
+            self.exec("push", self.dex.path, target_dir)
+            if not self.exist_file(target_path):
+                raise AdbError("%s does not exist" % target_path)
+        # set --add-flag if necessary
         if capture_output:
             args = ["--add-flag", *args]
-        args = ["-s", self.id, "shell", "CLASSPATH=%s" % self.dex["path"],
-                "app_process", "/", self.dex["main"], *args]
-        out = adb.exec(*args, capture_output=capture_output, **kwargs)
+        # call dex
+        args = ["-s", self.id, "shell", "CLASSPATH=%s" % target_path,
+                "app_process", "/", self.dex.main_class, *args]
+        result = adb.exec(capture_output=capture_output, *args, **kwargs)
+        # parse flag if necessary
         if capture_output:
-            begin = out.find(self._flag_begin)
-            end = out.rfind(self._flag_end)
+            begin = result.find(self.dex.flag_begin)
+            end = result.rfind(self.dex.flag_end)
             if begin >= 0 and end >= 0:
-                begin = begin + len(self._flag_begin)
-                out = out[begin: end]
+                begin = begin + len(self.dex.flag_begin)
+                result = result[begin: end]
             elif begin >= 0:
-                begin = begin + len(self._flag_begin)
-                raise AdbError(out[begin:])
-        return out
+                begin = begin + len(self.dex.flag_begin)
+                raise AdbError(result[begin:])
+        return result
 
     def get_prop(self, prop: str) -> str:
         """
@@ -263,13 +275,13 @@ class device(object):
             return utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
         return self.call_dex("common", "--apk-path", package)
 
-    def save_path(self, name: str = None) -> str:
+    def save_path(self, *paths: [str]) -> str:
         """
         存储文件路径
-        :param name: 文件名
+        :param paths: 文件名
         :return: 路径
         """
-        return "/sdcard/%s/%s/%s" % (__name__, __version__, name)
+        return "/sdcard/%s/%s/%s" % (__name__, __version__, "/".join(paths))
 
     # def jdb_connect(self, pid: str, port: str = "8699") -> _process:
     #     """
@@ -288,15 +300,3 @@ class device(object):
         if index == -1:
             return package_name
         return package_name[0:index]
-
-    def _check_dex(self):
-        if utils.empty(self.dex):
-            path = self.save_path("dex")
-            self.dex = resource.get_config("framework_dex")
-            self.dex["path"] = path + "/" + self.dex["name"]
-        if not self.exist_file(self.dex["path"]):
-            path = self.save_path("dex")
-            self.shell("rm", "-rf", path)
-            self.exec("push", resource.store_path(self.dex["name"]), self.dex["path"])
-            return self.exist_file(self.dex["path"])
-        return True

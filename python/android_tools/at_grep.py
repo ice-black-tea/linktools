@@ -40,38 +40,51 @@ import magic
 from colorama import Fore
 
 import android_tools
-from android_tools import utils, file_matcher
+from android_tools import utils
 
 
-class grep_matcher(file_matcher):
+def match_handler(func):
 
-    def __init__(self, filename: str, pattern):
-        super().__init__(filename)
+    def wrapper(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+            return True
+        except Exception as e:
+            return False
+
+    return wrapper
+
+
+class grep_matcher:
+
+    # noinspection PyUnresolvedReferences
+    def __init__(self, pattern: re.Pattern):
         self.pattern = pattern
-        self.handler = {
+        self.handlers = {
             "application/zip": self.on_zip,
             "application/x-gzip": self.on_zip,
             "application/java-archive": self.on_zip,
             "application/xml": self.on_text,
         }
 
-    def on_file(self, filename: str):
-        try:
-            mime = magic.from_file(filename, mime=True)
-            handler = utils.item(self.handler, mime)
-            if handler is not None:
-                handler(filename)
-                return
-            elif mime.startswith("text/"):
-                self.on_text(filename)
-                return
-        except:
-            pass
-        try:
-            self.on_binary(filename)
-        except:
-            pass
+    def match(self, dirname: str):
+        for root, dirs, files in os.walk(dirname, topdown=False):
+            for name in files:
+                self.on_file(os.path.join(root, name))
 
+    def on_file(self, filename: str):
+        mime = magic.from_file(filename, mime=True)
+        handler = utils.item(self.handlers, mime)
+        if handler is not None:
+            if handler(filename):
+                return
+        elif mime.startswith("text/"):
+            handler = self.on_text
+            if handler(filename):
+                return
+        self.on_binary(filename)
+
+    @match_handler
     def on_zip(self, filename: str):
         dirname = filename + ":"
         while os.path.exists(dirname):
@@ -79,10 +92,11 @@ class grep_matcher(file_matcher):
         try:
             zip_file = zipfile.ZipFile(filename, "r")
             zip_file.extractall(dirname)
-            self.on_dir(dirname)
+            self.match(dirname)
         finally:
             shutil.rmtree(dirname, ignore_errors=True)
 
+    @match_handler
     def on_text(self, filename: str):
         with open(filename, "rb") as fd:
             lines = fd.readlines()
@@ -100,6 +114,7 @@ class grep_matcher(file_matcher):
                           Fore.RESET + ": " + out +
                           Fore.RESET + str(line[last:], encoding="utf-8"))
 
+    @match_handler
     def on_binary(self, filename: str):
         with open(filename, "rb") as fd:
             for line in fd.readlines():
@@ -130,4 +145,4 @@ if __name__ == '__main__':
         args.files = ["."]
 
     for file in args.files:
-        grep_matcher(file, pattern).match()
+        grep_matcher(pattern).match(file)
