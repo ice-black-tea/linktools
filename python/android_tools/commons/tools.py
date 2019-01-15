@@ -36,12 +36,13 @@ from .resource import resource
 from .utils import utils, _process
 
 
-class _config_tools(object):
+class config_tool(object):
 
-    def __init__(self, config: dict, parent: object = None):
-        self._config = config
+    def __init__(self, name: str, config: dict, parent: object = None):
+        self.name = name
         self.config = None
         self.parent = parent
+        self._config = config
 
     def init_config(self) -> None:
         if self.config is not None:
@@ -85,9 +86,9 @@ class _config_tools(object):
 
         self.config = config
 
-    def check_executable(self) -> None:
-        if not os.path.exists(self.config["path"]):
-            print(self.config["url"])
+    def download(self, force: bool = False) -> None:
+        self.init_config()
+        if not os.path.exists(self.config["path"]) or force:
             file = resource.download_path(quote(self.config["url"], safe=''))
             utils.download(self.config["url"], file)
             if not utils.empty(self.config["unpack"]):
@@ -97,40 +98,43 @@ class _config_tools(object):
                 os.rename(file, self.config["path"])
 
     def exec(self, *args: [str], **kwargs) -> _process:
-        self.init_config()
-        self.check_executable()
+        self.download(force=False)
         executable = self.config["executable"]
         if executable[0] == "python":
             args = [sys.executable, *executable[1:], *args]
             return utils.exec(*args, **kwargs)
-        if executable[0] in tools.items:
-            tool = tools.items[executable[0]]
+        if executable[0] in tools._items:
+            tool = tools._items[executable[0]]
             return tool.exec(*[*executable[1:], *args], **kwargs)
         if not os.access(executable[0], os.X_OK):
             os.chmod(executable[0], 0o0755)
         return utils.exec(*[*executable, *args], **kwargs)
 
 
-class _tools:
+class config_tools():
 
-    _system = platform.system().lower()
-
-    def __init__(self):
-        self.items = {}
+    def __init__(self, system: str = platform.system().lower()):
+        self._items = {}
         for name, config in resource.get_config("tools").items():
             # darwin, linux or windows
-            config = utils.item(config, _tools._system, default=config)
+            config = utils.item(config, system, default=config)
             if utils.empty(config):
                 continue
-            tool = _config_tools(config)
-            self._add_tool(name, tool)
+            tool = config_tool(name, config)
+            self._append(name, tool)
             for sub_name, sub_config in utils.item(config, "items", default={}).items():
-                sub_tool = _config_tools(sub_config, tool)
-                self._add_tool(sub_name, sub_tool)
+                sub_tool = config_tool(sub_name, sub_config, tool)
+                self._append(sub_name, sub_tool)
 
-    def _add_tool(self, name, tool):
-        self.items[name] = tool
+    def _append(self, name, tool):
+        self._items[name] = tool
         setattr(self, name, tool)
 
+    def __iter__(self):
+        return iter(self._items.values())
 
-tools = _tools()
+    def __getitem__(self, item):
+        return utils.item(self._items, item, default=None)
+
+
+tools = config_tools()

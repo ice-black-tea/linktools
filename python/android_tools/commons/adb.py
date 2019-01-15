@@ -69,7 +69,7 @@ class device(object):
 
     class dex:
         name = resource.get_config("framework_dex", "name")
-        path = resource.store_path(name)
+        path = resource.res_path(name)
         main_class = resource.get_config("framework_dex", "main")
         flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
         flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
@@ -173,7 +173,7 @@ class device(object):
         # check dex path
         if not self.exist_file(target_path):
             self.shell("rm", "-rf", target_dir)
-            self.exec("push", self.dex.path, target_dir)
+            self.exec("push", self.dex.path, target_path)
             if not self.exist_file(target_path):
                 raise AdbError("%s does not exist" % target_path)
         # set --add-flag if necessary

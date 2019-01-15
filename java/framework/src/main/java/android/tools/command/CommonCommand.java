@@ -7,6 +7,7 @@ import android.tools.Output;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import org.ironman.framework.util.ActivityUtil;
 import org.ironman.framework.util.PackageUtil;
 
 import java.util.List;
@@ -31,7 +32,7 @@ public class CommonCommand extends Command {
                 Output.out.print(packageName);
             }
         } else if (top_activity) {
-            String activityName = PackageUtil.getTopPackage();
+            String activityName = ActivityUtil.getTopActivity();
             if (!TextUtils.isEmpty(activityName)) {
                 Output.out.print(activityName);
             }

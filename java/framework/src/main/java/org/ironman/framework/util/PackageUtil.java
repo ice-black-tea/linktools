@@ -69,14 +69,17 @@ public class PackageUtil {
         return packageInfo.applicationInfo.loadIcon(JEnvironment.getPackageManager());
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP_MR1)
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public static boolean checkUsageStatsPermission() {
         boolean granted;
+        int mode = AppOpsManager.MODE_DEFAULT;
         Context context = JEnvironment.getApplication();
         String permission = "android.permission.PACKAGE_USAGE_STATS";
         AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
-        int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(), context.getPackageName());
+        if (appOps != null) {
+            mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(), context.getPackageName());
+        }
         if (mode == AppOpsManager.MODE_DEFAULT) {
             granted = context.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
         } else {
@@ -86,10 +89,11 @@ public class PackageUtil {
     }
 
 
-    public static String getTopPackage() {
+    public static String getTopPackage() throws Exception {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
             if (!checkUsageStatsPermission()) {
                 ActivityUtil.startUsageAccessSettings();
+                throw new Exception("make sure to allow permission in usage stats");
             }
             UsageStatsManager usm = JEnvironment.getSystemService(Context.USAGE_STATS_SERVICE);
             if (usm != null) {

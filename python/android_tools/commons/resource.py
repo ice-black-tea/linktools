@@ -52,8 +52,8 @@ class resource(object):
     #         json.dump(fd, config, sort_keys=True, indent=4)
 
     @staticmethod
-    def store_path(*paths: [str]):
-        path = os.path.join(resource._res_path, "store", *paths)
+    def res_path(*paths: [str]):
+        path = os.path.join(resource._res_path, *paths)
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)

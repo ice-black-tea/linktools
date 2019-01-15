@@ -124,8 +124,7 @@ task buildDex(dependsOn: fatJar) {
         def dexPrefix = "android-tools"
         def dexName = "${dexPrefix}-tmp.dex"
         def targetPath = "${rootDir}/../python/android_tools/resource"
-        def storePath = "${targetPath}/store"
-        def dexPath = "${storePath}/${dexName}"
+        def dexPath = "${targetPath}/${dexName}"
         def configPath = "${targetPath}/.config"
 
         buildDex(dependPath, dexPath)
@@ -134,7 +133,7 @@ task buildDex(dependsOn: fatJar) {
         if (config.framework_dex == null || config.framework_dex.md5 != md5) {
 
             def dexMd5Name = "${dexPrefix}-${md5}.dex"
-            def dexMd5Path = "${storePath}/${dexMd5Name}"
+            def dexMd5Path = "${targetPath}/${dexMd5Name}"
             file(dexPath).renameTo(dexMd5Path)
 
             config.framework_dex = [:]
@@ -145,6 +144,6 @@ task buildDex(dependsOn: fatJar) {
             writeConfig(configPath, config)
         }
 
-        deleteDex(storePath, dexPrefix, config.framework_dex.name)
+        deleteDex(targetPath, dexPrefix, config.framework_dex.name)
     }
 }
