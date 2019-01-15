@@ -38,7 +38,7 @@ import requests
 from tqdm import tqdm, TqdmSynchronisationWarning
 
 
-class _process(subprocess.Popen):
+class _Process(subprocess.Popen):
 
     def __init__(self, *args, **kwargs):
         """
@@ -46,10 +46,10 @@ class _process(subprocess.Popen):
         """
         self.out = ""
         self.err = ""
-        self.capture_output = utils.item(kwargs, "capture_output")
+        self.capture_output = Utils.get_item(kwargs, "capture_output")
         if self.capture_output is True:
-            kwargs["stdout"] = utils.PIPE
-            kwargs["stderr"] = utils.PIPE
+            kwargs["stdout"] = Utils.PIPE
+            kwargs["stderr"] = Utils.PIPE
         if self.capture_output is not None:
             del kwargs["capture_output"]
         subprocess.Popen.__init__(self, args, shell=False, **kwargs)
@@ -68,7 +68,7 @@ class _process(subprocess.Popen):
         return out, err
 
 
-class utils:
+class Utils:
     PIPE = subprocess.PIPE
     STDOUT = subprocess.STDOUT
 
@@ -95,7 +95,7 @@ class utils:
         :param default: 默认值
         :return: 转换后的值
         """
-        return utils.cast(int, obj, default=default)
+        return Utils.cast(int, obj, default=default)
 
     @staticmethod
     def bool(obj: object, default: bool = False) -> bool:
@@ -105,7 +105,7 @@ class utils:
         :param default: 默认值
         :return: 转换后的值
         """
-        return utils.cast(bool, obj, default=default)
+        return Utils.cast(bool, obj, default=default)
 
     @staticmethod
     def findall(string: str, reg: str) -> [str]:
@@ -130,7 +130,7 @@ class utils:
         return re.sub(reg, val, string, count=count)
 
     @staticmethod
-    def match(string: str, reg: str) -> bool:
+    def is_match(string: str, reg: str) -> bool:
         """
         是否匹配子串
         :param string: 字符串
@@ -140,7 +140,7 @@ class utils:
         return re.search(reg, string) is not None
 
     @staticmethod
-    def contain(obj: object, key: object) -> bool:
+    def is_contain(obj: object, key: object) -> bool:
         """
         是否包含内容
         :param obj: 对象
@@ -154,7 +154,7 @@ class utils:
         return False
 
     @staticmethod
-    def empty(obj: object) -> bool:
+    def is_empty(obj: object) -> bool:
         """
         对象是否为空
         :param obj: 对象
@@ -169,7 +169,7 @@ class utils:
 
     # noinspection PyShadowingBuiltins
     @staticmethod
-    def item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
+    def get_item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
         """
         获取子项
         :param obj: 对象
@@ -194,29 +194,37 @@ class utils:
 
     # noinspection PyShadowingBuiltins
     @staticmethod
-    def array_item(obj: object, *keys, type: type = None, default: [type(object)] = None) -> [type(object)]:
-        objs = utils.item(obj, *keys, default=None)
+    def get_array_item(obj: object, *keys, type: type = None, default: [type(object)] = None) -> [type(object)]:
+        """
+        获取子项（列表）
+        :param obj: 对象
+        :param keys: 键
+        :param type: 对应类型
+        :param default: 默认值
+        :return: 子项
+        """
+        objs = Utils.get_item(obj, *keys, default=None)
         if objs is None or not isinstance(objs, Iterable):
             return default
         array = []
         for obj in objs:
-            try:
-                if type is not None:
+            if type is not None:
+                try:
                     array.append(type(obj))
-                else:
-                    array.append(obj)
-            except:
-                pass
+                except:
+                    pass
+            else:
+                array.append(obj)
         return array
 
     @staticmethod
-    def exec(*args, **kwargs) -> _process:
+    def exec(*args, **kwargs) -> _Process:
         """
         执行命令
         :param args: 参数
         :return: 子进程
         """
-        process = _process(*args, **kwargs)
+        process = _Process(*args, **kwargs)
         process.communicate()
         return process
 

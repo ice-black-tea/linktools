@@ -34,12 +34,13 @@ import android_tools
 from watchdog.events import *
 from watchdog.observers import Observer
 
-from android_tools import frida_helper, utils
+from android_tools.frida import FridaHelper
+from android_tools.utils import Utils
 
 
-class frida_script(object):
+class FridaScript(object):
 
-    def __init__(self, path: str, helper: frida_helper, name: str, restart: bool):
+    def __init__(self, path: str, helper: FridaHelper, name: str, restart: bool):
         self.helper = helper
         self.name = name
         self.path = path
@@ -59,9 +60,9 @@ class frida_script(object):
         helper.run_script(package, jscode, restart=self.restart)
 
 
-class frida_event_handler(FileSystemEventHandler):
+class FridaEventHandler(FileSystemEventHandler):
 
-    def __init__(self, script: frida_script):
+    def __init__(self, script: FridaScript):
         FileSystemEventHandler.__init__(self)
         self.script = script
 
@@ -82,7 +83,6 @@ class frida_event_handler(FileSystemEventHandler):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description='easy to use frida')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
     parser.add_argument('-s', '--serial', action='store', default=None,
@@ -102,17 +102,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    helper = frida_helper(device_id=args.serial)
+    helper = FridaHelper(device_id=args.serial)
     package = args.package
-    if utils.empty(package):
-        package = helper.device.top_package()
+    if Utils.is_empty(package):
+        package = helper.device.get_top_package()
     restart = args.restart
 
     if "-f" in sys.argv or "--file" in sys.argv:
         observer = Observer()
-        path = utils.abspath(args.file)
-        script = frida_script(path, helper, package, restart)
-        event_handler = frida_event_handler(script)
+        path = Utils.abspath(args.file)
+        script = FridaScript(path, helper, package, restart)
+        event_handler = FridaEventHandler(script)
         observer.schedule(event_handler, os.path.dirname(path))
         observer.start()
         script.load()

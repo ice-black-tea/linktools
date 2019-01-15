@@ -36,23 +36,23 @@ import subprocess
 import sys
 
 
-class system:
+class System:
     name = platform.system().lower()
 
     @staticmethod
     def is_windows():  # -> bool:
-        return system.name == "windows"
+        return System.name == "windows"
 
     @staticmethod
     def is_linux():  # -> bool:
-        return system.name == "linux"
+        return System.name == "linux"
 
     @staticmethod
     def is_darwin():  # -> bool:
-        return system.name == "darwin"
+        return System.name == "darwin"
 
 
-if system.is_windows():
+if System.is_windows():
     if sys.hexversion <= 0x03000000:
         # noinspection PyUnresolvedReferences
         import _winreg as winreg
@@ -62,22 +62,25 @@ if system.is_windows():
 pass
 
 
-class user_env:
+class UserEnv:
     """
     用户环境变量
     """
+
+    flag_begin = "#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-#"
+    flag_end = "#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#"
 
     def __init__(self):
         """
         初始化
         """
-        if system.is_windows():
+        if System.is_windows():
             self.root = winreg.HKEY_CURRENT_USER
             self.sub_key = 'Environment'
-        elif system.is_linux():
+        elif System.is_linux():
             self.bash_file = os.path.expanduser("~/.bashrc")
             self.bash_file_bak = self.bash_file + ".bak"
-        elif system.is_darwin():
+        elif System.is_darwin():
             self.bash_file = os.path.expanduser("~/.bash_profile")
             self.bash_file_bak = self.bash_file + ".bak"
 
@@ -89,7 +92,7 @@ class user_env:
         :return:
         """
         value = default
-        if system.is_windows():
+        if System.is_windows():
             reg_key = winreg.OpenKey(self.root, self.sub_key, 0, winreg.KEY_READ)
             try:
                 value, _ = winreg.QueryValueEx(reg_key, key)
@@ -108,13 +111,13 @@ class user_env:
         key = key.replace("\"", "\\\"")
         value = value.replace("\"", "\\\"")
 
-        if system.is_windows():
+        if System.is_windows():
             command = "setx \"%s\" \"%s\"" % (key, value)
             subprocess.call(command, stdout=subprocess.PIPE)
 
-        elif system.is_linux() or system.is_darwin():
-            command_begin = "\n#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
-            command_end = "\n#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
+        elif System.is_linux() or System.is_darwin():
+            command_begin = "\n%s %s\n" % (UserEnv.flag_begin, key)
+            command_end = "\n%s %s\n" % (UserEnv.flag_end, key)
             command_tip = "# do not modify \n"
             command = "export \"%s\"=\"%s\"" % (key, value)
             command = command_begin + command_tip + command + command_end
@@ -140,15 +143,15 @@ class user_env:
         删除环境变量
         :param key: 键
         """
-        if system.is_windows():
+        if System.is_windows():
             reg_key = winreg.OpenKey(self.root, self.sub_key, 0, winreg.KEY_WRITE)
             try:
                 winreg.DeleteValue(reg_key, key)
             except WindowsError as e:
                 pass
-        elif system.is_linux() or system.is_darwin():
-            command_begin = "\n#-#-#-#-#-#-#-#-#-#-#-#-# written by user_env #-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
-            command_end = "\n#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# %s\n" % key
+        elif System.is_linux() or System.is_darwin():
+            command_begin = "\n%s %s\n" % (UserEnv.flag_begin, key)
+            command_end = "\n%s %s\n" % (UserEnv.flag_end, key)
 
             if os.path.exists(self.bash_file):
                 with open(self.bash_file, "r") as fd:
@@ -176,7 +179,7 @@ def get_value(module, key):
 def install_module(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
 
-    version_path = os.path.join(install_path, "android_tools/commons/version.py")
+    version_path = os.path.join(install_path, "android_tools", "version.py")
     with open(version_path, "rt") as f:
         _module = ast.parse(f.read())
 
@@ -192,34 +195,34 @@ def install_module(install):
 
 
 def install_env(install):
-    env = user_env()
+    env = UserEnv()
     tools_key = "ANDROID_TOOLS_PATH"
     install_path = os.path.abspath(os.path.dirname(__file__))
-    tools_path = os.path.join(install_path, "android_tools")
+    tools_path = os.path.join(install_path, "android_tools", "modules")
 
     if install:
         env.set(tools_key, tools_path)
-        if system.is_windows():
+        if System.is_windows():
             path_env = env.get("PATH")
             if tools_key not in path_env:
                 path_env = "%s;%%%s%%" % (path_env, tools_key)
                 env.set("PATH", path_env)
-        elif system.is_linux() or system.is_darwin():
+        elif System.is_linux() or System.is_darwin():
             env.set("PATH", "$PATH:$%s" % tools_key)
     else:
         env.delete(tools_key)
-        if system.is_windows():
+        if System.is_windows():
             path_env = env.get("PATH")
             if tools_key in path_env:
                 env.set("PATH", path_env.replace(";%%%s%%" % tools_key, ""))
-        elif system.is_linux() or system.is_darwin():
+        elif System.is_linux() or System.is_darwin():
             env.delete("PATH")
 
 
 def install_require(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
     requirements_path = os.path.join(install_path, "requirements.txt")
-    platform_path = os.path.join(install_path, "requirements", "%s.txt" % system.name)
+    platform_path = os.path.join(install_path, "requirements", "%s.txt" % System.name)
 
     if install:
         # python -m pip install -r requirements.txt

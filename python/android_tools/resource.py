@@ -29,40 +29,38 @@
 import json
 import os
 
-from .utils import utils
+from .decorator import singleton
+from .utils import Utils
 
 
-class resource(object):
-    _res_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "resource"))
-    _config_path = os.path.join(_res_path, ".config")
-    _config_data = None
+@singleton
+class Resource(object):
+    _res_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resource")
 
-    @staticmethod
-    def get_config(*key: [str]):
-        if not hasattr(resource, "config"):
-            with open(resource._config_path, "rt") as fd:
-                resource.config = json.load(fd)
-        if utils.empty(key):
-            return resource.config
-        return utils.item(resource.config, *key)
+    def __init__(self):
+        self.config = None
 
-    # @staticmethod
-    # def save_config(config):
-    #     with open(resource._config_path, "wt") as fd:
-    #         json.dump(fd, config, sort_keys=True, indent=4)
+    def get_config(self, *key: [str]):
+        if self.config is None:
+            with open(self.get_path(".config"), "rt") as fd:
+                self.config = json.load(fd)
+        if Utils.is_empty(key):
+            return self.config
+        return Utils.get_item(self.config, *key)
 
-    @staticmethod
-    def res_path(*paths: [str]):
-        path = os.path.join(resource._res_path, *paths)
+    def get_path(self, *paths: [str]):
+        path = os.path.join(self._res_path, *paths)
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         return path
 
-    @staticmethod
-    def download_path(*paths: [str]):
-        path = os.path.join(resource._res_path, "download", *paths)
+    def get_download_path(self, *paths: [str]):
+        path = os.path.join(self._res_path, "download", *paths)
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         return path
+
+
+resource = Resource()

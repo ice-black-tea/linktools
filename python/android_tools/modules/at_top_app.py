@@ -32,8 +32,7 @@ import datetime
 import sys
 
 import android_tools
-
-from android_tools import adb_device, utils
+from android_tools.adb import Device
 
 if __name__ == '__main__':
 
@@ -57,31 +56,31 @@ if __name__ == '__main__':
                        help='capture screen and pull file')
 
     args = parser.parse_args()
-    device = adb_device(args.serial)
+    device = Device(args.serial)
 
     if args.package:
-        print(device.top_package())
+        print(device.get_top_package())
     elif args.activity:
-        print(device.top_activity())
+        print(device.get_top_activity())
     elif args.path:
-        print(device.apk_path(device.top_package()))
+        print(device.get_apk_path(device.get_top_package()))
     elif args.kill:
-        device.shell("am", "force-stop", device.top_package(), capture_output=False)
+        device.shell("am", "force-stop", device.get_top_package(), capture_output=False)
     elif "--apk" in sys.argv:
-        package = device.top_package()
-        path = device.save_path(package + ".apk")
-        dest = args.dest if not utils.empty(args.dest) else "."
-        device.shell("cp", device.apk_path(package), path, capture_output=False)
+        package = device.get_top_package()
+        path = device.get_save_path(package + ".apk")
+        dest = args.dest if not Utils.is_empty(args.dest) else "."
+        device.shell("cp", device.get_apk_path(package), path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
     elif "--screen" in sys.argv:
         now = datetime.datetime.now()
-        path = device.save_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
-        dest = args.dest if not utils.empty(args.dest) else "."
+        path = device.get_save_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
+        dest = args.dest if not Utils.is_empty(args.dest) else "."
         device.shell("screencap", "-p", path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
     else:
-        print("package: ", device.top_package())
-        print("activity:", device.top_activity())
-        print("path:    ", device.apk_path(device.top_package()))
+        print("package: ", device.get_top_package())
+        print("activity:", device.get_top_activity())
+        print("path:    ", device.get_apk_path(device.get_top_package()))

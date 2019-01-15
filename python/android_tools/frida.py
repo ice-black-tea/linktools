@@ -38,19 +38,19 @@ import colorama
 import frida
 from colorama import Fore
 
-from .adb import device
+from .adb import Device
 from .resource import resource
-from .utils import utils
+from .utils import Utils
 from .version import __name__
 
 
-class base_helper(object):
+class BaseHelper(object):
 
     def __init__(self, device_id: str = None):
         """
         :param device_id: 设备号
         """
-        self.device = device(device_id=device_id)
+        self.device = Device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
 
         self.config = resource.get_config("frida_server").copy()
@@ -59,11 +59,8 @@ class base_helper(object):
 
         self.server_name = self.config["name"].format(**self.config)
         self.server_url = self.config["url"].format(**self.config)
-        self.server_file = resource.download_path(self.server_name)
+        self.server_file = resource.get_download_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
-
-    def on_log(self, tag: object, message: object, **kwargs):
-        pass
 
     def start_server(self) -> bool:
         """
@@ -87,11 +84,11 @@ class base_helper(object):
     def _start_server(self) -> bool:
         self.on_log("*", "Start frida server ...")
 
-        if not self.device.exist_file(self.server_target_file):
+        if not self.device.is_file_exist(self.server_target_file):
             if not os.path.exists(self.server_file):
                 self.on_log("*", "Download frida server ...")
-                tmp_file = resource.download_path(self.server_name + ".tmp")
-                utils.download(self.server_url, tmp_file)
+                tmp_file = resource.get_download_path(self.server_name + ".tmp")
+                Utils.download(self.server_url, tmp_file)
                 with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
                 os.remove(tmp_file)
@@ -130,12 +127,15 @@ class base_helper(object):
         """
         processes = []
         for process in self.frida_device.enumerate_processes():
-            if utils.match(process.name, name):
+            if Utils.is_match(process.name, name):
                 processes.append(process)
         return processes
 
+    def on_log(self, tag: object, message: object, **kwargs):
+        pass
 
-class frida_helper(base_helper):
+
+class FridaHelper(BaseHelper):
     """
     ----------------------------------------------------------------------
 
@@ -166,7 +166,7 @@ class frida_helper(base_helper):
         """
         super().__init__(device_id)
         self.sessions = []
-        with open(resource.res_path("frida.js"), "rt") as fd:
+        with open(resource.get_path("frida.js"), "rt") as fd:
             self._preset_jscode = fd.read().replace("\n", "")
         self.on_init()
 
@@ -186,8 +186,8 @@ class frida_helper(base_helper):
         :param kwargs: 字体颜色（fore）
         """
         log = "[{0}] {1}".format(tag, str(message).replace("\n", "\n    "))
-        if utils.contain(kwargs, "fore"):
-            log = utils.item(kwargs, "fore") + log
+        if Utils.is_contain(kwargs, "fore"):
+            log = Utils.get_item(kwargs, "fore") + log
         print(log)
 
     def on_message(self, process_id: int, process_name: str, message: object) -> None:
@@ -197,18 +197,18 @@ class frida_helper(base_helper):
         :param process_name: 进程名
         :param message: 收到的消息
         """
-        if utils.item(message, "type") == "send" and utils.contain(message, "payload"):
-            payload = utils.item(message, "payload")
-            helper_stack = utils.item(payload, "helper_stack")
-            helper_method = utils.item(payload, "helper_method")
+        if Utils.get_item(message, "type") == "send" and Utils.is_contain(message, "payload"):
+            payload = Utils.get_item(message, "payload")
+            helper_stack = Utils.get_item(payload, "helper_stack")
+            helper_method = Utils.get_item(payload, "helper_method")
             if helper_stack is not None:
                 self.on_log("*", helper_stack, fore=Fore.BLUE)
             elif helper_method is not None:
                 self.on_log("*", helper_method, fore=Fore.LIGHTMAGENTA_EX)
             else:
                 self.on_log("*", payload)
-        elif utils.item(message, "type") == "error" and utils.contain(message, "stack"):
-            self.on_log("*", utils.item(message, "stack"), fore=Fore.RED)
+        elif Utils.get_item(message, "type") == "error" and Utils.is_contain(message, "stack"):
+            self.on_log("*", Utils.get_item(message, "stack"), fore=Fore.RED)
         else:
             self.on_log("?", message, fore=Fore.RED)
 
@@ -220,7 +220,7 @@ class frida_helper(base_helper):
         :param session: 会话
         """
         self.on_log("*", "Detach process: %s (%d)" % (process_name, process_id))
-        if utils.contain(self.sessions, session):
+        if Utils.is_contain(self.sessions, session):
             self.sessions.remove(session)
 
     def on_detached(self, process_id: int, process_name: str, session: _frida.Session, jscode: str,
@@ -235,7 +235,7 @@ class frida_helper(base_helper):
         """
         if reason == "process-terminated":
             self._run_script(process_id, process_name, jscode, restart=True)
-        if utils.contain(self.sessions, session):
+        if Utils.is_contain(self.sessions, session):
             self.sessions.remove(session)
 
     def _run_script(self, process_id: int, process_name: str, jscode: str, restart: bool = False) -> None:
@@ -275,7 +275,3 @@ class frida_helper(base_helper):
         """
         for session in self.sessions:
             session.detach()
-
-
-if __name__ == "__main__":
-    frida_helper().start_server()

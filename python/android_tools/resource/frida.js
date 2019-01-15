@@ -67,7 +67,7 @@ function _PrintStack(stackElements, showStack) {
     }
     var body = "Stack: " + stackElements[0];
     for (var i = 0; i < stackElements.length; i++) {
-        body += "\\n    at " + stackElements[i];
+        body += "\n    at " + stackElements[i];
     }
     send({"helper_stack": body});
 }
@@ -87,10 +87,10 @@ function _CallMethod(stackElement, object, arguments, showArgs) {
     }
     var body = "Method: " + stackElement;
     for (var i = 0; i < arguments.length; i++) {
-        body += "\\n    Arguments[" + i + "]: " + arguments[i];
+        body += "\n    Arguments[" + i + "]: " + arguments[i];
     }
     if (ret !== undefined) {
-        body += "\\n    Return: " + ret;
+        body += "\n    Return: " + ret;
     }
     send({"helper_method": body});
     return ret;

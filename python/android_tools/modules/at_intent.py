@@ -30,7 +30,8 @@ import argparse
 import sys
 
 import android_tools
-from android_tools import adb_device, utils
+from android_tools.adb import Device
+from android_tools.utils import Utils
 
 if __name__ == '__main__':
 
@@ -56,7 +57,7 @@ if __name__ == '__main__':
                        help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
     args = parser.parse_args()
-    device = adb_device(args.serial)
+    device = Device(args.serial)
 
     if "--setting" in sys.argv:
         device.shell("am", "start", "--user", "0",
@@ -72,13 +73,13 @@ if __name__ == '__main__':
                      "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
                      capture_output=False)
     elif "--setting-app" in sys.argv:
-        package = args.package if not utils.empty(args.package) else device.top_package()
+        package = args.package if not Utils.is_empty(args.package) else device.get_top_package()
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,
                      capture_output=False)
     elif "--setting-cert" in sys.argv:
-        path = "/data/local/tmp/%s/cert/%s" % (android_tools.__name__, utils.basename(args.path))
+        path = "/data/local/tmp/%s/cert/%s" % (android_tools.__name__, Utils.basename(args.path))
         device.exec("push", args.path, path, capture_output=False)
         device.shell("am", "start", "--user", "0",
                      "-n", "com.android.certinstaller/.CertInstallerMain",
@@ -87,7 +88,7 @@ if __name__ == '__main__':
                      "-d", "file://%s" % path,
                      capture_output = False)
     elif "--install" in sys.argv:
-        path = device.save_path(utils.basename(args.path))
+        path = device.get_save_path(Utils.basename(args.path))
         device.exec("push", args.path, path, capture_output=False)
         device.shell("am", "start", "--user", "0",
                      "-a", "android.intent.action.VIEW",

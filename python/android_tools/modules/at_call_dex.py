@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : setup.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : at_call_dex.py 
+@time    : 2018/12/02
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,32 +26,10 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import sys
 
-import ast
-
-from distutils.core import setup
-
-
-def get_value(module, key):
-    for e in module.body:
-        if isinstance(e, ast.Assign) and \
-                len(e.targets) == 1 and \
-                e.targets[0].id == key and \
-                isinstance(e.value, ast.Str):
-            return e.value.s
-    raise RuntimeError('%s not found' % key)
-
+from android_tools.adb import Device
 
 if __name__ == '__main__':
-
-    with open("android_tools/version.py", "rt") as f:
-        _module = ast.parse(f.read())
-
-    setup(
-        name=get_value(_module, "__name__"),
-        author=get_value(_module, "__author__"),
-        version=get_value(_module, "__version__"),
-        author_email=get_value(_module, "__email__"),
-        packages=["android_tools"],
-        url=get_value(_module, "__url__"),
-    )
+    device = Device()
+    device.call_dex(*sys.argv[1:], capture_output=False)

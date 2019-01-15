@@ -27,7 +27,7 @@ if __name__ == '__main__':
 ```
 
 
-### 方法2：使用at_frida.py
+### 方法2：使用at_frida
 
 注入js文件或js代码到指定进程，支持下载server，打开server，js文件实时加载，应用重启后注入等功能
 

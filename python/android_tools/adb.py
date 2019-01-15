@@ -29,7 +29,7 @@
 
 from .resource import resource
 from .tools import tools
-from .utils import utils
+from .utils import Utils
 from .version import __name__, __version__
 
 
@@ -39,7 +39,7 @@ class AdbError(Exception):
         super().__init__(self, message)
 
 
-class adb(object):
+class Adb(object):
 
     @staticmethod
     def devices() -> [str]:
@@ -47,7 +47,7 @@ class adb(object):
         获取所有设备列表
         :return: 设备号数组
         """
-        result = adb.exec("devices", capture_output=True)
+        result = Adb.exec("devices", capture_output=True)
         devices = result.partition("\n")[2].replace("\n", "").split("\tdevice")
         return [d for d in devices if len(d) > 2]
 
@@ -60,16 +60,16 @@ class adb(object):
         :return: 输出结果
         """
         process = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
-        if process.returncode != 0 and not utils.empty(process.err):
+        if process.returncode != 0 and not Utils.is_empty(process.err):
             raise AdbError(process.err)
         return process.out
 
 
-class device(object):
+class Device(object):
 
     class dex:
         name = resource.get_config("framework_dex", "name")
-        path = resource.res_path(name)
+        path = resource.get_path(name)
         main_class = resource.get_config("framework_dex", "main")
         flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
         flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
@@ -78,7 +78,7 @@ class device(object):
         """
         :param device_id: 设备号
         """
-        device_ids = adb.devices()
+        device_ids = Adb.devices()
         if device_id is None:
             if len(device_ids) == 0:
                 raise AdbError("no devices/emulators found")
@@ -86,7 +86,7 @@ class device(object):
                 raise AdbError("more than one device/emulator")
             self._device_id = device_ids[0]
         else:
-            if not utils.contain(device_ids, device_id):
+            if not Utils.is_contain(device_ids, device_id):
                 raise AdbError("no device %s found" % device_id)
             self._device_id = device_id
 
@@ -123,7 +123,7 @@ class device(object):
         """
         default = -1
         result = self.shell("echo", "-n", "${USER_ID}")
-        uid = utils.int(result, default=default)
+        uid = Utils.int(result, default=default)
         if uid != default:
             return uid
         raise AdbError("unknown adb uid: %s" % result)
@@ -136,7 +136,7 @@ class device(object):
         :return: adb输出结果
         """
         args = ["-s", self.id, *args]
-        return adb.exec(*args, capture_output=capture_output, **kwargs)
+        return Adb.exec(*args, capture_output=capture_output, **kwargs)
 
     def shell(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
@@ -146,7 +146,7 @@ class device(object):
         :return: adb输出结果
         """
         args = ["-s", self.id, "shell", *args]
-        return adb.exec(*args, capture_output=capture_output, **kwargs)
+        return Adb.exec(*args, capture_output=capture_output, **kwargs)
 
     def sudo(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
@@ -159,7 +159,7 @@ class device(object):
             args = ["-s", self.id, "shell", "su", "-c", *args]
         else:
             args = ["-s", self.id, "shell", *args]
-        return adb.exec(*args, capture_output=capture_output, **kwargs)
+        return Adb.exec(*args, capture_output=capture_output, **kwargs)
 
     def call_dex(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
@@ -168,13 +168,13 @@ class device(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: dex输出结果
         """
-        target_dir = self.save_path("dex")
-        target_path = self.save_path("dex", self.dex.name)
+        target_dir = self.get_save_path("dex")
+        target_path = self.get_save_path("dex", self.dex.name)
         # check dex path
-        if not self.exist_file(target_path):
+        if not self.is_file_exist(target_path):
             self.shell("rm", "-rf", target_dir)
             self.exec("push", self.dex.path, target_path)
-            if not self.exist_file(target_path):
+            if not self.is_file_exist(target_path):
                 raise AdbError("%s does not exist" % target_path)
         # set --add-flag if necessary
         if capture_output:
@@ -182,7 +182,7 @@ class device(object):
         # call dex
         args = ["-s", self.id, "shell", "CLASSPATH=%s" % target_path,
                 "app_process", "/", self.dex.main_class, *args]
-        result = adb.exec(capture_output=capture_output, *args, **kwargs)
+        result = Adb.exec(capture_output=capture_output, *args, **kwargs)
         # parse flag if necessary
         if capture_output:
             begin = result.find(self.dex.flag_begin)
@@ -218,7 +218,7 @@ class device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        package_name = self._fix_package(package_name)
+        package_name = self._get_fix_package(package_name)
         return self.shell("am kill %s" % package_name)
 
     def force_stop(self, package_name) -> str:
@@ -227,19 +227,19 @@ class device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        package_name = self._fix_package(package_name)
+        package_name = self._get_fix_package(package_name)
         return self.shell("am force-stop %s" % package_name)
 
-    def exist_file(self, path) -> bool:
+    def is_file_exist(self, path) -> bool:
         """
         文件是否存在
         :param path: 文件路径
         :return: 是否存在
         """
         result = self.shell("[ -a %s ] && echo -n 1" % path)
-        return utils.bool(utils.int(result, default=0), default=False)
+        return Utils.bool(Utils.int(result, default=0), default=False)
 
-    def top_package(self) -> str:
+    def get_top_package(self) -> str:
         """
         获取顶层包名
         :return: 顶层包名
@@ -251,11 +251,11 @@ class device(object):
                 return items[1].split("/")[0]
         # use dex instead of dumpsys
         result = self.call_dex("common", "--top-package")
-        if not utils.empty(result):
+        if not Utils.is_empty(result):
             return result
         raise AdbError("can not fetch top package")
 
-    def top_activity(self) -> str:
+    def get_top_activity(self) -> str:
         """
         获取顶层activity名
         :return: 顶层activity名
@@ -266,16 +266,16 @@ class device(object):
             return items[1]
         raise AdbError("can not fetch top activity")
 
-    def apk_path(self, package: str) -> str:
+    def get_apk_path(self, package: str) -> str:
         """
         获取apk路径
         :return: apk路径
         """
         if self.uid < 10000:
-            return utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
+            return Utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
         return self.call_dex("common", "--apk-path", package)
 
-    def save_path(self, *paths: [str]) -> str:
+    def get_save_path(self, *paths: [str]) -> str:
         """
         存储文件路径
         :param paths: 文件名
@@ -295,7 +295,7 @@ class device(object):
     #     return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=utils.PIPE)
 
     @staticmethod
-    def _fix_package(package_name) -> str:
+    def _get_fix_package(package_name) -> str:
         index = package_name.find(":")
         if index == -1:
             return package_name

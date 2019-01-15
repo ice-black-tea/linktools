@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : version.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : decorator.py
+@time    : 2019/01/15
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,9 +26,44 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import threading
 
-__name__ = "android-tools"
-__version__ = "0.0.3"
-__author__ = "Hu Ji"
-__email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/android-library"
+
+def singleton(cls):
+    instances = {}
+
+    def wrapper(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+
+    return wrapper
+
+
+def try_except(errors=(Exception, ), default=None):
+
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except errors:
+                return default
+        return wrapper
+
+    return decorator
+
+
+def synchronized(lock=None):
+    if lock is None:
+        lock = threading.Lock()
+
+    def decorator(function):
+        def wrapper(*args, **kwargs):
+            lock.acquire()
+            try:
+                return function(*args, **kwargs)
+            finally:
+                lock.release()
+        return wrapper
+
+    return decorator

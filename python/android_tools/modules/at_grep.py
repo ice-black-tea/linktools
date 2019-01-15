@@ -40,25 +40,13 @@ import magic
 from colorama import Fore
 
 import android_tools
-from android_tools import utils
+from android_tools.decorator import try_except
+from android_tools.utils import Utils
 
 
-def match_handler(func):
+class GrepMatcher:
 
-    def wrapper(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-            return True
-        except Exception as e:
-            return False
-
-    return wrapper
-
-
-class grep_matcher:
-
-    # noinspection PyUnresolvedReferences
-    def __init__(self, pattern: re.Pattern):
+    def __init__(self, pattern):
         self.pattern = pattern
         self.handlers = {
             "application/zip": self.on_zip,
@@ -67,14 +55,19 @@ class grep_matcher:
             "application/xml": self.on_text,
         }
 
-    def match(self, dirname: str):
-        for root, dirs, files in os.walk(dirname, topdown=False):
+    def match(self, path: str):
+        if not os.path.exists(path):
+            return
+        elif os.path.isfile(path):
+            self.on_file(path)
+            return
+        for root, dirs, files in os.walk(path, topdown=False):
             for name in files:
                 self.on_file(os.path.join(root, name))
 
     def on_file(self, filename: str):
         mime = magic.from_file(filename, mime=True)
-        handler = utils.item(self.handlers, mime)
+        handler = Utils.get_item(self.handlers, mime)
         if handler is not None:
             if handler(filename):
                 return
@@ -84,8 +77,8 @@ class grep_matcher:
                 return
         self.on_binary(filename)
 
-    @match_handler
-    def on_zip(self, filename: str):
+    @try_except(default=False)
+    def on_zip(self, filename: str) -> bool:
         dirname = filename + ":"
         while os.path.exists(dirname):
             dirname = dirname + " "
@@ -95,32 +88,34 @@ class grep_matcher:
             self.match(dirname)
         finally:
             shutil.rmtree(dirname, ignore_errors=True)
+        return True
 
-    @match_handler
-    def on_text(self, filename: str):
+    @try_except(default=False)
+    def on_text(self, filename: str) -> bool:
         with open(filename, "rb") as fd:
             lines = fd.readlines()
             for i in range(0, len(lines)):
                 out, last, line = "", 0, lines[i].rstrip(b"\n")
                 for match in self.pattern.finditer(line):
-                    start = match.span()[0]
-                    end = match.span()[1]
+                    start, end = match.span()
                     out = out + Fore.RESET + str(line[last:start], encoding="utf-8")
                     out = out + Fore.RED + str(line[start:end], encoding="utf-8")
-                    last = match.span()[1]
-                if not utils.empty(out):
+                    last = end
+                if not Utils.is_empty(out):
                     print(Fore.CYAN + filename +
                           Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
                           Fore.RESET + ": " + out +
                           Fore.RESET + str(line[last:], encoding="utf-8"))
+        return True
 
-    @match_handler
-    def on_binary(self, filename: str):
+    @try_except(default=False)
+    def on_binary(self, filename: str) -> bool:
         with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
                     print(Fore.CYAN + filename + Fore.RESET + ": binary file match")
-                    return
+                    break
+        return True
 
 
 if __name__ == '__main__':
@@ -141,8 +136,8 @@ if __name__ == '__main__':
         flags = flags | re.I
     pattern = re.compile(bytes(args.pattern, encoding="utf8"), flags=flags)
 
-    if utils.empty(args.files):
+    if Utils.is_empty(args.files):
         args.files = ["."]
 
     for file in args.files:
-        grep_matcher(pattern).match(file)
+        GrepMatcher(pattern).match(file)

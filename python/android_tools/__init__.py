@@ -27,9 +27,4 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .commons.version import __version__
-from .commons.utils import utils
-from .commons.frida import frida_helper
-from .commons.tools import tools
-from .commons.adb import adb, device as adb_device
-from .commons.struct import package, permission, component, activity, service, receiver, provider, intent_filter
+from .version import __name__, __version__, __author__, __email__, __url__

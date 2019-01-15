@@ -33,11 +33,12 @@ import colorama
 from colorama import Fore, Style, Back
 
 import android_tools
-from android_tools import utils, adb_device
-from android_tools import package, permission, component, activity, service, receiver, provider, intent_filter
+from android_tools.adb import Device
+from android_tools.utils import Utils
+from android_tools.struct import Package, Permission, Component, Activity, Service, Receiver, Provider, IntentFilter
 
 
-class print_level:
+class PrintLevel:
     min = 0
     useless = 100
     normal = 200
@@ -47,22 +48,22 @@ class print_level:
     max = 1000
 
 
-class print_stream(print_level):
+class PrintStream(PrintLevel):
 
-    def __init__(self, max_level=print_level.max, min_level=print_level.min, file=None):
+    def __init__(self, max_level=PrintLevel.max, min_level=PrintLevel.min, file=None):
         colorama.init(True)
         self.max = max_level
         self.min = min_level
         self.file = file
 
-    def print(self, text: str = "", indent: int = 0, level=print_level.normal):
+    def print(self, text: str = "", indent: int = 0, level=PrintLevel.normal):
         if level < self.min or level > self.max:
             pass
-        elif level == print_level.title:
+        elif level == PrintLevel.title:
             print(" " * indent + Style.BRIGHT + text, file=self.file)
-        elif level == print_level.dangerous:
+        elif level == PrintLevel.dangerous:
             print(" " * indent + Fore.RED + Back.WHITE + Style.BRIGHT + text, file=self.file)
-        elif level == print_level.useless:
+        elif level == PrintLevel.useless:
             print(" " * indent + Fore.YELLOW + Back.WHITE + Style.BRIGHT + text, file=self.file)
         else:
             print(" " * indent + text, file=self.file)
@@ -71,14 +72,14 @@ class print_stream(print_level):
         print("", file=self.file)
 
 
-class print_stream_wrapper(print_level):
+class PrintStreamWrapper(PrintLevel):
 
-    def __init__(self, stream: print_stream, max_level: int = print_level.max, min_level: int = print_level.min):
+    def __init__(self, stream: PrintStream, max_level: int = PrintLevel.max, min_level: int = PrintLevel.min):
         self.stream = stream
         self.max_level = max_level
         self.min_level = min_level
 
-    def print(self, text: str = "", indent: int = 0, level=print_level.normal):
+    def print(self, text: str = "", indent: int = 0, level=PrintLevel.normal):
         if level > self.max_level:
             level = self.max_level
         elif level < self.min_level:
@@ -88,21 +89,21 @@ class print_stream_wrapper(print_level):
     def print_line(self):
         self.stream.print_line()
 
-    def create(self, max_level: int = print_level.max, min_level: int = print_level.min):
+    def create(self, max_level: int = PrintLevel.max, min_level: int = PrintLevel.min):
         if max_level > self.max_level:
             max_level = self.max_level
         elif min_level < self.min_level:
             min_level = self.min_level
-        return print_stream_wrapper(self.stream, max_level=max_level, min_level=min_level)
+        return PrintStreamWrapper(self.stream, max_level=max_level, min_level=min_level)
 
 
-class package_printer:
+class PackagePrinter:
 
-    def __init__(self, stream: print_stream, package: package):
+    def __init__(self, stream: PrintStream, package: Package):
         self.package = package
-        self.max_level = print_level.max if self.package.enabled else print_level.useless
-        self.min_level = print_level.min
-        self.stream = print_stream_wrapper(stream, max_level=self.max_level, min_level=self.min_level)
+        self.max_level = PrintLevel.max if self.package.enabled else PrintLevel.useless
+        self.min_level = PrintLevel.min
+        self.stream = PrintStreamWrapper(stream, max_level=self.max_level, min_level=self.min_level)
 
     def print_package(self, indent: int = 0):
         self.stream.print("Package [%s]" % self.package, indent=indent, level=self.stream.title)
@@ -121,56 +122,56 @@ class package_printer:
         self.stream.print_line()
 
     def print_requested_permissions(self, indent: int = 4):
-        if not utils.empty(self.package.requestedPermissions):
-            stream = self.stream.create(max_level=print_level.normal)
+        if not Utils.is_empty(self.package.requestedPermissions):
+            stream = self.stream.create(max_level=PrintLevel.normal)
             self.stream.print("RequestedPermissions:", indent=indent, level=self.stream.title)
             for permission in self.package.requestedPermissions:
                 self._print_permission(stream, permission, indent=indent + 4, identity="RequestedPermission")
             self.stream.print_line()
 
     def print_permissions(self, indent: int = 4):
-        if not utils.empty(self.package.permissions):
+        if not Utils.is_empty(self.package.permissions):
             self.stream.print("Permissions:", indent=indent, level=stream.title)
             for permission in self.package.permissions:
                 self._print_permission(self.stream, permission, indent=indent + 4, identity="Permission")
             self.stream.print_line()
 
     def print_activities(self, indent: int = 4):
-        if not utils.empty(self.package.activities):
+        if not Utils.is_empty(self.package.activities):
             self.stream.print("Activities:", indent=indent, level=stream.title)
             for activity in self.package.activities:
                 self._print_component(self.stream, activity, indent=indent + 4, identity="Activity")
             self.stream.print_line()
 
     def print_services(self, indent: int = 4):
-        if not utils.empty(self.package.services):
+        if not Utils.is_empty(self.package.services):
             self.stream.print("Services:", indent=indent, level=stream.title)
             for service in self.package.services:
                 self._print_component(self.stream, service, indent=indent + 4, identity="Service")
             self.stream.print_line()
 
     def print_receivers(self, indent: int = 4):
-        if not utils.empty(self.package.receivers):
+        if not Utils.is_empty(self.package.receivers):
             self.stream.print("Receivers:", indent=indent, level=stream.title)
             for receiver in self.package.receivers:
                 self._print_component(self.stream, receiver, indent=indent + 4, identity="Receiver")
             self.stream.print_line()
 
     def print_providers(self, indent: int = 4):
-        if not utils.empty(self.package.providers):
+        if not Utils.is_empty(self.package.providers):
             self.stream.print("Providers:", indent=indent, level=stream.title)
             for provider in self.package.providers:
                 self._print_component(self.stream, provider, indent=indent + 4, identity="Provider")
             self.stream.print_line()
 
     @staticmethod
-    def _print_permission(stream: print_stream_wrapper, permission: permission, indent: int = 0, identity: str = None):
+    def _print_permission(stream: PrintStreamWrapper, permission: Permission, indent: int = 0, identity: str = None):
         if permission.is_defined():
             stream.print("%s [%s] %s" % (identity, permission, permission.protection), indent=indent,
                          level=stream.dangerous if permission.is_dangerous() else stream.normal)
 
     @staticmethod
-    def _print_component(stream: print_stream_wrapper, component: component, indent: int = 0, identity: str = None):
+    def _print_component(stream: PrintStreamWrapper, component: Component, indent: int = 0, identity: str = None):
         if not component.enabled:
             description = "disabled"
             level = stream.useless
@@ -185,31 +186,31 @@ class package_printer:
             stream = stream.create(max_level=stream.normal)
         stream.print("%s [%s] %s" % (identity, component, description), indent=indent, level=level)
 
-        if isinstance(component, activity) or isinstance(component, service) or isinstance(component, receiver):
-            package_printer._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
-        elif isinstance(component, provider):
+        if isinstance(component, Activity) or isinstance(component, Service) or isinstance(component, Receiver):
+            PackagePrinter._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
+        elif isinstance(component, Provider):
             stream.print("Authority [%s]" % component.authority, indent=indent + 4, level=level)
-            package_printer._print_permission(stream, component.readPermission, indent=indent + 4,
-                                              identity="ReadPermission")
-            package_printer._print_permission(stream, component.writePermission, indent=indent + 4,
-                                              identity="writePermission")
+            PackagePrinter._print_permission(stream, component.readPermission, indent=indent + 4,
+                                             identity="ReadPermission")
+            PackagePrinter._print_permission(stream, component.writePermission, indent=indent + 4,
+                                             identity="writePermission")
             for pattern in component.uriPermissionPatterns:
                 stream.print("UriPermissionPattern [%s]" % pattern, indent=indent + 4, level=level)
             for permission in component.pathPermissions:
                 stream.print("PathPermission [%s]" % permission, indent=indent + 4,
                              level=stream.dangerous if permission.is_dangerous() else stream.normal)
-                package_printer._print_permission(stream, permission.readPermission, indent=indent + 8,
-                                                  identity="ReadPermission")
-                package_printer._print_permission(stream, permission.writePermission, indent=indent + 8,
-                                                  identity="writePermission")
+                PackagePrinter._print_permission(stream, permission.readPermission, indent=indent + 8,
+                                                 identity="ReadPermission")
+                PackagePrinter._print_permission(stream, permission.writePermission, indent=indent + 8,
+                                                 identity="writePermission")
 
-        if not utils.empty(component.intents):
+        if not Utils.is_empty(component.intents):
             for intent in component.intents:
-                package_printer._print_intent(stream, intent, indent=indent + 4, level=level)
+                PackagePrinter._print_intent(stream, intent, indent=indent + 4, level=level)
 
     @staticmethod
-    def _print_intent(stream: print_stream_wrapper, intent: intent_filter, indent: int = 0,
-                      level: int = print_level.normal):
+    def _print_intent(stream: PrintStreamWrapper, intent: IntentFilter, indent: int = 0,
+                      level: int = PrintLevel.normal):
         stream.print("IntentFilter:", indent=indent, level=level)
         for action in intent.actions:
             stream.print("Action [%s]" % action, indent=indent + 4, level=level)
@@ -254,34 +255,34 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    device = adb_device(args.serial)
+    device = Device(args.serial)
 
     dex_args = ["package"]
     if args.top is True:
-        dex_args = ["package", "-p", device.top_package()]
-    elif not utils.empty(args.packages):
+        dex_args = ["package", "-p", device.get_top_package()]
+    elif not Utils.is_empty(args.packages):
         dex_args = ["package", "-p", *args.packages]
 
     objs = json.loads(device.call_dex(*dex_args, capture_output=True))
-    if not utils.empty(args.order_by):
-        objs = sorted(objs, key=lambda x: [utils.item(x, k, default="") for k in args.order_by])
+    if not Utils.is_empty(args.order_by):
+        objs = sorted(objs, key=lambda x: [Utils.get_item(x, k, default="") for k in args.order_by])
 
-    stream = print_stream(min_level=print_level.dangerous_normal if args.dangerous else print_level.min)
+    stream = PrintStream(min_level=PrintLevel.dangerous_normal if args.dangerous else PrintLevel.min)
 
     for obj in objs:
-        printer = package_printer(stream, package(obj))
-
-        if args.system and not printer.package.system:
+        package = Package(obj)
+        if args.system and not package.system:
             continue
-        if args.non_system and printer.package.system:
+        if args.non_system and package.system:
             continue
 
-        printer.print_package()
-
+        printer = PackagePrinter(stream, package)
         if args.basic_info:
+            printer.print_package()
             continue
 
         if not args.dangerous:
+            printer.print_package()
             printer.print_requested_permissions()
             printer.print_permissions()
             printer.print_activities()
@@ -290,13 +291,14 @@ if __name__ == '__main__':
             printer.print_providers()
             continue
 
-        if printer.package.has_dangerous_permission():
+        printer.print_package()
+        if package.has_dangerous_permission():
             printer.print_permissions()
-        if printer.package.has_dangerous_activity():
+        if package.has_dangerous_activity():
             printer.print_activities()
-        if printer.package.has_dangerous_service():
+        if package.has_dangerous_service():
             printer.print_services()
-        if printer.package.has_dangerous_receiver():
+        if package.has_dangerous_receiver():
             printer.print_receivers()
-        if printer.package.has_dangerous_provider():
+        if package.has_dangerous_provider():
             printer.print_providers()
