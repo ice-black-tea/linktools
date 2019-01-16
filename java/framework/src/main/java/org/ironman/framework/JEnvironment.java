@@ -6,8 +6,12 @@ import android.app.Application;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Looper;
+import android.os.Process;
+import android.text.TextUtils;
+import android.tools.Output;
 
 import org.ironman.framework.util.LogUtil;
+import org.ironman.framework.util.ReflectUtil;
 import org.ironman.framework.util.Singleton;
 
 import java.io.Closeable;
@@ -34,6 +38,7 @@ public final class JEnvironment {
                         ActivityThread.systemMain();
                     }
                 });
+                initApplication(ActivityThread.currentApplication());
             }
             return ActivityThread.currentApplication();
         }
@@ -49,6 +54,14 @@ public final class JEnvironment {
 
     public static ActivityManager getActivityManager() {
         return getSystemService(Context.ACTIVITY_SERVICE);
+    }
+
+    public static String getPackageName() {
+        String name = getPackageManager().getNameForUid(Process.myUid());
+        if (TextUtils.isEmpty(name)) {
+            name = getApplication().getPackageName();
+        }
+        return name;
     }
 
     @SuppressWarnings("unchecked")
@@ -94,6 +107,21 @@ public final class JEnvironment {
         try {
             closeable.close();
         } catch (IOException e) {
+            LogUtil.printErrStackTrace(TAG, e, null);
+        }
+    }
+
+    private static void initApplication(Application application) {
+        try {
+            // adapt to usage stats service
+            PackageManager packageManager = application.getPackageManager();
+            String name = packageManager.getNameForUid(Process.myUid());
+            if (!TextUtils.isEmpty(name)) {
+                Object context = ReflectUtil.get(application, "mBase");
+                ReflectUtil.set(context, "mBasePackageName", name);
+                ReflectUtil.set(context, "mOpPackageName", name);
+            }
+        } catch (Exception e) {
             LogUtil.printErrStackTrace(TAG, e, null);
         }
     }

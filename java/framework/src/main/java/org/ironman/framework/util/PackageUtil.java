@@ -6,7 +6,6 @@ import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -78,7 +77,7 @@ public class PackageUtil {
         AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         if (appOps != null) {
             mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(), context.getPackageName());
+                    android.os.Process.myUid(), JEnvironment.getPackageName());
         }
         if (mode == AppOpsManager.MODE_DEFAULT) {
             granted = context.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
@@ -98,7 +97,7 @@ public class PackageUtil {
             UsageStatsManager usm = JEnvironment.getSystemService(Context.USAGE_STATS_SERVICE);
             if (usm != null) {
                 long end = System.currentTimeMillis();
-                long start = end - 1000 * 1000;
+                long start = end - 60 * 60 * 1000;
                 List<UsageStats> uss = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end);
                 if (uss != null && uss.size() > 0) {
                     UsageStats lastStats = null;

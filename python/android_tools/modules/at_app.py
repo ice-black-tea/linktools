@@ -250,7 +250,7 @@ if __name__ == '__main__':
                         help='display basic info only')
     parser.add_argument('-d', '--dangerous', action='store_true', default=False,
                         help='display dangerous permissions and components only')
-    parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=None,
+    parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
                         choices=['name', 'appName', 'userId'], help='order by target field')
 
     args = parser.parse_args()

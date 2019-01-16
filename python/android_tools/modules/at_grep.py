@@ -40,8 +40,17 @@ import magic
 from colorama import Fore
 
 import android_tools
-from android_tools.decorator import try_except
 from android_tools.utils import Utils
+
+
+def match_handler(fn):
+    def wrapper(*args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+            return True
+        except:
+            return False
+    return wrapper
 
 
 class GrepMatcher:
@@ -66,19 +75,19 @@ class GrepMatcher:
                 self.on_file(os.path.join(root, name))
 
     def on_file(self, filename: str):
-        mime = magic.from_file(filename, mime=True)
-        handler = Utils.get_item(self.handlers, mime)
+        mimetype = magic.from_file(filename, mime=True)
+        handler = Utils.get_item(self.handlers, mimetype)
         if handler is not None:
             if handler(filename):
                 return
-        elif mime.startswith("text/"):
+        elif mimetype.startswith("text/"):
             handler = self.on_text
             if handler(filename):
                 return
-        self.on_binary(filename)
+        self.on_binary(filename, mimetype)
 
-    @try_except(default=False)
-    def on_zip(self, filename: str) -> bool:
+    @match_handler
+    def on_zip(self, filename: str):
         dirname = filename + ":"
         while os.path.exists(dirname):
             dirname = dirname + " "
@@ -88,10 +97,9 @@ class GrepMatcher:
             self.match(dirname)
         finally:
             shutil.rmtree(dirname, ignore_errors=True)
-        return True
 
-    @try_except(default=False)
-    def on_text(self, filename: str) -> bool:
+    @match_handler
+    def on_text(self, filename: str):
         with open(filename, "rb") as fd:
             lines = fd.readlines()
             for i in range(0, len(lines)):
@@ -106,16 +114,16 @@ class GrepMatcher:
                           Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
                           Fore.RESET + ": " + out +
                           Fore.RESET + str(line[last:], encoding="utf-8"))
-        return True
 
-    @try_except(default=False)
-    def on_binary(self, filename: str) -> bool:
+    @match_handler
+    def on_binary(self, filename: str, mimetype: str):
         with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
-                    print(Fore.CYAN + filename + Fore.RESET + ": binary file match")
-                    break
-        return True
+                    print(Fore.CYAN + filename +
+                          Fore.RESET + ": " + Fore.RED + mimetype +
+                          Fore.RESET + " match")
+                    return
 
 
 if __name__ == '__main__':

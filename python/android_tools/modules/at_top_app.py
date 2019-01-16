@@ -33,6 +33,7 @@ import sys
 
 import android_tools
 from android_tools.adb import Device
+from android_tools.utils import Utils
 
 if __name__ == '__main__':
 

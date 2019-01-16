@@ -66,7 +66,6 @@ class Adb(object):
 
 
 class Device(object):
-
     class dex:
         name = resource.get_config("framework_dex", "name")
         path = resource.get_path(name)
@@ -180,9 +179,9 @@ class Device(object):
         if capture_output:
             args = ["--add-flag", *args]
         # call dex
-        args = ["-s", self.id, "shell", "CLASSPATH=%s" % target_path,
-                "app_process", "/", self.dex.main_class, *args]
-        result = Adb.exec(capture_output=capture_output, *args, **kwargs)
+        result = self.shell("CLASSPATH=%s" % target_path, "app_process", "/",
+                            self.dex.main_class, *args,
+                            capture_output=capture_output, **kwargs)
         # parse flag if necessary
         if capture_output:
             begin = result.find(self.dex.flag_begin)

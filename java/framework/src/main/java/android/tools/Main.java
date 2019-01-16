@@ -60,7 +60,7 @@ public class Main {
             Output.err.setPrintStream(System.err);
             parseArgs(args);
         } catch (Throwable th) {
-            Output.err.println(th.getMessage());
+            Output.err.print(th.getMessage());
             System.exit(-1);
         }
     }
