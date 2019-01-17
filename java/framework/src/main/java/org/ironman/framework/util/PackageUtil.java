@@ -7,6 +7,7 @@ import android.app.AppOpsManager;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageParser;
@@ -58,6 +59,10 @@ public class PackageUtil {
 
     public static PackageParser.Package parsePackage(String packagePath, int flags) {
         return PackageParserCompat.parsePackage(new File(packagePath), flags);
+    }
+
+    public static boolean isSystemApp(PackageInfo packageInfo) {
+        return (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
     }
 
     public static String getApplicationName(PackageInfo packageInfo) {

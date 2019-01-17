@@ -43,9 +43,9 @@ if __name__ == '__main__':
                         help='use device with given serial')
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--package', action='store_const', const=True, default=False,
+    group.add_argument('-p', '--package', action='store_const', const=True, default=False,
                        help='show top-level package name')
-    group.add_argument('--activity', action='store_const', const=True, default=False,
+    group.add_argument('-a', '--activity', action='store_const', const=True, default=False,
                        help='show top-level activity name')
     group.add_argument('--path', action='store_const', const=True, default=False,
                        help='show top-level package path')
@@ -82,6 +82,7 @@ if __name__ == '__main__':
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
     else:
-        print("package: ", device.get_top_package())
-        print("activity:", device.get_top_activity())
-        print("path:    ", device.get_apk_path(device.get_top_package()))
+        package = device.get_top_package()
+        print("package:  ", package)
+        print("activity: ", device.get_top_activity())
+        print("path:     ", device.get_apk_path(package))

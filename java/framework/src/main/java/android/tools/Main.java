@@ -14,6 +14,7 @@ import org.ironman.framework.util.LogUtil;
 
 public class Main {
 
+    private static final String TAG = "android-tools";
     private static final String FLAG_BEGIN = " -*- output -*- by -*- android -*- tools -*- begin -*- ";
     private static final String FLAG_END = " -*- output -*- by -*- android -*- tools -*- end -*- ";
 
@@ -61,6 +62,7 @@ public class Main {
             parseArgs(args);
         } catch (Throwable th) {
             Output.err.print(th.getMessage());
+            LogUtil.printErrStackTrace(TAG, th, null);
             System.exit(-1);
         }
     }

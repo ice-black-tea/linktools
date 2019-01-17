@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import argparse
+import inspect
 import json
 
 import colorama
@@ -69,7 +70,7 @@ class PrintStream(PrintLevel):
             print(" " * indent + text, file=self.file)
 
     def print_line(self):
-        print("", file=self.file)
+        print(file=self.file)
 
 
 class PrintStreamWrapper(PrintLevel):
@@ -258,29 +259,29 @@ if __name__ == '__main__':
     device = Device(args.serial)
 
     dex_args = ["package"]
-    if args.top is True:
-        dex_args = ["package", "-p", device.get_top_package()]
+    if args.top:
+        dex_args.extend(["--packages", device.get_top_package()])
     elif not Utils.is_empty(args.packages):
-        dex_args = ["package", "-p", *args.packages]
+        dex_args.extend(["--packages", *args.packages])
+    elif args.system:
+        dex_args.append("--system")
+    elif args.non_system:
+        dex_args.append("--non-system")
+    if args.basic_info:
+        dex_args.append("--basic-info")
 
     objs = json.loads(device.call_dex(*dex_args, capture_output=True))
     if not Utils.is_empty(args.order_by):
         objs = sorted(objs, key=lambda x: [Utils.get_item(x, k, default="") for k in args.order_by])
 
-    stream = PrintStream(min_level=PrintLevel.dangerous_normal if args.dangerous else PrintLevel.min)
+    min_level = PrintLevel.min
+    if args.dangerous:
+        min_level = PrintLevel.dangerous_normal
+    stream = PrintStream(min_level=min_level)
 
     for obj in objs:
         package = Package(obj)
-        if args.system and not package.system:
-            continue
-        if args.non_system and package.system:
-            continue
-
         printer = PackagePrinter(stream, package)
-        if args.basic_info:
-            printer.print_package()
-            continue
-
         if not args.dangerous:
             printer.print_package()
             printer.print_requested_permissions()
@@ -291,14 +292,17 @@ if __name__ == '__main__':
             printer.print_providers()
             continue
 
-        printer.print_package()
-        if package.has_dangerous_permission():
-            printer.print_permissions()
-        if package.has_dangerous_activity():
-            printer.print_activities()
-        if package.has_dangerous_service():
-            printer.print_services()
-        if package.has_dangerous_receiver():
-            printer.print_receivers()
-        if package.has_dangerous_provider():
-            printer.print_providers()
+        if package.is_dangerous():
+            printer.print_package()
+            if package.has_dangerous_permission():
+                printer.print_permissions()
+            if package.has_dangerous_activity():
+                printer.print_activities()
+            if package.has_dangerous_service():
+                printer.print_services()
+            if package.has_dangerous_receiver():
+                printer.print_receivers()
+            if package.has_dangerous_provider():
+                printer.print_providers()
+
+

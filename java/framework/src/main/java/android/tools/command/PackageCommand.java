@@ -20,6 +20,18 @@ public class PackageCommand extends Command {
                description = "List packages, list all packages if not set")
     private List<String> packages = new ArrayList<>();
 
+    @Parameter(names = {"--system"}, order = 0,
+            description = "Display system packages only")
+    private boolean system = false;
+
+    @Parameter(names = {"--non-system"}, order = 0,
+            description = "Display non-system packages only")
+    private boolean non_system = false;
+
+    @Parameter(names = {"-b", "--basic-info"}, order = 0,
+               description = "Display basic info only")
+    private boolean basic = false;
+
     @Override
     public void run() {
         List<PackageInfo> packageInfos;
@@ -31,7 +43,16 @@ public class PackageCommand extends Command {
 
         List<JPackage> packages = new ArrayList<>(packageInfos.size());
         for (PackageInfo packageInfo : packageInfos) {
-            packages.add(new JPackage(packageInfo));
+            if (system) {
+                if (!PackageUtil.isSystemApp(packageInfo)) {
+                    continue;
+                }
+            } else if (non_system) {
+                if (PackageUtil.isSystemApp(packageInfo)) {
+                    continue;
+                }
+            }
+            packages.add(new JPackage(packageInfo, basic));
         }
 
         Output.out.println(new Gson().toJson(packages));

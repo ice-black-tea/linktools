@@ -8,7 +8,6 @@ import android.content.pm.PackageManager;
 import android.os.Looper;
 import android.os.Process;
 import android.text.TextUtils;
-import android.tools.Output;
 
 import org.ironman.framework.util.LogUtil;
 import org.ironman.framework.util.ReflectUtil;
@@ -18,7 +17,6 @@ import java.io.Closeable;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.ref.WeakReference;
 
 public final class JEnvironment {
 
@@ -52,16 +50,12 @@ public final class JEnvironment {
         return getApplication().getPackageManager();
     }
 
-    public static ActivityManager getActivityManager() {
-        return getSystemService(Context.ACTIVITY_SERVICE);
+    public static String getPackageName() {
+        return getApplication().getPackageName();
     }
 
-    public static String getPackageName() {
-        String name = getPackageManager().getNameForUid(Process.myUid());
-        if (TextUtils.isEmpty(name)) {
-            name = getApplication().getPackageName();
-        }
-        return name;
+    public static ActivityManager getActivityManager() {
+        return getSystemService(Context.ACTIVITY_SERVICE);
     }
 
     @SuppressWarnings("unchecked")
@@ -120,6 +114,8 @@ public final class JEnvironment {
                 Object context = ReflectUtil.get(application, "mBase");
                 ReflectUtil.set(context, "mBasePackageName", name);
                 ReflectUtil.set(context, "mOpPackageName", name);
+                Object loadedApk = ReflectUtil.get(context, "mPackageInfo");
+                ReflectUtil.set(loadedApk, "mPackageName", name);
             }
         } catch (Exception e) {
             LogUtil.printErrStackTrace(TAG, e, null);

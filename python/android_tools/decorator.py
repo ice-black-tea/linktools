@@ -57,11 +57,11 @@ def synchronized(lock=None):
     if lock is None:
         lock = threading.Lock()
 
-    def decorator(function):
+    def decorator(fn):
         def wrapper(*args, **kwargs):
             lock.acquire()
             try:
-                return function(*args, **kwargs)
+                return fn(*args, **kwargs)
             finally:
                 lock.release()
         return wrapper

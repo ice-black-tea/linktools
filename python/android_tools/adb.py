@@ -85,8 +85,8 @@ class Device(object):
                 raise AdbError("more than one device/emulator")
             self._device_id = device_ids[0]
         else:
-            if not Utils.is_contain(device_ids, device_id):
-                raise AdbError("no device %s found" % device_id)
+            # if not Utils.is_contain(device_ids, device_id):
+            #     raise AdbError("no device %s found" % device_id)
             self._device_id = device_id
 
     @property
@@ -179,8 +179,8 @@ class Device(object):
         if capture_output:
             args = ["--add-flag", *args]
         # call dex
-        result = self.shell("CLASSPATH=%s" % target_path, "app_process", "/",
-                            self.dex.main_class, *args,
+        result = self.shell("CLASSPATH=%s" % target_path,
+                            "app_process", "/", self.dex.main_class, *args,
                             capture_output=capture_output, **kwargs)
         # parse flag if necessary
         if capture_output:
@@ -200,7 +200,7 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        return self.shell("getprop %s" % prop).rstrip("\r\n")
+        return self.shell("getprop", prop).rstrip("\r\n")
 
     def set_prop(self, prop: str, value: str) -> str:
         """
@@ -209,7 +209,7 @@ class Device(object):
         :param value: 属性值
         :return: adb输出结果
         """
-        return self.shell("setprop %s %s" % (prop, value))
+        return self.shell("setprop", prop, value)
 
     def kill(self, package_name) -> str:
         """
@@ -218,7 +218,7 @@ class Device(object):
         :return: adb输出结果
         """
         package_name = self._get_fix_package(package_name)
-        return self.shell("am kill %s" % package_name)
+        return self.shell("am", "kill", package_name)
 
     def force_stop(self, package_name) -> str:
         """
@@ -227,7 +227,7 @@ class Device(object):
         :return: adb输出结果
         """
         package_name = self._get_fix_package(package_name)
-        return self.shell("am force-stop %s" % package_name)
+        return self.shell("am", "force-stop", package_name)
 
     def is_file_exist(self, path) -> bool:
         """
@@ -235,7 +235,7 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        result = self.shell("[ -a %s ] && echo -n 1" % path)
+        result = self.shell("[", "-a", path, "]", "&&", "echo", "-n ", "1")
         return Utils.bool(Utils.int(result, default=0), default=False)
 
     def get_top_package(self) -> str:
@@ -244,7 +244,8 @@ class Device(object):
         :return: 顶层包名
         """
         if self.uid < 10000:
-            result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
+            result = self.shell("dumpsys", "activity", "top", "|",
+                                "grep", "^TASK", "-A", "1").rstrip("\r\n")
             items = result[result.rfind("\n"):].split()
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0]
@@ -259,7 +260,8 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        result = self.shell("dumpsys activity top | grep '^TASK' -A 1").rstrip("\n")
+        result = self.shell("dumpsys", "activity", "top", "|",
+                            "grep", "^TASK", "-A", "1").rstrip("\r\n")
         items = result[result.rfind("\n"):].split()
         if items is not None and len(items) >= 2:
             return items[1]

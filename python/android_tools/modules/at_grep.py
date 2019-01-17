@@ -75,6 +75,8 @@ class GrepMatcher:
                 self.on_file(os.path.join(root, name))
 
     def on_file(self, filename: str):
+        if not os.path.exists(filename):
+            return
         mimetype = magic.from_file(filename, mime=True)
         handler = Utils.get_item(self.handlers, mimetype)
         if handler is not None:

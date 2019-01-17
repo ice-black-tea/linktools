@@ -138,46 +138,52 @@ public class ReflectUtil {
         throw exception;
     }
 
-    public static Object invoke(String className, String methodName)
+    @SuppressWarnings("unchecked")
+    public static <T> T invoke(String className, String methodName)
             throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
-        return getMethod(loadClass(className), methodName).invoke(null);
+        return (T) getMethod(loadClass(className), methodName).invoke(null);
     }
 
-    public static Object invoke(Class<?> clazz, String methodName)
+    @SuppressWarnings("unchecked")
+    public static <T> T invoke(Class<?> clazz, String methodName)
             throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
-        return getMethod(clazz, methodName).invoke(null);
+        return (T) getMethod(clazz, methodName).invoke(null);
     }
 
-    public static Object invoke(Object object, String methodName)
+    @SuppressWarnings("unchecked")
+    public static <T> T invoke(Object object, String methodName)
             throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
-        return getMethod(object.getClass(), methodName).invoke(object);
+        return (T) getMethod(object.getClass(), methodName).invoke(object);
     }
 
-    public static Object invoke(String className, String methodName, Object... parameterTypesAndParameters)
-            throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
-        int length = parameterTypesAndParameters.length;
-        Class<?>[] parameterTypes = getClassType(parameterTypesAndParameters, 0, length >> 1);
-        Object[] parameters = getParameters(parameterTypesAndParameters, length >> 1, length >> 1);
-        return getMethod(loadClass(className), methodName, parameterTypes).invoke(null, parameters);
-    }
-
-    public static Object invoke(Class<?> clazz, String methodName, Object... parameterTypesAndParameters)
+    @SuppressWarnings("unchecked")
+    public static <T> T  invoke(String className, String methodName, Object... parameterTypesAndParameters)
             throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
         int length = parameterTypesAndParameters.length;
         Class<?>[] parameterTypes = getClassType(parameterTypesAndParameters, 0, length >> 1);
         Object[] parameters = getParameters(parameterTypesAndParameters, length >> 1, length >> 1);
-        return getMethod(clazz, methodName, parameterTypes).invoke(null, parameters);
+        return (T) getMethod(loadClass(className), methodName, parameterTypes).invoke(null, parameters);
     }
 
-    public static Object invoke(Object object, String methodName, Object... parameterTypesAndParameters)
+    @SuppressWarnings("unchecked")
+    public static <T> T invoke(Class<?> clazz, String methodName, Object... parameterTypesAndParameters)
             throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
         int length = parameterTypesAndParameters.length;
         Class<?>[] parameterTypes = getClassType(parameterTypesAndParameters, 0, length >> 1);
         Object[] parameters = getParameters(parameterTypesAndParameters, length >> 1, length >> 1);
-        return getMethod(object.getClass(), methodName, parameterTypes).invoke(object, parameters);
+        return (T) getMethod(clazz, methodName, parameterTypes).invoke(null, parameters);
     }
 
-    public static <T> Constructor<?> getConstructor(String className, Object... parameterTypes)
+    @SuppressWarnings("unchecked")
+    public static <T> T invoke(Object object, String methodName, Object... parameterTypesAndParameters)
+            throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException {
+        int length = parameterTypesAndParameters.length;
+        Class<?>[] parameterTypes = getClassType(parameterTypesAndParameters, 0, length >> 1);
+        Object[] parameters = getParameters(parameterTypesAndParameters, length >> 1, length >> 1);
+        return (T) getMethod(object.getClass(), methodName, parameterTypes).invoke(object, parameters);
+    }
+
+    public static Constructor<?> getConstructor(String className, Object... parameterTypes)
             throws ClassNotFoundException, NoSuchMethodException {
         return getConstructor(loadClass(className), getClassType(parameterTypes));
     }
@@ -201,34 +207,38 @@ public class ReflectUtil {
         return constructor;
     }
 
-    public static Object newInstance(String className)
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(String className)
             throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException {
-        return getConstructor(loadClass(className)).newInstance();
+        return (T) getConstructor(loadClass(className)).newInstance();
     }
 
-    public static Object newInstance(Class clazz)
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(Class clazz)
             throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException {
-        return getConstructor(clazz).newInstance();
+        return (T) getConstructor(clazz).newInstance();
     }
 
-    public static Object newInstance(String className, Object... parameterTypesAndParameters)
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(String className, Object... parameterTypesAndParameters)
             throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException {
         int length = parameterTypesAndParameters.length;
         Class<?>[] parameterTypes = getClassType(parameterTypesAndParameters, 0, length >> 1);
         Object[] parameters = getParameters(parameterTypesAndParameters, length >> 1, length >> 1);
-        return getConstructor(loadClass(className), parameterTypes).newInstance(parameters);
+        return (T) getConstructor(loadClass(className), parameterTypes).newInstance(parameters);
     }
 
-    public static Object newInstance(Class clazz, Object... parameterTypesAndParameters)
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(Class clazz, Object... parameterTypesAndParameters)
             throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException {
         int length = parameterTypesAndParameters.length;
         Class<?>[] parameterTypes = getClassType(parameterTypesAndParameters, 0, length >> 1);
         Object[] parameters = getParameters(parameterTypesAndParameters, length >> 1, length >> 1);
-        return getConstructor(clazz, parameterTypes).newInstance(parameters);
+        return (T) getConstructor(clazz, parameterTypes).newInstance(parameters);
     }
 
     private static <T> Class<?>[] getClassType(T... parameterTypes)
@@ -292,19 +302,22 @@ public class ReflectUtil {
         throw exception;
     }
 
-    public static Object get(String className, String fieldName)
+    @SuppressWarnings("unchecked")
+    public static <T> T  get(String className, String fieldName)
             throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
-        return getField(loadClass(className), fieldName).get(null);
+        return (T) getField(loadClass(className), fieldName).get(null);
     }
 
-    public static Object get(Class<?> clazz, String fieldName)
+    @SuppressWarnings("unchecked")
+    public static <T> T  get(Class<?> clazz, String fieldName)
             throws NoSuchFieldException, IllegalAccessException {
-        return getField(clazz, fieldName).get(null);
+        return (T) getField(clazz, fieldName).get(null);
     }
 
-    public static Object get(Object object, String fieldName)
+    @SuppressWarnings("unchecked")
+    public static <T> T  get(Object object, String fieldName)
             throws NoSuchFieldException, IllegalAccessException {
-        return getField(object.getClass(), fieldName).get(object);
+        return (T) getField(object.getClass(), fieldName).get(object);
     }
 
     public static void set(String className, String fieldName, Object value)

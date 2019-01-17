@@ -184,6 +184,14 @@ class Package:
         self.receivers = Utils.get_array_item(obj, "receivers", type=Receiver, default=[])
         self.providers = Utils.get_array_item(obj, "providers", type=Provider, default=[])
 
+    def is_dangerous(self):
+        return self.debuggable or self.allowBackup or \
+            self.has_dangerous_permission() or \
+            self.has_dangerous_activity() or \
+            self.has_dangerous_service() or \
+            self.has_dangerous_receiver() or \
+            self.has_dangerous_provider()
+
     def has_dangerous_permission(self):
         for permission in self.permissions:
             if permission.is_dangerous():

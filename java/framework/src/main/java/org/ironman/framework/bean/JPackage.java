@@ -1,14 +1,10 @@
 package org.ironman.framework.bean;
 
-import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageParser;
-import android.content.pm.PermissionInfo;
-import android.content.pm.ProviderInfo;
-import android.content.pm.ServiceInfo;
-import android.tools.Output;
 
+import org.ironman.framework.util.LogUtil;
 import org.ironman.framework.util.PackageUtil;
 
 import java.util.ArrayList;
@@ -19,6 +15,8 @@ import java.util.List;
  */
 
 public class JPackage {
+
+    private static final String TAG = JPackage.class.getSimpleName();
 
     public String name;
     public String appName;
@@ -40,6 +38,10 @@ public class JPackage {
     public List<JProvider> providers;
 
     public JPackage(PackageInfo info) {
+        this(info, true);
+    }
+
+    public JPackage(PackageInfo info, boolean basicOnly) {
         name = info.packageName;
         appName = PackageUtil.getApplicationName(info);
         userId = info.applicationInfo.uid;
@@ -52,7 +54,15 @@ public class JPackage {
         debuggable = (info.applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         allowBackup = (info.applicationInfo.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0;
 
+        if (basicOnly) {
+            return;
+        }
+
         PackageParser.Package pkg = PackageUtil.parsePackage(sourceDir);
+        if (pkg == null) {
+            LogUtil.w(TAG, "can not parse package: %s (%s)", name, sourceDir);
+            return;
+        }
 
         if (pkg.requestedPermissions != null && pkg.requestedPermissions.size() > 0) {
             requestedPermissions = new ArrayList<>(pkg.requestedPermissions.size());
