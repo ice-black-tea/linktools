@@ -10,7 +10,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from android_tools import frida_helper
+from android_tools.frida import FridaHelper
 
 jscode = """
 Java.perform(function () {
@@ -22,7 +22,7 @@ Java.perform(function () {
 """
 
 if __name__ == '__main__':
-    frida_helper().run_script("xxx.xxx.xxx", jscode=jscode)
+    FridaHelper().run_script("xxx.xxx.xxx", jscode=jscode)
     sys.stdin.read()
 ```
 
