@@ -3,7 +3,7 @@ package org.ironman.framework.proxy;
 import android.os.Build;
 
 import org.ironman.framework.util.LogUtil;
-import org.ironman.framework.util.ReflectUtil;
+import org.ironman.framework.util.ReflectHelper;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -29,8 +29,8 @@ public class ActivityManagerProxy implements InvocationHandler {
         }
 
         try {
-            mActivityManagerSingleton = ReflectUtil.get(targetClass, targetField);
-            mActivityManager = ReflectUtil.invoke(mActivityManagerSingleton, "get");
+            mActivityManagerSingleton = ReflectHelper.get().get(targetClass, targetField);
+            mActivityManager = ReflectHelper.get().invoke(mActivityManagerSingleton, "get");
         } catch (Exception e) {
             LogUtil.printErrStackTrace(TAG, e, null);
         }
@@ -41,7 +41,7 @@ public class ActivityManagerProxy implements InvocationHandler {
             try {
                 Object proxy = Proxy.newProxyInstance(mActivityManager.getClass().getClassLoader(),
                         mActivityManager.getClass().getInterfaces(), this);
-                ReflectUtil.set(mActivityManagerSingleton, "mInstance", proxy);
+                ReflectHelper.get().set(mActivityManagerSingleton, "mInstance", proxy);
                 mReplaced = true;
             } catch (Exception e) {
                 LogUtil.printErrStackTrace(TAG, e, null);
@@ -52,7 +52,7 @@ public class ActivityManagerProxy implements InvocationHandler {
     public synchronized void restoreActivityManagerService() {
         if (mReplaced) {
             try {
-                ReflectUtil.set(mActivityManagerSingleton, "mInstance", mActivityManager);
+                ReflectHelper.get().set(mActivityManagerSingleton, "mInstance", mActivityManager);
                 mReplaced = false;
             } catch (Exception e) {
                 LogUtil.printErrStackTrace(TAG, e, null);

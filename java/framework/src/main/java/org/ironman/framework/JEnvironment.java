@@ -10,7 +10,7 @@ import android.os.Process;
 import android.text.TextUtils;
 
 import org.ironman.framework.util.LogUtil;
-import org.ironman.framework.util.ReflectUtil;
+import org.ironman.framework.util.ReflectHelper;
 import org.ironman.framework.util.Singleton;
 
 import java.io.Closeable;
@@ -111,11 +111,11 @@ public final class JEnvironment {
             PackageManager packageManager = application.getPackageManager();
             String name = packageManager.getNameForUid(Process.myUid());
             if (!TextUtils.isEmpty(name)) {
-                Object context = ReflectUtil.get(application, "mBase");
-                ReflectUtil.set(context, "mBasePackageName", name);
-                ReflectUtil.set(context, "mOpPackageName", name);
-                Object loadedApk = ReflectUtil.get(context, "mPackageInfo");
-                ReflectUtil.set(loadedApk, "mPackageName", name);
+                Object context = ReflectHelper.get().get(application, "mBase");
+                ReflectHelper.get().set(context, "mBasePackageName", name);
+                ReflectHelper.get().set(context, "mOpPackageName", name);
+                Object loadedApk = ReflectHelper.get().get(context, "mPackageInfo");
+                ReflectHelper.get().set(loadedApk, "mPackageName", name);
             }
         } catch (Exception e) {
             LogUtil.printErrStackTrace(TAG, e, null);
