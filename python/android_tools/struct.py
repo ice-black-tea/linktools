@@ -224,3 +224,21 @@ class Package:
 
     def __str__(self):
         return self.name
+
+
+class UnixSocket:
+
+    def __init__(self, obj: dict):
+        self.proto = Utils.get_item(obj, "proto", type=str, default="")
+        self.refCnt = Utils.get_item(obj, "refCnt", type=int, default="")
+        self.flags = Utils.get_item(obj, "flags", type=str, default="")
+        self.type = Utils.get_item(obj, "type", type=str, default=[])
+        self.state = Utils.get_item(obj, "state", type=str, default="")
+        self.inode = Utils.get_item(obj, "inode", type=int, default="")
+        self.path = Utils.get_item(obj, "path", type=str, default="")
+        self.readable = Utils.get_item(obj, "readable", type=bool, default=False)
+        self.writable = Utils.get_item(obj, "writable", type=bool, default=False)
+        self.pid = Utils.get_item(obj, "pid", type=int, default=False)
+
+    def is_dangerous(self):
+        return self.readable or self.writable

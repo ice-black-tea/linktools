@@ -1,4 +1,4 @@
-package org.ironman.framework.bean;
+package org.ironman.framework.bean.app;
 
 import android.content.pm.PackageParser;
 import android.text.TextUtils;

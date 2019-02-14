@@ -5,7 +5,7 @@ import android.content.pm.PermissionInfo;
 import android.text.TextUtils;
 
 import org.ironman.framework.JEnvironment;
-import org.ironman.framework.bean.JPermission;
+import org.ironman.framework.bean.app.JPermission;
 
 /**
  * Created by hu on 18-12-17.

@@ -1,4 +1,4 @@
-package org.ironman.framework.bean;
+package org.ironman.framework.bean.app;
 
 import android.os.PatternMatcher;
 
@@ -29,8 +29,7 @@ public class JPatternMatcher {
                 return Type.simpleGlob;
             case android.os.PatternMatcher.PATTERN_ADVANCED_GLOB:
                 return Type.advancedGlob;
-            default:
-                return Type.literal;
         }
+        return null;
     }
 }

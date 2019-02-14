@@ -1,4 +1,4 @@
-package org.ironman.framework.bean;
+package org.ironman.framework.bean.app;
 
 import android.content.IntentFilter;
 import android.os.Build;

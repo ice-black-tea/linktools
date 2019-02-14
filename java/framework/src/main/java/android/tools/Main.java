@@ -2,10 +2,10 @@ package android.tools;
 
 import android.tools.command.ActivityCommand;
 import android.tools.command.Command;
+import android.tools.command.CommonCommand;
+import android.tools.command.DebugCommand;
 import android.tools.command.PackageCommand;
 import android.tools.command.ServiceCommand;
-import android.tools.command.CommonCommand;
-import android.util.Log;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -25,10 +25,11 @@ public class Main {
         Main main = new Main();
 
         JCommander.Builder builder = JCommander.newBuilder().addObject(main);
+        builder.addCommand(new CommonCommand());
         builder.addCommand(new PackageCommand());
         builder.addCommand(new ActivityCommand());
         builder.addCommand(new ServiceCommand());
-        builder.addCommand(new CommonCommand());
+        builder.addCommand(new DebugCommand());
 
         JCommander commander = builder.build();
         commander.parse(args);
@@ -56,9 +57,14 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        try {
+        if (Output.out != null) {
             Output.out.setPrintStream(System.out);
+        }
+        if (Output.err != null) {
             Output.err.setPrintStream(System.err);
+        }
+
+        try {
             parseArgs(args);
         } catch (Throwable th) {
             Output.err.print(th.getMessage());

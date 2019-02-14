@@ -7,11 +7,59 @@ Java.perform(function () {
     Charset = Java.use("java.nio.charset.Charset");
 });
 
+
+function _hookMethod(clazz, method, fn) {
+    method.implementation = function() {
+        if (fn.length == 2) {
+            return fn(this, arguments);
+        } else if (fn.length == 3) {
+            return fn(method, this, arguments);
+        } else {
+            return fn(clazz, method, this, arguments);
+        }
+    }
+}
+
+function hookMethod() {
+    var className = arguments[0];
+    var methodName = arguments[1];
+    var fn = arguments[arguments.length - 1];
+
+
+    Java.perform(function () {
+        /*var originClassloader = Java.classFactory.loader;
+        Java.classFactory.loader = classloader;
+        var clazz = Java.use(className);
+        Java.classFactory.loader = originClassloader;*/
+        var clazz = Java.use(className);
+        var methods = clazz[methodName].overloads;
+        for (var i = 0; i < methods.length; i++) {
+            _hookMethod(methods[i]);
+        }
+    });
+}
+
+
+function hookMethods(className, methodName, fn) {
+    Java.perform(function () {
+        /*var originClassloader = Java.classFactory.loader;
+        Java.classFactory.loader = classloader;
+        var clazz = Java.use(className);
+        Java.classFactory.loader = originClassloader;*/
+        var clazz = Java.use(className);
+        var methods = clazz[methodName].overloads;
+        for (var i = 0; i < methods.length; i++) {
+            _hookMethod(methods[i]);
+        }
+    });
+};
+
 /*
  * byte数组转字符串，如果转不了就返回null
  * :param bytes:       字符数组
  * :param charset:     字符集(可选)
  */
+/*
 function BytesToString(bytes, charset) {
     if (bytes === undefined || bytes == null) {
         return null;
@@ -25,12 +73,13 @@ function BytesToString(bytes, charset) {
         return null;
     }
 }
+*/
 
 /*
  * 输出当前调用堆栈
  */
-function PrintStack() {
-    _PrintStack(Throwable.$new().getStackTrace(), true);
+function printStack() {
+    _printStack(Throwable.$new().getStackTrace(), true);
 };
 
 /*
@@ -40,12 +89,12 @@ function PrintStack() {
  * :param showStack:   是否打印栈(默认为false，可不填)
  * :param showArgs:    是否打印参数(默认为false，可不填)
  */
-function CallMethod(object, arguments, showStack, showArgs) {
+function callMethod(object, arguments, showStack, showArgs) {
     showStack = showStack === true;
     showArgs = showArgs === true;
     var stackElements = Throwable.$new().getStackTrace();
-    _PrintStack(stackElements, showStack);
-    return _CallMethod(stackElements[0], object, arguments, showArgs);
+    _printStack(stackElements, showStack);
+    return _callMethod(stackElements[0], object, arguments, showArgs);
 };
 
 /*
@@ -55,13 +104,13 @@ function CallMethod(object, arguments, showStack, showArgs) {
  * :param showStack:   是否打印栈(默认为true，可不填)
  * :param showArgs:    是否打印参数(默认为true，可不填)
  */
-function PrintStackAndCallMethod(object, arguments, showStack, showArgs) {
+function printStackAndCallMethod(object, arguments, showStack, showArgs) {
     showStack = showStack !== false;
     showArgs = showArgs !== false;
-    return CallMethod(object, arguments, showStack, showArgs);
+    return callMethod(object, arguments, showStack, showArgs);
 }
 
-function _PrintStack(stackElements, showStack) {
+function _printStack(stackElements, showStack) {
     if (!showStack) {
         return;
     }
@@ -72,7 +121,7 @@ function _PrintStack(stackElements, showStack) {
     send({"helper_stack": body});
 }
 
-function _CallMethod(stackElement, object, arguments, showArgs) {
+function _callMethod(stackElement, object, arguments, showArgs) {
     var args = "";
     for (var i = 0; i < arguments.length; i++) {
         args += "arguments[" + i + "],";

@@ -7,7 +7,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 
-import org.ironman.framework.bean.JPackage;
+import org.ironman.framework.bean.app.JPackage;
 import org.ironman.framework.util.PackageUtil;
 
 import java.util.ArrayList;

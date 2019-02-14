@@ -89,7 +89,7 @@ public class ServiceCommand extends Command {
 
         void print(boolean simplify) {
             if (!simplify) {
-                Output.out.println("[*] %s: [%s]", name, desc);
+                Output.out.println("[*] %s: [%s] -> [%s]", name, desc, binder);
             } else {
                 Output.out.println(name);
             }
