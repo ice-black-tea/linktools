@@ -24,7 +24,7 @@ public class CommonUtil {
 
     public static int parseInt(Object object, int radix, int defValue) {
         try {
-            return Integer.parseInt(String.valueOf(object));
+            return Integer.parseInt(String.valueOf(object), radix);
         } catch (Exception e) {
             return defValue;
         }
