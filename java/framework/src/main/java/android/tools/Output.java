@@ -39,8 +39,20 @@ public interface Output {
         }
 
         @Override
+        public Output print(Object object) {
+            printStream.print(String.valueOf(object));
+            return this;
+        }
+
+        @Override
         public Output println(String format, Object... args) {
             printStream.println(args.length > 0 ? String.format(format, args): format);
+            return this;
+        }
+
+        @Override
+        public Output println(Object object) {
+            printStream.println(String.valueOf(object));
             return this;
         }
 
@@ -59,7 +71,9 @@ public interface Output {
 
     void setPrintStream(PrintStream printStream);
     Output indent(int indent);
+    Output print(Object object);
     Output print(String format, Object... args);
+    Output println(Object object);
     Output println(String format, Object... args);
     Output println(Throwable th);
     Output println();
