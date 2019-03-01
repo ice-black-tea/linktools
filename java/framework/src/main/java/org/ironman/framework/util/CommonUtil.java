@@ -1,5 +1,7 @@
 package org.ironman.framework.util;
 
+import android.os.Parcel;
+
 import java.io.Closeable;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -86,5 +88,51 @@ public class CommonUtil {
         }
     }
 
+    private static byte getByte(byte[] bytes, int index) {
+        if (bytes != null && index >= 0 && index < bytes.length) {
+            return bytes[index];
+        }
+        return 0;
+    }
 
+    private static void setByte(byte[] bytes, int index, byte value) {
+        if (bytes != null && index >= 0 && index < bytes.length) {
+            bytes[index] = value;
+        }
+    }
+
+    public static int bytes2Int(byte[] bytes, int offset) {
+        return (getByte(bytes, offset + 3) & 0xFF |
+                (getByte(bytes, offset + 2) & 0xFF) << 8 |
+                (getByte(bytes, offset + 1) & 0xFF) << 16 |
+                (getByte(bytes, offset + 0) & 0xFF) << 24);
+    }
+
+    public static void int2Bytes(int num, byte[] bytes, int offset) {
+        setByte(bytes, offset, (byte) ((num >> 24) & 0xFF));
+        setByte(bytes, offset + 1, (byte) ((num >> 16) & 0xFF));
+        setByte(bytes, offset + 2, (byte) ((num >> 8) & 0xFF));
+        setByte(bytes, offset + 3, (byte) ((num) & 0xFF));
+    }
+
+    public static void writeBytes(Parcel data, byte[] bytes) {
+        for (int i = 0; i < bytes.length; i += 4) {
+            data.writeInt(getByte(bytes, i) & 0xFF |
+                    (getByte(bytes, i + 1) & 0xFF) << 8 |
+                    (getByte(bytes, i + 2) & 0xFF) << 16 |
+                    (getByte(bytes, i + 3) & 0xFF) << 24);
+        }
+    }
+
+    public static byte[] readBytes(Parcel data) {
+        byte[] bytes = new byte[data.dataAvail()];
+        for (int i = 0; i < bytes.length; i += 4) {
+            int num = data.readInt();
+            setByte(bytes, i + 3, (byte) ((num >> 24) & 0xFF));
+            setByte(bytes, i + 2, (byte) ((num >> 16) & 0xFF));
+            setByte(bytes, i + 1, (byte) ((num >> 8) & 0xFF));
+            setByte(bytes, i, (byte) ((num) & 0xFF));
+        }
+        return bytes;
+    }
 }
