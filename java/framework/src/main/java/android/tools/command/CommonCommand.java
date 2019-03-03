@@ -8,6 +8,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 
+import org.ironman.framework.bean.app.JPermission;
 import org.ironman.framework.util.ActivityUtil;
 import org.ironman.framework.util.NetUtil;
 import org.ironman.framework.util.PackageUtil;
@@ -29,6 +30,9 @@ public class CommonCommand extends Command {
     @Parameter(names = {"--unix-sock"}, order = 3, description = "Display unix sockets")
     private boolean unix_sock = false;
 
+    @Parameter(names = {"--permission"}, order = 4, description = "Display permission protection")
+    private String permission = null;
+
     @Override
     public void run() throws Exception {
         if (top_package) {
@@ -46,6 +50,8 @@ public class CommonCommand extends Command {
             if (packages != null && packages.size() > 0) {
                 Output.out.print(packages.get(0).applicationInfo.publicSourceDir);
             }
+        } else if (!TextUtils.isEmpty(permission)) {
+            Output.out.print(new JPermission(permission).protection);
         } else if (unix_sock) {
             Output.out.print(new Gson().toJson(NetUtil.getUnixSockets()));
         }
