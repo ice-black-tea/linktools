@@ -48,18 +48,20 @@ class Resource(object):
             return self.config
         return Utils.get_item(self.config, *key)
 
-    def get_path(self, *paths: [str]):
+    def get_path(self, *paths: [str], mkdir: bool = False):
         path = os.path.join(self._res_path, *paths)
-        dirname = os.path.dirname(path)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        if mkdir:
+            dirname = os.path.dirname(path)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
         return path
 
-    def get_download_path(self, *paths: [str]):
+    def get_download_path(self, *paths: [str], mkdir: bool = False):
         path = os.path.join(self._res_path, "download", *paths)
-        dirname = os.path.dirname(path)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        if mkdir:
+            dirname = os.path.dirname(path)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
         return path
 
 
