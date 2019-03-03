@@ -150,14 +150,19 @@ class ConfigTool(object):
 class ConfigTools(object):
 
     def __init__(self):
+        self._exclude = ["darwin", "linux", "windows"]
         self.items = {}
         self.init()
 
     def init(self, system: str = platform.system().lower()):
         for name, config in resource.get_config("tools").items():
+            if name in self._exclude:
+                continue
             tool = ConfigTool(system, name, config)
             self._append(name, tool)
             for sub_name, sub_config in Utils.get_item(config, "items", default={}).items():
+                if sub_name in self._exclude:
+                    continue
                 sub_tool = ConfigTool(system, sub_name, sub_config, tool)
                 self._append(sub_name, sub_tool)
 
