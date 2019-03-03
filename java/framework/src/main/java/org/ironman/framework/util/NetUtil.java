@@ -25,7 +25,7 @@ public class NetUtil {
 
     public static List<JUnixSocket> getUnixSockets() throws IOException {
         List<JUnixSocket> sockets = new ArrayList<>();
-        String result = FileUtil.readFile(PROC_NET_UNIX);
+        String result = FileUtil.readString(PROC_NET_UNIX);
         String[] items = result.split(Const.LINE_BREAK);
         for (int i = 1; i < items.length; i++) {
             String[] detail = items[i].split(Const.COMMON_SEPARATOR);

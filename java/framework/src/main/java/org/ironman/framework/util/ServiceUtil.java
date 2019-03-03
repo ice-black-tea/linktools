@@ -8,7 +8,7 @@ import android.os.ServiceManager;
 public class ServiceUtil {
 
     public static class Callback {
-        public void onBeforeTransact(IBinder binder, Parcel data) throws RemoteException, Exception { }
+        public void onBeforeTransact(IBinder binder, Parcel data) throws Exception { }
         public void onAfterTransact(IBinder binder, boolean result, Parcel reply) throws Exception { }
     }
 

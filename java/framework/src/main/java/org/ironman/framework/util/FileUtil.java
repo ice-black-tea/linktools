@@ -3,8 +3,10 @@ package org.ironman.framework.util;
 import org.ironman.framework.Const;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 
 /**
@@ -25,13 +27,11 @@ public class FileUtil {
         return new File(fileName).canExecute();
     }
 
-    public static String readFile(String fileName) throws IOException {
-        StringBuilder result;
+    public static String readString(String fileName) throws IOException {
+        StringBuilder result = new StringBuilder();
         BufferedReader reader = null;
-
         try {
             reader = new BufferedReader(new FileReader(fileName));
-            result = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
                 result.append(line);
@@ -42,6 +42,16 @@ public class FileUtil {
         }
 
         return result.toString();
+    }
+
+    public static void writeString(String fileName, String buffer) throws IOException {
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter(fileName);
+            writer.write(buffer);
+        } finally {
+            CommonUtil.closeQuietly(writer);
+        }
     }
 
 }
