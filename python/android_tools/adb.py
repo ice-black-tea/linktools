@@ -42,14 +42,22 @@ class AdbError(Exception):
 class Adb(object):
 
     @staticmethod
-    def devices() -> [str]:
+    def devices(alive: bool = False) -> [str]:
         """
         获取所有设备列表
+        :param alive: 只显示在线的设备
         :return: 设备号数组
         """
+        devices = []
         result = Adb.exec("devices", capture_output=True)
-        devices = result.partition("\n")[2].replace("\n", "").split("\tdevice")
-        return [d for d in devices if len(d) > 2]
+        for line in result.partition("\n")[2].split("\n"):
+            splits = line.split()
+            if len(splits) >= 2:
+                device = splits[0]
+                status = splits[1]
+                if not alive or status == "device":
+                    devices.append(device)
+        return devices
 
     @staticmethod
     def exec(*args: [str], capture_output: bool = True, **kwargs) -> str:
@@ -77,16 +85,14 @@ class Device(object):
         """
         :param device_id: 设备号
         """
-        device_ids = Adb.devices()
         if device_id is None:
-            if len(device_ids) == 0:
+            devices = Adb.devices(alive=True)
+            if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
-            elif len(device_ids) > 1:
+            elif len(devices) > 1:
                 raise AdbError("more than one device/emulator")
-            self._device_id = device_ids[0]
+            self._device_id = next(iter(devices))
         else:
-            # if not Utils.is_contain(device_ids, device_id):
-            #     raise AdbError("no device %s found" % device_id)
             self._device_id = device_id
 
     @property
