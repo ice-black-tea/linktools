@@ -28,6 +28,7 @@
 """
 
 import sys
+import time
 from collections import OrderedDict
 
 from android_tools.adb import Adb
@@ -126,10 +127,10 @@ def extend_custom_options(parser: AdbArgumentParser) -> bool:
 
     if Utils.is_contain(options, "-i"):
         devices = Adb.devices(alive=False)
-        index = Utils.get_item(options, "-i", 0, type=int, default=0)
         if Utils.is_empty(devices):
             print("error: no devices/emulators found", file=sys.stderr)
             return False
+        index = Utils.get_item(options, "-i", 0, type=int, default=0)
         if index <= 0 or index > len(devices):
             print("error: index %d not in %d - %d" % (index, 1, len(devices)), file=sys.stderr)
             return False
@@ -138,7 +139,7 @@ def extend_custom_options(parser: AdbArgumentParser) -> bool:
         if not Utils.is_empty(device):
             parser.options["-s"] = [devices[index]]
 
-    if Utils.is_contain(options, "-i"):
+    if Utils.is_contain(options, "-c"):
         connect = Utils.get_item(options, "-c", 0, type=str, default="")
         if Utils.is_empty(connect):
             print("error: unspecified ip[:port] ", file=sys.stderr)
@@ -148,6 +149,7 @@ def extend_custom_options(parser: AdbArgumentParser) -> bool:
         devices = Adb.devices(alive=False)
         if connect not in devices:
             Adb.exec("connect", connect, capture_output=False)
+            time.sleep(0.5)
         parser.options["-s"] = [connect]
 
     return True
