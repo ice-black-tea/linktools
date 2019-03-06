@@ -59,7 +59,7 @@ class BaseHelper(object):
 
         self.server_name = self.config["name"].format(**self.config)
         self.server_url = self.config["url"].format(**self.config)
-        self.server_file = resource.get_download_path(self.server_name)
+        self.server_file = resource.get_store_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 
     def start_server(self) -> bool:
@@ -87,7 +87,7 @@ class BaseHelper(object):
         if not self.device.is_file_exist(self.server_target_file):
             if not os.path.exists(self.server_file):
                 self.on_log("*", "Download frida server ...")
-                tmp_file = resource.get_download_path(self.server_name + ".tmp")
+                tmp_file = resource.get_store_path(self.server_name + ".tmp")
                 Utils.download(self.server_url, tmp_file)
                 with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)

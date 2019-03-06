@@ -66,12 +66,12 @@ class ConfigTool(object):
         unpack = Utils.get_item(config, "unpack", default="").format(**config)
         config["unpack"] = ""
         if not Utils.is_empty(unpack):
-            config["unpack"] = resource.get_download_path(unpack, mkdir=True)
+            config["unpack"] = resource.get_store_path(unpack, create_dir=True)
 
         # file path
         path = Utils.get_item(config, "path", default="").format(**config)
         if not Utils.is_empty(path):
-            config["path"] = resource.get_download_path(path)
+            config["path"] = resource.get_store_path(path)
 
         # set executable
         cmd = Utils.get_item(config, "cmd", default="")
@@ -91,7 +91,7 @@ class ConfigTool(object):
     def download(self, force: bool = False) -> None:
         self.init_config()
         if not os.path.exists(self.config["path"]) or force:
-            file = resource.get_download_path(quote(self.config["url"], safe=''))
+            file = resource.get_store_path(quote(self.config["url"], safe=''))
             Utils.download(self.config["url"], file)
             if not Utils.is_empty(self.config["unpack"]):
                 shutil.unpack_archive(file, self.config["unpack"])

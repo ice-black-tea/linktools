@@ -40,6 +40,9 @@ class Resource(object):
     def __init__(self):
         self.config = None
 
+    def get_path(self, *paths: [str]):
+        return os.path.join(self._res_path, *paths)
+
     def get_config(self, *key: [str]):
         if self.config is None:
             with open(self.get_path(".config"), "rt") as fd:
@@ -48,20 +51,15 @@ class Resource(object):
             return self.config
         return Utils.get_item(self.config, *key)
 
-    def get_path(self, *paths: [str], mkdir: bool = False):
-        path = os.path.join(self._res_path, *paths)
-        if mkdir:
+    def get_store_path(self, *paths: [str], create_dir: bool = False, create_file: bool = False):
+        path = os.path.join(self._res_path, "store", *paths)
+        if create_dir or create_file:
             dirname = os.path.dirname(path)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
-        return path
-
-    def get_download_path(self, *paths: [str], mkdir: bool = False):
-        path = os.path.join(self._res_path, "download", *paths)
-        if mkdir:
-            dirname = os.path.dirname(path)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
+        if create_file:
+            if not os.path.exists(path):
+                open(path, 'a').close()
         return path
 
 

@@ -26,17 +26,18 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import json
 import sys
 import time
 from collections import OrderedDict
 
-from android_tools.adb import Adb
+from android_tools.resource import resource
+from android_tools.adb import Adb, Device
 from android_tools.utils import Utils
 
 
 class AdbArgumentParser(object):
-    global_options = [
+    _global_options = [
         {"name": "-a", "nargs": 0},
         {"name": "-d", "nargs": 0},
         {"name": "-e", "nargs": 0},
@@ -47,12 +48,13 @@ class AdbArgumentParser(object):
         {"name": "-L", "nargs": 1},
     ]
 
-    global_custom_options = [
+    _global_custom_options = [
         {"name": "-i", "nargs": 1},  # custom option: -i index
-        {"name": "-c", "nargs": 1},  # custom option: -i index
+        {"name": "-c", "nargs": 1},  # custom option: -c ip[:port]
+        {"name": "-l", "nargs": 0},  # custom option: -l
     ]
 
-    general_commands = [
+    _general_commands = [
         {"name": "devices"},
         {"name": "help"},
         {"name": "version"},
@@ -77,7 +79,7 @@ class AdbArgumentParser(object):
 
         index = 0
         while index < len(argv):
-            option = self.match_options(argv[index], self.global_options)
+            option = self.match_options(argv[index], self._global_options)
             if option:
                 start = index + 1
                 end = index + option["nargs"] + 1
@@ -85,7 +87,7 @@ class AdbArgumentParser(object):
                 self.options[option["name"]] = argv[start:end]
                 continue
 
-            option = self.match_options(argv[index], self.global_custom_options)
+            option = self.match_options(argv[index], self._global_custom_options)
             if option:
                 start = index + 1
                 end = index + option["nargs"] + 1
@@ -106,14 +108,33 @@ class AdbArgumentParser(object):
 
     @property
     def is_general_command(self):
-        for command in self.general_commands:
+        for command in self._general_commands:
             if self.command.startswith(command["name"]):
                 return command
         return None
 
 
+def load_last_options() -> dict:
+    path = resource.get_store_path(".adb_config", create_file=True)
+    try:
+        with open(path, "r") as fd:
+            return json.load(fd)
+    except:
+        return {}
+
+
+def save_last_options(options: dict) -> None:
+    path = resource.get_store_path(".adb_config", create_file=True)
+    try:
+        with open(path, "w+") as fd:
+            json.dump(options, fd)
+    except:
+        pass
+
+
 def adb_exec(parser: AdbArgumentParser):
     args = []
+    save_last_options(parser.options)
     for option in parser.options:
         args.append(option)
         args.extend(parser.options[option])
@@ -125,14 +146,19 @@ def adb_exec(parser: AdbArgumentParser):
 def extend_custom_options(parser: AdbArgumentParser) -> bool:
     options = parser.custom_options
 
+    if Utils.is_contain(options, "-l"):
+        last_options = load_last_options()
+        for option in last_options:
+            parser.options[option] = last_options[option]
+
     if Utils.is_contain(options, "-i"):
         devices = Adb.devices(alive=False)
         if Utils.is_empty(devices):
             print("error: no devices/emulators found", file=sys.stderr)
             return False
         index = Utils.get_item(options, "-i", 0, type=int, default=0)
-        if index <= 0 or index > len(devices):
-            print("error: index %d not in %d - %d" % (index, 1, len(devices)), file=sys.stderr)
+        if not 0 < index <= len(devices):
+            print("error: index %d out of range (%d ~ %d)" % (index, 1, len(devices)), file=sys.stderr)
             return False
         index = index - 1
         device = Utils.get_item(devices, index, default="")
@@ -167,15 +193,14 @@ def match_one_device(parser: AdbArgumentParser, device: str):
 def match_some_devices(parser: AdbArgumentParser, devices: [str]):
     print("more than one device/emulator")
     for i in range(len(devices)):
-        print("%-2d: %15s" % (i + 1, devices[i]))
-    index = -1
-    for i in range(5):
-        data = input("enter device index [default 1]: ")
+        print("%-2d: %15s [%s]" % (i + 1, devices[i], Device(devices[i]).get_prop("ro.product.name")))
+    while True:
+        data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
         if Utils.is_empty(data):
             index = 1 - 1
             break
         index = Utils.cast(int, data, -1) - 1
-        if index >= 0 or index < len(devices):
+        if 0 <= index < len(devices):
             break
     if index >= 0 or index < len(devices):
         parser.options["-s"] = [devices[index]]
@@ -186,13 +211,13 @@ def main():
     parser = AdbArgumentParser()
     parser.parser(*sys.argv[1:])
 
-    if parser.is_general_command:
-        adb_exec(parser)
-        return
-
     if not Utils.is_empty(parser.custom_options):
         if not extend_custom_options(parser):
             return
+
+    if parser.is_general_command:
+        adb_exec(parser)
+        return
 
     if not Utils.is_empty(parser.options):
         adb_exec(parser)
@@ -208,4 +233,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
