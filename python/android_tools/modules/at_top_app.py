@@ -27,37 +27,35 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-import argparse
 import datetime
 import sys
 
-import android_tools
-from android_tools.adb import Device
+from android_tools.adb import Device, AdbError
+from android_tools.argparser import AdbArgumentParser
 from android_tools.utils import Utils
 
-if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='show top-level app\'s basic information')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
-    parser.add_argument('-s', '--serial', action='store', default=None,
-                        help='use device with given serial')
+def main():
+    parser = AdbArgumentParser(description='show top-level app\'s basic information')
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('-p', '--package', action='store_const', const=True, default=False,
-                       help='show top-level package name')
-    group.add_argument('-a', '--activity', action='store_const', const=True, default=False,
-                       help='show top-level activity name')
-    group.add_argument('--path', action='store_const', const=True, default=False,
-                       help='show top-level package path')
-    group.add_argument('--kill', action='store_const', const=True, default=False,
-                       help='kill top-level package')
-    group.add_argument('--apk', dest='dest', action='store', type=str, nargs='?', default="",
-                       help='pull top-level apk file')
-    group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
-                       help='capture screen and pull file')
+    group = parser.add_argument_group(title="common arguments")
+    _group = group.add_mutually_exclusive_group()
+    _group.add_argument('-p', '--package', action='store_const', const=True, default=False,
+                        help='show top-level package name')
+    _group.add_argument('-a', '--activity', action='store_const', const=True, default=False,
+                        help='show top-level activity name')
+    _group.add_argument('--path', action='store_const', const=True, default=False,
+                        help='show top-level package path')
+    _group.add_argument('--kill', action='store_const', const=True, default=False,
+                        help='kill top-level package')
+    _group.add_argument('--apk', dest='dest', action='store', type=str, nargs='?', default="",
+                        help='pull top-level apk file')
+    _group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
+                        help='capture screen and pull file')
 
-    args = parser.parse_args()
-    device = Device(args.serial)
+    adb, args = parser.parse_adb_args()
+    args = parser.parse_args(args)
+    device = Device(adb.extend())
 
     if args.package:
         print(device.get_top_package())
@@ -86,3 +84,12 @@ if __name__ == '__main__':
         print("package:  ", package)
         print("activity: ", device.get_top_activity())
         print("path:     ", device.get_apk_path(package))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except AdbError as e:
+        print(e)

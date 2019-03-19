@@ -26,14 +26,14 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import argparse
 import sys
 
+from android_tools.argparser import ArgumentParser
 from android_tools.tools import tools
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='tools wrapper')
+    parser = ArgumentParser(description='tools wrapper')
     parser.add_argument('tool', choices=sorted([t.name for t in iter(tools)]))
     return parser
 
@@ -50,8 +50,9 @@ if __name__ == "__main__":
         process = tools[opt].exec(*args)
         exit(process.returncode)
     elif opt == "-h" or opt == "--help":
-        get_parser().print_help()
-        exit(0)
+        get_parser().parse_args(["-h"])
+    elif opt == "-v" or opt == "--version":
+        get_parser().parse_args(["-v"])
     else:
         get_parser().print_usage()
         exit(-1)

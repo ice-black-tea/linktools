@@ -30,7 +30,6 @@
 # !/usr/bin/python
 
 # -*- coding: utf-8 -*-
-import argparse
 import os
 import re
 import shutil
@@ -39,7 +38,7 @@ import zipfile
 import magic
 from colorama import Fore
 
-import android_tools
+from android_tools.argparser import ArgumentParser
 from android_tools.utils import Utils
 
 
@@ -129,8 +128,7 @@ class GrepMatcher:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='match files with regular expression')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
+    parser = ArgumentParser(description='match files with regular expression')
 
     parser.add_argument('pattern', action='store', default=None,
                         help='regular expression')

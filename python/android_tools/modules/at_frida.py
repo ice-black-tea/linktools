@@ -26,14 +26,14 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import argparse
 import hashlib
 import sys
 
-import android_tools
 from watchdog.events import *
 from watchdog.observers import Observer
 
+from android_tools.adb import AdbError
+from android_tools.argparser import AdbArgumentParser
 from android_tools.frida import FridaHelper
 from android_tools.utils import Utils
 
@@ -82,27 +82,24 @@ class FridaEventHandler(FileSystemEventHandler):
             self.script.load()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='easy to use frida')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
-    parser.add_argument('-s', '--serial', action='store', default=None,
-                        help='use device with given serial')
+def main():
+    parser = AdbArgumentParser(description='easy to use frida')
 
-    parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package [default top-level package]')
-
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-f', '--file', action='store', type=str, default=None,
-                       help='javascript file')
-    group.add_argument('-c', '--code', action='store', type=str, default=None,
-                       help='javascript code')
-
-    parser.add_argument('-r', '--restart', action='store_true', default=False,
+    group = parser.add_argument_group(title="common arguments")
+    group.add_argument('-p', '--package', action='store', default=None,
+                       help='target package [default top-level package]')
+    _group = group.add_mutually_exclusive_group(required=True)
+    _group.add_argument('-f', '--file', action='store', type=str, default=None,
+                        help='javascript file')
+    _group.add_argument('-c', '--code', action='store', type=str, default=None,
+                        help='javascript code')
+    group.add_argument('-r', '--restart', action='store_true', default=False,
                        help='inject after restart [default false]')
 
-    args = parser.parse_args()
+    adb, args = parser.parse_adb_args()
+    args = parser.parse_args(args)
 
-    helper = FridaHelper(device_id=args.serial)
+    helper = FridaHelper(device_id=adb.extend())
     package = args.package
     if Utils.is_empty(package):
         package = helper.device.get_top_package()
@@ -123,3 +120,12 @@ if __name__ == "__main__":
         sys.stdin.read()
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except AdbError as e:
+        print(e)

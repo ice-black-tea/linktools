@@ -36,7 +36,12 @@ from .version import __name__, __version__
 class AdbError(Exception):
 
     def __init__(self, message: str):
+        message = message.rstrip("\r\n")
         super().__init__(self, message)
+        self.message = message
+
+    def __str__(self):
+        return self.message
 
 
 class Adb(object):

@@ -26,10 +26,24 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import sys
 
-from android_tools.adb import Device
+from android_tools.adb import Device, AdbError
+from android_tools.argparser import AdbArgumentParser
+
+
+def main():
+    parser = AdbArgumentParser(description='used for debugging framework.dex')
+
+    adb, args = parser.parse_adb_args()
+    parser.parse_known_args(args)
+    device = Device(adb.extend())
+    device.call_dex(*args, capture_output=False)
+
 
 if __name__ == '__main__':
-    device = Device()
-    device.call_dex(*sys.argv[1:], capture_output=False)
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except AdbError as e:
+        print(e)

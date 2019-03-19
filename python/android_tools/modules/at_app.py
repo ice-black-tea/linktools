@@ -26,17 +26,15 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import argparse
-import inspect
 import json
 
 import colorama
 from colorama import Fore, Style, Back
 
-import android_tools
-from android_tools.adb import Device
-from android_tools.utils import Utils
+from android_tools.adb import Device, AdbError
+from android_tools.argparser import AdbArgumentParser
 from android_tools.struct import Package, Permission, Component, Activity, Service, Receiver, Provider, IntentFilter
+from android_tools.utils import Utils
 
 
 class PrintLevel:
@@ -58,7 +56,7 @@ class PrintStream(PrintLevel):
         self.file = file
 
     def print(self, text: str = "", indent: int = 0, level=PrintLevel.normal):
-        if level < self.min or level > self.max:
+        if not self.min <= level <= self.max:
             pass
         elif level == PrintLevel.title:
             print(" " * indent + Style.BRIGHT + text, file=self.file)
@@ -132,35 +130,35 @@ class PackagePrinter:
 
     def print_permissions(self, indent: int = 4):
         if not Utils.is_empty(self.package.permissions):
-            self.stream.print("Permissions:", indent=indent, level=stream.title)
+            self.stream.print("Permissions:", indent=indent, level=self.stream.title)
             for permission in self.package.permissions:
                 self._print_permission(self.stream, permission, indent=indent + 4, identity="Permission")
             self.stream.print_line()
 
     def print_activities(self, indent: int = 4):
         if not Utils.is_empty(self.package.activities):
-            self.stream.print("Activities:", indent=indent, level=stream.title)
+            self.stream.print("Activities:", indent=indent, level=self.stream.title)
             for activity in self.package.activities:
                 self._print_component(self.stream, activity, indent=indent + 4, identity="Activity")
             self.stream.print_line()
 
     def print_services(self, indent: int = 4):
         if not Utils.is_empty(self.package.services):
-            self.stream.print("Services:", indent=indent, level=stream.title)
+            self.stream.print("Services:", indent=indent, level=self.stream.title)
             for service in self.package.services:
                 self._print_component(self.stream, service, indent=indent + 4, identity="Service")
             self.stream.print_line()
 
     def print_receivers(self, indent: int = 4):
         if not Utils.is_empty(self.package.receivers):
-            self.stream.print("Receivers:", indent=indent, level=stream.title)
+            self.stream.print("Receivers:", indent=indent, level=self.stream.title)
             for receiver in self.package.receivers:
                 self._print_component(self.stream, receiver, indent=indent + 4, identity="Receiver")
             self.stream.print_line()
 
     def print_providers(self, indent: int = 4):
         if not Utils.is_empty(self.package.providers):
-            self.stream.print("Providers:", indent=indent, level=stream.title)
+            self.stream.print("Providers:", indent=indent, level=self.stream.title)
             for provider in self.package.providers:
                 self._print_component(self.stream, provider, indent=indent + 4, identity="Provider")
             self.stream.print_line()
@@ -229,34 +227,32 @@ class PackagePrinter:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='fetch application info')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + android_tools.__version__)
-    parser.add_argument('-s', '--serial', action='store', default=None,
-                        help='use device with given serial')
+def main():
+    parser = AdbArgumentParser(description='fetch application info')
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-a', '--all', action='store_true', default=False,
-                       help='fetch all apps')
-    group.add_argument('-t', '--top', action='store_true', default=False,
-                       help='fetch top-level app only')
-    group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
-                       help='fetch target apps only')
-    group.add_argument('--system', action='store_true', default=False,
-                       help='fetch system apps only')
-    group.add_argument('--non-system', action='store_true', default=False,
-                       help='fetch non-system apps only')
+    group = parser.add_argument_group(title="common arguments")
+    _group = group.add_mutually_exclusive_group(required=True)
+    _group.add_argument('-a', '--all', action='store_true', default=False,
+                        help='fetch all apps')
+    _group.add_argument('-t', '--top', action='store_true', default=False,
+                        help='fetch top-level app only')
+    _group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
+                        help='fetch target apps only')
+    _group.add_argument('--system', action='store_true', default=False,
+                        help='fetch system apps only')
+    _group.add_argument('--non-system', action='store_true', default=False,
+                        help='fetch non-system apps only')
 
-    parser.add_argument('-b', '--basic-info', action='store_true', default=False,
-                        help='display basic info only')
-    parser.add_argument('-d', '--dangerous', action='store_true', default=False,
-                        help='display dangerous permissions and components only')
-    parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
-                        choices=['name', 'appName', 'userId'], help='order by target field')
+    group.add_argument('-b', '--basic-info', action='store_true', default=False,
+                       help='display basic info only')
+    group.add_argument('-d', '--dangerous', action='store_true', default=False,
+                       help='display dangerous permissions and components only')
+    group.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
+                       choices=['name', 'appName', 'userId'], help='order by target field')
 
-    args = parser.parse_args()
-
-    device = Device(args.serial)
+    adb, args = parser.parse_adb_args()
+    args = parser.parse_args(args)
+    device = Device(adb.extend())
 
     dex_args = ["package"]
     if args.top:
@@ -306,3 +302,10 @@ if __name__ == '__main__':
                 printer.print_providers()
 
 
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except AdbError as e:
+        print(e)
