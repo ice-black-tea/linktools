@@ -99,6 +99,10 @@ public class ServiceCommand extends Command {
             try {
                 if (!binder.isBinderAlive()) {
                     binder = ServiceManager.getService(name);
+                    for (int i = 0; (binder == null || !binder.isBinderAlive()) && i < 50; i++) {
+                        Thread.sleep(100);
+                        binder = ServiceManager.getService(name);
+                    }
                 }
 
                 if (binder.transact(code, data, reply, flags)) {

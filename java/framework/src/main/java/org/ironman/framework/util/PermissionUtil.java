@@ -20,7 +20,7 @@ public class PermissionUtil {
             try {
                 return getProtection(JEnvironment.getPackageManager().getPermissionInfo(permission, -1));
             } catch (PackageManager.NameNotFoundException e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
         }
         return JPermission.Protection.normal;
@@ -62,7 +62,7 @@ public class PermissionUtil {
                 PackageManager pm = JEnvironment.getPackageManager();
                 return isDangerousOrNormal(pm.getPermissionInfo(permission, -1));
             } catch (PackageManager.NameNotFoundException e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
         }
         return true;

@@ -71,7 +71,7 @@ public final class JEnvironment {
                 ReflectHelper.get().set(loadedApk, "mPackageName", name);
             }
         } catch (Exception e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+            LogUtil.printStackTrace(TAG, e, null);
         }
     }
 }

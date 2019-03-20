@@ -1,0 +1,10 @@
+{
+    "android_tools_apk": {
+        "name": "android-tools-959dfa12455ad17b1238c20fefccdd1d.apk",
+        "md5": "959dfa12455ad17b1238c20fefccdd1d",
+        "size": 119734,
+        "main": "android.tools.Main",
+        "flag_begin": " -*- output -*- by -*- android -*- tools -*- begin -*- ",
+        "flag_end": " -*- output -*- by -*- android -*- tools -*- end -*- "
+    }
+}

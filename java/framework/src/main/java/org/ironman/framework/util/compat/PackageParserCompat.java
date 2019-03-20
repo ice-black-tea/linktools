@@ -29,7 +29,7 @@ public class PackageParserCompat {
                     return PackageParser.class.getConstructor(String.class);
                 }
             } catch (NoSuchMethodException e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
 
             return null;
@@ -48,7 +48,7 @@ public class PackageParserCompat {
                     return PackageParser.class.getMethod("parsePackage", File.class, String.class, DisplayMetrics.class, int.class);
                 }
             } catch (NoSuchMethodException e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
 
             return null;
@@ -75,7 +75,7 @@ public class PackageParserCompat {
         try {
             return parsePackage(createParser(packageFile.getAbsoluteFile()), packageFile, flags);
         } catch (Exception e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+            LogUtil.printStackTrace(TAG, e, null);
         }
         return null;
     }

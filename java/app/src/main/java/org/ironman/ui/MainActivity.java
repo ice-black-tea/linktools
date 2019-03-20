@@ -1,8 +1,7 @@
 package org.ironman.ui;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.tools.Main;
+import android.support.v7.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -11,6 +10,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Main.main(new String[] { "" });
+        // Main.main(new String[] { "" });
+
     }
 }

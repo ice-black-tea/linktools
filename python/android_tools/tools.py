@@ -149,13 +149,19 @@ class ConfigTool(object):
 @singleton
 class ConfigTools(object):
 
+    @staticmethod
+    def _get_config() -> dict:
+        if not hasattr(ConfigTools, "_config"):
+            setattr(ConfigTools, "_config", resource.get_config("tools.json", "tools"))
+        return getattr(ConfigTools, "_config")
+
     def __init__(self):
         self._exclude = ["darwin", "linux", "windows"]
         self.items = {}
         self.init()
 
     def init(self, system: str = platform.system().lower()):
-        for name, config in resource.get_config("tools").items():
+        for name, config in self._get_config().items():
             if name in self._exclude:
                 continue
             tool = ConfigTool(system, name, config)

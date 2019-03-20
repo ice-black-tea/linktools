@@ -36,7 +36,7 @@ public class LogUtil {
         }
 
         @Override
-        public void printErrStackTrace(String tag, Throwable tr, String format, Object... args) {
+        public void printStackTrace(String tag, Throwable tr, String format, Object... args) {
             String log = (args == null || args.length == 0) ? format : String.format(format, args);
             if (log == null) {
                 log = "";
@@ -85,9 +85,15 @@ public class LogUtil {
         }
     }
 
-    public static void printErrStackTrace(String tag, Throwable tr, final String format, final Object... args) {
+    public static void printStackTrace(String tag, Throwable tr) {
         if (mLogImpl != null) {
-            mLogImpl.printErrStackTrace(tag, tr, format, args);
+            mLogImpl.printStackTrace(tag, tr, null);
+        }
+    }
+
+    public static void printStackTrace(String tag, Throwable tr, final String format, final Object... args) {
+        if (mLogImpl != null) {
+            mLogImpl.printStackTrace(tag, tr, format, args);
         }
     }
 
@@ -103,7 +109,7 @@ public class LogUtil {
 
         void e(final String tag, final String format, final Object... args);
 
-        void printErrStackTrace(String tag, Throwable tr, final String format, final Object... args);
+        void printStackTrace(String tag, Throwable tr, final String format, final Object... args);
 
     }
 }

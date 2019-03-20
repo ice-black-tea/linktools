@@ -43,13 +43,10 @@ class Resource(object):
     def get_path(self, *paths: [str]):
         return os.path.join(self._res_path, *paths)
 
-    def get_config(self, *key: [str]):
-        if self.config is None:
-            with open(self.get_path(".config"), "rt") as fd:
-                self.config = json.load(fd)
-        if Utils.is_empty(key):
-            return self.config
-        return Utils.get_item(self.config, *key)
+    def get_config(self, path: str, *key: [str]):
+        with open(self.get_path("config", path), "rt") as fd:
+            config = json.load(fd)
+        return Utils.get_item(config, *key)
 
     def get_store_path(self, *paths: [str], create_dir: bool = False, create_file: bool = False):
         path = os.path.join(self._res_path, "store", *paths)

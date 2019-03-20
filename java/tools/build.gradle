@@ -1,0 +1,134 @@
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+
+apply plugin: 'com.android.application'
+
+android {
+
+    compileSdkVersion 28
+
+    defaultConfig {
+        applicationId "android.tools"
+        minSdkVersion 17
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                includeCompileClasspath = true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+    sourceSets {
+
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.beust:jcommander:1.71'
+    implementation 'com.google.code.gson:gson:2.8.5'
+    implementation project(path: ':framework')
+    compileOnly 'ice.black.tea:android-17:1.0.0'
+    annotationProcessor project(':processor')
+}
+
+
+static def calcMd5(path) {
+    MessageDigest md = null;
+    try {
+        md = MessageDigest.getInstance("MD5")
+    } catch (ignored) {
+        return ""
+    }
+    new File(path).eachByte 4096, {
+        bytes, size -> md.update(bytes, 0, size)
+    }
+    return md.digest().collect { String.format "%02x", it }.join()
+}
+
+
+static def readConfig(path) {
+    try {
+        return new JsonSlurper().parseText(new File(path).text)
+    } catch (ignore) {
+        return [:]
+    }
+}
+
+
+static def writeConfig(path, config) {
+    def file = new File(path)
+    if (file.exists() || file.createNewFile()){
+        def jsonOutput = new JsonOutput()
+        file.withPrintWriter { printWriter ->
+            printWriter.println(jsonOutput.prettyPrint(jsonOutput.toJson(config)))
+        }
+    }
+}
+
+def deleteFiles(storePath, dexPrefix, exclude) {
+    fileTree(storePath).each { file ->
+        if (file.name.startsWith(dexPrefix) && !file.name.contains(exclude)) {
+            println "delete file: ${file.path}"
+            file.delete()
+        }
+    }
+}
+
+task buildTools {
+
+    buildTools.dependsOn ":tools:assembleRelease"
+
+    doLast {
+        def apkName = "tools-release-unsigned.apk"
+        def apkDir = "${project.buildDir}/outputs/apk/release"
+        def apkPath = "${apkDir}/${apkName}"
+        def apkMd5 = calcMd5(apkPath)
+
+        def targetPrefix = "android-tools"
+        def targetName = "${targetPrefix}-${apkMd5}.apk"
+        def targetDir = "${rootDir}/../python/android_tools/resource"
+        def targetPath = "${targetDir}/${targetName}"
+
+        def configPath = "${targetDir}/config/android_tools.json"
+        def config = readConfig(configPath)
+
+        if (config.android_tools_apk == null || config.android_tools_apk.md5 != apkMd5) {
+
+            copy {
+                println("copy from ${apkPath}")
+                println("copy into ${targetPath}")
+                from(apkPath)
+                into(targetDir)
+                rename(apkName, targetName)
+            }
+
+            config.android_tools_apk = [:]
+            config.android_tools_apk.name = targetName
+            config.android_tools_apk.md5 = apkMd5
+            config.android_tools_apk.size = file(targetPath).length()
+            config.android_tools_apk.main = "android.tools.Main"
+            config.android_tools_apk.flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
+            config.android_tools_apk.flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
+            writeConfig(configPath, config)
+        }
+
+        deleteFiles(targetDir, targetPrefix, config.android_tools_apk.name)
+    }
+}

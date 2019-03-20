@@ -244,7 +244,7 @@ optional arguments:
 
 ## at_tools
 
-读取[配置文件](android_tools/resource/.config)，下载使用对应工具
+读取[配置文件](android_tools/resource/config/tools.json)，下载使用对应工具
 
 ```bash
 $ at_tools.py 

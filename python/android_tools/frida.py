@@ -46,6 +46,12 @@ from .version import __name__
 
 class BaseHelper(object):
 
+    @staticmethod
+    def _get_config() -> dict:
+        if not hasattr(BaseHelper, "_config"):
+            setattr(BaseHelper, "_config", resource.get_config("frida.json", "frida_server"))
+        return getattr(BaseHelper, "_config")
+
     def __init__(self, device_id: str = None):
         """
         :param device_id: 设备号
@@ -53,12 +59,12 @@ class BaseHelper(object):
         self.device = Device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
 
-        self.config = resource.get_config("frida_server").copy()
-        self.config["version"] = frida.__version__
-        self.config["abi"] = self.device.abi
+        self._config = self._get_config()
+        self._config["version"] = frida.__version__
+        self._config["abi"] = self.device.abi
 
-        self.server_name = self.config["name"].format(**self.config)
-        self.server_url = self.config["url"].format(**self.config)
+        self.server_name = self._config["name"].format(**self._config)
+        self.server_url = self._config["url"].format(**self._config)
         self.server_file = resource.get_store_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 

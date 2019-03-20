@@ -1,14 +1,4 @@
 {
-    "framework_dex": {
-        "name": "android-tools-2328a41debcd89073be4dd23b17e8489.dex",
-        "md5": "2328a41debcd89073be4dd23b17e8489",
-        "size": 309800,
-        "main": "android.tools.Main"
-    },
-    "frida_server": {
-        "name": "frida-server-{version}-android-{abi}",
-        "url": "https://github.com/frida/frida/releases/download/{version}/frida-server-{version}-android-{abi}.xz"
-    },
     "tools": {
         "baksmali": {
             "version": "2.2.6",

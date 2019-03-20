@@ -54,7 +54,7 @@ public class CommonUtil {
                 closeable.close();
             }
         } catch (IOException e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+            LogUtil.printStackTrace(TAG, e, null);
         }
     }
 
@@ -71,7 +71,7 @@ public class CommonUtil {
                 System.setOut(ps);
                 System.setErr(ps);
             } catch (Exception e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
 
             runnable.run();

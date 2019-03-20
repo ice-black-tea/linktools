@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import getpass
 
 from .resource import resource
 from .tools import tools
@@ -79,12 +80,12 @@ class Adb(object):
 
 
 class Device(object):
-    class dex:
-        name = resource.get_config("framework_dex", "name")
-        path = resource.get_path(name)
-        main_class = resource.get_config("framework_dex", "main")
-        flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
-        flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
+
+    @staticmethod
+    def _get_tools_config() -> dict:
+        if not hasattr(Device, "_tools_config"):
+            setattr(Device, "_tools_config", resource.get_config("android_tools.json", "android_tools_apk"))
+        return getattr(Device, "_tools_config")
 
     def __init__(self, device_id: str = None):
         """
@@ -171,37 +172,45 @@ class Device(object):
             args = ["-s", self.id, "shell", *args]
         return Adb.exec(*args, capture_output=capture_output, **kwargs)
 
-    def call_dex(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
+    def call_tools(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         调用dex功能
         :param args: dex参数
         :param capture_output: 捕获输出，填False使用标准输出
         :return: dex输出结果
         """
-        target_dir = self.get_save_path("dex")
-        target_path = self.get_save_path("dex", self.dex.name)
-        # check dex path
+        config = self._get_tools_config()
+        apk_name = config["name"]
+        main_class = config["main"]
+        flag_begin = config["flag_begin"]
+        flag_end = config["flag_end"]
+
+        apk_path = resource.get_path(apk_name)
+        target_dir = self.get_save_path("apk")
+        target_path = self.get_save_path("apk", apk_name)
+
+        # check apk path
         if not self.is_file_exist(target_path):
             self.shell("rm", "-rf", target_dir)
-            self.exec("push", self.dex.path, target_path)
+            self.exec("push", apk_path, target_path)
             if not self.is_file_exist(target_path):
                 raise AdbError("%s does not exist" % target_path)
         # set --add-flag if necessary
         if capture_output:
             args = ["--add-flag", *args]
-        # call dex
+        # call apk
         result = self.shell("CLASSPATH=%s" % target_path,
-                            "app_process", "/", self.dex.main_class, *args,
+                            "app_process", "/", main_class, *args,
                             capture_output=capture_output, **kwargs)
         # parse flag if necessary
         if capture_output:
-            begin = result.find(self.dex.flag_begin)
-            end = result.rfind(self.dex.flag_end)
+            begin = result.find(flag_begin)
+            end = result.rfind(flag_end)
             if begin >= 0 and end >= 0:
-                begin = begin + len(self.dex.flag_begin)
+                begin = begin + len(flag_begin)
                 result = result[begin: end]
             elif begin >= 0:
-                begin = begin + len(self.dex.flag_begin)
+                begin = begin + len(flag_begin)
                 raise AdbError(result[begin:])
         return result
 
@@ -261,7 +270,7 @@ class Device(object):
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0]
         # use dex instead of dumpsys
-        result = self.call_dex("common", "--top-package")
+        result = self.call_tools("common", "--top-package")
         if not Utils.is_empty(result):
             return result
         raise AdbError("can not fetch top package")
@@ -285,7 +294,7 @@ class Device(object):
         """
         if self.uid < 10000:
             return Utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
-        return self.call_dex("common", "--apk-path", package)
+        return self.call_tools("common", "--apk-path", package)
 
     def get_save_path(self, *paths: [str]) -> str:
         """
@@ -293,7 +302,7 @@ class Device(object):
         :param paths: 文件名
         :return: 路径
         """
-        return "/sdcard/%s/%s/%s" % (__name__, __version__, "/".join(paths))
+        return "/sdcard/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
 
     # def jdb_connect(self, pid: str, port: str = "8699") -> _process:
     #     """

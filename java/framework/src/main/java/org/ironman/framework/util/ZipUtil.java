@@ -3,7 +3,6 @@ package org.ironman.framework.util;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
@@ -65,7 +64,7 @@ public class ZipUtil {
                 }
             }
         } catch  (IOException e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+            LogUtil.printStackTrace(TAG, e, null);
         }
     }
 

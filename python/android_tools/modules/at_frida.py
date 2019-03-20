@@ -91,7 +91,7 @@ def main():
     _group = group.add_mutually_exclusive_group(required=True)
     _group.add_argument('-f', '--file', action='store', type=str, default=None,
                         help='javascript file')
-    _group.add_argument('-c', '--code', action='store', type=str, default=None,
+    _group.add_argument('--code', action='store', type=str, default=None,
                         help='javascript code')
     group.add_argument('-r', '--restart', action='store_true', default=False,
                        help='inject after restart [default false]')

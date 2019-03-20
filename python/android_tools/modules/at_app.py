@@ -266,7 +266,7 @@ def main():
     if args.basic_info:
         dex_args.append("--basic-info")
 
-    objs = json.loads(device.call_dex(*dex_args, capture_output=True))
+    objs = json.loads(device.call_tools(*dex_args, capture_output=True))
     if not Utils.is_empty(args.order_by):
         objs = sorted(objs, key=lambda x: [Utils.get_item(x, k, default="") for k in args.order_by])
 

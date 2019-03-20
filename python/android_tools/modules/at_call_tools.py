@@ -3,7 +3,7 @@
 
 """
 @author  : Hu Ji
-@file    : at_call_dex.py 
+@file    : at_call_tools.py
 @time    : 2018/12/02
 @site    :  
 @software: PyCharm 
@@ -32,12 +32,12 @@ from android_tools.argparser import AdbArgumentParser
 
 
 def main():
-    parser = AdbArgumentParser(description='used for debugging framework.dex')
+    parser = AdbArgumentParser(description='used for debugging android-tools.apk')
 
     adb, args = parser.parse_adb_args()
     parser.parse_known_args(args)
     device = Device(adb.extend())
-    device.call_dex(*args, capture_output=False)
+    device.call_tools(*args, capture_output=False)
 
 
 if __name__ == '__main__':

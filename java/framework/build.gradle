@@ -1,7 +1,3 @@
-import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
-import java.security.MessageDigest
-
 apply plugin: 'com.android.library'
 
 android {
@@ -30,120 +26,10 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation "com.beust:jcommander:1.71"
     implementation 'com.google.code.gson:gson:2.8.5'
     compileOnly 'ice.black.tea:android-17:1.0.0'
 
-    // implementation 'com.android.support:appcompat-v7:28.0.0'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-}
-
-
-static def calcMd5(path) {
-    MessageDigest md = null;
-    try {
-        md = MessageDigest.getInstance("MD5")
-    } catch (ignored) {
-        return ""
-    }
-    new File(path).eachByte 4096, {
-        bytes, size -> md.update(bytes, 0, size)
-    }
-    return md.digest().collect { String.format "%02x", it }.join()
-}
-
-
-static def readConfig(path) {
-    try {
-        return new JsonSlurper().parseText(new File(path).text)
-    } catch (ignore) {
-        return [:]
-    }
-}
-
-
-static def writeConfig(path, config) {
-    def file = new File(path)
-    if (file.exists() || file.createNewFile()){
-        def jsonOutput = new JsonOutput()
-        file.withPrintWriter { printWriter ->
-            printWriter.println(jsonOutput.prettyPrint(jsonOutput.toJson(config)))
-        }
-    }
-}
-
-
-def buildDex(jarPath, dexPath) {
-    def dxPath = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}/dx"
-    exec {
-        println "build dex file: ${dexPath}"
-        commandLine dxPath, '--dex', '--output', dexPath, jarPath
-    }
-}
-
-
-def deleteDex(storePath, dexPrefix, exclude) {
-    fileTree(storePath).each { file ->
-        if (file.name.startsWith(dexPrefix) && !file.name.contains(exclude)) {
-            println "delete dex file: ${file.path}"
-            file.delete()
-        }
-    }
-}
-
-
-configurations {
-    libs.extendsFrom implementation
-}
-
-
-task fatJar(type: Jar) {
-    from "${project.buildDir}/intermediates/classes/release"
-    from {
-        configurations.libs.collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
-    }
-    exclude {
-        it.name in ['BuildConfig.class', 'R.class'] || it.name.startsWith('R$')
-    }
-    tasks.all {
-        if (it.name == 'compileReleaseJavaWithJavac') {
-            fatJar.dependsOn it
-        }
-    }
-    classifier = 'fat'
-}
-
-
-task buildDex(dependsOn: fatJar) {
-    doLast {
-        def dependPath = "${project.buildDir}/libs/${project.name}-fat.jar"
-        def dexPrefix = "android-tools"
-        def dexName = "${dexPrefix}-tmp.dex"
-        def targetPath = "${rootDir}/../python/android_tools/resource"
-        def dexPath = "${targetPath}/${dexName}"
-        def configPath = "${targetPath}/.config"
-
-        buildDex(dependPath, dexPath)
-        def md5 = calcMd5(dexPath)
-        def config = readConfig(configPath)
-        if (config.framework_dex == null || config.framework_dex.md5 != md5) {
-
-            def dexMd5Name = "${dexPrefix}-${md5}.dex"
-            def dexMd5Path = "${targetPath}/${dexMd5Name}"
-            file(dexPath).renameTo(dexMd5Path)
-
-            config.framework_dex = [:]
-            config.framework_dex.name = dexMd5Name
-            config.framework_dex.md5 = md5
-            config.framework_dex.size = file(dexMd5Path).length()
-            config.framework_dex.main = "android.tools.Main"
-            writeConfig(configPath, config)
-        }
-
-        deleteDex(targetPath, dexPrefix, config.framework_dex.name)
-    }
 }

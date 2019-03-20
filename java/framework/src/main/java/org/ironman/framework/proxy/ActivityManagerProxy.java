@@ -32,7 +32,7 @@ public class ActivityManagerProxy implements InvocationHandler {
             mActivityManagerSingleton = ReflectHelper.get().get(targetClass, targetField);
             mActivityManager = ReflectHelper.get().invoke(mActivityManagerSingleton, "get");
         } catch (Exception e) {
-            LogUtil.printErrStackTrace(TAG, e, null);
+            LogUtil.printStackTrace(TAG, e, null);
         }
     }
 
@@ -44,7 +44,7 @@ public class ActivityManagerProxy implements InvocationHandler {
                 ReflectHelper.get().set(mActivityManagerSingleton, "mInstance", proxy);
                 mReplaced = true;
             } catch (Exception e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
         }
     }
@@ -55,7 +55,7 @@ public class ActivityManagerProxy implements InvocationHandler {
                 ReflectHelper.get().set(mActivityManagerSingleton, "mInstance", mActivityManager);
                 mReplaced = false;
             } catch (Exception e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
         }
     }

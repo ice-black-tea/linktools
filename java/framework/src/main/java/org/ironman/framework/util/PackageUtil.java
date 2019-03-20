@@ -37,7 +37,7 @@ public class PackageUtil {
             try {
                 packages.add(JEnvironment.getPackageManager().getPackageInfo(packageName, flags));
             } catch (PackageManager.NameNotFoundException e) {
-                LogUtil.printErrStackTrace(TAG, e, null);
+                LogUtil.printStackTrace(TAG, e, null);
             }
         }
         return packages;

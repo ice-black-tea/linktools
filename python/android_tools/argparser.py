@@ -140,7 +140,7 @@ class AdbArgumentParser(ArgumentParser):
                 action(self, namespace, self._get_values(action, args[start:stop]))
 
         def load_last_device():
-            path = resource.get_store_path(".adb_device", create_file=True)
+            path = resource.get_store_path(".adb.device.config", create_file=True)
             try:
                 with open(path, "rt") as fd:
                     return fd.read()
@@ -148,7 +148,7 @@ class AdbArgumentParser(ArgumentParser):
                 return None
 
         def save_last_device(device):
-            path = resource.get_store_path(".adb_device", create_file=True)
+            path = resource.get_store_path(".adb.device.config", create_file=True)
             try:
                 with open(path, "wt+") as fd:
                     fd.write(device)
