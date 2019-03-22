@@ -106,5 +106,7 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
+    except EOFError:
+        pass
     except AdbError as e:
         print(e)

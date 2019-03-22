@@ -47,8 +47,11 @@ def match_handler(fn):
         try:
             fn(*args, **kwargs)
             return True
+        except KeyboardInterrupt as e:
+            raise e
         except:
             return False
+
     return wrapper
 
 
@@ -127,7 +130,7 @@ class GrepMatcher:
                     return
 
 
-if __name__ == '__main__':
+def main():
     parser = ArgumentParser(description='match files with regular expression')
 
     parser.add_argument('pattern', action='store', default=None,
@@ -149,3 +152,12 @@ if __name__ == '__main__':
 
     for file in args.files:
         GrepMatcher(pattern).match(file)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except EOFError:
+        pass
