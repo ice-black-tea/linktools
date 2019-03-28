@@ -1,2 +1,3 @@
 /build
-/src/main/java/debug
+/src/main/java/debug/*
+!/src/main/java/debug/EmptyCommand.java

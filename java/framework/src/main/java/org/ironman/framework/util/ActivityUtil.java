@@ -42,6 +42,16 @@ public class ActivityUtil {
         intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
         JEnvironment.getApplication().startActivity(intent);
     }
+
+    public static void startService(Intent intent) {
+        sActivityManagerProxy.get().replaceActivityManagerService();
+        JEnvironment.getApplication().startService(intent);
+    }
+
+    public static void sendBroadcast(Intent intent) {
+        sActivityManagerProxy.get().replaceActivityManagerService();
+        JEnvironment.getApplication().sendBroadcast(intent);
+    }
 }
 
 

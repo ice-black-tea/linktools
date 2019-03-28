@@ -18,7 +18,12 @@ public interface Output {
         private PrintStream printStream = null;
 
         @Override
-        public void setPrintStream(PrintStream printStream) {
+        public PrintStream getStream() {
+            return printStream;
+        }
+
+        @Override
+        public void setStream(PrintStream printStream) {
             this.printStream = printStream;
         }
 
@@ -69,7 +74,8 @@ public interface Output {
         }
     }
 
-    void setPrintStream(PrintStream printStream);
+    PrintStream getStream();
+    void setStream(PrintStream printStream);
     Output indent(int indent);
     Output print(Object object);
     Output print(String format, Object... args);

@@ -6,8 +6,6 @@ import android.tools.processor.CommandUtils;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import org.ironman.framework.util.LogUtil;
-
 
 public class Main {
 
@@ -17,7 +15,7 @@ public class Main {
 
     private static final String PROGRAM_NAME = String.format(
             "CLASSPATH=%s app_process / %s",
-            "`ls /sdcard/android-tools/*/dex/android-tools-*.apk`",
+            System.getenv("CLASSPATH"),
             Main.class.getName()
     );
 
@@ -55,20 +53,16 @@ public class Main {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     public static void main(String[] args) {
-        if (Output.out != null) {
-            Output.out.setPrintStream(System.out);
-        }
-        if (Output.err != null) {
-            Output.err.setPrintStream(System.err);
+        if (Output.out.getStream() == null && Output.err.getStream() == null) {
+            Output.out.setStream(System.out);
+            Output.err.setStream(System.err);
         }
 
         try {
             parseArgs(args);
         } catch (Throwable th) {
             Output.err.print(th.getMessage());
-            LogUtil.printStackTrace(TAG, th, null);
             System.exit(-1);
         }
     }
