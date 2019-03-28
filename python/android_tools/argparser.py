@@ -194,7 +194,11 @@ class AdbArgumentParser(ArgumentParser):
                 else:
                     print("more than one device/emulator")
                     for i in range(len(devices)):
-                        print("%d: %-20s [%s]" % (i + 1, devices[i], Device(devices[i]).get_prop("ro.product.name")))
+                        try:
+                            name = Device(devices[i]).get_prop("ro.product.name")
+                        except:
+                            name = ""
+                        print("%d: %-20s [%s]" % (i + 1, devices[i], name))
                     while True:
                         data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
                         if Utils.is_empty(data):

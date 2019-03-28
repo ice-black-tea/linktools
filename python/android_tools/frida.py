@@ -208,7 +208,7 @@ class FridaHelper(BaseHelper):
             helper_stack = Utils.get_item(payload, "helper_stack")
             helper_method = Utils.get_item(payload, "helper_method")
             if helper_stack is not None:
-                self.on_log("*", helper_stack, fore=Fore.BLUE)
+                self.on_log("*", helper_stack, fore=Fore.CYAN)
             elif helper_method is not None:
                 self.on_log("*", helper_method, fore=Fore.LIGHTMAGENTA_EX)
             else:

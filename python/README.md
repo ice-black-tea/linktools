@@ -14,9 +14,23 @@ from android_tools.frida import FridaHelper
 
 jscode = """
 Java.perform(function () {
+    var Clazz = Java.use("java.lang.Class");
     var HashMap = Java.use("java.util.HashMap");
+
     HashMap.put.implementation = function() {
-        return CallMethod(this, arguments, true, true);
+
+        send("this.threshold = " + this.threshold.value);
+
+        var clazz = Java.cast(this.getClass(), Clazz);
+        var field = clazz.getDeclaredField("threshold");
+        field.setAccessible(true);
+        send("this.threshold = " + field.getInt(this));
+
+        // call origin method
+        var ret = callMethod(this, arguments);
+        printStack();
+        printArgsAndReturn(null, arguments, ret);
+        return ret;
     }
 });
 """
@@ -51,22 +65,28 @@ optional arguments:
 
 如hook.js文件：
 ```javascript
+
 Java.perform(function () {
 
-    var Clazz = Java.use("java.lang.Class");
+    // 1: hook all put methods of HashMap class
+    // same as hookMethods("java.util.HashMap", "put", getHookFn(true /* print stack */, true /* print args */));
+    hookMethods("java.util.HashMap", "put", function(method, obj, args) {
+        var ret = method.apply(obj, args);
+        printStack(method);
+        printArgsAndReturn(method, args, ret);
+        return ret;
+    });
+    
+    // 2: hook all methods of HashMap class
+    hookClass("java.util.HashMap", getHookFn(true /* print stack */, true /* print args */));
+
+    // 3: hook put method of HashMap class
     var HashMap = Java.use("java.util.HashMap");
-
     HashMap.put.implementation = function() {
-
-        send("this.threshold = " + this.threshold.value);
-
-        var clazz = Java.cast(this.getClass(), Clazz);
-        var field = clazz.getDeclaredField("threshold");
-        field.setAccessible(true);
-        send("this.threshold = " + field.getInt(this));
-
-        // call origin method (show args and stack)
-        return CallMethod(this, arguments, true, true);
+        var ret = callMethod(this, arguments);
+        printStack(null);
+        printArgsAndReturn(null, arguments, ret);
+        return ret;
     }
 });
 ```

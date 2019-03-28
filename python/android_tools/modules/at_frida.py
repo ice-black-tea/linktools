@@ -48,16 +48,16 @@ class FridaScript(object):
         self._md5 = ""
 
     def load(self):
-        with open(path, "r") as fd:
+        with open(self.path, "r") as fd:
             jscode = fd.read()
         # check md5
         md5 = hashlib.md5(jscode.encode("utf-8")).hexdigest()
         if self._md5 == md5:
             return
         self._md5 = md5
-        helper.on_log("*", "Loading script: %s" % path)
-        helper.detach_sessions()
-        helper.run_script(package, jscode, restart=self.restart)
+        self.helper.on_log("*", "Loading script: %s" % self.path)
+        self.helper.detach_sessions()
+        self.helper.run_script(self.name, jscode, restart=self.restart)
 
 
 class FridaEventHandler(FileSystemEventHandler):
