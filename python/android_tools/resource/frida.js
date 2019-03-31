@@ -21,203 +21,257 @@
  *   └─ canInvokeWith
  */
 
-var JavaClass = null;
-var JavaString = null;
-var Throwable = null;
-Java.perform(function () {
-    JavaClass = Java.use("java.lang.Class");
-    JavaString = Java.use("java.lang.String");
-    Throwable = Java.use("java.lang.Throwable");
-});
+function addMethod(object, name, fn) {
+　　var old = object[name];
+　　object[name] = function() {
+　　　　if(fn.length === arguments.length) {
+　　　　　　return fn.apply(this, arguments);
+　　　　} else if(typeof old === "function") {
+　　　　　　return old.apply(this, arguments);
+　　　　}
+　　}
+}
 
+function JavaHelper() {
 
-/**
- * hook类的所有重载方法
- * :param method:       java方法
- * :return:             java方法名
- */
-function getMethodName(method) {
-    var name = method.returnType.className + " ";
-    name = name + method.holder.className + ".";
-    name = name + method.methodName + "(";
-    if (method.argumentTypes.length > 0) {
-        name = name + method.argumentTypes[0].className;
-        for (var i = 1; i < method.argumentTypes.length; i++) {
-            name = name + ", " + method.argumentTypes[i].className;
+    var helper = this;
+    var javaClass = Java.use("java.lang.Class");
+    var javaString = Java.use("java.lang.String");
+    var javaThrowable = Java.use("java.lang.Throwable");
+
+    /**
+     * 获取java类的类对象
+     * :param className:    java类名
+     * :return:             类对象
+     */
+    addMethod(this, "findClass", function(className) {
+        return Java.use(className);
+    });
+
+    /**
+     * 获取java类的类对象
+     * :param classloader:  java类所在的ClassLoader
+     * :param className:    java类名
+     * :return:             类对象
+     */
+    addMethod(this, "findClass", function(classloader, className) {
+        var clazz = null;
+        if (classloader != null) {
+            var originClassloader = Java.classFactory.loader;
+            Java.classFactory.loader = classloader;
+            clazz = Java.use(clazz);
+            Java.classFactory.loader = originClassloader;
+        } else {
+            clazz = Java.use(className);
         }
-    }
-    return name + ")";
-}
+        return clazz;
+    });
 
-
-function findClass(classloader, className) {
-    var clazz = null;
-    if (classloader != null) {
-        var originClassloader = Java.classFactory.loader;
-        Java.classFactory.loader = classloader;
-        clazz = Java.use(clazz);
-        Java.classFactory.loader = originClassloader;
-    } else {
-        clazz = Java.use(className);
-    }
-    return clazz;
-}
-
-
-/**
- * 返回hook回调函数，仅用于显示栈和参数
- * :param stack:        是否显示栈（默认为true）
- * :param args:         是否显示参数（默认为true）
- */
-function getHookFn(showStack, showArgs) {
-    return function(method, obj, args) {
-        var ret = method.apply(obj, args);
-        if (showStack !== false)
-            printStack(method);
-        if (showArgs !== false)
-            printArgsAndReturn(method, args, ret);
-        return ret;
-    };
-}
-
-
-/**
- * hook类的所有重载方法
- * :param clazz:        hook的类名
- * :param methodName:   hook的方法名
- * :param fn:           hook后的方法
- */
-function hookMethods(clazz, methodName, fn) {
-    function hookMethod(method, fn) {
-        send("Hook method: " + getMethodName(method));
-        method.implementation = function() {
-            return fn(method, this, arguments);
-        }
-    }
-
-    if (typeof(clazz) === "string") {
-        clazz = findClass(null, clazz);
-    }
-
-    var methods = clazz[methodName].overloads;
-    for (var i = 0; i < methods.length; i++) {
-        hookMethod(methods[i], fn);
-    }
-}
-
-
-/**
- * hook类的所有重载方法
- * :param className:    hook的类名
- * :param fn:           hook后的方法
- */
-function hookClass(clazz, fn) {
-    if (typeof(clazz) === "string") {
-        clazz = findClass(null, clazz);
-    }
-
-    /* hook constructs */
-    hookMethods(clazz, "$init", fn);
-
-    /* hook methods */
-    var methodNames = [];
-    var targetClass = clazz.class;
-    while (targetClass != null && targetClass.getName() != "java.lang.Object") {
-        targetClass.getDeclaredMethods().forEach(function(method) {
-            var methodName = method.getName();
-            if (methodNames.indexOf(methodName) < 0) {
-                methodNames.push(methodName);
-                hookMethods(clazz, methodName, fn);
+    /**
+     * 为method添加properties
+     * :param method:       方法对象
+     */
+    addMethod(this, "addMethodProperties", function(method) {
+        method.__proto__.toString = function() {
+            var ret = this.returnType.className;
+            var name = this.holder.className + "." + this.methodName;
+            var args = "";
+            if (this.argumentTypes.length > 0) {
+                args = this.argumentTypes[0].className;
+                for (var i = 1; i < this.argumentTypes.length; i++) {
+                    args = args + ", " + this.argumentTypes[i].className;
+                }
             }
-        });
-        targetClass = Java.cast(targetClass.getSuperclass(), JavaClass);
-    }
-}
+            return ret + " " + name + "(" + args + ")";
+        };
+    });
 
+    /**
+     * hook指定方法对象
+     * :param method:       方法对象
+     * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    addMethod(this, "hookMethod", function(method, impl) {
+        method.implementation = function() {
+            return impl.call(method, this, arguments);
+        };
+        helper.addMethodProperties(method);
+        send("Hook method: " + method);
+    });
 
-/**
- * byte数组转字符串，如果转不了就返回null
- * :param bytes:       字符数组
- * :param charset:     字符集(可选)
- */
-/*
-function BytesToString(bytes, charset) {
-    if (bytes === undefined || bytes == null) {
-        return null;
-    }
-    try {
-        charset = charset || Charset.defaultCharset();
-        return JavaString.$new
-            .overload("[B", "java.nio.charset.Charset")
-            .call(JavaString, bytes, charset).toString();
-    } catch(e) {
-        return null;
-    }
-}
-*/
+    /**
+     * hook指定方法对象
+     * :param clazz:        java类名/类对象
+     * :param method:       java方法名/方法对象
+     * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    addMethod(this, "hookMethod", function(clazz, method, impl) {
+        helper.hookMethod(clazz, method, null, impl);
+    });
 
-
-/**
- * 输出当前调用堆栈
- * :param method:       hook的java方法
- */
-function printStack(method) {
-    var methodName = "";
-    var stackElements = Throwable.$new().getStackTrace();
-    if (method === undefined || method === null) {
-        methodName = stackElements[0];
-    } else {
-        methodName = getMethodName(method);
-    }
-    var body = "Stack: " + methodName;
-    for (var i = 0; i < stackElements.length; i++) {
-        body += "\n    at " + stackElements[i];
-    }
-    send({"helper_stack": body});
-}
-
-
-/**
- * 输出当前调用堆栈
- * :param method:       hook的java方法
- * :param args:         java方法参数
- * :param ret:          java方法返回值
- */
-function printArgsAndReturn(method, args, ret) {
-    var methodName = "";
-    if (method === undefined || method === null) {
-        methodName = Throwable.$new().getStackTrace()[0];
-    } else {
-        methodName = getMethodName(method);
-    }
-    var body = "Method: " + methodName;
-    for (var i = 0; i < args.length; i++) {
-        body += "\n    Arguments[" + i + "]: " + args[i];
-    }
-    if (ret !== undefined) {
-        body += "\n    Return: " + ret;
-    }
-    send({"helper_method": body});
-}
-
-
-/**
- * 根据调用栈调用当前函数，并输出参数返回值
- * :param object:       对象(一般直接填this)
- * :param args:         arguments(固定填这个)
- */
-function callMethod(object, args) {
-    var stackElement = Throwable.$new().getStackTrace()[0];
-    var methodArgs = "";
-    if (args.length > 0) {
-        methodArgs += "args[0]";
-        for (var i = 1; i < args.length; i++) {
-            methodArgs += ",args[" + i + "]";
+    /**
+     * hook指定方法对象
+     * :param clazz:        java类名/类对象
+     * :param method:       java方法名/方法对象
+     * :param signature:    java方法签名，为null表示不设置签名
+     * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    addMethod(this, "hookMethod", function(clazz, method, signature, impl) {
+        if (typeof(clazz) === "string") {
+            clazz = helper.findClass(null, clazz);
         }
+        if (typeof(method) === "string") {
+            method = clazz[method];
+            if (signature != null) {
+                method = method.overload.apply(method, signature);
+            }
+        }
+        helper.hookMethod(method, impl);
+    });
+
+    /**
+     * hook指定方法名的所有重载
+     * :param clazz:        java类名/类对象
+     * :param method:       java方法名
+     * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    addMethod(this, "hookMethods", function(clazz, methodName, impl) {
+        if (typeof(clazz) === "string") {
+            clazz = helper.findClass(null, clazz);
+        }
+        var methods = clazz[methodName].overloads;
+        for (var i = 0; i < methods.length; i++) {
+            helper.hookMethod(clazz, methods[i], null, impl);
+        }
+    });
+
+    /**
+     * hook指定类的所有方法
+     * :param clazz:        java类名/类对象
+     * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    addMethod(this, "hookClass", function(clazz, impl) {
+        if (typeof(clazz) === "string") {
+            clazz = helper.findClass(null, clazz);
+        }
+
+        var targetClass = clazz.class;
+        var methodNames = [];
+
+        helper.hookMethods(clazz, "$init", impl); /* hook constructor */
+        while (targetClass != null && targetClass.getName() != "java.lang.Object") {
+            targetClass.getDeclaredMethods().forEach(function(method) {
+                var methodName = method.getName();
+                if (methodNames.indexOf(methodName) < 0) {
+                    methodNames.push(methodName);
+                    helper.hookMethods(clazz, methodName, impl); /* hook method */
+                }
+            });
+            targetClass = Java.cast(targetClass.getSuperclass(), javaClass);
+        }
+    });
+
+    /**
+     * 根据当前栈调用原java方法
+     * :param obj:          java对象
+     * :param args:         java参数
+     * :return:             java方法返回值
+     */
+    addMethod(this, "callMethod", function(obj, args) {
+        var methodName = helper.getStackTrace()[0].getMethodName();
+        if (methodName == "<init>") {
+            methodName = "$init";
+        }
+        var methodArgs = "";
+        if (args.length > 0) {
+            methodArgs += "args[0]";
+            for (var i = 1; i < args.length; i++) {
+                methodArgs += ",args[" + i + "]";
+            }
+        }
+        return eval("obj." + methodName + "(" + methodArgs + ")");
+    });
+
+    /**
+     * 获取hook实现，调用愿方法并展示栈和返回值
+     * :param printStack:   是否展示栈，默认为true
+     * :param printArgs:    是否展示参数，默认为true
+     * :return:             hook实现
+     */
+    addMethod(this, "getHookImpl", function(printStack, printArgs) {
+        return function(obj, args) {
+            var ret = this.apply(obj, args);
+            if (printStack !== false)
+                helper.printStack(this);
+            if (printArgs !== false)
+                helper.printArguments(this, args, ret);
+            return ret;
+        };
+    });
+
+    /**
+     * 获取当前java栈
+     * :param printStack:   是否展示栈，默认为true
+     * :param printArgs:    是否展示参数，默认为true
+     * :return:             java栈对象
+     */
+    addMethod(this, "getStackTrace", function() {
+        return javaThrowable.$new().getStackTrace();
+    });
+
+    function printStack(name, elements) {
+        var body = "Stack: " + name;
+        for (var i = 0; i < elements.length; i++) {
+            body += "\n    at " + elements[i];
+        }
+        send({"helper_stack": body});
     }
-    var methodName = stackElement.getMethodName();
-    if (methodName == "<init>") {
-        methodName = "$init";
+
+    /**
+     * 打印当前栈
+     */
+    addMethod(this, "printStack", function() {
+        var elements = helper.getStackTrace();
+        printStack(elements[0], elements);
+    });
+
+    /**
+     * 打印当前栈
+     * :param message:      回显的信息
+     */
+    addMethod(this, "printStack", function(message) {
+        var elements = helper.getStackTrace();
+        printStack(message, elements);
+    });
+
+    function printArguments(name, args, ret) {
+        var body = "Method: " + name;
+        for (var i = 0; i < args.length; i++) {
+            try {
+                body += "\n    Arguments[" + i + "]: ";
+                body += args[i];
+            } catch (e) {
+                /* ignore */
+            }
+        }
+        if (ret !== undefined) {
+            body += "\n    Return: " + ret;
+        }
+        send({"helper_method": body});
     }
-    return eval("object." + methodName + "(" + methodArgs + ")");
+
+    /**
+     * 打印当前参数和返回值
+     */
+    addMethod(this, "printArguments", function(args, ret) {
+        printArguments(helper.getStackTrace()[0], args, ret);
+    });
+
+    /**
+     * 打印当前参数和返回值
+     * :param message:      回显的信息
+     */
+    addMethod(this, "printArguments", function(message, args, ret) {
+        printArguments(message, args, ret);
+    });
 }

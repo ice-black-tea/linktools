@@ -14,6 +14,8 @@ from android_tools.frida import FridaHelper
 
 jscode = """
 Java.perform(function () {
+
+    var helper = new JavaHelper();
     var Clazz = Java.use("java.lang.Class");
     var HashMap = Java.use("java.util.HashMap");
 
@@ -27,9 +29,9 @@ Java.perform(function () {
         send("this.threshold = " + field.getInt(this));
 
         // call origin method
-        var ret = callMethod(this, arguments);
-        printStack();
-        printArgsAndReturn(null, arguments, ret);
+        var ret = j.callMethod(this, arguments);
+        helper.printStack();
+        helper.printArguments(arguments, ret);
         return ret;
     }
 });
@@ -68,24 +70,40 @@ optional arguments:
 
 Java.perform(function () {
 
-    // 1: hook all put methods of HashMap class
-    // same as hookMethods("java.util.HashMap", "put", getHookFn(true /* print stack */, true /* print args */));
-    hookMethods("java.util.HashMap", "put", function(method, obj, args) {
-        var ret = method.apply(obj, args);
-        printStack(method);
-        printArgsAndReturn(method, args, ret);
-        return ret;
-    });
-    
-    // 2: hook all methods of HashMap class
-    hookClass("java.util.HashMap", getHookFn(true /* print stack */, true /* print args */));
+    var j = new JavaHelper();
 
-    // 3: hook put method of HashMap class
+    // [*] Hook method: java.lang.Integer Integer.valueOf(int)
+    j.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
+        return this.apply(obj, args);
+    });
+
+    // [*] Hook method: java.lang.Integer Integer.valueOf(int)
+    // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String)
+    // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String, int)
+    j.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
+        return this.apply(obj, args);
+    });
+
+    // [*] Hook method: int Integer.undefined()
+    // [*] Hook method: void Integer.Integer(int)
+    // [*] Hook method: void Integer.Integer(java.lang.String)
+    // [*] Hook method: int Integer.bitCount(int)
+    // [*] ...
+    // [*] Hook method: long Integer.longValue()
+    // [*] Hook method: short Integer.shortValue()
+    j.hookClass("java.lang.Integer", function(obj, args) {
+        return this.apply(obj, args);
+    });
+
+    // hook HashMap.put, print stack and args
+    j.hookMethods("java.util.HashMap", "put", j.getHookImpl(true /* print stack */, true /* print args */));
+
+    // hook HashMap.put, print stack and args
     var HashMap = Java.use("java.util.HashMap");
     HashMap.put.implementation = function() {
-        var ret = callMethod(this, arguments);
-        printStack(null);
-        printArgsAndReturn(null, arguments, ret);
+        var ret = j.callMethod(this, arguments);
+        j.printStack();
+        j.printArguments(arguments, ret);
         return ret;
     }
 });
@@ -103,38 +121,114 @@ at_frida.py -f hook.js
 
 ### js使用
 
-内置的js函数
+内置JavaHelper类的成员函数
 
 ```javascript
-/*
- * byte数组转字符串，如果转不了就会抛异常
- * :param bytes:       字符数组
- * :param charset:     字符集(可选)
+/**
+ * 获取java类的类对象
+ * :param className:    java类名
+ * :return:             类对象
  */
-function BytesToString(bytes, charset);
+function findClass(className) {}
 
-/*
- * 输出当前调用堆栈
+/**
+ * 获取java类的类对象
+ * :param classloader:  java类所在的ClassLoader
+ * :param className:    java类名
+ * :return:             类对象
  */
-function PrintStack();
+function findClass(classloader, className) {}
 
-/*
- * 调用当前函数，并输出参数返回值
- * :param object:      对象(一般直接填this)
- * :param arguments:   arguments(固定填这个)
- * :param showStack:   是否打印栈(默认为false，可不填)
- * :param showArgs:    是否打印参数(默认为false，可不填)
+/**
+ * 为method添加properties
+ * :param method:       方法对象
  */
-function CallMethod(object, arguments, showStack, showArgs);
+function addMethodProperties(method) {}
 
-/*
- * 打印栈，调用当前函数，并输出参数返回值
- * :param object:      对象(一般直接填this)
- * :param arguments:   arguments(固定填这个)
- * :param showStack:   是否打印栈(默认为true，可不填)
- * :param showArgs:    是否打印参数(默认为true，可不填)
+/**
+ * hook指定方法对象
+ * :param method:       方法对象
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
  */
-function PrintStackAndCallMethod(object, arguments, showStack, showArgs);
+function hookMethod(method, impl) {}
+
+/**
+ * hook指定方法对象
+ * :param clazz:        java类名/类对象
+ * :param method:       java方法名/方法对象
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ */
+function hookMethod(clazz, method, impl) {}
+
+/**
+ * hook指定方法对象
+ * :param clazz:        java类名/类对象
+ * :param method:       java方法名/方法对象
+ * :param signature:    java方法签名，为null表示不设置签名
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ */
+function hookMethod(clazz, method, signature, impl) {}
+
+/**
+ * hook指定方法名的所有重载
+ * :param clazz:        java类名/类对象
+ * :param method:       java方法名
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ */
+function hookMethods(clazz, methodName, impl) {}
+
+/**
+ * hook指定类的所有方法
+ * :param clazz:        java类名/类对象
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ */
+function hookClass(clazz, impl) {}
+
+/**
+ * 根据当前栈调用原java方法
+ * :param obj:          java对象
+ * :param args:         java参数
+ * :return:             java方法返回值
+ */
+function callMethod(obj, args) {}
+
+/**
+ * 获取hook实现，调用愿方法并展示栈和返回值
+ * :param printStack:   是否展示栈，默认为true
+ * :param printArgs:    是否展示参数，默认为true
+ * :return:             hook实现
+ */
+function getHookImpl(printStack, printArgs) {}
+
+/**
+ * 获取当前java栈
+ * :param printStack:   是否展示栈，默认为true
+ * :param printArgs:    是否展示参数，默认为true
+ * :return:             java栈对象
+ */
+function getStackTrace() {}
+
+/**
+ * 打印当前栈
+ */
+function printStack() {}
+
+/**
+ * 打印当前栈
+ * :param message:      回显的信息
+ */
+function printStack(message) {}
+
+/**
+ * 打印当前参数和返回值
+ */
+function printArguments(args, ret) {}
+
+/**
+ * 打印当前参数和返回值
+ * :param message:      回显的信息
+ */
+function printArguments(message, args, ret) {}
 ```
 
 hook native方法
