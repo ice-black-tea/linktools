@@ -1,6 +1,6 @@
 colorama
 requests
 tqdm
-frida
+frida<12.0.0
 watchdog
 python-magic
