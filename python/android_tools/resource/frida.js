@@ -22,14 +22,16 @@
  */
 
 function addMethod(object, name, fn) {
-　　var old = object[name];
-　　object[name] = function() {
-　　　　if(fn.length === arguments.length) {
-　　　　　　return fn.apply(this, arguments);
-　　　　} else if(typeof old === "function") {
-　　　　　　return old.apply(this, arguments);
-　　　　}
-　　}
+    var old = object[name];
+    object[name + '_$_$_' + fn.length] = fn;
+    object[name] = function () {
+        var prop = name + '_$_$_' + arguments.length;
+        if (object.hasOwnProperty(prop)) {
+            return object[prop].apply(this, arguments);
+        } else {
+            throw new Error("Argument count of " + arguments.length + " does not match " + name);
+        }
+    }
 }
 
 function JavaHelper() {
@@ -38,6 +40,27 @@ function JavaHelper() {
     var javaClass = Java.use("java.lang.Class");
     var javaString = Java.use("java.lang.String");
     var javaThrowable = Java.use("java.lang.Throwable");
+
+    var primitiveTypes = {
+        boolean: { name: 'Z' },
+        byte: { name: 'B' },
+        char: { name: 'C' },
+        short: { name: 'S' },
+        int: { name: 'I' },
+        long: { name: 'J' },
+        float: { name: 'F' },
+        double: { name: 'D' },
+        void: { name: 'V' },
+    };
+
+    /**
+     * 获取类对象类名
+     * :param clazz:        类对象
+     * :return:             类名
+     */
+    addMethod(this, "getClassName", function(clazz) {
+        return clazz.$classWrapper.__name__;
+    });
 
     /**
      * 获取java类的类对象
@@ -72,9 +95,9 @@ function JavaHelper() {
      * :param method:       方法对象
      */
     addMethod(this, "addMethodProperties", function(method) {
-        method.__proto__.toString = function() {
+        method.toString = function() {
             var ret = this.returnType.className;
-            var name = this.holder.className + "." + this.methodName;
+            var name = this.holder.__name__ + "." + this.methodName;
             var args = "";
             if (this.argumentTypes.length > 0) {
                 args = this.argumentTypes[0].className;
@@ -123,6 +146,11 @@ function JavaHelper() {
         if (typeof(method) === "string") {
             method = clazz[method];
             if (signature != null) {
+                for (var i in signature) {
+                    if (typeof(signature[i]) !== "string") {
+                        signature[i] = helper.getClassName(signature[i]);
+                    }
+                }
                 method = method.overload.apply(method, signature);
             }
         }
@@ -207,6 +235,43 @@ function JavaHelper() {
                 helper.printArguments(this, args, ret);
             return ret;
         };
+    });
+
+    /**
+     * java数组转为js数组
+     * :param clazz:        java类名/类对象
+     * :param array:        java数组
+     * :return:             js数组
+     */
+    addMethod(this, "fromJavaArray", function(clazz, array) {
+        if (typeof(clazz) === "string") {
+            clazz = helper.findClass(clazz);
+        }
+        var result = [];
+        var env = Java.vm.getEnv();
+        for (var i = 0; i < env.getArrayLength(array.$handle); i++) {
+            result.push(Java.cast(env.getObjectArrayElement(array.$handle, i), clazz))
+        }
+        return result;
+    });
+
+    /**
+     * 获取枚举值
+     * :param clazz:        java类名/类对象
+     * :param name:         java枚举名称
+     * :return:             java枚举值
+     */
+    addMethod(this, "getEnumValue", function(clazz, name) {
+        if (typeof(clazz) === "string") {
+            clazz = helper.findClass(clazz);
+        }
+        var values = helper.fromJavaArray(clazz, clazz.class.getEnumConstants());
+        for (var i in values) {
+            if (values[i].toString() == name) {
+                return values[i];
+            }
+        }
+        throw new Error("Name of " + name + " does not match " + clazz);
     });
 
     /**

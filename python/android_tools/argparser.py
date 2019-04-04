@@ -27,8 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import argparse
-import json
-import sys
 import time
 import types
 
@@ -50,94 +48,23 @@ class AdbArgumentParser(ArgumentParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._adb_parser = argparse.ArgumentParser()
-        self._adb_group = self._adb_parser.add_argument_group(title="adb optional arguments")
-        self._adb_group.add_argument("-s", metavar="serial", dest="adb_serial",
-                                     help="use device with given serial (adb -s option)")
-        self._adb_group.add_argument("-d", dest="adb_device", action="store_true",
-                                     help="use USB device (adb -d option)")
-        self._adb_group.add_argument("-e", dest="adb_emulator", action="store_true",
-                                     help="use TCP/IP device (adb -e option)")
-        self._adb_group.add_argument("-i", metavar="index", dest="adb_index", type=int,
-                                     help="use device with given index")
-        self._adb_group.add_argument("-c", metavar="ip[:port]", dest="adb_connect",
-                                     help="use device with TCP/IP")
-        self._adb_group.add_argument("-l", dest="adb_last", action="store_true",
-                                     help="use last device")
+        self._adb_group = self.add_argument_group(title="adb optional arguments")
+        group = self._adb_group.add_mutually_exclusive_group()
+        group.add_argument("-s", metavar="serial", dest="adb_serial",
+                           help="use device with given serial (adb -s option)")
+        group.add_argument("-d", dest="adb_device", action="store_true",
+                           help="use USB device (adb -d option)")
+        group.add_argument("-e", dest="adb_emulator", action="store_true",
+                           help="use TCP/IP device (adb -e option)")
+        group.add_argument("-i", metavar="index", dest="adb_index", type=int,
+                           help="use device with given index")
+        group.add_argument("-c", metavar="ip[:port]", dest="adb_connect",
+                           help="use device with TCP/IP")
+        group.add_argument("-l", dest="adb_last", action="store_true",
+                           help="use last device")
 
-        # noinspection PyProtectedMember
-        self._adb_actions = self._adb_parser._actions
-        # noinspection PyProtectedMember
-        self._adb_option_string_actions = self._adb_parser._option_string_actions
-
-    def parse_adb_args(self, args=None, namespace=None):
-        if args is None:
-            # args default to the system args
-            args = sys.argv[1:]
-        else:
-            # make sure that args are mutable
-            args = list(args)
-
-        # default Namespace built from parser defaults
-        if namespace is None:
-            namespace = argparse.Namespace()
-
-        # add any action defaults that aren"t present
-        for action in self._adb_actions:
-            if action.dest is not argparse.SUPPRESS:
-                if not hasattr(namespace, action.dest):
-                    if action.default is not argparse.SUPPRESS:
-                        setattr(namespace, action.dest, action.default)
-
-        # parse the arguments and exit if there are any errors
-        option_string_indices = {}
-        arg_string_pattern_parts = []
-        arg_strings_iter = iter(args)
-        for i, arg_string in enumerate(arg_strings_iter):
-
-            # all args after -- are non-options
-            if arg_string == '--':
-                arg_string_pattern_parts.append('-')
-                for arg_string in arg_strings_iter:
-                    arg_string_pattern_parts.append('A')
-
-            # otherwise, add the arg to the arg strings
-            # and note the index if it was an option
-            else:
-                option_tuple = self._parse_optional(arg_string)
-                if option_tuple is None:
-                    pattern = 'A'
-                else:
-                    option_string_indices[i] = option_tuple
-                    pattern = 'O'
-                arg_string_pattern_parts.append(pattern)
-
-        # join the pieces together to form the pattern
-        arg_strings_pattern = ''.join(arg_string_pattern_parts)
-
-        # parse adb arguments
-        start_index = 0
-        while start_index < len(args):
-            arg_string = args[start_index]
-
-            if '=' in arg_string:
-                option_string, explicit_arg = arg_string.split('=', 1)
-                action = Utils.get_item(self._adb_option_string_actions, option_string)
-                if action not in self._adb_actions:
-                    break
-                start_index = start_index + 1
-                action(self, namespace, explicit_arg)
-
-            else:
-                action = Utils.get_item(self._adb_option_string_actions, arg_string)
-                if action not in self._adb_actions:
-                    break
-                start = start_index + 1
-                selected_patterns = arg_strings_pattern[start:]
-                arg_count = self._match_argument(action, selected_patterns)
-                stop = start + arg_count
-                start_index = stop
-                action(self, namespace, self._get_values(action, args[start:stop]))
+    def _parse_known_args(self, arg_strings, namespace):
+        namespace, extras = super()._parse_known_args(arg_strings, namespace)
 
         def load_last_device():
             path = resource.get_store_path(".adb.device.config", create_file=True)
@@ -155,7 +82,7 @@ class AdbArgumentParser(ArgumentParser):
             except:
                 pass
 
-        def extend_adb_options(adb_options):
+        def parse_adb_serial(adb_options):
             if adb_options.adb_last:
                 setattr(adb_options, "adb_serial", load_last_device())
 
@@ -180,10 +107,10 @@ class AdbArgumentParser(ArgumentParser):
                 setattr(adb_options, "adb_serial", addr)
 
             if adb_options.adb_device:
-                setattr(adb_options, "adb_serial", Adb.exec("-d", "get-serialno"))
+                setattr(adb_options, "adb_serial", Adb.exec("-d", "get-serialno").strip(" \r\n"))
 
             if adb_options.adb_emulator:
-                setattr(adb_options, "adb_serial", Adb.exec("-e", "get-serialno"))
+                setattr(adb_options, "adb_serial", Adb.exec("-e", "get-serialno").strip(" \r\n"))
 
             if not adb_options.adb_serial:
                 devices = Adb.devices(alive=True)
@@ -214,12 +141,6 @@ class AdbArgumentParser(ArgumentParser):
 
             return adb_options.adb_serial
 
-        setattr(namespace, "extend", types.MethodType(extend_adb_options, namespace))
+        setattr(namespace, "parse_adb_serial", types.MethodType(parse_adb_serial, namespace))
 
-        return namespace, args[start_index:]
-
-    def format_help(self):
-        self._action_groups.insert(2, self._adb_group)
-        result = super().format_help()
-        self._action_groups.remove(self._adb_group)
-        return result
+        return namespace, extras

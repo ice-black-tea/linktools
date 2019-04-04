@@ -26,7 +26,6 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import sys
 
 from android_tools.adb import Adb, AdbError
 from android_tools.argparser import AdbArgumentParser
@@ -48,21 +47,16 @@ def main():
     ]
 
     parser = AdbArgumentParser(description="adb wrapper")
-    adb, args = parser.parse_adb_args(sys.argv[1:])
+    args, extras = parser.parse_known_args()
 
-    if not Utils.is_empty(args) and args[0] not in general_commands:
-        parser.parse_known_args(args)
-        Adb.exec(*["-s", adb.extend(), *args], capture_output=False)
+    if not Utils.is_empty(extras) and extras[0] not in general_commands:
+        Adb.exec("-s", args.parse_adb_serial(), *extras, capture_output=False)
     else:
-        Adb.exec(*args, capture_output=False)
+        Adb.exec(*extras, capture_output=False)
 
 
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
-    except AdbError as e:
+    except (KeyboardInterrupt, EOFError, AdbError) as e:
         print(e)

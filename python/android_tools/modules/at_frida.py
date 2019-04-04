@@ -96,10 +96,9 @@ def main():
     group.add_argument('-r', '--restart', action='store_true', default=False,
                        help='inject after restart [default false]')
 
-    adb, args = parser.parse_adb_args()
-    args = parser.parse_args(args)
+    args = parser.parse_args()
+    helper = FridaHelper(device_id=args.parse_adb_serial())
 
-    helper = FridaHelper(device_id=adb.extend())
     package = args.package
     if Utils.is_empty(package):
         package = helper.device.get_top_package()
@@ -116,18 +115,11 @@ def main():
     elif "-c" in sys.argv or "--code" in sys.argv:
         helper.run_script(package, args.code, restart=restart)
 
-    try:
-        sys.stdin.read()
-    except KeyboardInterrupt:
-        pass
+    sys.stdin.read()
 
 
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
-    except AdbError as e:
+    except (KeyboardInterrupt, EOFError, AdbError) as e:
         print(e)

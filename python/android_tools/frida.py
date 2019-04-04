@@ -196,11 +196,23 @@ class FridaHelper(BaseHelper):
             log = Utils.get_item(kwargs, "fore") + log
         print(log)
 
-    def on_message(self, process_id: int, process_name: str, message: object) -> None:
+    def on_load(self, session: _frida.Session, script: _frida.Script, pid: int, pname: str) -> None:
+        """
+        脚本加载回调
+        :param session: 会话对象
+        :param script: 脚本对象
+        :param pid: 进程号
+        :param pname: 进程名
+        """
+        pass
+
+    def on_message(self, session: _frida.Session, script: _frida.Script, pid: int, pname: str, message: object) -> None:
         """
         消息回调函数
-        :param process_id: 进程号
-        :param process_name: 进程名
+        :param session: 会话对象
+        :param script: 脚本对象
+        :param pid: 进程号
+        :param pname: 进程名
         :param message: 收到的消息
         """
         if Utils.get_item(message, "type") == "send" and Utils.is_contain(message, "payload"):
@@ -218,50 +230,63 @@ class FridaHelper(BaseHelper):
         else:
             self.on_log("?", message, fore=Fore.RED)
 
-    def on_destroyed(self, process_id: int, process_name: str, session: _frida.Session) -> None:
+    def on_destroyed(self, session: _frida.Session, script: _frida.Script, pid: int, pname: str) -> None:
         """
         脚本结束回调函数
-        :param process_id: 进程号
-        :param process_name: 进程名
-        :param session: 会话
+        :param session: 会话对象
+        :param script: 脚本对象
+        :param pid: 进程号
+        :param pname: 进程名
         """
-        self.on_log("*", "Detach process: %s (%d)" % (process_name, process_id))
+        self.on_log("*", "Detach process: %s (%d)" % (pname, pid))
         if Utils.is_contain(self.sessions, session):
             self.sessions.remove(session)
 
-    def on_detached(self, process_id: int, process_name: str, session: _frida.Session, jscode: str,
+    def on_detached(self, session: _frida.Session, pid: int, pname: str, jscode: str,
                     reason: str) -> None:
         """
         会话结束回调函数
-        :param process_id: 进程号
-        :param process_name: 进程名
-        :param session: 会话
+        :param session: 会话对象
+        :param pid: 进程号
+        :param pname: 进程名
         :param jscode: js脚本
         :param reason: 结束原因
         """
         if reason == "process-terminated":
-            self._run_script(process_id, process_name, jscode, restart=True)
+            self._run_script(pid, pname, jscode, restart=True)
         if Utils.is_contain(self.sessions, session):
             self.sessions.remove(session)
 
-    def _run_script(self, process_id: int, process_name: str, jscode: str, restart: bool = False) -> None:
+    def _run_script(self, pid: int, pname: str, jscode: str, restart: bool = False) -> _frida.Script:
         try:
             if restart:
-                process_id = self.frida_device.spawn([process_name])
-            self.on_log("*", "Attach process: %s (%d)" % (process_name, process_id))
-            session = self.frida_device.attach(process_id)
-            session.on("detached", lambda reason: self.on_detached(process_id, process_name, session, jscode, reason))
-            script = session.create_script(jscode)
-            script.on("message", lambda message, data: self.on_message(process_id, process_name, message))
-            script.on("destroyed", lambda reason: self.on_destroyed(process_id, process_name, session))
-            script.load()
-            if restart:
-                self.frida_device.resume(process_id)
-            self.sessions.append(session)
-        except Exception as e:
-            self.on_log("!", str(e), fore=Fore.RED)
+                if Utils.is_contain(pname, ":"):
+                    # noinspection PyTypeChecker
+                    return None
+                pid = self.frida_device.spawn([pname])
 
-    def run_script(self, name: str, jscode: str, restart: bool = False) -> None:
+            self.on_log("*", "Attach process: %s (%d)" % (pname, pid))
+
+            session = self.frida_device.attach(pid)
+            session.on("detached", lambda reason: self.on_detached(session, pid, pname, jscode, reason))
+
+            script = session.create_script(jscode)
+            script.on("message", lambda message, data: self.on_message(session, script, pid, pname, message))
+            script.on("destroyed", lambda reason: self.on_destroyed(session, script, pid, pname))
+            script.load()
+
+            if restart:
+                self.frida_device.resume(pid)
+
+            self.sessions.append(session)
+            self.on_load(session, script, pid, pname)
+
+        except Exception as e:
+            script = None
+            self.on_log("!", str(e), fore=Fore.RED)
+        return script
+
+    def run_script(self, name: str, jscode: str, restart: bool = False) -> []:
         """
         向指定包名的进程中注入并执行js代码
         :param name: 进程名（支持正则）
@@ -269,10 +294,14 @@ class FridaHelper(BaseHelper):
         :param restart: 是否重启应用
         :return: None
         """
+        scripts = []
         jscode = self._preset_jscode + jscode
         for process in self.get_processes(name):
-            self._run_script(process.pid, process.name, jscode, restart)
+            script = self._run_script(process.pid, process.name, jscode, restart)
+            if script is not None:
+                scripts.append(script)
         self.on_log("*", "Running ...")
+        return scripts
 
     def detach_sessions(self) -> None:
         """

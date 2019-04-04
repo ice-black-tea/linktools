@@ -70,17 +70,17 @@ optional arguments:
 
 Java.perform(function () {
 
-    var j = new JavaHelper();
+    var $ = new JavaHelper();
 
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
-    j.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
+    $.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
         return this.apply(obj, args);
     });
 
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
     // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String)
     // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String, int)
-    j.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
+    $.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
         return this.apply(obj, args);
     });
 
@@ -91,19 +91,19 @@ Java.perform(function () {
     // [*] ...
     // [*] Hook method: long Integer.longValue()
     // [*] Hook method: short Integer.shortValue()
-    j.hookClass("java.lang.Integer", function(obj, args) {
+    $.hookClass("java.lang.Integer", function(obj, args) {
         return this.apply(obj, args);
     });
 
     // hook HashMap.put, print stack and args
-    j.hookMethods("java.util.HashMap", "put", j.getHookImpl(true /* print stack */, true /* print args */));
+    $.hookMethods("java.util.HashMap", "put", $.getHookImpl(true /* print stack */, true /* print args */));
 
     // hook HashMap.put, print stack and args
     var HashMap = Java.use("java.util.HashMap");
     HashMap.put.implementation = function() {
-        var ret = j.callMethod(this, arguments);
-        j.printStack();
-        j.printArguments(arguments, ret);
+        var ret = $.callMethod(this, arguments);
+        $.printStack();
+        $.printArguments(arguments, ret);
         return ret;
     }
 });

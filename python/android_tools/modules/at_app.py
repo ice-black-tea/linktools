@@ -245,14 +245,13 @@ def main():
 
     group.add_argument('-b', '--basic-info', action='store_true', default=False,
                        help='display basic info only')
-    group.add_argument('-d', '--dangerous', action='store_true', default=False,
+    group.add_argument('-dang', '--dangerous', action='store_true', default=False,
                        help='display dangerous permissions and components only')
     group.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
                        choices=['name', 'appName', 'userId'], help='order by target field')
 
-    adb, args = parser.parse_adb_args()
-    args = parser.parse_args(args)
-    device = Device(adb.extend())
+    args = parser.parse_args()
+    device = Device(args.parse_adb_serial())
 
     dex_args = ["package"]
     if args.top:
@@ -305,9 +304,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
-    except AdbError as e:
+    except (KeyboardInterrupt, EOFError, AdbError) as e:
         print(e)

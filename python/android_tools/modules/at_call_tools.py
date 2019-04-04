@@ -34,18 +34,13 @@ from android_tools.argparser import AdbArgumentParser
 def main():
     parser = AdbArgumentParser(description='used for debugging android-tools.apk')
 
-    adb, args = parser.parse_adb_args()
-    parser.parse_known_args(args)
-    device = Device(adb.extend())
-    device.call_tools(*args, capture_output=False)
+    args, extras = parser.parse_known_args()
+    device = Device(args.parse_adb_serial())
+    device.call_tools(*extras, capture_output=False)
 
 
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
-    except AdbError as e:
+    except (KeyboardInterrupt, EOFError, AdbError) as e:
         print(e)

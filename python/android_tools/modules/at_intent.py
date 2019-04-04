@@ -54,9 +54,8 @@ def main():
     _group.add_argument('--browser', dest='url', action='store', default="",
                         help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
-    adb, args = parser.parse_adb_args()
-    args = parser.parse_args(args)
-    device = Device(adb.extend())
+    args = parser.parse_args()
+    device = Device(args.parse_adb_serial())
 
     if "--setting" in sys.argv:
         device.shell("am", "start", "--user", "0",
@@ -104,9 +103,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
-    except AdbError as e:
+    except (KeyboardInterrupt, EOFError, AdbError) as e:
         print(e)

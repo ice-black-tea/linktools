@@ -53,9 +53,8 @@ def main():
     _group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
                         help='capture screen and pull file')
 
-    adb, args = parser.parse_adb_args()
-    args = parser.parse_args(args)
-    device = Device(adb.extend())
+    args = parser.parse_args()
+    device = Device(args.parse_adb_serial())
 
     if args.package:
         print(device.get_top_package())
@@ -69,6 +68,7 @@ def main():
         package = device.get_top_package()
         path = device.get_save_path(package + ".apk")
         dest = args.dest if not Utils.is_empty(args.dest) else "."
+        device.shell("mkdir", "-p", device.get_save_path(), capture_output=False)
         device.shell("cp", device.get_apk_path(package), path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
@@ -76,6 +76,7 @@ def main():
         now = datetime.datetime.now()
         path = device.get_save_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
         dest = args.dest if not Utils.is_empty(args.dest) else "."
+        device.shell("mkdir", "-p", device.get_save_path(), capture_output=False)
         device.shell("screencap", "-p", path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
@@ -89,9 +90,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
-    except AdbError as e:
+    except (KeyboardInterrupt, EOFError, AdbError) as e:
         print(e)
