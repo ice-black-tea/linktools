@@ -29,7 +29,7 @@ Java.perform(function () {
         send("this.threshold = " + field.getInt(this));
 
         // call origin method
-        var ret = j.callMethod(this, arguments);
+        var ret = helper.callMethod(this, arguments);
         helper.printStack();
         helper.printArguments(arguments, ret);
         return ret;
@@ -38,7 +38,7 @@ Java.perform(function () {
 """
 
 if __name__ == '__main__':
-    FridaHelper().run_script("xxx.xxx.xxx", jscode=jscode)
+    FridaHelper().run_script("xxx.xxx.xxx", jscode)
     sys.stdin.read()
 ```
 
@@ -151,14 +151,6 @@ function addMethodProperties(method) {}
  * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
  */
 function hookMethod(method, impl) {}
-
-/**
- * hook指定方法对象
- * :param clazz:        java类名/类对象
- * :param method:       java方法名/方法对象
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
- */
-function hookMethod(clazz, method, impl) {}
 
 /**
  * hook指定方法对象

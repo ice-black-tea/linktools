@@ -29,6 +29,7 @@
 import hashlib
 import sys
 
+from frida import ServerNotRunningError
 from watchdog.events import *
 from watchdog.observers import Observer
 
@@ -55,7 +56,7 @@ class FridaScript(object):
         if self._md5 == md5:
             return
         self._md5 = md5
-        self.helper.on_log("*", "Loading script: %s" % self.path)
+        self.helper.log("*", "Loading script: %s" % self.path)
         self.helper.detach_sessions()
         self.helper.run_script(self.name, jscode, restart=self.restart)
 
@@ -121,5 +122,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except (KeyboardInterrupt, EOFError, AdbError) as e:
+    except (KeyboardInterrupt, EOFError, AdbError, ServerNotRunningError) as e:
         print(e)

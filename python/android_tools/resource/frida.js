@@ -21,22 +21,9 @@
  *   └─ canInvokeWith
  */
 
-function addMethod(object, name, fn) {
-    var old = object[name];
-    object[name + '_$_$_' + fn.length] = fn;
-    object[name] = function () {
-        var prop = name + '_$_$_' + arguments.length;
-        if (object.hasOwnProperty(prop)) {
-            return object[prop].apply(this, arguments);
-        } else {
-            throw new Error("Argument count of " + arguments.length + " does not match " + name);
-        }
-    }
-}
-
 function JavaHelper() {
 
-    var helper = this;
+    var $ = this;
     var javaClass = Java.use("java.lang.Class");
     var javaString = Java.use("java.lang.String");
     var javaThrowable = Java.use("java.lang.Throwable");
@@ -52,6 +39,26 @@ function JavaHelper() {
         double: { name: 'D' },
         void: { name: 'V' },
     };
+
+    function addMethod(object, name, fn) {
+        object[name + '_$_$_' + fn.length] = fn;
+        object[name] = function () {
+            var prop = name + '_$_$_' + arguments.length;
+            if (object.hasOwnProperty(prop)) {
+                return object[prop].apply(this, arguments);
+            } else {
+                throw new Error("Argument count of " + arguments.length + " does not match " + name);
+            }
+        }
+    }
+
+    function ignoreError(fn) {
+        try {
+            fn();
+        } catch (e) {
+            /* ignore */
+        }
+    }
 
     /**
      * 获取类对象类名
@@ -118,18 +125,8 @@ function JavaHelper() {
         method.implementation = function() {
             return impl.call(method, this, arguments);
         };
-        helper.addMethodProperties(method);
+        $.addMethodProperties(method);
         send("Hook method: " + method);
-    });
-
-    /**
-     * hook指定方法对象
-     * :param clazz:        java类名/类对象
-     * :param method:       java方法名/方法对象
-     * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
-     */
-    addMethod(this, "hookMethod", function(clazz, method, impl) {
-        helper.hookMethod(clazz, method, null, impl);
     });
 
     /**
@@ -141,20 +138,20 @@ function JavaHelper() {
      */
     addMethod(this, "hookMethod", function(clazz, method, signature, impl) {
         if (typeof(clazz) === "string") {
-            clazz = helper.findClass(null, clazz);
+            clazz = $.findClass(null, clazz);
         }
         if (typeof(method) === "string") {
             method = clazz[method];
             if (signature != null) {
                 for (var i in signature) {
                     if (typeof(signature[i]) !== "string") {
-                        signature[i] = helper.getClassName(signature[i]);
+                        signature[i] = $.getClassName(signature[i]);
                     }
                 }
                 method = method.overload.apply(method, signature);
             }
         }
-        helper.hookMethod(method, impl);
+        $.hookMethod(method, impl);
     });
 
     /**
@@ -165,11 +162,11 @@ function JavaHelper() {
      */
     addMethod(this, "hookMethods", function(clazz, methodName, impl) {
         if (typeof(clazz) === "string") {
-            clazz = helper.findClass(null, clazz);
+            clazz = $.findClass(null, clazz);
         }
         var methods = clazz[methodName].overloads;
         for (var i = 0; i < methods.length; i++) {
-            helper.hookMethod(clazz, methods[i], null, impl);
+            $.hookMethod(clazz, methods[i], null, impl);
         }
     });
 
@@ -180,19 +177,19 @@ function JavaHelper() {
      */
     addMethod(this, "hookClass", function(clazz, impl) {
         if (typeof(clazz) === "string") {
-            clazz = helper.findClass(null, clazz);
+            clazz = $.findClass(null, clazz);
         }
 
         var targetClass = clazz.class;
         var methodNames = [];
 
-        helper.hookMethods(clazz, "$init", impl); /* hook constructor */
+        $.hookMethods(clazz, "$init", impl); /* hook constructor */
         while (targetClass != null && targetClass.getName() != "java.lang.Object") {
             targetClass.getDeclaredMethods().forEach(function(method) {
                 var methodName = method.getName();
                 if (methodNames.indexOf(methodName) < 0) {
                     methodNames.push(methodName);
-                    helper.hookMethods(clazz, methodName, impl); /* hook method */
+                    $.hookMethods(clazz, methodName, impl); /* hook method */
                 }
             });
             targetClass = Java.cast(targetClass.getSuperclass(), javaClass);
@@ -206,7 +203,7 @@ function JavaHelper() {
      * :return:             java方法返回值
      */
     addMethod(this, "callMethod", function(obj, args) {
-        var methodName = helper.getStackTrace()[0].getMethodName();
+        var methodName = $.getStackTrace()[0].getMethodName();
         if (methodName == "<init>") {
             methodName = "$init";
         }
@@ -228,11 +225,14 @@ function JavaHelper() {
      */
     addMethod(this, "getHookImpl", function(printStack, printArgs) {
         return function(obj, args) {
+            var message = {};
             var ret = this.apply(obj, args);
             if (printStack !== false)
-                helper.printStack(this);
+                message = Object.assign(message, $.makeStackObject(this, $.getStackTrace()));
             if (printArgs !== false)
-                helper.printArguments(this, args, ret);
+                message = Object.assign(message, $.makeArgsObject(this, args, ret));
+            if (Object.keys(message).length != 0)
+                send(message);
             return ret;
         };
     });
@@ -245,7 +245,7 @@ function JavaHelper() {
      */
     addMethod(this, "fromJavaArray", function(clazz, array) {
         if (typeof(clazz) === "string") {
-            clazz = helper.findClass(clazz);
+            clazz = $.findClass(clazz);
         }
         var result = [];
         var env = Java.vm.getEnv();
@@ -263,10 +263,13 @@ function JavaHelper() {
      */
     addMethod(this, "getEnumValue", function(clazz, name) {
         if (typeof(clazz) === "string") {
-            clazz = helper.findClass(clazz);
+            clazz = $.findClass(clazz);
         }
-        var values = helper.fromJavaArray(clazz, clazz.class.getEnumConstants());
-        for (var i in values) {
+        var values = clazz.class.getEnumConstants();
+        if (!(values instanceof Array)) {
+            values = $.fromJavaArray(clazz, values);
+        }
+        for (var i = 0; i < values.length; i++) {
             if (values[i].toString() == name) {
                 return values[i];
             }
@@ -284,20 +287,19 @@ function JavaHelper() {
         return javaThrowable.$new().getStackTrace();
     });
 
-    function printStack(name, elements) {
-        var body = "Stack: " + name;
-        for (var i = 0; i < elements.length; i++) {
-            body += "\n    at " + elements[i];
-        }
-        send({"helper_stack": body});
-    }
+    addMethod(this, "makeStackObject", function(message, elements) {
+        var body = "Stack: " + message;
+        for (var i = 0; i < elements.length; i++)
+            body += "\n    at " + $.toString(elements[i]);
+        return {"stack": body};
+    });
 
     /**
      * 打印当前栈
      */
     addMethod(this, "printStack", function() {
-        var elements = helper.getStackTrace();
-        printStack(elements[0], elements);
+        var elements = $.getStackTrace();
+        send($.makeStackObject(elements[0], elements));
     });
 
     /**
@@ -305,31 +307,47 @@ function JavaHelper() {
      * :param message:      回显的信息
      */
     addMethod(this, "printStack", function(message) {
-        var elements = helper.getStackTrace();
-        printStack(message, elements);
+        var elements = $.getStackTrace();
+        send($.makeStackObject(message, elements));
     });
 
-    function printArguments(name, args, ret) {
-        var body = "Method: " + name;
-        for (var i = 0; i < args.length; i++) {
-            try {
-                body += "\n    Arguments[" + i + "]: ";
-                body += args[i];
-            } catch (e) {
-                /* ignore */
+    /**
+     * 调用java对象的toString方法
+     * :param obj:          java对象
+     * :return:             toString返回值
+     */
+    addMethod(this, "toString", function(obj) {
+        if (obj === undefined || obj == null || !(obj instanceof Object)) {
+            return obj;
+        }
+        if (obj.hasOwnProperty("length")) {
+            var array = [];
+            for (var i = 0; i < obj.length; i++) {
+                array.push($.toString(obj[i]));
             }
+            return "[" + array.toString() + "]";
         }
-        if (ret !== undefined) {
-            body += "\n    Return: " + ret;
-        }
-        send({"helper_method": body});
-    }
+        var ret = null;
+        ignoreError(function() {
+            ret = obj.toString();
+        });
+        return ret;
+    });
+
+    addMethod(this, "makeArgsObject", function(message, args, ret) {
+        var body = "Arguments: " + message;
+        for (var i = 0; i < args.length; i++)
+            body += "\n    Arguments[" + i + "]: " + $.toString(args[i]);
+        if (ret !== undefined)
+            body += "\n    Return: " + $.toString(ret);
+        return {"arguments": body};
+    });
 
     /**
      * 打印当前参数和返回值
      */
     addMethod(this, "printArguments", function(args, ret) {
-        printArguments(helper.getStackTrace()[0], args, ret);
+        send($.makeArgsObject($.getStackTrace()[0], args, ret));
     });
 
     /**
@@ -337,6 +355,6 @@ function JavaHelper() {
      * :param message:      回显的信息
      */
     addMethod(this, "printArguments", function(message, args, ret) {
-        printArguments(message, args, ret);
+        send($.makeArgsObject(message, args, ret));
     });
 }
