@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : at_adb.py 
-@time    : 2019/03/04
+@file    : at_debug.py 
+@time    : 2019/04/22
 @site    :  
 @software: PyCharm 
 
@@ -26,33 +26,35 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
 from android_tools import utils
-from android_tools.adb import Adb, AdbError
+from android_tools.adb import Device, AdbError
 from android_tools.argparser import AdbArgumentParser
 
 
 def main():
-    general_commands = [
-        "devices",
-        "help",
-        "version",
-        "connect",
-        "disconnect",
-        "keygen",
-        "wait-for-",
-        "start-server",
-        "kill-server",
-        "reconnect",
-    ]
+    parser = AdbArgumentParser(description='debugger')
 
-    parser = AdbArgumentParser(description="adb wrapper")
-    args, extras = parser.parse_known_args()
+    group = parser.add_argument_group(title="common arguments")
+    group.add_argument('package', action='store', default=None,
+                       help='regular expression')
+    group.add_argument('activity', action='store', default=None,
+                       help='regular expression')
+    group.add_argument('-p', '--port', action='store', type=int, default=8700,
+                       help='fetch all apps')
 
-    if not utils.is_empty(extras) and extras[0] not in general_commands:
-        Adb.exec("-s", args.parse_adb_serial(), *extras, capture_output=False)
-    else:
-        Adb.exec(*extras, capture_output=False)
+    args = parser.parse_args()
+    device = Device(args.parse_adb_serial())
+
+    device.shell("am", "force-stop", args.package, capture_output=False)
+    device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_output=False)
+
+    pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
+    device.exec("forward", "tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_output=False)
+
+    data = input("jdb connect? [Y/n]: ").strip()
+    if data in ["", "Y", "y"]:
+        utils.exec("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port),
+                   capture_output=False)
 
 
 if __name__ == '__main__':

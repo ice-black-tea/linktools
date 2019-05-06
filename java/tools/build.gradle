@@ -97,12 +97,14 @@ task buildTools {
         def apkPath = "${apkDir}/${apkName}"
         def apkMd5 = calcMd5(apkPath)
 
+        def resourceDir = file("${rootDir}/../python/android_tools/resource").getAbsolutePath()
+
         def targetPrefix = "android-tools"
         def targetName = "${targetPrefix}-${apkMd5}.apk"
-        def targetDir = "${rootDir}/../python/android_tools/resource"
+        def targetDir = "${resourceDir}/persist"
         def targetPath = "${targetDir}/${targetName}"
 
-        def configPath = "${targetDir}/config/android_tools.json"
+        def configPath = "${resourceDir}/config/android_tools.json"
         def config = readConfig(configPath)
 
         if (config.android_tools_apk == null || config.android_tools_apk.md5 != apkMd5) {

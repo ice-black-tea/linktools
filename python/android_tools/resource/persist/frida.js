@@ -122,11 +122,17 @@ function JavaHelper() {
      * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
      */
     addMethod(this, "hookMethod", function(method, impl) {
-        method.implementation = function() {
-            return impl.call(method, this, arguments);
-        };
-        $.addMethodProperties(method);
-        send("Hook method: " + method);
+        if (impl != null) {
+            method.implementation = function() {
+                return impl.call(method, this, arguments);
+            };
+            $.addMethodProperties(method);
+            send("Hook method: " + method);
+        } else {
+            method.implementation = null;
+            $.addMethodProperties(method);
+            send("Unhook method: " + method);
+        }
     });
 
     /**

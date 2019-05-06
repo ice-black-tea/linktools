@@ -40,17 +40,16 @@ from colorama import Fore
 
 from .adb import Device
 from .resource import resource
-from .utils import Utils
+from .utils import utils
 from .version import __name__
 
 
 class BaseHelper(object):
 
     @staticmethod
+    @resource.config_getter("frida.json", "frida_server")
     def _get_config() -> dict:
-        if not hasattr(BaseHelper, "_config"):
-            setattr(BaseHelper, "_config", resource.get_config("frida.json", "frida_server"))
-        return getattr(BaseHelper, "_config")
+        pass
 
     def __init__(self, device_id: str = None):
         """
@@ -65,7 +64,7 @@ class BaseHelper(object):
 
         self.server_name = self._config["name"].format(**self._config)
         self.server_url = self._config["url"].format(**self._config)
-        self.server_file = resource.get_store_path(self.server_name)
+        self.server_file = resource.get_storage_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
 
     def log(self, tag: object, message: object, **kwargs):
@@ -99,8 +98,8 @@ class BaseHelper(object):
         if not self.device.is_file_exist(self.server_target_file):
             if not os.path.exists(self.server_file):
                 self.log("*", "Download frida server ...")
-                tmp_file = resource.get_store_path(self.server_name + ".tmp")
-                Utils.download(self.server_url, tmp_file)
+                tmp_file = resource.get_storage_path(self.server_name + ".tmp")
+                utils.download(self.server_url, tmp_file)
                 with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
                 os.remove(tmp_file)
@@ -156,7 +155,7 @@ class BaseHelper(object):
         """
         processes = []
         for process in self.frida_device.enumerate_processes():
-            if Utils.is_match(process.name, name):
+            if utils.is_match(process.name, name):
                 processes.append(process)
         return processes
 
@@ -205,7 +204,7 @@ class FridaHelper(BaseHelper):
         """
         super().__init__(device_id)
         self.sessions = []
-        with open(resource.get_path("frida.js"), "rt") as fd:
+        with open(resource.get_persist_path("frida.js"), "rt") as fd:
             self._pre_script_code = fd.read().replace("\n", "")
         self.on_init()
 
@@ -218,8 +217,8 @@ class FridaHelper(BaseHelper):
         :param kwargs: 字体颜色（fore）
         """
         log = "[{0}] {1}".format(tag, str(message).replace("\n", "\n    "))
-        if Utils.is_contain(kwargs, "fore"):
-            log = Utils.get_item(kwargs, "fore") + log
+        if utils.is_contain(kwargs, "fore"):
+            log = utils.get_item(kwargs, "fore") + log
         print(log)
 
     def on_init(self) -> None:
@@ -243,24 +242,24 @@ class FridaHelper(BaseHelper):
         :param data: 收到的数据
         :param kwargs: process_id, process_name, session, script, script_code
         """
-        if Utils.get_item(message, "type") == "send":
-            payload = Utils.get_item(message, "payload")
+        if utils.get_item(message, "type") == "send":
+            payload = utils.get_item(message, "payload")
 
-            stack = Utils.get_item(payload, "stack")
-            if not Utils.is_empty(stack):
+            stack = utils.get_item(payload, "stack")
+            if not utils.is_empty(stack):
                 del payload["stack"]
                 self.log("*", stack, fore=Fore.CYAN)
 
-            arguments = Utils.get_item(payload, "arguments")
-            if not Utils.is_empty(arguments):
+            arguments = utils.get_item(payload, "arguments")
+            if not utils.is_empty(arguments):
                 del payload["arguments"]
                 self.log("*", arguments, fore=Fore.LIGHTMAGENTA_EX)
 
-            if not Utils.is_empty(payload):
+            if not utils.is_empty(payload):
                 self.log("*", payload)
 
-        elif Utils.get_item(message, "type") == "error" and Utils.is_contain(message, "stack"):
-            self.log("*", Utils.get_item(message, "stack"), fore=Fore.RED)
+        elif utils.get_item(message, "type") == "error" and utils.is_contain(message, "stack"):
+            self.log("*", utils.get_item(message, "stack"), fore=Fore.RED)
 
         else:
             self.log("?", message, fore=Fore.RED)
@@ -285,9 +284,9 @@ class FridaHelper(BaseHelper):
 
         self.log("*", "Detach process: %s (%d)" % (process_name, process_id))
 
-        if reason == "process-terminated" and not Utils.is_contain(process_name, ":"):
+        if reason == "process-terminated" and not utils.is_contain(process_name, ":"):
             self.run_script(process_name, script_code, restart=True)
-        if Utils.is_contain(self.sessions, session):
+        if utils.is_contain(self.sessions, session):
             self.sessions.remove(session)
 
     def _run_script(self, process_id: int, process_name: str, script_code: str) -> _frida.Script:

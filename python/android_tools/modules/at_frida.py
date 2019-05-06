@@ -33,10 +33,10 @@ from frida import ServerNotRunningError
 from watchdog.events import *
 from watchdog.observers import Observer
 
+from android_tools import utils
 from android_tools.adb import AdbError
 from android_tools.argparser import AdbArgumentParser
 from android_tools.frida import FridaHelper
-from android_tools.utils import Utils
 
 
 class FridaScript(object):
@@ -89,32 +89,26 @@ def main():
     group = parser.add_argument_group(title="common arguments")
     group.add_argument('-p', '--package', action='store', default=None,
                        help='target package [default top-level package]')
-    _group = group.add_mutually_exclusive_group(required=True)
-    _group.add_argument('-f', '--file', action='store', type=str, default=None,
-                        help='javascript file')
-    _group.add_argument('--code', action='store', type=str, default=None,
-                        help='javascript code')
     group.add_argument('-r', '--restart', action='store_true', default=False,
                        help='inject after restart [default false]')
+    parser.add_argument('file', action='store', default=None,
+                        help='javascript file')
 
     args = parser.parse_args()
     helper = FridaHelper(device_id=args.parse_adb_serial())
 
     package = args.package
-    if Utils.is_empty(package):
+    if utils.is_empty(package):
         package = helper.device.get_top_package()
     restart = args.restart
 
-    if "-f" in sys.argv or "--file" in sys.argv:
-        observer = Observer()
-        path = Utils.abspath(args.file)
-        script = FridaScript(path, helper, package, restart)
-        event_handler = FridaEventHandler(script)
-        observer.schedule(event_handler, os.path.dirname(path))
-        observer.start()
-        script.load()
-    elif "-c" in sys.argv or "--code" in sys.argv:
-        helper.run_script(package, args.code, restart=restart)
+    observer = Observer()
+    path = utils.abspath(args.file)
+    script = FridaScript(path, helper, package, restart)
+    event_handler = FridaEventHandler(script)
+    observer.schedule(event_handler, os.path.dirname(path))
+    observer.start()
+    script.load()
 
     sys.stdin.read()
 
@@ -122,5 +116,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except (KeyboardInterrupt, EOFError, AdbError, ServerNotRunningError) as e:
+    except (KeyboardInterrupt, EOFError, FileNotFoundError) as e:
+        print(e)
+    except (AdbError, ServerNotRunningError) as e:
         print(e)

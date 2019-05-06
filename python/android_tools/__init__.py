@@ -28,3 +28,5 @@
 """
 
 from .version import __name__, __version__, __author__, __email__, __url__
+from .utils import utils
+from .resource import resource

@@ -29,9 +29,10 @@
 import sys
 
 import android_tools
+
+from android_tools import utils
 from android_tools.adb import Device, AdbError
 from android_tools.argparser import AdbArgumentParser
-from android_tools.utils import Utils
 
 
 def main():
@@ -71,13 +72,13 @@ def main():
                      "com.android.settings/com.android.settings.DevelopmentSettings",
                      capture_output=False)
     elif "--setting-app" in sys.argv:
-        package = args.package if not Utils.is_empty(args.package) else device.get_top_package()
+        package = args.package if not utils.is_empty(args.package) else device.get_top_package()
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,
                      capture_output=False)
     elif "--setting-cert" in sys.argv:
-        path = "/data/local/tmp/%s/cert/%s" % (android_tools.__name__, Utils.basename(args.path))
+        path = "/data/local/tmp/%s/cert/%s" % (android_tools.__name__, utils.basename(args.path))
         device.exec("push", args.path, path, capture_output=False)
         device.shell("am", "start", "--user", "0",
                      "-n", "com.android.certinstaller/.CertInstallerMain",
@@ -86,7 +87,7 @@ def main():
                      "-d", "file://%s" % path,
                      capture_output=False)
     elif "--install" in sys.argv:
-        path = device.get_save_path(Utils.basename(args.path))
+        path = device.get_storage_path(utils.basename(args.path))
         device.exec("push", args.path, path, capture_output=False)
         device.shell("am", "start", "--user", "0",
                      "-a", "android.intent.action.VIEW",

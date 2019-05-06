@@ -30,9 +30,9 @@
 import datetime
 import sys
 
+from android_tools import utils
 from android_tools.adb import Device, AdbError
 from android_tools.argparser import AdbArgumentParser
-from android_tools.utils import Utils
 
 
 def main():
@@ -66,17 +66,17 @@ def main():
         device.shell("am", "force-stop", device.get_top_package(), capture_output=False)
     elif "--apk" in sys.argv:
         package = device.get_top_package()
-        path = device.get_save_path(package + ".apk")
-        dest = args.dest if not Utils.is_empty(args.dest) else "."
-        device.shell("mkdir", "-p", device.get_save_path(), capture_output=False)
+        path = device.get_storage_path(package + ".apk")
+        dest = args.dest if not utils.is_empty(args.dest) else "."
+        device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
         device.shell("cp", device.get_apk_path(package), path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)
     elif "--screen" in sys.argv:
         now = datetime.datetime.now()
-        path = device.get_save_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
-        dest = args.dest if not Utils.is_empty(args.dest) else "."
-        device.shell("mkdir", "-p", device.get_save_path(), capture_output=False)
+        path = device.get_storage_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
+        dest = args.dest if not utils.is_empty(args.dest) else "."
+        device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
         device.shell("screencap", "-p", path, capture_output=False)
         device.exec("pull", path, dest, capture_output=False)
         device.shell("rm", path)

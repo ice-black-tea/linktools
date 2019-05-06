@@ -1,0 +1,14 @@
+package debug;
+
+import android.tools.command.Command;
+
+import com.beust.jcommander.Parameters;
+
+@Parameters(commandNames = "debug")
+public class DebugCommand extends Command {
+
+    @Override
+    public void run() throws Exception {
+        throw new Exception("not implemented");
+    }
+}

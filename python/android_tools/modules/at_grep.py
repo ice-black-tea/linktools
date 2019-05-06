@@ -38,8 +38,8 @@ import zipfile
 import magic
 from colorama import Fore
 
+from android_tools import utils
 from android_tools.argparser import ArgumentParser
-from android_tools.utils import Utils
 
 
 def match_handler(fn):
@@ -80,7 +80,7 @@ class GrepMatcher:
         if not os.path.exists(filename):
             return
         mimetype = magic.from_file(filename, mime=True)
-        handler = Utils.get_item(self.handlers, mimetype)
+        handler = utils.get_item(self.handlers, mimetype)
         if handler is not None:
             if handler(filename):
                 return
@@ -113,7 +113,7 @@ class GrepMatcher:
                     out = out + Fore.RESET + str(line[last:start], encoding="utf-8")
                     out = out + Fore.RED + str(line[start:end], encoding="utf-8")
                     last = end
-                if not Utils.is_empty(out):
+                if not utils.is_empty(out):
                     print(Fore.CYAN + filename +
                           Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
                           Fore.RESET + ": " + out +
@@ -133,12 +133,12 @@ class GrepMatcher:
 def main():
     parser = ArgumentParser(description='match files with regular expression')
 
+    parser.add_argument('-i', '--ignore-case', action='store_true', default=False,
+                        help='ignore case')
     parser.add_argument('pattern', action='store', default=None,
                         help='regular expression')
     parser.add_argument('files', metavar="file", action='store', nargs='*', default=None,
                         help='target files path')
-    parser.add_argument('-i', '--ignore-case', action='store_true', default=False,
-                        help='ignore case')
 
     args = parser.parse_args()
 
@@ -147,7 +147,7 @@ def main():
         flags = flags | re.I
     pattern = re.compile(bytes(args.pattern, encoding="utf8"), flags=flags)
 
-    if Utils.is_empty(args.files):
+    if utils.is_empty(args.files):
         args.files = ["."]
 
     for file in args.files:

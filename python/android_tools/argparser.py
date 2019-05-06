@@ -30,9 +30,9 @@ import argparse
 import time
 import types
 
-from android_tools.adb import Adb, AdbError, Device
-from android_tools.resource import resource
-from android_tools.utils import Utils
+from .adb import Adb, AdbError, Device
+from .resource import resource
+from .utils import utils
 from .version import __version__
 
 
@@ -67,7 +67,7 @@ class AdbArgumentParser(ArgumentParser):
         namespace, extras = super()._parse_known_args(arg_strings, namespace)
 
         def load_last_device():
-            path = resource.get_store_path(".adb.device.config", create_file=True)
+            path = resource.get_storage_path("adb_device.txt", create_file=True)
             try:
                 with open(path, "rt") as fd:
                     return fd.read()
@@ -75,7 +75,7 @@ class AdbArgumentParser(ArgumentParser):
                 return None
 
         def save_last_device(device):
-            path = resource.get_store_path(".adb.device.config", create_file=True)
+            path = resource.get_storage_path("adb_device.txt", create_file=True)
             try:
                 with open(path, "wt+") as fd:
                     fd.write(device)
@@ -89,7 +89,7 @@ class AdbArgumentParser(ArgumentParser):
             if adb_options.adb_index:
                 devices = Adb.devices(alive=False)
                 index = adb_options.adb_index
-                if Utils.is_empty(devices):
+                if utils.is_empty(devices):
                     raise AdbError("error: no devices/emulators found")
                 if not 0 < index <= len(devices):
                     raise AdbError("error: index %d out of range (%d ~ %d)" % (index, 1, len(devices)))
@@ -128,10 +128,10 @@ class AdbArgumentParser(ArgumentParser):
                         print("%d: %-20s [%s]" % (i + 1, devices[i], name))
                     while True:
                         data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
-                        if Utils.is_empty(data):
+                        if utils.is_empty(data):
                             index = 1 - 1
                             break
-                        index = Utils.cast(int, data, -1) - 1
+                        index = utils.cast(int, data, -1) - 1
                         if 0 <= index < len(devices):
                             break
                     if index >= 0 or index < len(devices):

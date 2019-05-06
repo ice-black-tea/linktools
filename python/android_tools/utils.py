@@ -38,39 +38,36 @@ import requests
 from tqdm import tqdm, TqdmSynchronisationWarning
 
 
-class _Process(subprocess.Popen):
-
-    def __init__(self, *args, **kwargs):
-        """
-        :param args: 参数
-        """
-        self.out = ""
-        self.err = ""
-        self.capture_output = Utils.get_item(kwargs, "capture_output")
-        if self.capture_output is True:
-            kwargs["stdout"] = Utils.PIPE
-            kwargs["stderr"] = Utils.PIPE
-        if self.capture_output is not None:
-            del kwargs["capture_output"]
-        subprocess.Popen.__init__(self, args, shell=False, **kwargs)
-
-    def communicate(self, **kwargs):
-        out, err = None, None
-        try:
-            out, err = subprocess.Popen.communicate(self, **kwargs)
-            if self.capture_output and out is not None:
-                self.out = self.out + out.decode(errors='ignore')
-            if self.capture_output and err is not None:
-                self.err = self.err + err.decode(errors='ignore')
-            return out, err
-        except Exception as e:
-            self.err = self.err + str(e)
-        return out, err
-
-
 class Utils:
-    PIPE = subprocess.PIPE
-    STDOUT = subprocess.STDOUT
+
+    class Process(subprocess.Popen):
+
+        def __init__(self, *args, **kwargs):
+            """
+            :param args: 参数
+            """
+            self.out = ""
+            self.err = ""
+            self.capture_output = utils.get_item(kwargs, "capture_output")
+            if self.capture_output is True:
+                kwargs["stdout"] = subprocess.PIPE
+                kwargs["stderr"] = subprocess.PIPE
+            if self.capture_output is not None:
+                del kwargs["capture_output"]
+            subprocess.Popen.__init__(self, args, shell=False, **kwargs)
+
+        def communicate(self, **kwargs):
+            out, err = None, None
+            try:
+                out, err = subprocess.Popen.communicate(self, **kwargs)
+                if self.capture_output and out is not None:
+                    self.out = self.out + out.decode(errors='ignore')
+                if self.capture_output and err is not None:
+                    self.err = self.err + err.decode(errors='ignore')
+                return out, err
+            except Exception as e:
+                self.err = self.err + str(e)
+            return out, err
 
     # noinspection PyShadowingBuiltins
     @staticmethod
@@ -95,7 +92,7 @@ class Utils:
         :param default: 默认值
         :return: 转换后的值
         """
-        return Utils.cast(int, obj, default=default)
+        return utils.cast(int, obj, default=default)
 
     @staticmethod
     def bool(obj: object, default: bool = False) -> bool:
@@ -105,7 +102,7 @@ class Utils:
         :param default: 默认值
         :return: 转换后的值
         """
-        return Utils.cast(bool, obj, default=default)
+        return utils.cast(bool, obj, default=default)
 
     @staticmethod
     def findall(string: str, reg: str) -> [str]:
@@ -203,7 +200,7 @@ class Utils:
         :param default: 默认值
         :return: 子项
         """
-        objs = Utils.get_item(obj, *keys, default=None)
+        objs = utils.get_item(obj, *keys, default=None)
         if objs is None or not isinstance(objs, Iterable):
             return default
         array = []
@@ -218,13 +215,13 @@ class Utils:
         return array
 
     @staticmethod
-    def exec(*args, **kwargs) -> _Process:
+    def exec(*args, **kwargs) -> Process:
         """
         执行命令
         :param args: 参数
         :return: 子进程
         """
-        process = _Process(*args, **kwargs)
+        process = Utils.Process(*args, **kwargs)
         process.communicate()
         return process
 
@@ -280,3 +277,6 @@ class Utils:
             pbar.close()
         os.rename(tmp_path, path)
         return size
+
+
+utils = Utils

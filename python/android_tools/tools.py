@@ -34,7 +34,7 @@ from urllib.parse import quote
 
 from .decorator import singleton
 from .resource import resource
-from .utils import Utils, _Process
+from .utils import utils
 
 
 class ConfigTool(object):
@@ -58,30 +58,30 @@ class ConfigTool(object):
         config = self._merge_config(self.origin_config, parent, self.system)
 
         # download url
-        url = Utils.get_item(config, "url", default="").format(**config)
-        if not Utils.is_empty(url):
+        url = utils.get_item(config, "url", default="").format(**config)
+        if not utils.is_empty(url):
             config["url"] = url
 
         # unpack path
-        unpack = Utils.get_item(config, "unpack", default="").format(**config)
+        unpack = utils.get_item(config, "unpack", default="").format(**config)
         config["unpack"] = ""
-        if not Utils.is_empty(unpack):
-            config["unpack"] = resource.get_store_path(unpack, create_dir=True)
+        if not utils.is_empty(unpack):
+            config["unpack"] = resource.get_storage_path(unpack, create_dir=True)
 
         # file path
-        path = Utils.get_item(config, "path", default="").format(**config)
-        if not Utils.is_empty(path):
-            config["path"] = resource.get_store_path(path)
+        path = utils.get_item(config, "path", default="").format(**config)
+        if not utils.is_empty(path):
+            config["path"] = resource.get_storage_path(path)
 
         # set executable
-        cmd = Utils.get_item(config, "cmd", default="")
-        if not Utils.is_empty(cmd):
+        cmd = utils.get_item(config, "cmd", default="")
+        if not utils.is_empty(cmd):
             cmd = shutil.which(cmd)
-        if not Utils.is_empty(cmd):
+        if not utils.is_empty(cmd):
             config["path"] = cmd
             config["executable"] = [cmd]
         else:
-            executable = Utils.get_item(config, "executable", default=[config["path"]]).copy()
+            executable = utils.get_item(config, "executable", default=[config["path"]]).copy()
             for i in range(len(executable)):
                 executable[i] = executable[i].format(**config)
             config["executable"] = executable
@@ -91,26 +91,26 @@ class ConfigTool(object):
     def download(self, force: bool = False) -> None:
         self.init_config()
         if not os.path.exists(self.config["path"]) or force:
-            file = resource.get_store_path(quote(self.config["url"], safe=''))
-            Utils.download(self.config["url"], file)
-            if not Utils.is_empty(self.config["unpack"]):
+            file = resource.get_storage_path(quote(self.config["url"], safe=''))
+            utils.download(self.config["url"], file)
+            if not utils.is_empty(self.config["unpack"]):
                 shutil.unpack_archive(file, self.config["unpack"])
                 os.remove(file)
             else:
                 os.rename(file, self.config["path"])
 
-    def exec(self, *args: [str], **kwargs) -> _Process:
+    def exec(self, *args: [str], **kwargs) -> utils.Process:
         self.download(force=False)
         executable = self.config["executable"]
         if executable[0] == "python":
             args = [sys.executable, *executable[1:], *args]
-            return Utils.exec(*args, **kwargs)
+            return utils.exec(*args, **kwargs)
         if executable[0] in tools.items:
             tool = tools.items[executable[0]]
             return tool.exec(*[*executable[1:], *args], **kwargs)
         if not os.access(executable[0], os.X_OK):
             os.chmod(executable[0], 0o0755)
-        return Utils.exec(*[*executable, *args], **kwargs)
+        return utils.exec(*[*executable, *args], **kwargs)
 
     @staticmethod
     def _merge_config(config: dict, parent: dict, system: str) -> dict:
@@ -131,7 +131,7 @@ class ConfigTool(object):
 
     @staticmethod
     def _fix_config(config: dict, system: str) -> dict:
-        obj = Utils.get_item(config, system, default=None)
+        obj = utils.get_item(config, system, default=None)
         if obj is not None:
             for key, value in obj.items():
                 config[key] = value
@@ -140,7 +140,7 @@ class ConfigTool(object):
     @staticmethod
     def _fix_config_value(config: dict, system: str) -> dict:
         for key in config.keys():
-            value = Utils.get_item(config[key], system, default=None)
+            value = utils.get_item(config[key], system, default=None)
             if value is not None:
                 config[key] = value
         return config
@@ -150,10 +150,9 @@ class ConfigTool(object):
 class ConfigTools(object):
 
     @staticmethod
+    @resource.config_getter("tools.json", "tools")
     def _get_config() -> dict:
-        if not hasattr(ConfigTools, "_config"):
-            setattr(ConfigTools, "_config", resource.get_config("tools.json", "tools"))
-        return getattr(ConfigTools, "_config")
+        pass
 
     def __init__(self):
         self._exclude = ["darwin", "linux", "windows"]
@@ -166,7 +165,7 @@ class ConfigTools(object):
                 continue
             tool = ConfigTool(system, name, config)
             self._append(name, tool)
-            for sub_name, sub_config in Utils.get_item(config, "items", default={}).items():
+            for sub_name, sub_config in utils.get_item(config, "items", default={}).items():
                 if sub_name in self._exclude:
                     continue
                 sub_tool = ConfigTool(system, sub_name, sub_config, tool)
@@ -180,7 +179,7 @@ class ConfigTools(object):
         return iter(self.items.values())
 
     def __getitem__(self, item):
-        return Utils.get_item(self.items, item, default=None)
+        return utils.get_item(self.items, item, default=None)
 
 
 tools = ConfigTools()

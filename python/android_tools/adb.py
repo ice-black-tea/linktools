@@ -30,8 +30,8 @@ import getpass
 
 from .resource import resource
 from .tools import tools
-from .utils import Utils
-from .version import __name__, __version__
+from .utils import utils
+from .version import __name__
 
 
 class AdbError(Exception):
@@ -74,7 +74,7 @@ class Adb(object):
         :return: 输出结果
         """
         process = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
-        if process.returncode != 0 and not Utils.is_empty(process.err):
+        if process.returncode != 0 and not utils.is_empty(process.err):
             raise AdbError(process.err)
         return process.out
 
@@ -82,10 +82,9 @@ class Adb(object):
 class Device(object):
 
     @staticmethod
+    @resource.config_getter("android_tools.json", "android_tools_apk")
     def _get_tools_config() -> dict:
-        if not hasattr(Device, "_tools_config"):
-            setattr(Device, "_tools_config", resource.get_config("android_tools.json", "android_tools_apk"))
-        return getattr(Device, "_tools_config")
+        pass
 
     def __init__(self, device_id: str = None):
         """
@@ -134,7 +133,7 @@ class Device(object):
         """
         default = -1
         result = self.shell("echo", "-n", "${USER_ID}")
-        uid = Utils.int(result, default=default)
+        uid = utils.int(result, default=default)
         if uid != default:
             return uid
         raise AdbError("unknown adb uid: %s" % result)
@@ -185,9 +184,9 @@ class Device(object):
         flag_begin = config["flag_begin"]
         flag_end = config["flag_end"]
 
-        apk_path = resource.get_path(apk_name)
-        target_dir = self.get_save_path("apk")
-        target_path = self.get_save_path("apk", apk_name)
+        apk_path = resource.get_persist_path(apk_name)
+        target_dir = self.get_storage_path("apk")
+        target_path = self.get_storage_path("apk", apk_name)
 
         # check apk path
         if not self.is_file_exist(target_path):
@@ -256,7 +255,7 @@ class Device(object):
         :return: 是否存在
         """
         result = self.shell("[", "-a", path, "]", "&&", "echo", "-n ", "1")
-        return Utils.bool(Utils.int(result, default=0), default=False)
+        return utils.bool(utils.int(result, default=0), default=False)
 
     def get_top_package(self) -> str:
         """
@@ -271,7 +270,7 @@ class Device(object):
                 return items[1].split("/")[0]
         # use dex instead of dumpsys
         result = self.call_tools("common", "--top-package")
-        if not Utils.is_empty(result):
+        if not utils.is_empty(result):
             return result
         raise AdbError("can not fetch top package")
 
@@ -293,27 +292,17 @@ class Device(object):
         :return: apk路径
         """
         if self.uid < 10000:
-            return Utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
+            return utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
         return self.call_tools("common", "--apk-path", package)
 
-    def get_save_path(self, *paths: [str]) -> str:
+    # noinspection PyMethodMayBeStatic
+    def get_storage_path(self, *paths: [str]) -> str:
         """
         存储文件路径
         :param paths: 文件名
         :return: 路径
         """
         return "/sdcard/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
-
-    # def jdb_connect(self, pid: str, port: str = "8699") -> _process:
-    #     """
-    #     连接jdb，取消等待调试器附加状态，让应用继续运行
-    #     :param pid: 进程号
-    #     :param port: 端口号
-    #     :return: jdb子进程
-    #     """
-    #     self.exec("forward", "tcp:%s" % port, "jdwp:%s" % pid)
-    #     jdb_command = "jdb -connect com.sun.jdi.SocketAttach:hostname=127.0.0.1,port=%s" % port
-    #     return utils.exec(jdb_command, stdin=utils.PIPE, stdout=utils.PIPE, stderr=utils.PIPE)
 
     @staticmethod
     def _get_fix_package(package_name) -> str:

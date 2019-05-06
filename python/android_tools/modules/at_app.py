@@ -31,10 +31,10 @@ import json
 import colorama
 from colorama import Fore, Style, Back
 
+from android_tools import utils
 from android_tools.adb import Device, AdbError
 from android_tools.argparser import AdbArgumentParser
 from android_tools.struct import Package, Permission, Component, Activity, Service, Receiver, Provider, IntentFilter
-from android_tools.utils import Utils
 
 
 class PrintLevel:
@@ -121,7 +121,7 @@ class PackagePrinter:
         self.stream.print_line()
 
     def print_requested_permissions(self, indent: int = 4):
-        if not Utils.is_empty(self.package.requestedPermissions):
+        if not utils.is_empty(self.package.requestedPermissions):
             stream = self.stream.create(max_level=PrintLevel.normal)
             self.stream.print("RequestedPermissions:", indent=indent, level=self.stream.title)
             for permission in self.package.requestedPermissions:
@@ -129,35 +129,35 @@ class PackagePrinter:
             self.stream.print_line()
 
     def print_permissions(self, indent: int = 4):
-        if not Utils.is_empty(self.package.permissions):
+        if not utils.is_empty(self.package.permissions):
             self.stream.print("Permissions:", indent=indent, level=self.stream.title)
             for permission in self.package.permissions:
                 self._print_permission(self.stream, permission, indent=indent + 4, identity="Permission")
             self.stream.print_line()
 
     def print_activities(self, indent: int = 4):
-        if not Utils.is_empty(self.package.activities):
+        if not utils.is_empty(self.package.activities):
             self.stream.print("Activities:", indent=indent, level=self.stream.title)
             for activity in self.package.activities:
                 self._print_component(self.stream, activity, indent=indent + 4, identity="Activity")
             self.stream.print_line()
 
     def print_services(self, indent: int = 4):
-        if not Utils.is_empty(self.package.services):
+        if not utils.is_empty(self.package.services):
             self.stream.print("Services:", indent=indent, level=self.stream.title)
             for service in self.package.services:
                 self._print_component(self.stream, service, indent=indent + 4, identity="Service")
             self.stream.print_line()
 
     def print_receivers(self, indent: int = 4):
-        if not Utils.is_empty(self.package.receivers):
+        if not utils.is_empty(self.package.receivers):
             self.stream.print("Receivers:", indent=indent, level=self.stream.title)
             for receiver in self.package.receivers:
                 self._print_component(self.stream, receiver, indent=indent + 4, identity="Receiver")
             self.stream.print_line()
 
     def print_providers(self, indent: int = 4):
-        if not Utils.is_empty(self.package.providers):
+        if not utils.is_empty(self.package.providers):
             self.stream.print("Providers:", indent=indent, level=self.stream.title)
             for provider in self.package.providers:
                 self._print_component(self.stream, provider, indent=indent + 4, identity="Provider")
@@ -203,7 +203,7 @@ class PackagePrinter:
                 PackagePrinter._print_permission(stream, permission.writePermission, indent=indent + 8,
                                                  identity="writePermission")
 
-        if not Utils.is_empty(component.intents):
+        if not utils.is_empty(component.intents):
             for intent in component.intents:
                 PackagePrinter._print_intent(stream, intent, indent=indent + 4, level=level)
 
@@ -256,7 +256,7 @@ def main():
     dex_args = ["package"]
     if args.top:
         dex_args.extend(["--packages", device.get_top_package()])
-    elif not Utils.is_empty(args.packages):
+    elif not utils.is_empty(args.packages):
         dex_args.extend(["--packages", *args.packages])
     elif args.system:
         dex_args.append("--system")
@@ -266,8 +266,8 @@ def main():
         dex_args.append("--basic-info")
 
     objs = json.loads(device.call_tools(*dex_args, capture_output=True))
-    if not Utils.is_empty(args.order_by):
-        objs = sorted(objs, key=lambda x: [Utils.get_item(x, k, default="") for k in args.order_by])
+    if not utils.is_empty(args.order_by):
+        objs = sorted(objs, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])
 
     min_level = PrintLevel.min
     if args.dangerous:
