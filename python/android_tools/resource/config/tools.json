@@ -107,6 +107,23 @@
                     }
                 }
             }
+        },
+        "aapt": {
+            "cmd": "aapt",
+            "version": "v0.2-4913185",
+            "unpack": "{system}/aapt-{version}",
+            "darwin": {
+                "url": "https://dl.androidaapt.com/aapt-macos.zip",
+                "path": "{unpack}/aapt"
+            },
+            "linux": {
+                "url": "https://dl.androidaapt.com/aapt-linux.zip",
+                "path": "{unpack}/aapt"
+            },
+            "windows": {
+                "url": "https://dl.androidaapt.com/aapt-windows.zip",
+                "path": "{unpack}/aapt.exe"
+            }
         }
     }
 }

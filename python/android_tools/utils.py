@@ -32,14 +32,13 @@ import re
 import subprocess
 import warnings
 from collections import Iterable
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 
 import requests
 from tqdm import tqdm, TqdmSynchronisationWarning
 
 
 class Utils:
-
     class Process(subprocess.Popen):
 
         def __init__(self, *args, **kwargs):
@@ -259,12 +258,14 @@ class Utils:
             offset = os.path.getsize(tmp_path)
         else:
             offset = 0
-        size = int(urlopen(url).info().get('Content-Length', -1))
+
+        user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36"
+        size = int(urlopen(Request(url, headers={"User-Agent": user_agent})).info().get('Content-Length', -1))
         if size == -1:
             raise Exception("error Content-Length")
         if offset >= size:
             return size
-        header = {"Range": "bytes=%s-%s" % (offset, size)}
+        header = {"User-Agent": user_agent, "Range": "bytes=%s-%s" % (offset, size)}
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             pbar = tqdm(total=size, initial=offset, unit='B', unit_scale=True, desc=url.split('/')[-1])
