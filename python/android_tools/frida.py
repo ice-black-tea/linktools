@@ -39,17 +39,13 @@ import frida
 from colorama import Fore
 
 from .adb import Device
+from .decorator import cached_property
 from .resource import resource
 from .utils import utils
 from .version import __name__
 
 
 class BaseHelper(object):
-
-    @staticmethod
-    @resource.config_getter("frida.json", "frida_server")
-    def _get_config() -> dict:
-        pass
 
     def __init__(self, device_id: str = None):
         """
@@ -58,14 +54,17 @@ class BaseHelper(object):
         self.device = Device(device_id=device_id)
         self.frida_device = frida.get_device(self.device.id)
 
-        self._config = self._get_config()
-        self._config["version"] = frida.__version__
-        self._config["abi"] = self.device.abi
-
-        self.server_name = self._config["name"].format(**self._config)
-        self.server_url = self._config["url"].format(**self._config)
+        self.server_name = self.config["name"].format(**self.config)
+        self.server_url = self.config["url"].format(**self.config)
         self.server_file = resource.get_storage_path(self.server_name)
         self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
+
+    @cached_property
+    def config(self) -> dict:
+        config = resource.get_config("frida.json", "frida_server").copy()
+        config["version"] = frida.__version__
+        config["abi"] = self.device.abi
+        return config
 
     def log(self, tag: object, message: object, **kwargs):
         """

@@ -32,7 +32,7 @@ import shutil
 import sys
 from urllib.parse import quote
 
-from .decorator import singleton
+from .decorator import cached_property
 from .resource import resource
 from .utils import utils
 
@@ -42,14 +42,11 @@ class ConfigTool(object):
     def __init__(self, system: str, name: str, config: dict, parent: object = None):
         self.name = name
         self.system = system
-        self.config = None
         self.parent = parent
         self.origin_config = config
 
-    def init_config(self) -> None:
-        if self.config is not None:
-            return
-
+    @cached_property
+    def config(self) -> dict:
         # fix config
         parent = None
         if self.parent is not None:
@@ -86,18 +83,16 @@ class ConfigTool(object):
                 executable[i] = executable[i].format(**config)
             config["executable"] = executable
 
-        self.config = config
+        return config
 
-    def download(self, force: bool = False) -> None:
-        self.init_config()
-        if not os.path.exists(self.config["path"]) or force:
-            file = resource.get_storage_path(quote(self.config["url"], safe=''))
-            utils.download(self.config["url"], file)
-            if not utils.is_empty(self.config["unpack"]):
-                shutil.unpack_archive(file, self.config["unpack"])
-                os.remove(file)
-            else:
-                os.rename(file, self.config["path"])
+    def download(self) -> None:
+        file = resource.get_storage_path(quote(self.config["url"], safe=''))
+        utils.download(self.config["url"], file)
+        if not utils.is_empty(self.config["unpack"]):
+            shutil.unpack_archive(file, self.config["unpack"])
+            os.remove(file)
+        else:
+            os.rename(file, self.config["path"])
 
     def exec(self, *args: [str], **kwargs: dict) -> utils.Process:
         return self._exec(utils.exec, *args, **kwargs)
@@ -106,7 +101,8 @@ class ConfigTool(object):
         return self._exec(utils.popen, *args, **kwargs)
 
     def _exec(self, func, *args: [str], **kwargs: dict) -> utils.Process:
-        self.download(force=False)
+        if not os.path.exists(self.config["path"]):
+            self.download()
         executable = self.config["executable"]
         if executable[0] == "python":
             args = [sys.executable, *executable[1:], *args]
@@ -152,21 +148,19 @@ class ConfigTool(object):
         return config
 
 
-@singleton
 class ConfigTools(object):
 
-    @staticmethod
-    @resource.config_getter("tools.json", "tools")
-    def _get_config() -> dict:
-        pass
-
-    def __init__(self):
+    def __init__(self, system: str = platform.system().lower()):
         self._exclude = ["darwin", "linux", "windows"]
         self.items = {}
-        self.init()
+        self.init(system)
 
-    def init(self, system: str = platform.system().lower()):
-        for name, config in self._get_config().items():
+    @cached_property
+    def config(self) -> dict:
+        return resource.get_config("tools.json", "tools")
+
+    def init(self, system: str):
+        for name, config in self.config.items():
             if name in self._exclude:
                 continue
             tool = ConfigTool(system, name, config)

@@ -40,6 +40,10 @@ from tqdm import tqdm, TqdmSynchronisationWarning
 
 class Utils:
 
+    PIPE = subprocess.PIPE
+    STDOUT = subprocess.STDOUT
+    DEVNULL = subprocess.DEVNULL
+
     class Process(subprocess.Popen):
 
         def __init__(self, *args, **kwargs):
@@ -179,6 +183,7 @@ class Utils:
             if obj is None:
                 return default
             try:
+                # noinspection PyUnresolvedReferences
                 obj = obj[key]
             except:
                 return default

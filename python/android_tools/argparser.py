@@ -28,7 +28,6 @@
 """
 import argparse
 import time
-import types
 
 from .adb import Adb, AdbError, Device
 from .resource import resource
@@ -65,82 +64,88 @@ class AdbArgumentParser(ArgumentParser):
 
     def _parse_known_args(self, arg_strings, namespace):
         namespace, extras = super()._parse_known_args(arg_strings, namespace)
+        return _NamespaceWrapper(namespace), extras
 
-        def load_last_device():
-            path = resource.get_storage_path("adb_device.txt", create_file=True)
-            try:
-                with open(path, "rt") as fd:
-                    return fd.read()
-            except:
-                return None
 
-        def save_last_device(device):
-            path = resource.get_storage_path("adb_device.txt", create_file=True)
-            try:
-                with open(path, "wt+") as fd:
-                    fd.write(device)
-            except:
-                pass
+class _NamespaceWrapper:
 
-        def parse_adb_serial(adb_options):
-            if adb_options.adb_last:
-                setattr(adb_options, "adb_serial", load_last_device())
+    def __init__(self, namespace):
+        self.namespace = namespace
 
-            if adb_options.adb_index:
-                devices = Adb.devices(alive=False)
-                index = adb_options.adb_index
-                if utils.is_empty(devices):
-                    raise AdbError("error: no devices/emulators found")
-                if not 0 < index <= len(devices):
-                    raise AdbError("error: index %d out of range (%d ~ %d)" % (index, 1, len(devices)))
-                index = index - 1
-                setattr(adb_options, "adb_serial", devices[index])
+    def __getattr__(self, name):
+        return getattr(self.namespace, name)
 
-            if adb_options.adb_connect:
-                addr = adb_options.adb_connect
-                if addr.find(":") < 0:
-                    addr = addr + ":5555"
-                devices = Adb.devices(alive=False)
-                if addr not in devices:
-                    Adb.exec("connect", addr, capture_output=False)
-                    time.sleep(0.5)
-                setattr(adb_options, "adb_serial", addr)
+    def load_last_device(self):
+        path = resource.get_storage_path("adb_device.txt", create_file=True)
+        try:
+            with open(path, "rt") as fd:
+                return fd.read()
+        except:
+            return None
 
-            if adb_options.adb_device:
-                setattr(adb_options, "adb_serial", Adb.exec("-d", "get-serialno").strip(" \r\n"))
+    def save_last_device(self, device):
+        path = resource.get_storage_path("adb_device.txt", create_file=True)
+        try:
+            with open(path, "wt+") as fd:
+                fd.write(device)
+        except:
+            pass
 
-            if adb_options.adb_emulator:
-                setattr(adb_options, "adb_serial", Adb.exec("-e", "get-serialno").strip(" \r\n"))
+    def parse_adb_serial(self):
+        if self.adb_last:
+            setattr(self, "adb_serial", self.load_last_device())
 
-            if not adb_options.adb_serial:
-                devices = Adb.devices(alive=True)
-                if len(devices) == 0:
-                    raise AdbError("error: no devices/emulators found")
-                elif len(devices) == 1:
-                    setattr(adb_options, "adb_serial", next(iter(devices)))
-                else:
-                    print("more than one device/emulator")
-                    for i in range(len(devices)):
-                        try:
-                            name = Device(devices[i]).get_prop("ro.product.name")
-                        except:
-                            name = ""
-                        print("%d: %-20s [%s]" % (i + 1, devices[i], name))
-                    while True:
-                        data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
-                        if utils.is_empty(data):
-                            index = 1 - 1
-                            break
-                        index = utils.cast(int, data, -1) - 1
-                        if 0 <= index < len(devices):
-                            break
-                    if index >= 0 or index < len(devices):
-                        setattr(adb_options, "adb_serial", devices[index])
+        if self.adb_index:
+            devices = Adb.devices(alive=False)
+            index = self.adb_index
+            if utils.is_empty(devices):
+                raise AdbError("error: no devices/emulators found")
+            if not 0 < index <= len(devices):
+                raise AdbError("error: index %d out of range (%d ~ %d)" % (index, 1, len(devices)))
+            index = index - 1
+            setattr(self, "adb_serial", devices[index])
 
-            save_last_device(adb_options.adb_serial)
+        if self.adb_connect:
+            addr = self.adb_connect
+            if addr.find(":") < 0:
+                addr = addr + ":5555"
+            devices = Adb.devices(alive=False)
+            if addr not in devices:
+                Adb.exec("connect", addr, capture_output=False)
+                time.sleep(0.5)
+            setattr(self, "adb_serial", addr)
 
-            return adb_options.adb_serial
+        if self.adb_device:
+            setattr(self, "adb_serial", Adb.exec("-d", "get-serialno").strip(" \r\n"))
 
-        setattr(namespace, "parse_adb_serial", types.MethodType(parse_adb_serial, namespace))
+        if self.adb_emulator:
+            setattr(self, "adb_serial", Adb.exec("-e", "get-serialno").strip(" \r\n"))
 
-        return namespace, extras
+        if not self.adb_serial:
+            devices = Adb.devices(alive=True)
+            if len(devices) == 0:
+                raise AdbError("error: no devices/emulators found")
+            elif len(devices) == 1:
+                setattr(self, "adb_serial", next(iter(devices)))
+            else:
+                print("more than one device/emulator")
+                for i in range(len(devices)):
+                    try:
+                        name = Device(devices[i]).get_prop("ro.product.name")
+                    except:
+                        name = ""
+                    print("%d: %-20s [%s]" % (i + 1, devices[i], name))
+                while True:
+                    data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
+                    if utils.is_empty(data):
+                        index = 1 - 1
+                        break
+                    index = utils.cast(int, data, -1) - 1
+                    if 0 <= index < len(devices):
+                        break
+                if index >= 0 or index < len(devices):
+                    setattr(self, "adb_serial", devices[index])
+
+        self.save_last_device(self.adb_serial)
+
+        return self.adb_serial

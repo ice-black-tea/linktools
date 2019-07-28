@@ -38,15 +38,16 @@ class Resource(object):
     _res_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resource")
 
     def __init__(self):
-        self.config = None
+        self.configs = {}
 
     def _get_path(self, *paths: [str]):
         return os.path.join(self._res_path, *paths)
 
     def get_config(self, path: str, *key: [str]):
-        with open(self._get_path("config", path), "rt") as fd:
-            config = json.load(fd)
-        return utils.get_item(config, *key)
+        if path not in self.configs:
+            with open(self._get_path("config", path), "rt") as fd:
+                self.configs[path] = json.load(fd)
+        return utils.get_item(self.configs[path], *key)
 
     def get_persist_path(self, *paths: [str]):
         return self._get_path("persist", *paths)
@@ -61,20 +62,6 @@ class Resource(object):
             if not os.path.exists(path):
                 open(path, 'a').close()
         return path
-
-    def config_getter(self, path: str, *key: [str]):
-        configs = {}
-
-        # noinspection PyUnusedLocal
-        def decorator(fn):
-            # noinspection PyUnusedLocal
-            def wrapper(*args, **kwargs):
-                if path not in configs:
-                    with open(self._get_path("config", path), "rt") as fd:
-                        configs[path] = json.load(fd)
-                return utils.get_item(configs[path], *key)
-            return wrapper
-        return decorator
 
 
 resource = Resource()

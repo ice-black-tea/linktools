@@ -28,6 +28,7 @@
 """
 import getpass
 
+from .decorator import cached_property
 from .resource import resource
 from .tools import tools
 from .utils import utils, Utils
@@ -85,11 +86,6 @@ class Adb(object):
 
 class Device(object):
 
-    @staticmethod
-    @resource.config_getter("android_tools.json", "android_tools_apk")
-    def _get_tools_config() -> dict:
-        pass
-
     def __init__(self, device_id: str = None):
         """
         :param device_id: 设备号
@@ -104,7 +100,11 @@ class Device(object):
         else:
             self._device_id = device_id
 
-    @property
+    @cached_property
+    def config(self) -> dict:
+        return resource.get_config("android_tools.json", "android_tools_apk")
+
+    @cached_property
     def id(self) -> str:
         """
         获取设备号
@@ -112,7 +112,7 @@ class Device(object):
         """
         return self._device_id
 
-    @property
+    @cached_property
     def abi(self) -> str:
         """
         获取设备abi类型
@@ -145,9 +145,8 @@ class Device(object):
     def popen(self, *args: [str], **kwargs) -> Utils.Process:
         """
         执行命令
-        :param args: 命令
-        :param capture_output: 捕获输出，填False使用标准输出
-        :return: adb输出结果
+        :param args: 命令行参数
+        :return: 打开的进程
         """
         args = ["-s", self.id, *args]
         return Adb.popen(*args, **kwargs)
@@ -155,7 +154,7 @@ class Device(object):
     def exec(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         执行命令
-        :param args: 命令
+        :param args: 命令行参数
         :param capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
@@ -192,11 +191,10 @@ class Device(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: dex输出结果
         """
-        config = self._get_tools_config()
-        apk_name = config["name"]
-        main_class = config["main"]
-        flag_begin = config["flag_begin"]
-        flag_end = config["flag_end"]
+        apk_name = self.config["name"]
+        main_class = self.config["main"]
+        flag_begin = self.config["flag_begin"]
+        flag_end = self.config["flag_end"]
 
         apk_path = resource.get_persist_path(apk_name)
         target_dir = self.get_storage_path("apk")
@@ -316,7 +314,6 @@ class Device(object):
         :param paths: 文件名
         :return: 路径
         """
-        # return "/data/data/com.weiqing.gadbd.ui/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
         return "/sdcard/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
 
     @staticmethod
