@@ -50,28 +50,35 @@ class Utils:
             """
             :param args: 参数
             """
-            self.out = ""
-            self.err = ""
             self.capture_output = utils.get_item(kwargs, "capture_output")
             if self.capture_output is True:
-                kwargs["stdout"] = subprocess.PIPE
-                kwargs["stderr"] = subprocess.PIPE
+                if not utils.is_contain(kwargs, "stdout"):
+                    kwargs["stdout"] = subprocess.PIPE
+                if not utils.is_contain(kwargs, "stderr"):
+                    kwargs["stderr"] = subprocess.PIPE
             if self.capture_output is not None:
                 del kwargs["capture_output"]
             subprocess.Popen.__init__(self, args, shell=False, **kwargs)
 
-        def communicate(self, **kwargs):
-            out, err = None, None
-            try:
-                out, err = subprocess.Popen.communicate(self, **kwargs)
-                if out is not None:
-                    self.out = self.out + out.decode(errors='ignore')
-                if err is not None:
-                    self.err = self.err + err.decode(errors='ignore')
-                return out, err
-            except Exception as e:
-                self.err = self.err + str(e)
-            return out, err
+    @staticmethod
+    def popen(*args, **kwargs) -> Process:
+        """
+        打开进程
+        :param args: 参数
+        :return: 子进程
+        """
+        return Utils.Process(*args, **kwargs)
+
+    @staticmethod
+    def exec(*args, **kwargs) -> (Process, str, str):
+        """
+        执行命令
+        :param args: 参数
+        :return: 子进程
+        """
+        process = Utils.Process(*args, **kwargs)
+        out, err = process.communicate()
+        return process, out, err
 
     # noinspection PyShadowingBuiltins
     @staticmethod
@@ -218,26 +225,6 @@ class Utils:
             else:
                 array.append(obj)
         return array
-
-    @staticmethod
-    def popen(*args, **kwargs) -> Process:
-        """
-        打开进程
-        :param args: 参数
-        :return: 子进程
-        """
-        return Utils.Process(*args, **kwargs)
-
-    @staticmethod
-    def exec(*args, **kwargs) -> Process:
-        """
-        执行命令
-        :param args: 参数
-        :return: 子进程
-        """
-        process = Utils.Process(*args, **kwargs)
-        process.communicate()
-        return process
 
     @staticmethod
     def abspath(path: str) -> str:

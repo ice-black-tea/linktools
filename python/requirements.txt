@@ -4,3 +4,4 @@ tqdm
 # frida<12.0.0
 watchdog
 python-magic
+urwid

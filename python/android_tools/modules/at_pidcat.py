@@ -19,9 +19,11 @@ limitations under the License.
 # Piping detection and popen() added by other Android team members
 # Package filtering and output improvements by Jake Wharton, http://jakewharton.com
 
-import sys
 import re
+import sys
 from subprocess import PIPE
+
+from urwid.old_str_util import is_wide_char
 
 from android_tools.adb import Device
 from android_tools.argparser import AdbArgumentParser
@@ -81,6 +83,7 @@ try:
 except:
     pass
 
+
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
 RESET = '\033[0m'
@@ -97,6 +100,17 @@ def colorize(message, fg=None, bg=None):
     return termcolor(fg, bg) + message + RESET
 
 
+def truncated_string(message, offset, width):
+    next = offset
+    length = len(message)
+    while next < length:
+        width = width - (2 if is_wide_char(message, next) else 1)
+        if width < 0:
+            break
+        next = next + 1
+    return next
+
+
 def indent_wrap(message):
     if width == -1:
         return message
@@ -104,13 +118,14 @@ def indent_wrap(message):
     wrap_area = width - header_size
     messagebuf = ''
     current = 0
-    while current < len(message):
-        next = min(current + wrap_area, len(message))
+    next = truncated_string(message, current, wrap_area)
+    while current < next:
         messagebuf += message[current:next]
         if next < len(message):
             messagebuf += '\n'
             messagebuf += ' ' * header_size
         current = next
+        next = truncated_string(message, current, wrap_area)
     return messagebuf
 
 

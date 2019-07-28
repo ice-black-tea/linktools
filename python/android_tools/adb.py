@@ -78,10 +78,12 @@ class Adb(object):
         :param capture_output: 捕获输出，填False使用标准输出
         :return: 输出结果
         """
-        process = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
-        if process.returncode != 0 and not utils.is_empty(process.err):
-            raise AdbError(process.err)
-        return process.out
+        process, out, err = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
+        if process.returncode != 0 and err is not None:
+            err = err.decode(errors='ignore') if err is not None else ""
+            if utils.is_empty(err):
+                raise AdbError(err)
+        return out.decode(errors='ignore') if out is not None else ""
 
 
 class Device(object):

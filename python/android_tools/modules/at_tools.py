@@ -47,7 +47,7 @@ if __name__ == "__main__":
     args = sys.argv[2:]
 
     if tools[opt] is not None:
-        process = tools[opt].exec(*args)
+        process, _, _ = tools[opt].exec(*args)
         exit(process.returncode)
     elif opt == "-h" or opt == "--help":
         get_parser().parse_args(["-h"])
