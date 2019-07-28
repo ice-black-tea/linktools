@@ -29,7 +29,12 @@
 import hashlib
 import sys
 
-from frida import ServerNotRunningError
+try:
+    from frida import ServerNotRunningError
+except:
+    print("please use the following command to install frida first:", sys.executable, "-m", "pip", "install", "frida")
+    exit(1)
+
 from watchdog.events import *
 from watchdog.observers import Observer
 
@@ -85,12 +90,10 @@ class FridaEventHandler(FileSystemEventHandler):
 
 def main():
     parser = AdbArgumentParser(description='easy to use frida')
-
-    group = parser.add_argument_group(title="common arguments")
-    group.add_argument('-p', '--package', action='store', default=None,
-                       help='target package [default top-level package]')
-    group.add_argument('-r', '--restart', action='store_true', default=False,
-                       help='inject after restart [default false]')
+    parser.add_argument('-p', '--package', action='store', default=None,
+                        help='target package [default top-level package]')
+    parser.add_argument('-r', '--restart', action='store_true', default=False,
+                        help='inject after restart [default false]')
     parser.add_argument('file', action='store', default=None,
                         help='javascript file')
 

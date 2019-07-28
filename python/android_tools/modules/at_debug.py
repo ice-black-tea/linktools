@@ -33,14 +33,12 @@ from android_tools.argparser import AdbArgumentParser
 
 def main():
     parser = AdbArgumentParser(description='debugger')
-
-    group = parser.add_argument_group(title="common arguments")
-    group.add_argument('package', action='store', default=None,
-                       help='regular expression')
-    group.add_argument('activity', action='store', default=None,
-                       help='regular expression')
-    group.add_argument('-p', '--port', action='store', type=int, default=8700,
-                       help='fetch all apps')
+    parser.add_argument('package', action='store', default=None,
+                        help='regular expression')
+    parser.add_argument('activity', action='store', default=None,
+                        help='regular expression')
+    parser.add_argument('-p', '--port', action='store', type=int, default=8700,
+                        help='fetch all apps')
 
     args = parser.parse_args()
     device = Device(args.parse_adb_serial())

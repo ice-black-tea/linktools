@@ -39,6 +39,7 @@ from tqdm import tqdm, TqdmSynchronisationWarning
 
 
 class Utils:
+
     class Process(subprocess.Popen):
 
         def __init__(self, *args, **kwargs):
@@ -59,9 +60,9 @@ class Utils:
             out, err = None, None
             try:
                 out, err = subprocess.Popen.communicate(self, **kwargs)
-                if self.capture_output and out is not None:
+                if out is not None:
                     self.out = self.out + out.decode(errors='ignore')
-                if self.capture_output and err is not None:
+                if err is not None:
                     self.err = self.err + err.decode(errors='ignore')
                 return out, err
             except Exception as e:
@@ -212,6 +213,15 @@ class Utils:
             else:
                 array.append(obj)
         return array
+
+    @staticmethod
+    def popen(*args, **kwargs) -> Process:
+        """
+        打开进程
+        :param args: 参数
+        :return: 子进程
+        """
+        return Utils.Process(*args, **kwargs)
 
     @staticmethod
     def exec(*args, **kwargs) -> Process:

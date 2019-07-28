@@ -99,18 +99,24 @@ class ConfigTool(object):
             else:
                 os.rename(file, self.config["path"])
 
-    def exec(self, *args: [str], **kwargs) -> utils.Process:
+    def exec(self, *args: [str], **kwargs: dict) -> utils.Process:
+        return self._exec(utils.exec, *args, **kwargs)
+
+    def popen(self, *args: [str], **kwargs: dict) -> utils.Process:
+        return self._exec(utils.popen, *args, **kwargs)
+
+    def _exec(self, func, *args: [str], **kwargs: dict) -> utils.Process:
         self.download(force=False)
         executable = self.config["executable"]
         if executable[0] == "python":
             args = [sys.executable, *executable[1:], *args]
-            return utils.exec(*args, **kwargs)
+            return func(*args, **kwargs)
         if executable[0] in tools.items:
             tool = tools.items[executable[0]]
-            return tool.exec(*[*executable[1:], *args], **kwargs)
+            return tool._exec(func, *[*executable[1:], *args], **kwargs)
         if not os.access(executable[0], os.X_OK):
             os.chmod(executable[0], 0o0755)
-        return utils.exec(*[*executable, *args], **kwargs)
+        return func(*[*executable, *args], **kwargs)
 
     @staticmethod
     def _merge_config(config: dict, parent: dict, system: str) -> dict:

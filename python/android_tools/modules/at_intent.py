@@ -38,22 +38,21 @@ from android_tools.argparser import AdbArgumentParser
 def main():
     parser = AdbArgumentParser(description='common intent action')
 
-    group = parser.add_argument_group(title="common arguments")
-    _group = group.add_mutually_exclusive_group(required=True)
-    _group.add_argument('--setting', dest='package', action='store_true',
-                        help='start setting activity')
-    _group.add_argument('--setting-dev', dest='package', action='store_true',
-                        help='start development setting activity')
-    _group.add_argument('--setting-dev2', dest='package', action='store_true',
-                        help='start development setting activity')
-    _group.add_argument('--setting-app', dest='package', action='store', nargs='?', default="",
-                        help='start application setting activity [default top-level package]')
-    _group.add_argument('--setting-cert', dest='path', action='store', default="",
-                        help='install cert (need \'/data/local/tmp\' write permission)')
-    _group.add_argument('--install', dest='path', action='store', default="",
-                        help='install apk file')
-    _group.add_argument('--browser', dest='url', action='store', default="",
-                        help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--setting', dest='package', action='store_true',
+                       help='start setting activity')
+    group.add_argument('--setting-dev', dest='package', action='store_true',
+                       help='start development setting activity')
+    group.add_argument('--setting-dev2', dest='package', action='store_true',
+                       help='start development setting activity')
+    group.add_argument('--setting-app', dest='package', action='store', nargs='?', default="",
+                       help='start application setting activity [default top-level package]')
+    group.add_argument('--setting-cert', dest='path', action='store', default="",
+                       help='install cert (need \'/data/local/tmp\' write permission)')
+    group.add_argument('--install', dest='path', action='store', default="",
+                       help='install apk file')
+    group.add_argument('--browser', dest='url', action='store', default="",
+                       help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
     args = parser.parse_args()
     device = Device(args.parse_adb_serial())

@@ -30,7 +30,7 @@ import getpass
 
 from .resource import resource
 from .tools import tools
-from .utils import utils
+from .utils import utils, Utils
 from .version import __name__
 
 
@@ -64,6 +64,10 @@ class Adb(object):
                 if not alive or status == "device":
                     devices.append(device)
         return devices
+
+    @staticmethod
+    def popen(*args: [str], **kwargs) -> Utils.Process:
+        return tools.adb.popen(*args, **kwargs)
 
     @staticmethod
     def exec(*args: [str], capture_output: bool = True, **kwargs) -> str:
@@ -137,6 +141,16 @@ class Device(object):
         if uid != default:
             return uid
         raise AdbError("unknown adb uid: %s" % result)
+
+    def popen(self, *args: [str], **kwargs) -> Utils.Process:
+        """
+        执行命令
+        :param args: 命令
+        :param capture_output: 捕获输出，填False使用标准输出
+        :return: adb输出结果
+        """
+        args = ["-s", self.id, *args]
+        return Adb.popen(*args, **kwargs)
 
     def exec(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
@@ -302,6 +316,7 @@ class Device(object):
         :param paths: 文件名
         :return: 路径
         """
+        # return "/data/data/com.weiqing.gadbd.ui/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
         return "/sdcard/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
 
     @staticmethod

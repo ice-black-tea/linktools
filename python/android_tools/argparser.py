@@ -50,17 +50,17 @@ class AdbArgumentParser(ArgumentParser):
 
         self._adb_group = self.add_argument_group(title="adb optional arguments")
         group = self._adb_group.add_mutually_exclusive_group()
-        group.add_argument("-s", metavar="serial", dest="adb_serial",
+        group.add_argument("-s", "--serial", metavar="serial", dest="adb_serial",
                            help="use device with given serial (adb -s option)")
-        group.add_argument("-d", dest="adb_device", action="store_true",
+        group.add_argument("-d", "--device", dest="adb_device", action="store_true",
                            help="use USB device (adb -d option)")
-        group.add_argument("-e", dest="adb_emulator", action="store_true",
+        group.add_argument("-e", "--emulator", dest="adb_emulator", action="store_true",
                            help="use TCP/IP device (adb -e option)")
-        group.add_argument("-i", metavar="index", dest="adb_index", type=int,
+        group.add_argument("-i", "--index", metavar="index", dest="adb_index", type=int,
                            help="use device with given index")
-        group.add_argument("-c", metavar="ip[:port]", dest="adb_connect",
+        group.add_argument("-c", "--connect", metavar="ip[:port]", dest="adb_connect",
                            help="use device with TCP/IP")
-        group.add_argument("-l", dest="adb_last", action="store_true",
+        group.add_argument("-l", "--last", dest="adb_last", action="store_true",
                            help="use last device")
 
     def _parse_known_args(self, arg_strings, namespace):

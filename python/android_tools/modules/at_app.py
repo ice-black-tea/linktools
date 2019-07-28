@@ -230,25 +230,24 @@ class PackagePrinter:
 def main():
     parser = AdbArgumentParser(description='fetch application info')
 
-    group = parser.add_argument_group(title="common arguments")
-    _group = group.add_mutually_exclusive_group(required=True)
-    _group.add_argument('-a', '--all', action='store_true', default=False,
-                        help='fetch all apps')
-    _group.add_argument('-t', '--top', action='store_true', default=False,
-                        help='fetch top-level app only')
-    _group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
-                        help='fetch target apps only')
-    _group.add_argument('--system', action='store_true', default=False,
-                        help='fetch system apps only')
-    _group.add_argument('--non-system', action='store_true', default=False,
-                        help='fetch non-system apps only')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-a', '--all', action='store_true', default=False,
+                       help='fetch all apps')
+    group.add_argument('-t', '--top', action='store_true', default=False,
+                       help='fetch top-level app only')
+    group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
+                       help='fetch target apps only')
+    group.add_argument('--system', action='store_true', default=False,
+                       help='fetch system apps only')
+    group.add_argument('--non-system', action='store_true', default=False,
+                       help='fetch non-system apps only')
 
-    group.add_argument('-b', '--basic-info', action='store_true', default=False,
-                       help='display basic info only')
-    group.add_argument('-dang', '--dangerous', action='store_true', default=False,
-                       help='display dangerous permissions and components only')
-    group.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
-                       choices=['name', 'appName', 'userId'], help='order by target field')
+    parser.add_argument('-b', '--basic-info', action='store_true', default=False,
+                        help='display basic info only')
+    parser.add_argument('-dang', '--dangerous', action='store_true', default=False,
+                        help='display dangerous permissions and components only')
+    parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
+                        choices=['name', 'appName', 'userId'], help='order by target field')
 
     args = parser.parse_args()
     device = Device(args.parse_adb_serial())

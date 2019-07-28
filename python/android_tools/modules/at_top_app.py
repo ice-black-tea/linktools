@@ -38,20 +38,19 @@ from android_tools.argparser import AdbArgumentParser
 def main():
     parser = AdbArgumentParser(description='show top-level app\'s basic information')
 
-    group = parser.add_argument_group(title="common arguments")
-    _group = group.add_mutually_exclusive_group()
-    _group.add_argument('-p', '--package', action='store_const', const=True, default=False,
-                        help='show top-level package name')
-    _group.add_argument('-a', '--activity', action='store_const', const=True, default=False,
-                        help='show top-level activity name')
-    _group.add_argument('--path', action='store_const', const=True, default=False,
-                        help='show top-level package path')
-    _group.add_argument('--kill', action='store_const', const=True, default=False,
-                        help='kill top-level package')
-    _group.add_argument('--apk', dest='dest', action='store', type=str, nargs='?', default="",
-                        help='pull top-level apk file')
-    _group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
-                        help='capture screen and pull file')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-p', '--package', action='store_const', const=True, default=False,
+                       help='show top-level package name')
+    group.add_argument('-a', '--activity', action='store_const', const=True, default=False,
+                       help='show top-level activity name')
+    group.add_argument('--path', action='store_const', const=True, default=False,
+                       help='show top-level package path')
+    group.add_argument('--kill', action='store_const', const=True, default=False,
+                       help='kill top-level package')
+    group.add_argument('--apk', dest='dest', action='store', type=str, nargs='?', default="",
+                       help='pull top-level apk file')
+    group.add_argument('--screen', dest='dest', action='store', type=str, nargs='?', default="",
+                       help='capture screen and pull file')
 
     args = parser.parse_args()
     device = Device(args.parse_adb_serial())
