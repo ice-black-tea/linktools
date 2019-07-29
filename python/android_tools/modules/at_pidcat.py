@@ -21,7 +21,7 @@ limitations under the License.
 
 import re
 import sys
-from subprocess import PIPE
+from subprocess import PIPE, DEVNULL
 
 from urwid.old_str_util import is_wide_char
 
@@ -65,12 +65,12 @@ if len(package) == 0:
     args.all = True
 
 # Store the names of packages for which to match all processes.
-catchall_package = filter(lambda package: package.find(":") == -1, package)
+catchall_package = list(filter(lambda package: package.find(":") == -1, package))
 # Store the name of processes to match exactly.
-named_processes = filter(lambda package: package.find(":") != -1, package)
+named_processes = list(filter(lambda package: package.find(":") != -1, package))
 # Convert default process names from <package>: (cli notation) to <package> (android notation) in the exact names match group.
-named_processes = map(lambda package: package if package.find(":") != len(package) - 1 else package[:-1],
-                      named_processes)
+named_processes = list(map(lambda package: package if package.find(":") != len(package) - 1 else package[:-1],
+                      named_processes))
 
 header_size = args.tag_width + 1 + 3 + 1  # space, level, space
 
@@ -218,7 +218,6 @@ pids = set()
 last_tag = None
 app_pid = None
 
-
 def match_packages(token):
     if len(package) == 0:
         return True
@@ -272,17 +271,17 @@ def tag_in_tags_regex(tag, tags):
     return any(re.match(r'^' + t + r'$', tag) for t in map(str.strip, tags))
 
 
-ps_command = ['shell', 'ps']
-ps_pid = device.popen(*ps_command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-while True:
-    try:
-        line = ps_pid.stdout.readline().decode('utf-8', 'replace').strip()
-    except KeyboardInterrupt:
-        break
-    if len(line) == 0:
-        break
+for line in device.shell("ps", stdout=PIPE, stderr=DEVNULL).splitlines():
+    pid_match = PID_LINE.match(line.strip())
+    if pid_match is not None:
+        pid = pid_match.group(1)
+        proc = pid_match.group(2)
+        if proc in catchall_package:
+            seen_pids = True
+            pids.add(pid)
 
-    pid_match = PID_LINE.match(line)
+for line in device.exec("ps", "-A", stdout=PIPE, stderr=DEVNULL).splitlines():
+    pid_match = PID_LINE.match(line.strip())
     if pid_match is not None:
         pid = pid_match.group(1)
         proc = pid_match.group(2)
@@ -292,10 +291,8 @@ while True:
 
 while adb.poll() is None:
     try:
-        line = adb.stdout.readline().decode('utf-8', 'replace').strip()
+        line = adb.stdout.readline().decode('utf-8').strip()
     except KeyboardInterrupt:
-        break
-    if len(line) == 0:
         break
 
     bug_line = BUG_LINE.match(line)
@@ -311,6 +308,7 @@ while adb.poll() is None:
     start = parse_start_proc(line)
     if start:
         line_package, target, line_pid, line_uid, line_gids = start
+
         if match_packages(line_package):
             pids.add(line_pid)
 

@@ -32,6 +32,7 @@ import re
 import subprocess
 import warnings
 from collections import Iterable
+from re import Match
 from urllib.request import urlopen, Request
 
 import requests
@@ -50,13 +51,13 @@ class Utils:
             """
             :param args: 参数
             """
-            self.capture_output = utils.get_item(kwargs, "capture_output")
-            if self.capture_output is True:
+            capture_output = utils.get_item(kwargs, "capture_output")
+            if capture_output is True:
                 if not utils.is_contain(kwargs, "stdout"):
                     kwargs["stdout"] = subprocess.PIPE
                 if not utils.is_contain(kwargs, "stderr"):
                     kwargs["stderr"] = subprocess.PIPE
-            if self.capture_output is not None:
+            if capture_output is not None:
                 del kwargs["capture_output"]
             subprocess.Popen.__init__(self, args, shell=False, **kwargs)
 
@@ -136,6 +137,16 @@ class Utils:
         :return: 替换后的值
         """
         return re.sub(reg, val, string, count=count)
+
+    @staticmethod
+    def search(string: str, reg: str) -> Match:
+        """
+        匹配子串
+        :param string: 字符串
+        :param reg: 子串（正则表达式）
+        :return: 搜索结果
+        """
+        return re.search(reg, string)
 
     @staticmethod
     def is_match(string: str, reg: str) -> bool:

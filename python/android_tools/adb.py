@@ -57,8 +57,9 @@ class Adb(object):
         """
         devices = []
         result = Adb.exec("devices", capture_output=True)
-        for line in result.partition("\n")[2].split("\n"):
-            splits = line.split()
+        lines = result.splitlines()
+        for i in range(1, len(lines)):
+            splits = lines[i].split()
             if len(splits) >= 2:
                 device = splits[0]
                 status = splits[1]
@@ -277,9 +278,8 @@ class Device(object):
         :return: 顶层包名
         """
         if self.uid < 10000:
-            result = self.shell("dumpsys", "activity", "top", "|",
-                                "grep", "^TASK", "-A", "1").rstrip("\r\n")
-            items = result[result.rfind("\n"):].split()
+            result = self.shell("dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1").rstrip()
+            items = result.splitlines()[-1].split()
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0]
         # use dex instead of dumpsys
@@ -293,9 +293,8 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        result = self.shell("dumpsys", "activity", "top", "|",
-                            "grep", "^TASK", "-A", "1").rstrip("\r\n")
-        items = result[result.rfind("\n"):].split()
+        result = self.shell("dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1").rstrip()
+        items = result.splitlines()[-1].split()
         if items is not None and len(items) >= 2:
             return items[1]
         raise AdbError("can not fetch top activity")
@@ -306,7 +305,9 @@ class Device(object):
         :return: apk路径
         """
         if self.uid < 10000:
-            return utils.replace(self.shell("pm", "path", package), r"^.*:[ ]*|\r|\n", "")
+            match = utils.search(self.shell("pm", "path", package), r"^.*package:[ ]*(.*)[\s\S]*$")
+            if match is not None:
+                return match.group(1)
         return self.call_tools("common", "--apk-path", package)
 
     # noinspection PyMethodMayBeStatic
