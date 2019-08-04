@@ -5,3 +5,4 @@ tqdm
 watchdog
 python-magic
 urwid
+https://github.com/lief-project/packages/raw/lief-master-latest/pylief-0.9.0.dev.zip

@@ -35,6 +35,7 @@ import re
 import shutil
 import zipfile
 
+import lief
 import magic
 from colorama import Fore
 
@@ -64,6 +65,8 @@ class GrepMatcher:
             "application/x-gzip": self.on_zip,
             "application/java-archive": self.on_zip,
             "application/xml": self.on_text,
+            "application/x-executable": self.on_elf,
+            "application/x-sharedlib": self.on_elf
         }
 
     def match(self, path: str):
@@ -82,16 +85,16 @@ class GrepMatcher:
         mimetype = magic.from_file(filename, mime=True)
         handler = utils.get_item(self.handlers, mimetype)
         if handler is not None:
-            if handler(filename):
+            if handler(filename, mimetype):
                 return
         elif mimetype.startswith("text/"):
             handler = self.on_text
-            if handler(filename):
+            if handler(filename, mimetype):
                 return
         self.on_binary(filename, mimetype)
 
     @match_handler
-    def on_zip(self, filename: str):
+    def on_zip(self, filename: str, mimetype: str):
         dirname = filename + ":"
         while os.path.exists(dirname):
             dirname = dirname + " "
@@ -103,21 +106,37 @@ class GrepMatcher:
             shutil.rmtree(dirname, ignore_errors=True)
 
     @match_handler
-    def on_text(self, filename: str):
+    def on_text(self, filename: str, mimetype: str):
         with open(filename, "rb") as fd:
             lines = fd.readlines()
             for i in range(0, len(lines)):
-                out, last, line = "", 0, lines[i].rstrip(b"\n")
-                for match in self.pattern.finditer(line):
-                    start, end = match.span()
-                    out = out + Fore.RESET + str(line[last:start], encoding="utf-8")
-                    out = out + Fore.RED + str(line[start:end], encoding="utf-8")
-                    last = end
+                out = self.match_content(lines[i].rstrip())
                 if not utils.is_empty(out):
                     print(Fore.CYAN + filename +
                           Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
-                          Fore.RESET + ": " + out +
-                          Fore.RESET + str(line[last:], encoding="utf-8"))
+                          Fore.RESET + ": " + out)
+
+    # noinspection PyUnresolvedReferences
+    @match_handler
+    def on_elf(self, filename: str, mimetype: str):
+        file = lief.parse(filename)
+        for symbol in file.imported_symbols:
+            out = self.match_content(symbol.name)
+            if not utils.is_empty(out):
+                print(Fore.CYAN + filename +
+                      Fore.RESET + ":" + Fore.GREEN + "import_symbols" +
+                      Fore.RESET + ": " + out +
+                      Fore.RESET + " match")
+
+        for symbol in file.exported_symbols:
+            out = self.match_content(symbol.name)
+            if not utils.is_empty(out):
+                print(Fore.CYAN + filename +
+                      Fore.RESET + ":" + Fore.GREEN + "export_symbols" +
+                      Fore.RESET + ": " + out +
+                      Fore.RESET + " match")
+
+        self.on_binary(filename, mimetype=mimetype)
 
     @match_handler
     def on_binary(self, filename: str, mimetype: str):
@@ -128,6 +147,19 @@ class GrepMatcher:
                           Fore.RESET + ": " + Fore.RED + mimetype +
                           Fore.RESET + " match")
                     return
+
+    def match_content(self, content):
+        out, last = "", 0
+        if type(content) == str:
+            content = bytes(content, encoding="utf-8")
+        for match in self.pattern.finditer(content):
+            start, end = match.span()
+            out = out + Fore.RESET + str(content[last:start], encoding="utf-8")
+            out = out + Fore.RED + str(content[start:end], encoding="utf-8")
+            last = end
+        if not utils.is_empty(out):
+            out = out + Fore.RESET + str(content[last:], encoding="utf-8")
+        return out
 
 
 def main():
