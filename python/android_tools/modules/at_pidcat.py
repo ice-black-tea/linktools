@@ -291,7 +291,7 @@ for line in device.exec("ps", "-A", stdout=PIPE, stderr=DEVNULL).splitlines():
 
 while adb.poll() is None:
     try:
-        line = adb.stdout.readline().decode('utf-8').strip()
+        line = adb.stdout.readline().decode('utf-8', errors="ignore").strip()
     except KeyboardInterrupt:
         break
 
