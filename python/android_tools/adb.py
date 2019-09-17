@@ -31,7 +31,7 @@ import getpass
 from .decorator import cached_property
 from .resource import resource
 from .tools import tools
-from .utils import utils, Utils
+from .utils import utils
 from .version import __name__
 
 
@@ -68,7 +68,7 @@ class Adb(object):
         return devices
 
     @staticmethod
-    def popen(*args: [str], **kwargs) -> Utils.Process:
+    def popen(*args: [str], **kwargs) -> utils.Process:
         return tools.adb.popen(*args, **kwargs)
 
     @staticmethod
@@ -80,8 +80,8 @@ class Adb(object):
         :return: 输出结果
         """
         process, out, err = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
-        if process.returncode != 0 and err is not None:
-            err = err.decode(errors='ignore') if err is not None else ""
+        if process.returncode != 0 and not utils.is_empty(err):
+            err = err.decode(errors='ignore')
             if utils.is_empty(err):
                 raise AdbError(err)
         return out.decode(errors='ignore') if out is not None else ""
@@ -145,7 +145,7 @@ class Device(object):
             return uid
         raise AdbError("unknown adb uid: %s" % result)
 
-    def popen(self, *args: [str], **kwargs) -> Utils.Process:
+    def popen(self, *args: [str], **kwargs) -> utils.Process:
         """
         执行命令
         :param args: 命令行参数
