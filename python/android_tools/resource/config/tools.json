@@ -124,6 +124,29 @@
                 "url": "https://dl.androidaapt.com/aapt-windows.zip",
                 "path": "{unpack}/aapt.exe"
             }
+        },
+        "jadx": {
+            "version": "1.0.0",
+            "unpack": "{system}/jadx-{version}",
+            "url": "https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip",
+            "path": {
+                "darwin": "{unpack}/bin/jadx",
+                "linux": "{unpack}/bin/jadx",
+                "windows": "{unpack}/bin/jadx.bat"
+            },
+            "executable": [
+                "{path}",
+                "\"-Xms128M\" \"-Xmx16g\" \"-Dawt.useSystemAAFontSettings=lcd\" \"-Dswing.aatext=true\" \"-XX:+UseG1GC\""
+            ],
+            "items": {
+                "jadx-gui": {
+                    "path": {
+                        "darwin": "{unpack}/bin/jadx-gui",
+                        "linux": "{unpack}/bin/jadx-gui",
+                        "windows": "{unpack}/bin/jadx-gui.bat"
+                    }
+                }
+            }
         }
     }
 }
