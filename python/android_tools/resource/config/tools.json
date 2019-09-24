@@ -134,10 +134,6 @@
                 "linux": "{unpack}/bin/jadx",
                 "windows": "{unpack}/bin/jadx.bat"
             },
-            "executable": [
-                "{path}",
-                "\"-Xms128M\" \"-Xmx16g\" \"-Dawt.useSystemAAFontSettings=lcd\" \"-Dswing.aatext=true\" \"-XX:+UseG1GC\""
-            ],
             "items": {
                 "jadx-gui": {
                     "path": {
