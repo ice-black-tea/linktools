@@ -1,0 +1,8 @@
+colorama
+requests
+tqdm
+# frida<12.0.0
+watchdog
+python-magic
+urwid
+lief>=0.10.1
