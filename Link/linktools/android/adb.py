@@ -26,7 +26,6 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import getpass
 import json
 import re
 
@@ -105,7 +104,7 @@ class Device(object):
 
     @cached_property
     def config(self) -> dict:
-        return resource.get_config("android_tools.json", "android_tools_apk")
+        return resource.get_config("android.json", "tools_apk")
 
     @cached_property
     def id(self) -> str:
@@ -195,13 +194,14 @@ class Device(object):
         :return: dex输出结果
         """
         apk_name = self.config["name"]
+        apk_md5 = self.config["md5"]
         main_class = self.config["main"]
         flag_begin = self.config["flag_begin"]
         flag_end = self.config["flag_end"]
 
         apk_path = resource.get_persist_path(apk_name)
-        target_dir = self.get_storage_path("apk")
-        target_path = self.get_storage_path("apk", apk_name)
+        target_dir = self.get_storage_path("apk", apk_md5)
+        target_path = self.get_storage_path("apk", apk_md5, apk_name)
 
         # check apk path
         if not self.is_file_exist(target_path):
@@ -341,7 +341,7 @@ class Device(object):
         :param paths: 文件名
         :return: 路径
         """
-        return "/sdcard/%s/%s/%s" % (__name__, getpass.getuser(), "/".join(paths))
+        return "/sdcard/%s/%s" % (__name__, "/".join(paths))
 
     def fix_package_name(self, package_name) -> str:
         """

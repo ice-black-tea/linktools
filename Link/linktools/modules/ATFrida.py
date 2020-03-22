@@ -29,19 +29,19 @@
 import hashlib
 import sys
 
+from watchdog.events import *
+from watchdog.observers import Observer
+
+from linktools import utils, logger
+from linktools.android import AdbError, AdbArgumentParser
+from linktools.android.frida import FridaHelper
+
 try:
     # noinspection PyPackageRequirements
     from frida import ServerNotRunningError
 except:
-    print("please use the following command to install frida first:", sys.executable, "-m", "pip", "install", "frida")
+    logger.error("please use the following command to install frida first:", sys.executable, "-m", "pip", "install", "frida")
     exit(1)
-
-from watchdog.events import *
-from watchdog.observers import Observer
-
-from linktools import utils
-from linktools.android import AdbError, AdbArgumentParser
-from linktools.android.frida import FridaHelper
 
 
 class FridaScript(object):
@@ -61,7 +61,7 @@ class FridaScript(object):
         if self._md5 == md5:
             return
         self._md5 = md5
-        self.helper.log("*", "Loading script: %s" % self.path)
+        logger.info("Loading script: %s" % self.path, tag="[*]")
         self.helper.detach_sessions()
         self.helper.run_script(self.name, jscode, restart=self.restart)
 
@@ -120,6 +120,8 @@ if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, EOFError, FileNotFoundError) as e:
-        print(e)
+        logger.error(e)
     except (AdbError, ServerNotRunningError) as e:
-        print(e)
+        logger.error(e)
+    except Exception as e:
+        logger.error(e, traceback_limit=None)

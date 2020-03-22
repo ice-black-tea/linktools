@@ -25,6 +25,7 @@ from subprocess import PIPE, DEVNULL
 
 from urwid.old_str_util import is_wide_char
 
+from linktools import logger
 from linktools.android import Device, AdbError, AdbArgumentParser
 
 __version__ = '2.1.0'
@@ -307,7 +308,7 @@ def main():
                 linebuf += colorize(' ' * (header_size - 1), bg=WHITE)
                 linebuf += ' PID: %s    UID: %s    GIDs: %s' % (line_pid, line_uid, line_gids)
                 linebuf += '\n'
-                print(linebuf)
+                logger.info(linebuf)
                 last_tag = None  # Ensure next log gets a tag printed
 
         dead_pid, dead_pname = parse_death(tag, message)
@@ -317,7 +318,7 @@ def main():
             linebuf += colorize(' ' * (header_size - 1), bg=RED)
             linebuf += ' Process %s (PID: %s) ended' % (dead_pname, dead_pid)
             linebuf += '\n'
-            print(linebuf)
+            logger.info(linebuf)
             last_tag = None  # Ensure next log gets a tag printed
 
         # Make sure the backtrace is printed after a native crash
@@ -362,11 +363,13 @@ def main():
             message = matcher.sub(replace, message)
 
         linebuf += indent_wrap(message)
-        print(linebuf)
+        logger.info(linebuf)
 
 
 if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, EOFError, AdbError) as e:
-        print(e)
+        logger.error(e)
+    except Exception as e:
+        logger.error(e, traceback_limit=None)

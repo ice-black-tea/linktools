@@ -73,6 +73,18 @@ class Utils:
         out, err = process.communicate()
         return process, out, err
 
+    @staticmethod
+    def coalesce(*values):
+        """
+        选取第一个非空值
+        :param values: 值
+        :return: 非空值，若全为空则返回空
+        """
+        for value in values:
+            if value is not None:
+                return value
+        return None
+
     # noinspection PyShadowingBuiltins
     @staticmethod
     def cast(type: type, obj: object, default: type(object) = None) -> type(object):
@@ -207,6 +219,14 @@ class Utils:
         :return: 文件名
         """
         return os.path.basename(path)
+
+    @staticmethod
+    def cookie_to_dict(cookie):
+        cookies = {}
+        for item in cookie.split(';'):
+            key_value = item.split('=', 1)
+            cookies[key_value[0].strip()] = key_value[1].strip() if len(key_value) > 1 else ''
+        return cookies
 
     @staticmethod
     def download(url: str, path: str) -> int:

@@ -30,7 +30,7 @@
 import datetime
 import sys
 
-from linktools import utils
+from linktools import utils, logger
 from linktools.android import Device, AdbError, AdbArgumentParser
 
 
@@ -55,19 +55,19 @@ def main():
     device = Device(args.parse_adb_serial())
 
     if args.package:
-        print(device.get_top_package_name())
+        logger.info(device.get_top_package_name())
     elif args.activity:
-        print(device.get_top_activity_name())
+        logger.info(device.get_top_activity_name())
     elif args.path:
-        print(device.get_apk_path(device.get_top_package_name()))
+        logger.info(device.get_apk_path(device.get_top_package_name()))
     elif args.kill:
         device.shell("am", "force-stop", device.get_top_package_name(), capture_output=False)
     elif "--apk" in sys.argv:
         package_name = device.get_top_package_name()
-        print("get top-level package: {}".format(package_name))
+        logger.info("get top-level package: {}".format(package_name))
         package = utils.get_item(device.get_packages(package_name, basic_info=True), 0)
         if package is not None:
-            print("get top-level package path: {}".format(package.sourceDir))
+            logger.info("get top-level package path: {}".format(package.sourceDir))
             path = device.get_storage_path("{}_{}.apk".format(package.name, package.versionName))
             dest = args.apk if not utils.is_empty(args.apk) else "."
             device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
@@ -84,13 +84,15 @@ def main():
         device.shell("rm", path)
     else:
         package = device.get_top_package_name()
-        print("package:  ", package)
-        print("activity: ", device.get_top_activity_name())
-        print("path:     ", device.get_apk_path(package))
+        logger.info("package:  ", package)
+        logger.info("activity: ", device.get_top_activity_name())
+        logger.info("path:     ", device.get_apk_path(package))
 
 
 if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, EOFError, AdbError) as e:
-        print(e)
+        logger.error(e)
+    except Exception as e:
+        logger.error(e, traceback_limit=None)

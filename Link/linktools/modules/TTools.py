@@ -28,13 +28,13 @@
 """
 import sys
 
-from linktools import ArgumentParser, tools
+from linktools import ArgumentParser
 from linktools import tools
 
 
 def get_parser():
     parser = ArgumentParser(description='tools wrapper')
-    parser.add_argument('tool', choices=sorted([t.name for t in iter(tools)]))
+    parser.add_argument('tool', choices=sorted([name for name in iter(tools)]))
     return parser
 
 

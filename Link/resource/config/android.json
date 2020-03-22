@@ -1,0 +1,15 @@
+{
+    "tools_apk": {
+        "name": "android-tools.apk",
+        "md5": "89045c0a83470c122fd1f6f50fc81746",
+        "main": "android.tools.Main",
+        "size": 120094,
+        "time": "2020-03-22-23:39:22",
+        "flag_begin": " -*- output -*- by -*- android -*- tools -*- begin -*- ",
+        "flag_end": " -*- output -*- by -*- android -*- tools -*- end -*- "
+    },
+    "frida_server": {
+        "name": "frida-server-{version}-android-{abi}",
+        "url": "https://github.com/frida/frida/releases/download/{version}/frida-server-{version}-android-{abi}.xz"
+    }
+}

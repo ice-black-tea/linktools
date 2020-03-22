@@ -32,3 +32,4 @@ from .utils import utils
 from .tools import tools
 from .resource import resource
 from .argparser import ArgumentParser
+from .logger import logger

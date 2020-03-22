@@ -38,7 +38,7 @@ import colorama
 import frida
 from colorama import Fore
 
-from linktools import __name__, utils, resource
+from linktools import __name__, utils, resource, logger
 from linktools.android.adb import Device
 from linktools.decorator import cached_property
 
@@ -59,16 +59,10 @@ class BaseHelper(object):
 
     @cached_property
     def config(self) -> dict:
-        config = resource.get_config("frida.json", "frida_server").copy()
+        config = resource.get_config("android.json", "frida_server").copy()
         config["version"] = frida.__version__
         config["abi"] = self.device.abi
         return config
-
-    def log(self, tag: object, message: object, **kwargs):
-        """
-        打印log
-        """
-        pass
 
     def start_server(self) -> bool:
         """
@@ -78,29 +72,29 @@ class BaseHelper(object):
         if self.is_running():
             self.device.exec("forward", "tcp:27042", "tcp:27042")
             self.device.exec("forward", "tcp:27043", "tcp:27043")
-            self.log("*", "Frida server is running ...")
+            logger.info("Frida server is running ...", tag="[*]")
             return True
         elif self._start_server():
             self.device.exec("forward", "tcp:27042", "tcp:27042")
             self.device.exec("forward", "tcp:27043", "tcp:27043")
-            self.log("*", "Frida server is running ...")
+            logger.info("Frida server is running ...", tag="[*]")
             return True
         else:
-            self.log("*", "Frida server failed to run ...")
+            logger.info("Frida server failed to run ...", tag="[*]")
             return False
 
     def _start_server(self) -> bool:
-        self.log("*", "Start frida server ...")
+        logger.info("Start frida server ...", tag="[*]")
 
         if not self.device.is_file_exist(self.server_target_file):
             if not os.path.exists(self.server_file):
-                self.log("*", "Download frida server ...")
+                logger.info("Download frida server ...", tag="[*]")
                 tmp_file = resource.get_cache_path(self.server_name + ".tmp")
                 utils.download(self.server_url, tmp_file)
                 with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)
                 os.remove(tmp_file)
-            self.log("*", "Push frida server to %s" % self.server_target_file)
+            logger.info("Push frida server to %s" % self.server_target_file, tag="[*]")
             self.device.exec("push", self.server_file, self.server_target_file, capture_output=False)
             self.device.shell("chmod 755 '%s'" % self.server_target_file)
 
@@ -114,7 +108,7 @@ class BaseHelper(object):
         :return: 结束成功为True，否则为False
         """
 
-        self.log("*", "Kill frida server ...")
+        logger.info("Kill frida server ...", tag="[*]")
         try:
             process = self.frida_device.get_process(self.server_name)
             if process is not None:
@@ -205,19 +199,6 @@ class FridaHelper(BaseHelper):
             self._pre_script_code = fd.read().replace("\n", "")
         self.on_init()
 
-    # noinspection PyMethodMayBeStatic
-    def log(self, tag: object, message: object, **kwargs) -> None:
-        """
-        打印log
-        :param tag: 标签
-        :param message: 收到的消息
-        :param kwargs: 字体颜色（fore）
-        """
-        log = "[{0}] {1}".format(tag, str(message).replace("\n", "\n    "))
-        if utils.is_contain(kwargs, "fore"):
-            log = utils.get_item(kwargs, "fore") + log
-        print(log)
-
     def on_init(self) -> None:
         """
         初始化操作
@@ -245,21 +226,21 @@ class FridaHelper(BaseHelper):
             stack = utils.get_item(payload, "stack")
             if not utils.is_empty(stack):
                 del payload["stack"]
-                self.log("*", stack, fore=Fore.CYAN)
+                logger.info(stack, tag="[*]", fore=Fore.CYAN)
 
             arguments = utils.get_item(payload, "arguments")
             if not utils.is_empty(arguments):
                 del payload["arguments"]
-                self.log("*", arguments, fore=Fore.LIGHTMAGENTA_EX)
+                logger.info(arguments, tag="[*]", fore=Fore.LIGHTMAGENTA_EX)
 
             if not utils.is_empty(payload):
-                self.log("*", payload)
+                logger.info(payload, tag="[*]")
 
         elif utils.get_item(message, "type") == "error" and utils.is_contain(message, "stack"):
-            self.log("*", utils.get_item(message, "stack"), fore=Fore.RED)
+            logger.info(utils.get_item(message, "stack"), tag="[*]", fore=Fore.RED)
 
         else:
-            self.log("?", message, fore=Fore.RED)
+            logger.info(message, tag="[?]", fore=Fore.RED)
 
     def on_destroyed(self, **kwargs) -> None:
         """
@@ -279,7 +260,7 @@ class FridaHelper(BaseHelper):
         process_name = kwargs["process_name"]
         script_code = kwargs["script_code"]
 
-        self.log("*", "Detach process: %s (%d)" % (process_name, process_id))
+        logger.info("Detach process: %s (%d)" % (process_name, process_id), tag="[*]")
 
         if reason == "process-terminated" and not utils.is_contain(process_name, ":"):
             self.run_script(process_name, script_code, restart=True)
@@ -287,7 +268,7 @@ class FridaHelper(BaseHelper):
             self.sessions.remove(session)
 
     def _run_script(self, process_id: int, process_name: str, script_code: str) -> _frida.Script:
-        self.log("*", "Attach process: %s (%d)" % (process_name, process_id))
+        logger.info("Attach process: %s (%d)" % (process_name, process_id), tag="[*]")
 
         session = self.frida_device.attach(process_id)
         kwargs = {
@@ -341,7 +322,7 @@ class FridaHelper(BaseHelper):
                     script = self._run_script(process.pid, process.name, script_code)
                     scripts.append(script)
                 except Exception as e:
-                    self.log("!", e, fore=Fore.RED)
+                    logger.error(e, tag="[!]", fore=Fore.RED)
         else:
             try:
                 process_id = self.frida_device.spawn([package_name])
@@ -349,9 +330,9 @@ class FridaHelper(BaseHelper):
                 self.frida_device.resume(process_id)
                 scripts.append(script)
             except Exception as e:
-                self.log("!", e, fore=Fore.RED)
+                logger.info(e, tag="[!]", fore=Fore.RED)
 
-        self.log("*", "Running ...")
+        logger.info("Running ...", tag="[*]")
 
         return scripts
 

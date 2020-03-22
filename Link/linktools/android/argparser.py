@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools import utils, resource
+from linktools import utils, resource, logger
 from linktools.android.adb import Adb, AdbError, Device
 from linktools.argparser import ArgumentParser
 
@@ -121,13 +121,13 @@ class _NamespaceWrapper:
             elif len(devices) == 1:
                 setattr(self, "adb_serial", next(iter(devices)))
             else:
-                print("more than one device/emulator")
+                logger.info("more than one device/emulator")
                 for i in range(len(devices)):
                     try:
                         name = Device(devices[i]).get_prop("ro.product.name")
                     except:
                         name = ""
-                    print("%d: %-20s [%s]" % (i + 1, devices[i], name))
+                    logger.info("%d: %-20s [%s]" % (i + 1, devices[i], name))
                 while True:
                     data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
                     if utils.is_empty(data):

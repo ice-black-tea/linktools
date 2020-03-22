@@ -32,6 +32,7 @@ import shutil
 import sys
 from urllib.parse import quote
 
+from .logger import logger
 from .decorator import cached_property
 from .resource import resource
 from .utils import utils
@@ -43,7 +44,7 @@ class ConfigTool(object):
         self.name = name
         self.system = system
         self.parent = parent
-        self.origin_config = config
+        self.raw_config = config
 
     @cached_property
     def config(self) -> dict:
@@ -51,8 +52,8 @@ class ConfigTool(object):
         parent = None
         if self.parent is not None:
             # noinspection PyUnresolvedReferences
-            parent = self.parent.origin_config
-        config = self._merge_config(self.origin_config, parent, self.system)
+            parent = self.parent.raw_config
+        config = self._merge_config(self.raw_config, parent, self.system)
 
         # download url
         url = utils.get_item(config, "url", default="").format(**config)
@@ -88,7 +89,7 @@ class ConfigTool(object):
 
     def download(self) -> None:
         file = resource.get_cache_path(quote(self.config["url"], safe=''))
-        print("download: {}".format(self.config["url"]))
+        logger.info("download: {}".format(self.config["url"]))
         utils.download(self.config["url"], file)
         if not utils.is_empty(self.config["unpack"]):
             shutil.unpack_archive(file, self.config["unpack"])
@@ -162,25 +163,20 @@ class ConfigTools(object):
 
     def init(self, system: str):
         for name, config in self.config.items():
-            if name in self._exclude:
-                continue
-            tool = ConfigTool(system, name, config)
-            self._append(name, tool)
-            for sub_name, sub_config in utils.get_item(config, "items", default={}).items():
-                if sub_name in self._exclude:
-                    continue
-                sub_tool = ConfigTool(system, sub_name, sub_config, tool)
-                self._append(sub_name, sub_tool)
-
-    def _append(self, name, tool):
-        self.items[name] = tool
-        setattr(self, name, tool)
+            if name not in self._exclude:
+                self.items[name] = ConfigTool(system, name, config)
+                for sub_name, sub_config in utils.get_item(config, "items", default={}).items():
+                    if sub_name not in self._exclude:
+                        self.items[sub_name] = ConfigTool(system, sub_name, sub_config, self.items[name])
 
     def __iter__(self):
-        return iter(self.items.values())
+        return iter(self.items.keys())
 
     def __getitem__(self, item):
-        return utils.get_item(self.items, item, default=None)
+        return self.items[item] if item in self.items else None
+
+    def __getattr__(self, item):
+        return self.items[item] if item in self.items else None
 
 
 tools = ConfigTools()

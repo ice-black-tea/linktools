@@ -35,7 +35,7 @@ from linktools.android.argparser import ArgumentParser
 
 def get_parser():
     parser = ArgumentParser(description='tools wrapper')
-    parser.add_argument('tool', choices=sorted([t.name for t in iter(tools)]))
+    parser.add_argument('tool', choices=sorted([name for name in iter(tools)]))
     return parser
 
 

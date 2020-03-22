@@ -1,4 +1,6 @@
-# Android Tools
+# Link Tools
+
+工具集入口
 
 ## frida
 
@@ -116,7 +118,7 @@ ATFrida.py -f hook.js
 
 ### 输出效果
 
-![frida](resource/persist/imgs/frida.png)
+![frida](resource/imgs/frida.png)
 
 
 ### js使用
@@ -346,7 +348,7 @@ optional arguments:
 
 ### 输出效果
 
-![apps](resource/persist/imgs/apps.png)
+![apps](resource/imgs/apps.png)
 
 ## ATTools.py
 

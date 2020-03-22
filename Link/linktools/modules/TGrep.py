@@ -39,7 +39,7 @@ import lief
 import magic
 from colorama import Fore
 
-from linktools import utils
+from linktools import utils, logger
 from linktools.android.argparser import ArgumentParser
 
 
@@ -112,9 +112,9 @@ class GrepMatcher:
             for i in range(0, len(lines)):
                 out = self.match_content(lines[i].rstrip())
                 if not utils.is_empty(out):
-                    print(Fore.CYAN + filename +
-                          Fore.RESET + ":" + Fore.GREEN + str(i + 1) +
-                          Fore.RESET + ": " + out)
+                    logger.info(Fore.CYAN, filename,
+                                Fore.RESET, ":", Fore.GREEN, i + 1,
+                                Fore.RESET, ": ", out)
 
     # noinspection PyUnresolvedReferences
     @match_handler
@@ -123,18 +123,18 @@ class GrepMatcher:
         for symbol in file.imported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
-                print(Fore.CYAN + filename +
-                      Fore.RESET + ":" + Fore.GREEN + "import_symbols" +
-                      Fore.RESET + ": " + out +
-                      Fore.RESET + " match")
+                logger.info(Fore.CYAN, filename,
+                            Fore.RESET, ":", Fore.GREEN, "import_symbols",
+                            Fore.RESET, ": ", out,
+                            Fore.RESET, " match")
 
         for symbol in file.exported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
-                print(Fore.CYAN + filename +
-                      Fore.RESET + ":" + Fore.GREEN + "export_symbols" +
-                      Fore.RESET + ": " + out +
-                      Fore.RESET + " match")
+                logger.info(Fore.CYAN, filename,
+                            Fore.RESET, ":", Fore.GREEN, "export_symbols",
+                            Fore.RESET, ": ", out,
+                            Fore.RESET, " match")
 
         self.on_binary(filename, mimetype=mimetype)
 
@@ -143,9 +143,9 @@ class GrepMatcher:
         with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
-                    print(Fore.CYAN + filename +
-                          Fore.RESET + ": " + Fore.RED + mimetype +
-                          Fore.RESET + " match")
+                    logger.info(Fore.CYAN, filename,
+                                Fore.RESET, ": ", Fore.RED, mimetype,
+                                Fore.RESET, " match")
                     return
 
     def match_content(self, content):
@@ -191,3 +191,5 @@ if __name__ == '__main__':
         main()
     except (KeyboardInterrupt, EOFError):
         pass
+    except Exception as e:
+        logger.error(e, traceback_limit=None)

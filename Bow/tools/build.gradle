@@ -78,14 +78,6 @@ static def writeConfig(path, config) {
     }
 }
 
-def deleteFiles(storePath, dexPrefix, exclude) {
-    fileTree(storePath).each { file ->
-        if (file.name.startsWith(dexPrefix) && !file.name.contains(exclude)) {
-            println "delete file: ${file.path}"
-            file.delete()
-        }
-    }
-}
 
 task buildTools {
 
@@ -97,17 +89,19 @@ task buildTools {
         def apkPath = "${apkDir}/${apkName}"
         def apkMd5 = calcMd5(apkPath)
 
-        def resourceDir = file("${rootDir}/../python/android_tools/resource").getAbsolutePath()
+        def resourceDir = file("${rootDir}/../Link/resource").getAbsolutePath()
 
         def targetPrefix = "android-tools"
-        def targetName = "${targetPrefix}-${apkMd5}.apk"
+        def targetName = "${targetPrefix}.apk"
         def targetDir = "${resourceDir}/persist"
         def targetPath = "${targetDir}/${targetName}"
 
-        def configPath = "${resourceDir}/config/android_tools.json"
+        def configPath = "${resourceDir}/config/android.json"
         def config = readConfig(configPath)
 
-        if (config.android_tools_apk == null || config.android_tools_apk.md5 != apkMd5) {
+        println(config)
+
+        if (config.tools_apk == null || config.tools_apk.md5 != apkMd5) {
 
             copy {
                 println("copy from ${apkPath}")
@@ -117,16 +111,15 @@ task buildTools {
                 rename(apkName, targetName)
             }
 
-            config.android_tools_apk = [:]
-            config.android_tools_apk.name = targetName
-            config.android_tools_apk.md5 = apkMd5
-            config.android_tools_apk.size = file(targetPath).length()
-            config.android_tools_apk.main = "android.tools.Main"
-            config.android_tools_apk.flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
-            config.android_tools_apk.flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
+            config.tools_apk = [:]
+            config.tools_apk.name = targetName
+            config.tools_apk.md5 = apkMd5
+            config.tools_apk.main = "android.tools.Main"
+            config.tools_apk.size = file(targetPath).length()
+            config.tools_apk.time = new Date().format("yyyy-MM-dd-HH:mm:ss", TimeZone.getTimeZone("GMT+08:00"))
+            config.tools_apk.flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
+            config.tools_apk.flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
             writeConfig(configPath, config)
         }
-
-        deleteFiles(targetDir, targetPrefix, config.android_tools_apk.name)
     }
 }

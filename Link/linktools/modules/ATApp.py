@@ -30,7 +30,7 @@
 import colorama
 from colorama import Fore, Style, Back
 
-from linktools import utils
+from linktools import utils, logger
 from linktools.android import Device, AdbError, AdbArgumentParser, Package, Permission, Component, Activity, Service, \
     Receiver, Provider, IntentFilter
 
@@ -57,16 +57,16 @@ class PrintStream(PrintLevel):
         if not self.min <= level <= self.max:
             pass
         elif level == PrintLevel.title:
-            print(" " * indent + Style.BRIGHT + text, file=self.file)
+            logger.info(text, style=Style.BRIGHT, indent=indent)
         elif level == PrintLevel.dangerous:
-            print(" " * indent + Fore.RED + Back.WHITE + Style.BRIGHT + text, file=self.file)
+            logger.info(text, fore=Fore.RED, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
         elif level == PrintLevel.useless:
-            print(" " * indent + Fore.YELLOW + Back.WHITE + Style.BRIGHT + text, file=self.file)
+            logger.info(text, fore=Fore.YELLOW, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
         else:
-            print(" " * indent + text, file=self.file)
+            logger.info(text, indent=indent)
 
     def print_line(self):
-        print(file=self.file)
+        logger.info()
 
 
 class PrintStreamWrapper(PrintLevel):
@@ -301,4 +301,6 @@ if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, EOFError, AdbError) as e:
-        print(e)
+        logger.error(e)
+    except Exception as e:
+        logger.error(e, traceback_limit=None)

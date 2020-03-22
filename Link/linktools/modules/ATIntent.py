@@ -30,7 +30,7 @@ import sys
 
 import linktools
 
-from linktools import utils
+from linktools import utils, logger
 from linktools.android import Device, AdbError, AdbArgumentParser
 
 
@@ -103,4 +103,6 @@ if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, EOFError, AdbError) as e:
-        print(e)
+        logger.error(e)
+    except Exception as e:
+        logger.error(e, traceback_limit=None)

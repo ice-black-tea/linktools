@@ -11,7 +11,7 @@
             ]
         },
         "smali": {
-            "version": "2.4.0",
+            "version": "2.4.1",
             "path": "smali-{version}.jar",
             "url": "https://bitbucket.org/JesusFreke/smali/downloads/smali-{version}.jar",
             "executable": [

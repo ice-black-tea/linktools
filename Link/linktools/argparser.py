@@ -28,13 +28,13 @@
 """
 import argparse
 
-from linktools import __version__, utils
+from linktools import __version__
 
 
 class ArgumentParser(argparse.ArgumentParser):
 
     def __init__(self, **kwargs):
-        if not utils.is_contain(kwargs, "conflict_handler"):
+        if "conflict_handler" not in kwargs:
             kwargs["conflict_handler"] = "resolve"
         super().__init__(**kwargs)
         self.add_argument("-v", "--version", action="version", version="%(prog)s " + __version__)
