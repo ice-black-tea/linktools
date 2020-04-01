@@ -143,6 +143,22 @@
                     }
                 }
             }
+        },
+        "chromedriver": {
+            "version": "81.0.4044.69",
+            "unpack": "{system}/chromedriver-{version}",
+            "darwin": {
+                "url": "http://chromedriver.storage.googleapis.com/{version}/chromedriver_mac64.zip",
+                "path": "chromedriver"
+            },
+            "linux": {
+                "url": "http://chromedriver.storage.googleapis.com/{version}/chromedriver_linux64.zip",
+                "path": "chromedriver"
+            },
+            "windows": {
+                "url": "http://chromedriver.storage.googleapis.com/{version}/chromedriver_win32.zip",
+                "path": "chromedriver.exe"
+            }
         }
     }
 }
