@@ -60,4 +60,4 @@ if __name__ == '__main__':
     except (KeyboardInterrupt, EOFError, AdbError) as e:
         logger.error(e)
     except Exception as e:
-        logger.error(e, traceback_limit=None)
+        logger.error(traceback_error=True)

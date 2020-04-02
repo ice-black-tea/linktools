@@ -264,7 +264,7 @@ class FridaHelper(BaseHelper):
 
         if reason == "process-terminated" and not utils.is_contain(process_name, ":"):
             self.run_script(process_name, script_code, restart=True)
-        if utils.is_contain(self.sessions, session):
+        if session in self.sessions:
             self.sessions.remove(session)
 
     def _run_script(self, process_id: int, process_name: str, script_code: str) -> _frida.Script:

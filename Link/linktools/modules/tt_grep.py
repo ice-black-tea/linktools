@@ -43,31 +43,57 @@ from linktools import utils, logger
 from linktools.android.argparser import ArgumentParser
 
 
-def match_handler(fn):
-    def wrapper(*args, **kwargs):
-        try:
-            fn(*args, **kwargs)
-            return True
-        except KeyboardInterrupt as e:
-            raise e
-        except:
-            return False
+class GrepHandler():
+    _handlers = {}
+    _regular_handlers = {}
 
-    return wrapper
+    @staticmethod
+    def match(*mimetypes, **kwargs):
+
+        def decorator(fn):
+
+            def wrapper(instance, filename: str, mimetype: str):
+                try:
+                    fn(instance, filename, mimetype)
+                    return True
+                except (KeyboardInterrupt, EOFError) as e:
+                    raise e
+                except:
+                    return False
+
+            for mimetype in mimetypes:
+                if mimetype in GrepHandler._handlers:
+                    raise Exception("redefine {} handler".format(mimetype))
+                GrepHandler._handlers[mimetype] = wrapper
+
+            regular_mimetype = kwargs.get("regular")
+            if regular_mimetype is not None:
+                if regular_mimetype in GrepHandler._regular_handlers:
+                    raise Exception("redefine {} handler".format(regular_mimetype))
+                GrepHandler._regular_handlers[regular_mimetype] = wrapper
+
+            return wrapper
+
+        return decorator
+
+    @staticmethod
+    def handle(instance, filename: str, mimetype: str):
+        if mimetype in GrepHandler._handlers:
+            fn = GrepHandler._handlers[mimetype]
+            if fn(instance, filename, mimetype):
+                return True
+        for key in GrepHandler._regular_handlers:
+            if re.match(key, mimetype):
+                fn = GrepHandler._regular_handlers[key]
+                if fn(instance, filename, mimetype):
+                    return True
+        return False
 
 
 class GrepMatcher:
 
     def __init__(self, pattern):
         self.pattern = pattern
-        self.handlers = {
-            "application/zip": self.on_zip,
-            "application/x-gzip": self.on_zip,
-            "application/java-archive": self.on_zip,
-            "application/xml": self.on_text,
-            "application/x-executable": self.on_elf,
-            "application/x-sharedlib": self.on_elf
-        }
 
     def match(self, path: str):
         if not os.path.exists(path):
@@ -80,20 +106,30 @@ class GrepMatcher:
                 self.on_file(os.path.join(root, name))
 
     def on_file(self, filename: str):
-        if not os.path.exists(filename):
-            return
-        mimetype = magic.from_file(filename, mime=True)
-        handler = utils.get_item(self.handlers, mimetype)
-        if handler is not None:
-            if handler(filename, mimetype):
-                return
-        elif mimetype.startswith("text/"):
-            handler = self.on_text
-            if handler(filename, mimetype):
-                return
-        self.on_binary(filename, mimetype)
+        if os.path.exists(filename):
+            mimetype = magic.from_file(filename, mime=True)
+            if not GrepHandler.handle(self, filename, mimetype):
+                self.on_binary(filename, mimetype)
 
-    @match_handler
+    @GrepHandler.match(
+        "application/xml",
+        regular="text/"
+    )
+    def on_text(self, filename: str, mimetype: str):
+        with open(filename, "rb") as fd:
+            lines = fd.readlines()
+            for i in range(0, len(lines)):
+                out = self.match_content(lines[i].rstrip())
+                if not utils.is_empty(out):
+                    logger.info(Fore.CYAN, filename,
+                                Fore.RESET, ":", Fore.GREEN, i + 1,
+                                Fore.RESET, ": ", out)
+
+    @GrepHandler.match(
+        "application/zip",
+        "application/x-gzip",
+        "application/java-archive"
+    )
     def on_zip(self, filename: str, mimetype: str):
         dirname = filename + ":"
         while os.path.exists(dirname):
@@ -105,19 +141,10 @@ class GrepMatcher:
         finally:
             shutil.rmtree(dirname, ignore_errors=True)
 
-    @match_handler
-    def on_text(self, filename: str, mimetype: str):
-        with open(filename, "rb") as fd:
-            lines = fd.readlines()
-            for i in range(0, len(lines)):
-                out = self.match_content(lines[i].rstrip())
-                if not utils.is_empty(out):
-                    logger.info(Fore.CYAN, filename,
-                                Fore.RESET, ":", Fore.GREEN, i + 1,
-                                Fore.RESET, ": ", out)
-
-    # noinspection PyUnresolvedReferences
-    @match_handler
+    @GrepHandler.match(
+        "application/x-executable",
+        "application/x-sharedlib"
+    )
     def on_elf(self, filename: str, mimetype: str):
         file = lief.parse(filename)
         for symbol in file.imported_symbols:
@@ -138,7 +165,7 @@ class GrepMatcher:
 
         self.on_binary(filename, mimetype=mimetype)
 
-    @match_handler
+    @GrepHandler.match()
     def on_binary(self, filename: str, mimetype: str):
         with open(filename, "rb") as fd:
             for line in fd.readlines():
@@ -192,4 +219,4 @@ if __name__ == '__main__':
     except (KeyboardInterrupt, EOFError):
         pass
     except Exception as e:
-        logger.error(e, traceback_limit=None)
+        logger.error(traceback_error=True)

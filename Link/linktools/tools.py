@@ -64,7 +64,7 @@ class ConfigTool(object):
         unpack = utils.get_item(config, "unpack", default="").format(**config)
         config["unpack"] = ""
         if not utils.is_empty(unpack):
-            config["unpack"] = resource.get_cache_path(unpack, create_dir=True)
+            config["unpack"] = resource.get_cache_dir(unpack, create=True)
 
         # file path
         path = utils.get_item(config, "path", default="").format(**config)

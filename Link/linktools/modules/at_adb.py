@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : ATCallTools.py
-@time    : 2018/12/02
+@file    : ATAdb.py
+@time    : 2019/03/04
 @site    :  
 @software: PyCharm 
 
@@ -26,16 +26,32 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from linktools import logger
-from linktools.android import Device, AdbError, AdbArgumentParser
+
+from linktools import utils, logger
+from linktools.android import Adb, AdbError, AdbArgumentParser
 
 
 def main():
-    parser = AdbArgumentParser(description='used for debugging android-tools.apk')
+    general_commands = [
+        "devices",
+        "help",
+        "version",
+        "connect",
+        "disconnect",
+        "keygen",
+        "wait-for-",
+        "start-server",
+        "kill-server",
+        "reconnect",
+    ]
 
+    parser = AdbArgumentParser(description="adb wrapper")
     args, extras = parser.parse_known_args()
-    device = Device(args.parse_adb_serial())
-    device.call_tools(*extras, capture_output=False)
+
+    if not utils.is_empty(extras) and extras[0] not in general_commands:
+        Adb.exec("-s", args.parse_adb_serial(), *extras, capture_output=False)
+    else:
+        Adb.exec(*extras, capture_output=False)
 
 
 if __name__ == '__main__':
@@ -44,4 +60,4 @@ if __name__ == '__main__':
     except (KeyboardInterrupt, EOFError, AdbError) as e:
         logger.error(e)
     except Exception as e:
-        logger.error(e, traceback_limit=None)
+        logger.error(traceback_error=True)

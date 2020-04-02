@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : resource.py 
-@time    : 2018/12/01
+@file    : database.py 
+@time    : 2020/03/31
 @site    :  
 @software: PyCharm 
 
@@ -26,37 +26,42 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import json
-import os
 
-from .decorator import singleton
-from .utils import utils
+class Field:
 
+    def __init__(self, name: str, is_private_key: bool, is_bind_value: bool, default_value: object):
+        self.name = name
+        self.is_private_key = is_private_key
+        self.is_bind_value = is_bind_value
+        self.default_value=default_value
 
-@singleton
-class Resource(object):
+    def get(self, instance):
+        pass
 
-    def __init__(self):
-        self._root_path = os.path.abspath(os.path.join(__file__, "..", "..", "resource"))
-        self._configs = {}
+    def set(self, instance, value):
+        pass
 
-    def get_config(self, path: str, *key: [str]):
-        if path not in self._configs:
-            with open(os.path.join(self._root_path, "config", path), "rt") as fd:
-                self._configs[path] = json.load(fd)
-        return utils.get_item(self._configs[path], *key)
-
-    def get_persist_path(self, *paths: [str]):
-        return os.path.join(self._root_path, "persist", *paths)
-
-    def get_cache_path(self, *paths: [str]):
-        return os.path.join(self._root_path, "cache", *paths)
-
-    def get_cache_dir(self, *paths: [str], create: bool = False):
-        path = self.get_cache_path(*paths)
-        if create and not os.path.exists(path):
-            os.makedirs(path)
-        return path
+    def __str__(self):
+        return self.name
 
 
-resource = Resource()
+class Table:
+
+    _cached_tables = {}
+
+    def __init__(self, name: str, fields: [Field]):
+        self.name = name
+        self.fields = fields
+
+    @staticmethod
+    def from_model(model):
+        return Table.from_class(model.__class__)
+
+    @staticmethod
+    def from_class(cls):
+        if cls not in Table._cached_tables:
+            raise Exception("decorate {} with @table".format(cls.__name__))
+        return Table._cached_tables[cls]
+
+    def __str__(self):
+        return "Table ({}, Fields={})".format(self.name, ",".join(str(x) for x in self.fields))

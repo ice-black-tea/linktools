@@ -26,102 +26,123 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+from linktools.database import table, field
+from linktools.database.struct import Table
 
 
-class DBField:
+# noinspection SqlDialectInspection,SqlNoDataSourceInspection
+class MysqlUtils:
 
-    def __init__(self, name, related_name=None, private_key=False, default=None, is_bind=True):
-        self.name = name
-        self.related_name = related_name if related_name is not None else name
-        self.private_key = private_key
-        self.default = default
-        self.is_bind = is_bind
-
-
-class DBTable:
-
-    def __init__(self, name, fields):
-        self.name = name
-        self.fields = fields
-
-
-# noinspection SqlNoDataSourceInspection,SqlDialectInspection,PyStringFormat
-class DBModel:
-
-    def __init__(self, table):
-        self.table = table
-        for field in table.fields:
-            setattr(self, field.related_name, None)
-
-    def make_select_sql(self, is_allow_none=False, where=None, order=None, limit=None, args=()):
-        field_values = self._pick_field_values(is_allow_none, False)
+    @staticmethod
+    def make_select_sql(model, is_allow_none=False, is_allow_default=False, where=None, order=None, limit=None, args=()):
+        table = Table.from_model(model)
+        field_values = MysqlUtils._pick_field_values(model, is_allow_none, is_allow_default)
         # noinspection PyTypeChecker
         sql = "SELECT {} FROM {} WHERE 1=1{}{}{}{}".format(
-            ",".join([f.name for f in self.table.fields]),
-            self.table.name,
+            ",".join([f.name for f in table.fields]),
+            table.name,
             "" if len(field_values) == 0 else (" AND " + " AND ".join([f.equals_value for f in field_values])),
-            "" if where is None and len(where) != 0 else " AND {}".format(where),
-            "" if order is None and len(order) != 0 else " ORDER BY {}".format(order),
-            "" if limit is None and len(limit) != 0 else " LIMIT {}".format(limit)
+            "" if where is None else " AND {}".format(where),
+            "" if order is None else " ORDER BY {}".format(order),
+            "" if limit is None else " LIMIT {}".format(limit)
         )
-        _args = [f.bind_value for f in filter(lambda f: f.is_bind, field_values)]
+        _args = [f.bind_value for f in filter(lambda f: f.is_bind_value, field_values)]
         if args is not None:
             _args.extend(args)
         return sql, _args
 
-    def set_value_by_tuple(self, values):
-        # noinspection PyTypeChecker
-        for i in range(len(self.table.fields)):
-            setattr(self, self.table.fields[i].related_name, values[i])
+    @staticmethod
+    def set_value_by_tuple(model, values):
+        fields = Table.from_model(model).fields
+        for i in range(len(fields)):
+            fields[i].set(model, values[i])
 
-    def _pick_field_values(self, is_allow_none, is_allow_default):
+    @staticmethod
+    def _pick_field_values(model, is_allow_none, is_allow_default):
 
         class FieldValue:
 
-            def __init__(self, field, value, is_bind):
+            def __init__(self, field, value):
                 self.field = field
                 self.bind_value = value
-                self.is_bind = is_bind
 
             @property
             def value(self):
-                return "%s" if self.is_bind else self.bind_value
+                return "%s" if self.is_bind_value else str(self.bind_value)
 
             @property
             def equals_value(self):
-                return self.field.name + "=" + self.value
+                return self.name + "=" + self.value
 
-        fields = []
-        values = self.__dict__
-        for field in self.table.fields:
-            if field.related_name in values:
-                value = values[field.related_name]
-                if is_allow_none is True or value is not None:
-                    fields.append(FieldValue(field, value, True))
-                    continue
-            if is_allow_default is True and field.default is not None:
-                fields.append(FieldValue(field, field.default, field.is_bind))
-                continue
-        return fields
+            def __getattr__(self, item):
+                return getattr(self.field, item)
 
-    def make_insert_sql(self, is_allow_none=False):
-        field_values = self._pick_field_values(is_allow_none, True)
+        field_values = []
+        for field in Table.from_model(model).fields:
+            value = field.get(model)
+            if is_allow_default and field.default_value is not None:
+                field_values.append(FieldValue(field, field.default_value))
+            elif is_allow_none or value is not None:
+                field_values.append(FieldValue(field, value))
+
+        return field_values
+
+    @staticmethod
+    def make_insert_sql(model, is_allow_none=False, is_allow_default=False):
+        field_values = MysqlUtils._pick_field_values(model, is_allow_none, is_allow_default)
         sql = "INSERT INTO {} ({}) VALUES ({})".format(
-            self.table.name,
-            ",".join([f.field.name for f in field_values]),
+            Table.from_model(model).name,
+            ",".join([f.name for f in field_values]),
             ",".join([f.value for f in field_values])
         )
-        args = [f.bind_value for f in filter(lambda f: f.is_bind, field_values)]
+        args = [f.bind_value for f in filter(lambda f: f.is_bind_value, field_values)]
         return sql, args
 
-    def make_insert_or_update_sql(self, is_allow_none=False):
-        field_values = self._pick_field_values(is_allow_none, True)
+    @staticmethod
+    def make_insert_or_update_sql(model, is_allow_none=False, is_allow_default=False):
+        field_values = MysqlUtils._pick_field_values(model, is_allow_none, is_allow_default)
         sql = "INSERT INTO {} ({}) VALUES ({}) ON DUPLICATE KEY UPDATE {}".format(
-            self.table.name,
-            ",".join([f.field.name for f in field_values]),
+            Table.from_model(model).name,
+            ",".join([f.name for f in field_values]),
             ",".join([f.value for f in field_values]),
-            ",".join([f.equals_value for f in filter(lambda f: not f.field.private_key, field_values)])
+            ",".join([f.equals_value for f in filter(lambda f: not f.is_private_key, field_values)])
         )
-        args = [f.bind_value for f in filter(lambda f: f.is_bind, field_values)]
-        args.extend([f.bind_value for f in filter(lambda f: f.is_bind and not f.field.private_key, field_values)])
+        args = [f.bind_value for f in filter(lambda f: f.is_bind_value, field_values)]
+        args.extend([f.bind_value for f in filter(lambda f: f.is_bind_value and not f.is_private_key, field_values)])
         return sql, args
+
+
+mysql_utils = MysqlUtils
+
+
+if __name__ == '__main__':
+
+    @table("table_name")
+    class test:
+
+        @field("aaaa")
+        def field1(self):
+            return None
+
+        @field(is_bind_value=False)
+        def field2(self):
+            return "1"
+
+        @field
+        def field3(self):
+            pass
+
+    t = test()
+
+    print(mysql_utils.make_select_sql(t))
+    print(mysql_utils.make_insert_sql(t))
+    print(mysql_utils.make_insert_sql(t, is_allow_none=True))
+    print(mysql_utils.make_insert_or_update_sql(t))
+
+    t.field1 = "111"
+    t.field2 = None
+
+    print(mysql_utils.make_select_sql(t))
+    print(mysql_utils.make_insert_sql(t))
+    print(mysql_utils.make_insert_sql(t, is_allow_none=True))
+    print(mysql_utils.make_insert_or_update_sql(t))

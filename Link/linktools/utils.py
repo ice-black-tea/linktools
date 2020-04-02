@@ -34,22 +34,21 @@ from collections import Iterable
 
 
 class Utils:
-
     class Process(subprocess.Popen):
 
         def __init__(self, *args, **kwargs):
             """
             :param args: 参数
             """
-            capture_output = utils.get_item(kwargs, "capture_output")
-            if capture_output is True:
-                if not utils.is_contain(kwargs, "stdout"):
-                    kwargs["stdout"] = subprocess.PIPE
-                if not utils.is_contain(kwargs, "stderr"):
-                    kwargs["stderr"] = subprocess.PIPE
-            if capture_output is not None:
+            if "capture_output" in kwargs:
+                capture_output = kwargs.get("capture_output")
                 del kwargs["capture_output"]
-            if not utils.is_contain(kwargs, "cwd"):
+                if capture_output is True:
+                    if "stdout" not in kwargs:
+                        kwargs["stdout"] = subprocess.PIPE
+                    if "stderr" not in kwargs:
+                        kwargs["stderr"] = subprocess.PIPE
+            if "cwd" not in kwargs:
                 kwargs["cwd"] = os.getcwd()
             subprocess.Popen.__init__(self, args, shell=False, **kwargs)
 
@@ -72,18 +71,6 @@ class Utils:
         process = Utils.Process(*args, **kwargs)
         out, err = process.communicate()
         return process, out, err
-
-    @staticmethod
-    def coalesce(*values):
-        """
-        选取第一个非空值
-        :param values: 值
-        :return: 非空值，若全为空则返回空
-        """
-        for value in values:
-            if value is not None:
-                return value
-        return None
 
     # noinspection PyShadowingBuiltins
     @staticmethod

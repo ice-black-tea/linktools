@@ -44,7 +44,8 @@ class LoggerArgs:
     def __init__(self, args, kwargs, default):
         self.args = args
         self.kwargs = kwargs
-        self.default = default
+        self.default_kwargs = default
+        self._cached_kwargs = {}
 
     @cached_property
     def indent(self):
@@ -58,27 +59,13 @@ class LoggerArgs:
         return tag
 
     @cached_property
-    def fore(self):
-        return self.get("fore")
-
-    @cached_property
-    def back(self):
-        return self.get("back")
-
-    @cached_property
-    def style(self):
-        return self.get("style")
-
-    @cached_property
     def stack(self):
-        DEFAULT_LIMIT = "undefined"
-        stack = ""
-        limit = self.get("traceback_limit", default=DEFAULT_LIMIT)
-        if limit == DEFAULT_LIMIT:
-            return stack
-        for item in traceback.format_stack(sys._getframe(5), limit=limit):
-            stack = stack + item
-        return stack
+        result = ""
+        if self.traceback_error is True:
+            result = result + "".join(traceback.format_exc())
+        if self.traceback is True:
+            result = result + "".join(traceback.format_stack(sys._getframe(5)))
+        return result
 
     @cached_property
     def message(self):
@@ -96,17 +83,22 @@ class LoggerArgs:
         for arg in self.args:
             message = message + str(arg)
         if len(self.stack) > 0:
-            message = message + os.linesep + self.stack
+            if len(self.args) > 0:
+                message = message + os.linesep
+            message = message + self.stack
         return message.replace(os.linesep, os.linesep + " " * (self.indent + len(self.tag)))
 
     def get(self, item, default=None):
-        if item not in self.kwargs:
-            if item in self.default:
-                return self.default[item]
-            return default
-        value = self.kwargs[item]
-        del self.kwargs[item]
-        return value
+        if item not in self._cached_kwargs:
+            if item in self.kwargs:
+                self._cached_kwargs[item] = self.kwargs[item]
+                del self.kwargs[item]
+            else:
+                self._cached_kwargs[item] = self.default_kwargs.get(item, default)
+        return self._cached_kwargs[item]
+
+    def __getattr__(self, item):
+        return self.get(item)
 
 
 @singleton

@@ -69,7 +69,7 @@ class _NamespaceWrapper:
         return self.namespace.__str__()
 
     def load_last_device(self):
-        path = resource.get_cache_path("adb_device.txt", create_file=True)
+        path = resource.get_cache_path("adb_device.txt")
         try:
             with open(path, "rt") as fd:
                 return fd.read()
@@ -77,7 +77,7 @@ class _NamespaceWrapper:
             return None
 
     def save_last_device(self, device):
-        path = resource.get_cache_path("adb_device.txt", create_file=True)
+        path = resource.get_cache_path("adb_device.txt")
         try:
             with open(path, "wt+") as fd:
                 fd.write(device)
