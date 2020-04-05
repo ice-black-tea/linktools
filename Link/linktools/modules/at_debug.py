@@ -36,7 +36,7 @@ def main():
                         help='regular expression')
     parser.add_argument('activity', action='store', default=None,
                         help='regular expression')
-    parser.add_argument('-p', '--port', action='store', type=int, default=8700,
+    parser.add_argument('-p', '--port', action='store', type=int, default=8701,
                         help='fetch all apps')
 
     args = parser.parse_args()

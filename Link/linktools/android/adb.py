@@ -191,7 +191,7 @@ class Device(object):
         调用辅助apk功能
         :param args: 参数
         :param capture_output: 捕获输出，填False使用标准输出
-        :return: dex输出结果
+        :return: 输出结果
         """
         apk_name = self.config["name"]
         apk_md5 = self.config["md5"]

@@ -45,13 +45,13 @@ if __name__ == '__main__':
 ```
 
 
-### 方法2：使用ATFrida.py (推荐)
+### 方法2：使用at_frida.py (推荐)
 
 注入js文件或js代码到指定进程，支持根据设备下载对应的frida-server，js文件实时加载，应用重启后注入等功能
 
 ```bash
-$ ATFrida.py -h
-usage: ATFrida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
+$ at_frida.py -h
+usage: at_frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
 
 easy to use frida
 
@@ -250,13 +250,13 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
-## ATTopApp.py
+## at_top_app.py
 
 显示顶层应用信息、获取顶层应用apk、截屏等
 
 ```bash
-$ ATTopApp.py -h
-usage: ATTopApp.py [-h] [-v] [-s SERIAL]
+$ at_top_app.py -h
+usage: at_top_app.py [-h] [-v] [-s SERIAL]
                      [--package | --activity | --path | --apk [path] |
                      --screen [path]]
 
@@ -274,13 +274,13 @@ optional arguments:
   --screen [path]       capture screen and pull file
 ```
 
-## ATInetnt.py
+## at_inetnt.py
 
 打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
 
 ```bash
-$ ATInetnt.py -h
-usage: ATInetnt.py [-h] [-v] [-s SERIAL]
+$ at_inetnt.py -h
+usage: at_inetnt.py [-h] [-v] [-s SERIAL]
                     (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
 
 common intent action
@@ -302,33 +302,13 @@ optional arguments:
                         such as https://antiy.cn)
 ```
 
-## TGrep.py
-
-正则匹配文件内容（含zip文件内容）
-
-```bash
-$ TGrep.py -h
-usage: TGrep.py [-h] [-v] [-i] pattern [file [file ...]]
-
-match files with regular expressions
-
-positional arguments:
-  pattern            regular expression
-  file               target files path
-
-optional arguments:
-  -h, --help         show this help message and exit
-  -v, --version      show program's version number and exit
-  -i, --ignore-case  ignore case
-```
-
-## ATApp.py
+## at_app.py
 
 展示app基本信息
 
 ```bash
-$ ATApp.py -h
-usage: ATApp.py [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
+$ at_app.py -h
+usage: at_app.py [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
                  [-o field [field ...]]
 
 fetch application info
@@ -350,27 +330,47 @@ optional arguments:
 
 ![apps](resource/imgs/apps.png)
 
-## ATTools.py
+## ct_grep.py
+
+正则匹配文件内容 (含解析zip、elf等格式）
+
+```bash
+$ ct_grep.py -h
+usage: ct_grep.py [-h] [-v] [-i] pattern [file [file ...]]
+
+match files with regular expressions
+
+positional arguments:
+  pattern            regular expression
+  file               target files path
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -v, --version      show program's version number and exit
+  -i, --ignore-case  ignore case
+```
+
+## ct_tools.py
 
 读取[配置文件](resource/config/tools.json)，下载使用对应工具
 
 ```bash
 $ ATTools.py 
-usage: ATTools.py [-h]
+usage: ct_tools.py [-h]
                    {adb,apktool,baksmali,compact_dex_converter,fastboot,java,mipay_extract,smali,vdex_extractor}
 ```
 
-## ATToolsBg.py
+## ct_ools_bg.py
 
 读取[配置文件](resource/config/tools.json)，下载后台使用对应工具
 
 ```bash
 $ ATToolsBg.py 
-usage: ATToolsBg.py [-h]
+usage: ct_ools_bg.py [-h]
                    {adb,apktool,baksmali,compact_dex_converter,fastboot,java,mipay_extract,smali,vdex_extractor}
 ```
 
 
-## ATCallTool.py
+## at_tools.py
 
-测试android-tools.dex时使用
+测试android-tools.apk时使用

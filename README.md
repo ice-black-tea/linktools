@@ -1,7 +1,5 @@
 # Zelda
 
-常用小工具集，命名来自于《塞尔达传说》
-
 ## 使用
 
 ### 依赖项
@@ -36,5 +34,4 @@ sudo python3 Zelda/Link/install.py -u
 * 添加获取所有权限（dangerous、normal、与声明保护等级不一样的权限...）
 * 解决gadbd在高版本无法调用am、pm等命令功能
 * 解析android端口、进程等内容，列出潜在危险点
-* at_grep.py脚本添加解析elf文件格式等功能呢个
 ... ...

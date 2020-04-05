@@ -38,6 +38,7 @@ class AdbArgumentParser(ArgumentParser):
         super().__init__(**kwargs)
 
         self._adb_group = self.add_argument_group(title="adb optional arguments")
+
         group = self._adb_group.add_mutually_exclusive_group()
         group.add_argument("-s", "--serial", metavar="serial", dest="adb_serial",
                            help="use device with given serial (adb -s option)")

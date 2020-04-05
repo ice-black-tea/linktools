@@ -223,14 +223,12 @@ class FridaHelper(BaseHelper):
         if utils.get_item(message, "type") == "send":
             payload = utils.get_item(message, "payload")
 
-            stack = utils.get_item(payload, "stack")
+            stack = utils.pop_item(payload, "stack")
             if not utils.is_empty(stack):
-                del payload["stack"]
                 logger.info(stack, tag="[*]", fore=Fore.CYAN)
 
-            arguments = utils.get_item(payload, "arguments")
+            arguments = utils.pop_item(payload, "arguments")
             if not utils.is_empty(arguments):
-                del payload["arguments"]
                 logger.info(arguments, tag="[*]", fore=Fore.LIGHTMAGENTA_EX)
 
             if not utils.is_empty(payload):

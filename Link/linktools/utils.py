@@ -41,8 +41,7 @@ class Utils:
             :param args: 参数
             """
             if "capture_output" in kwargs:
-                capture_output = kwargs.get("capture_output")
-                del kwargs["capture_output"]
+                capture_output = kwargs.pop("capture_output")
                 if capture_output is True:
                     if "stdout" not in kwargs:
                         kwargs["stdout"] = subprocess.PIPE
@@ -152,11 +151,54 @@ class Utils:
             try:
                 # noinspection PyUnresolvedReferences
                 obj = obj[key]
+                continue
             except:
-                try:
-                    obj = obj.__dict__[key]
-                except:
-                    return default
+                pass
+            try:
+                obj = obj.__dict__[key]
+            except:
+                return default
+        if type is not None:
+            try:
+                obj = type(obj)
+            except:
+                return default
+        return obj
+
+    # noinspection PyShadowingBuiltins
+    @staticmethod
+    def pop_item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
+        """
+        获取并删除子项
+        :param obj: 对象
+        :param keys: 键
+        :param type: 对应类型
+        :param default: 默认值
+        :return: 子项
+        """
+        last_obj = None
+        last_key = None
+        for key in keys:
+            if obj is None:
+                return default
+            last_obj = obj
+            last_key = key
+            try:
+                # noinspection PyUnresolvedReferences
+                obj = obj[key]
+                continue
+            except:
+                pass
+            try:
+                obj = obj.__dict__[key]
+            except:
+                return default
+        if last_obj is not None and last_key is not None:
+            try:
+                # noinspection PyUnresolvedReferences
+                del last_obj[last_key]
+            except:
+                pass
         if type is not None:
             try:
                 obj = type(obj)

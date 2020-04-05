@@ -49,11 +49,11 @@ class LoggerArgs:
 
     @cached_property
     def indent(self):
-        return self.get("indent", default=0)
+        return self.get("indent") or 0
 
     @cached_property
     def tag(self):
-        tag = str(self.get("tag", default=""))
+        tag = str(self.get("tag") or "")
         if len(tag) > 0 and not tag.endswith(" "):
             tag = tag + " "
         return tag
@@ -88,13 +88,11 @@ class LoggerArgs:
             message = message + self.stack
         return message.replace(os.linesep, os.linesep + " " * (self.indent + len(self.tag)))
 
-    def get(self, item, default=None):
+    def get(self, item):
         if item not in self._cached_kwargs:
-            if item in self.kwargs:
-                self._cached_kwargs[item] = self.kwargs[item]
-                del self.kwargs[item]
-            else:
-                self._cached_kwargs[item] = self.default_kwargs.get(item, default)
+            self._cached_kwargs[item] = \
+                self.kwargs.pop(item) if item in self.kwargs \
+                else self.default_kwargs.get(item)
         return self._cached_kwargs[item]
 
     def __getattr__(self, item):
