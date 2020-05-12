@@ -27,7 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import argparse
-import ast
 import os
 import subprocess
 import sys
@@ -40,10 +39,6 @@ env = UserEnv()
 
 def install_module(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
-
-    version_path = os.path.join(install_path, "linktools", "version.py")
-    with open(version_path, "rt") as f:
-        _module = ast.parse(f.read())
 
     if install:
         install_require(True)

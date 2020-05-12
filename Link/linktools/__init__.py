@@ -28,8 +28,13 @@
 """
 
 from .version import __name__, __version__, __author__, __email__, __url__
+
 from .utils import utils
 from .tools import tools
 from .resource import resource
 from .argparser import ArgumentParser
-from .logger import logger
+
+try:
+    from .logger import logger
+except ModuleNotFoundError as e:
+    print("\033[1;31mWarning:", str(e), '\033[0m')
