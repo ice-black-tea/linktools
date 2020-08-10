@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
 import hashlib
 import sys
 
@@ -34,36 +35,45 @@ from watchdog.observers import Observer
 
 from linktools import utils, logger
 from linktools.android import AdbError, AdbArgumentParser
-from linktools.android.frida import FridaHelper
 
 try:
     # noinspection PyPackageRequirements
     from frida import ServerNotRunningError
+    from linktools.android.frida import FridaHelper
 except:
-    logger.error("please use the following command to install frida first:", sys.executable, "-m", "pip", "install", "frida")
+    logger.error("please use the following command to install frida first:",
+                 sys.executable, "-m", "pip", "install", "frida")
     exit(1)
 
 
 class FridaScript(object):
 
-    def __init__(self, path: str, helper: FridaHelper, name: str, restart: bool):
+    def __init__(self, path: str, helper: FridaHelper, name: str, regular: bool, restart: bool):
         self.helper = helper
         self.name = name
+        self.regular = regular
         self.path = path
         self.restart = restart
-        self._md5 = ""
+        self.last_md5 = ""
 
     def load(self):
         with open(self.path, "r") as fd:
             jscode = fd.read()
         # check md5
         md5 = hashlib.md5(jscode.encode("utf-8")).hexdigest()
-        if self._md5 == md5:
+        if self.last_md5 == md5:
             return
-        self._md5 = md5
+        self.last_md5 = md5
+
         logger.info("Loading script: %s" % self.path, tag="[*]")
         self.helper.detach_sessions()
-        self.helper.run_script(self.name, jscode, restart=self.restart)
+
+        if not self.restart:
+            processes = self.helper.get_processes(self.name) if not self.regular \
+                else filter(lambda x: re.match(self.name, x.name), self.helper.get_processes())
+            self.helper.run_script(processes, jscode)
+        else:
+            self.helper.restart_and_run_script(self.name, jscode)
 
 
 class FridaEventHandler(FileSystemEventHandler):
@@ -94,6 +104,8 @@ def main():
                         help='target package [default top-level package]')
     parser.add_argument('-r', '--restart', action='store_true', default=False,
                         help='inject after restart [default false]')
+    parser.add_argument('--regular', action='store_true', default=False,
+                        help="regular match package name")
     parser.add_argument('file', action='store', default=None,
                         help='javascript file')
 
@@ -103,11 +115,10 @@ def main():
     package = args.package
     if utils.is_empty(package):
         package = helper.device.get_top_package_name()
-    restart = args.restart
 
     observer = Observer()
     path = utils.abspath(args.file)
-    script = FridaScript(path, helper, package, restart)
+    script = FridaScript(path, helper, package, args.regular, args.restart)
     event_handler = FridaEventHandler(script)
     observer.schedule(event_handler, os.path.dirname(path))
     observer.start()

@@ -104,7 +104,7 @@ function JavaHelper() {
     addMethod(this, "addMethodProperties", function(method) {
         method.toString = function() {
             var ret = this.returnType.className;
-            var name = this.holder.__name__ + "." + this.methodName;
+            var name = (this.holder.$className || this.holder.__name__) + "." + this.methodName;
             var args = "";
             if (this.argumentTypes.length > 0) {
                 args = this.argumentTypes[0].className;

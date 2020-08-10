@@ -99,8 +99,11 @@ class BaseHelper(object):
             self.device.shell("chmod 755 '%s'" % self.server_target_file)
 
         thread.start_new_thread(lambda: self.device.sudo(self.server_target_file, capture_output=False), ())
-        time.sleep(1)
-        return self.is_running()
+        for i in range(10):
+            time.sleep(0.5)
+            if self.is_running():
+                return True
+        return False
 
     def kill_server(self) -> bool:
         """
@@ -129,6 +132,8 @@ class BaseHelper(object):
             return True
         except frida.ServerNotRunningError:
             return False
+        except frida.ProcessNotFoundError:
+            return False
 
     def get_process(self, name) -> _frida.Process:
         """
@@ -136,19 +141,30 @@ class BaseHelper(object):
         :param name: 进程名
         :return: 进程
         """
-        return self.frida_device.get_process(name)
+        try:
+            return self.frida_device.get_process(name)
+        except Exception as e:
+            logger.error(e, tag="[!]", fore=Fore.RED)
+            return None
 
-    def get_processes(self, package_name) -> [_frida.Process]:
+    def get_processes(self, package_name: str = None) -> [_frida.Process]:
         """
         根据包名匹配进程名
         :param package_name: 进程名（支持正则）
         :return: 进程列表
         """
-        processes = []
-        for process in self.frida_device.enumerate_processes():
-            if self.device.fix_package_name(process.name) == package_name:
-                processes.append(process)
-        return processes
+        try:
+            all_processes = self.frida_device.enumerate_processes()
+            if package_name is None:
+                return all_processes
+            processes = []
+            for process in all_processes:
+                if self.device.fix_package_name(process.name) == package_name:
+                    processes.append(process)
+            return processes
+        except Exception as e:
+            logger.error(e, tag="[!]", fore=Fore.RED)
+            return []
 
 
 class FridaHelper(BaseHelper):
@@ -261,7 +277,7 @@ class FridaHelper(BaseHelper):
         logger.info("Detach process: %s (%d)" % (process_name, process_id), tag="[*]")
 
         if reason == "process-terminated" and not utils.is_contain(process_name, ":"):
-            self.run_script(process_name, script_code, restart=True)
+            self.restart_and_run_script(process_name, script_code)
         if session in self.sessions:
             self.sessions.remove(session)
 
@@ -302,33 +318,44 @@ class FridaHelper(BaseHelper):
 
         return script
 
-    def run_script(self, package_name: str, script_code, restart: bool = False) -> [_frida.Script]:
+    def run_script(self, processes: [_frida.Process], script_code: str) -> [_frida.Script]:
+        """
+        向指定包名的进程中注入并执行js代码
+        :param processes: 需要注入的进程
+        :param script_code: 注入的js代码
+        :return: 脚本对象
+        """
+        scripts = []
+
+        for process in processes:
+            try:
+                script = self._run_script(process.pid, process.name, script_code)
+                scripts.append(script)
+            except Exception as e:
+                logger.error(e, tag="[!]", fore=Fore.RED)
+
+        logger.info("Running ...", tag="[*]")
+
+        return scripts
+
+    def restart_and_run_script(self, package_name: str, script_code: str) -> [_frida.Script]:
         """
         向指定包名的进程中注入并执行js代码
         :param package_name: 需要注入的应用包名
         :param script_code: 注入的js代码
-        :param restart: 是否重启应用
         :return: 脚本对象
         """
         scripts = []
 
         package_name = self.device.fix_package_name(package_name)
 
-        if not restart:
-            for process in self.get_processes(package_name):
-                try:
-                    script = self._run_script(process.pid, process.name, script_code)
-                    scripts.append(script)
-                except Exception as e:
-                    logger.error(e, tag="[!]", fore=Fore.RED)
-        else:
-            try:
-                process_id = self.frida_device.spawn([package_name])
-                script = self._run_script(process_id, package_name, script_code)
-                self.frida_device.resume(process_id)
-                scripts.append(script)
-            except Exception as e:
-                logger.info(e, tag="[!]", fore=Fore.RED)
+        try:
+            process_id = self.frida_device.spawn([package_name])
+            script = self._run_script(process_id, package_name, script_code)
+            self.frida_device.resume(process_id)
+            scripts.append(script)
+        except Exception as e:
+            logger.info(e, tag="[!]", fore=Fore.RED)
 
         logger.info("Running ...", tag="[*]")
 
