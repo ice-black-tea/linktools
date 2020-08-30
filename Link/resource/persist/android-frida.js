@@ -52,11 +52,11 @@ function JavaHelper() {
         }
     }
 
-    function ignoreError(fn) {
+    function ignoreError(fn, defValue) {
         try {
-            fn();
+            return fn();
         } catch (e) {
-            /* ignore */
+            return defValue;
         }
     }
 
@@ -75,7 +75,21 @@ function JavaHelper() {
      * :return:             类对象
      */
     addMethod(this, "findClass", function(className) {
-        return Java.use(className);
+        var error = null;
+        var loaders = Java.enumerateClassLoadersSync();
+        for (var i in loaders) {
+            try {
+                var clazz = $.findClass(loaders[i], className);
+                if (clazz != null) {
+                    return clazz;
+                }
+            } catch(e) {
+                if (error == null) {
+                    error = e;
+                }
+            }
+        }
+        throw error;
     });
 
     /**
@@ -88,9 +102,12 @@ function JavaHelper() {
         var clazz = null;
         if (classloader != null) {
             var originClassloader = Java.classFactory.loader;
-            Java.classFactory.loader = classloader;
-            clazz = Java.use(clazz);
-            Java.classFactory.loader = originClassloader;
+            try {
+                Java.classFactory.loader = classloader;
+                clazz = Java.use(className);
+            } finally {
+                Java.classFactory.loader = originClassloader;
+            }
         } else {
             clazz = Java.use(className);
         }
@@ -144,7 +161,7 @@ function JavaHelper() {
      */
     addMethod(this, "hookMethod", function(clazz, method, signature, impl) {
         if (typeof(clazz) === "string") {
-            clazz = $.findClass(null, clazz);
+            clazz = $.findClass(clazz);
         }
         if (typeof(method) === "string") {
             method = clazz[method];
@@ -168,7 +185,7 @@ function JavaHelper() {
      */
     addMethod(this, "hookMethods", function(clazz, methodName, impl) {
         if (typeof(clazz) === "string") {
-            clazz = $.findClass(null, clazz);
+            clazz = $.findClass(clazz);
         }
         var methods = clazz[methodName].overloads;
         for (var i = 0; i < methods.length; i++) {
@@ -183,14 +200,14 @@ function JavaHelper() {
      */
     addMethod(this, "hookClass", function(clazz, impl) {
         if (typeof(clazz) === "string") {
-            clazz = $.findClass(null, clazz);
+            clazz = $.findClass(clazz);
         }
 
         var targetClass = clazz.class;
         var methodNames = [];
 
         $.hookMethods(clazz, "$init", impl); /* hook constructor */
-        while (targetClass != null && targetClass.getName() != "java.lang.Object") {
+        while (targetClass != null && targetClass.getName() !== "java.lang.Object") {
             targetClass.getDeclaredMethods().forEach(function(method) {
                 var methodName = method.getName();
                 if (methodNames.indexOf(methodName) < 0) {
@@ -210,7 +227,7 @@ function JavaHelper() {
      */
     addMethod(this, "callMethod", function(obj, args) {
         var methodName = $.getStackTrace()[0].getMethodName();
-        if (methodName == "<init>") {
+        if (methodName === "<init>") {
             methodName = "$init";
         }
         var methodArgs = "";
@@ -237,7 +254,7 @@ function JavaHelper() {
                 message = Object.assign(message, $.makeStackObject(this, $.getStackTrace()));
             if (printArgs !== false)
                 message = Object.assign(message, $.makeArgsObject(this, args, ret));
-            if (Object.keys(message).length != 0)
+            if (Object.keys(message).length !== 0)
                 send(message);
             return ret;
         };
@@ -276,7 +293,7 @@ function JavaHelper() {
             values = $.fromJavaArray(clazz, values);
         }
         for (var i = 0; i < values.length; i++) {
-            if (values[i].toString() == name) {
+            if (values[i].toString() === name) {
                 return values[i];
             }
         }
