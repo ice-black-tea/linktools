@@ -45,7 +45,7 @@ from linktools.android.argparser import ArgumentParser
 
 class GrepHandler():
     _handlers = {}
-    _regular_handlers = {}
+    _filter_handlers = {}
 
     @staticmethod
     def match(*mimetypes, **kwargs):
@@ -66,11 +66,11 @@ class GrepHandler():
                     raise Exception("redefine {} handler".format(mimetype))
                 GrepHandler._handlers[mimetype] = wrapper
 
-            regular_mimetype = kwargs.get("regular")
-            if regular_mimetype is not None:
-                if regular_mimetype in GrepHandler._regular_handlers:
-                    raise Exception("redefine {} handler".format(regular_mimetype))
-                GrepHandler._regular_handlers[regular_mimetype] = wrapper
+            filter = kwargs.get("filter")
+            if filter is not None:
+                if filter in GrepHandler._filter_handlers:
+                    raise Exception("redefine {} handler".format(filter))
+                GrepHandler._filter_handlers[filter] = wrapper
 
             return wrapper
 
@@ -82,9 +82,9 @@ class GrepHandler():
             fn = GrepHandler._handlers[mimetype]
             if fn(instance, filename, mimetype):
                 return True
-        for key in GrepHandler._regular_handlers:
-            if re.match(key, mimetype):
-                fn = GrepHandler._regular_handlers[key]
+        for key in GrepHandler._filter_handlers:
+            if key(mimetype):
+                fn = GrepHandler._filter_handlers[key]
                 if fn(instance, filename, mimetype):
                     return True
         return False
@@ -113,7 +113,7 @@ class GrepMatcher:
 
     @GrepHandler.match(
         "application/xml",
-        regular="text/"
+        filter=lambda t: t.startswith("text/"),
     )
     def on_text(self, filename: str, mimetype: str):
         with open(filename, "rb") as fd:

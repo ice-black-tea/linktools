@@ -40,7 +40,7 @@ try:
     # noinspection PyPackageRequirements
     from frida import ServerNotRunningError
     from linktools.android.frida import FridaHelper
-except:
+except ModuleNotFoundError:
     logger.error("please use the following command to install frida first:",
                  sys.executable, "-m", "pip", "install", "frida")
     exit(1)

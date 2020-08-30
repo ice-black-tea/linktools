@@ -33,8 +33,12 @@ import os
 import sys
 import traceback
 
-import colorama
-from colorama import Fore, Back, Style
+try:
+    import colorama
+    from colorama import Fore, Back, Style
+    colorama.init(True)
+except ModuleNotFoundError as e:
+    print("\033[1;31mWarning:", str(e), '\033[0m')
 
 from .decorator import singleton, cached_property
 
@@ -107,7 +111,6 @@ class Logger:
     ERROR = 4
 
     def __init__(self):
-        colorama.init(True)
         self.level = self.INFO
 
     def debug(self, *args, **kwargs):

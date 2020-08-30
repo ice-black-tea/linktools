@@ -32,14 +32,16 @@ import re
 import subprocess
 import sys
 
+from .version import __name__
+
 
 class UserEnv:
     """
     用户环境变量
     """
 
-    _begin_template = "\n###################################################################\n# {key} begin\n"
-    _end_template = "\n# {key} end\n###################################################################\n"
+    _begin_template = "\n# {key} begin, created by ##name##, do not modify! \n".replace("##name##", __name__)
+    _end_template = "\n# {key} end \n"
 
     def __init__(self):
         """

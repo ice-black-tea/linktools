@@ -26,6 +26,10 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import sys
+
+if (sys.version_info.major, sys.version_info.minor) < (3, 5):
+    raise Exception("only supports python 3.5 or higher")
 
 from .version import __name__, __version__, __author__, __email__, __url__
 
@@ -33,8 +37,4 @@ from .utils import utils
 from .tools import tools
 from .resource import resource
 from .argparser import ArgumentParser
-
-try:
-    from .logger import logger
-except ModuleNotFoundError as e:
-    print("\033[1;31mWarning:", str(e), '\033[0m')
+from .logger import logger

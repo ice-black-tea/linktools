@@ -37,9 +37,7 @@ class AdbArgumentParser(ArgumentParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._adb_group = self.add_argument_group(title="adb optional arguments")
-
-        group = self._adb_group.add_mutually_exclusive_group()
+        group = self.add_argument_group(title="adb optional arguments").add_mutually_exclusive_group()
         group.add_argument("-s", "--serial", metavar="serial", dest="adb_serial",
                            help="use device with given serial (adb -s option)")
         group.add_argument("-d", "--device", dest="adb_device", action="store_true",
@@ -69,7 +67,7 @@ class _NamespaceWrapper:
     def __str__(self):
         return self.namespace.__str__()
 
-    def load_last_device(self):
+    def _load_last_device(self):
         path = resource.get_cache_path("adb_device.txt")
         try:
             with open(path, "rt") as fd:
@@ -77,7 +75,7 @@ class _NamespaceWrapper:
         except:
             return None
 
-    def save_last_device(self, device):
+    def _save_last_device(self, device):
         path = resource.get_cache_path("adb_device.txt")
         try:
             with open(path, "wt+") as fd:
@@ -87,7 +85,7 @@ class _NamespaceWrapper:
 
     def parse_adb_serial(self):
         if self.adb_last:
-            setattr(self, "adb_serial", self.load_last_device())
+            setattr(self, "adb_serial", self._load_last_device())
 
         if self.adb_index:
             devices = Adb.devices(alive=False)
@@ -140,6 +138,6 @@ class _NamespaceWrapper:
                 if index >= 0 or index < len(devices):
                     setattr(self, "adb_serial", devices[index])
 
-        self.save_last_device(self.adb_serial)
+        self._save_last_device(self.adb_serial)
 
         return self.adb_serial

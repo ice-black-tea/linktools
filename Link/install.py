@@ -41,7 +41,6 @@ def install_module(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
 
     if install:
-        install_require(True)
         # python -m pip install -e .
         subprocess.call([sys.executable, "-m", "pip", "install", "-e", install_path],
                         stdin=None, stdout=None, stderr=None)
@@ -55,6 +54,10 @@ def install_env(install):
     tools_key = "LINK_TOOLS_PATH"
     install_path = os.path.abspath(os.path.dirname(__file__))
     tools_path = os.path.join(install_path, "linktools", "modules")
+
+    if env.bash_file is not None:
+        if not os.path.exists(env.bash_file):
+            raise Exception("{path} is not exists".format(path=env.bash_file))
 
     if install:
         env.set(tools_key, tools_path)
@@ -96,53 +99,44 @@ if __name__ == '__main__':
         raise Exception("only supports python 3.5 or higher")
 
     parser = argparse.ArgumentParser()
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-i', '--install', action='store_const', const=True, default=False,
-                       help='install python module and set environmental variable')
-    group.add_argument('--install-module', action='store_const', const=True, default=False,
                        help='install python module only')
-    group.add_argument('--install-env', action='store_const', const=True, default=False,
-                       help='set environmental variable only')
     group.add_argument('-u', '--uninstall', action='store_const', const=True, default=False,
-                       help='uninstall python module and reset environmental variable')
-    group.add_argument('--uninstall-module', action='store_const', const=True, default=False,
                        help='uninstall python module only')
-    group.add_argument('--uninstall-env', action='store_const', const=True, default=False,
-                       help='reset environmental variable only')
-    group.add_argument('--uninstall-require', action='store_const', const=True, default=False,
-                       help='uninstall requirements only')
 
-    if env.bash_file is not None:
-        parser.add_argument("--bash-file", metavar="PATH", action='store', default=env.bash_file,
-                            help='bash file path [default {path}]'.format(path=env.bash_file))
+    group = parser.add_argument_group("additional arguments")
+    group.add_argument('--module', action='store_const', const=True, default=False,
+                       help='install/uninstall module')
+    group.add_argument('--require', action='store_const', const=True, default=False,
+                       help='install/uninstall requirements')
+    group.add_argument('--env', action='store_const', const=True, default=False,
+                       help='install/uninstall environment variables')
+
+    if env.is_linux or env.is_darwin:
+        group.add_argument('--bash-file', metavar="PATH", action='store', default=env.bash_file,
+                           help='bash file path is required (default: %(default)s)')
 
     args = parser.parse_args()
 
-    try:
-        if env.bash_file is not None:
+    install = args.uninstall is not True
+
+    actions = []
+    if args.require:
+        actions.append(install_require)
+    if args.module:
+        actions.append(install_module)
+    if args.env:
+        actions.append(install_env)
+        if env.is_linux or env.is_darwin:
             env.bash_file = args.bash_file
-            if not os.path.exists(env.bash_file):
-                raise Exception("{path} is not exists".format(path=env.bash_file))
+    if len(actions) == 0:
+        actions.append(install_require)
+        actions.append(install_module)
 
-        if args.install:
-            install_module(True)
-            install_env(True)
-        elif args.install_module:
-            install_module(True)
-        elif args.install_env:
-            install_env(True)
-        elif args.uninstall:
-            install_module(False)
-            install_env(False)
-        elif args.uninstall_env:
-            install_env(False)
-        elif args.uninstall_module:
-            install_module(False)
-        elif args.uninstall_require:
-            install_require(False)
-        else:
-            install_module(True)
-            install_env(True)
-
+    try:
+        for action in actions:
+            action(install)
     except Exception as e:
         print(e, file=sys.stderr)
