@@ -145,6 +145,7 @@
             }
         },
         "chromedriver": {
+            "cmd": "chromedriver",
             "version": "81.0.4044.69",
             "unpack": "{system}/chromedriver-{version}",
             "darwin": {
