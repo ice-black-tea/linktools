@@ -6,3 +6,4 @@ watchdog
 python-magic
 urwid
 lief>=0.10.1
+jsmin

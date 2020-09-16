@@ -41,8 +41,8 @@ try:
     from frida import ServerNotRunningError
     from linktools.android.frida import FridaHelper
 except ModuleNotFoundError:
-    logger.error("please use the following command to install frida first:",
-                 sys.executable, "-m", "pip", "install", "frida")
+    logger.error("please use the following command to install frida first:", os.linesep,
+                 sys.executable, " -m pip install frida")
     exit(1)
 
 

@@ -87,15 +87,20 @@ class ConfigTool(object):
 
         return config
 
+    @property
+    def exists(self) -> bool:
+        return os.path.exists(self.config["path"])
+
     @cached_property
     def path(self) -> str:
-        if not os.path.exists(self.config["path"]):
-            self.download()
         return self.config["path"]
 
     @cached_property
     def dirname(self) -> str:
         return os.path.dirname(self.path)
+
+    def chmod(self, mode=0o0755) -> None:
+        os.chmod(self.config["path"], mode)
 
     def download(self) -> None:
         file = resource.get_cache_path(quote(self.config["url"], safe=''))

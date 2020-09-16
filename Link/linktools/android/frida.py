@@ -37,6 +37,7 @@ import time
 import colorama
 import frida
 from colorama import Fore
+from jsmin import jsmin
 
 from linktools import __name__, utils, resource, logger
 from linktools.android.adb import Device
@@ -212,7 +213,7 @@ class FridaHelper(BaseHelper):
         super().__init__(device_id)
         self.sessions = []
         with open(resource.get_persist_path("android-frida.js"), "rt") as fd:
-            self._pre_script_code = fd.read().replace("\n", "")
+            self._pre_script_code = jsmin(fd.read()).replace("\n", " ")
         self.on_init()
 
     def on_init(self) -> None:

@@ -1,5 +1,5 @@
 /**
- *  该文件用于内置frida脚本的方法，不允许使用"//"对代码进行注释
+ *  该文件用于内置frida脚本的方法
  *
  *  frida class
  *  └┬─ $classWrapper
@@ -54,6 +54,7 @@ function JavaHelper() {
 
     function ignoreError(fn, defValue) {
         try {
+            // ... ...
             return fn();
         } catch (e) {
             return defValue;
@@ -189,7 +190,11 @@ function JavaHelper() {
         }
         var methods = clazz[methodName].overloads;
         for (var i = 0; i < methods.length; i++) {
-            $.hookMethod(clazz, methods[i], null, impl);
+            /* 过滤一些不存在的方法（拿不到返回值） */
+            if (methods[i].returnType !== undefined &&
+                methods[i].returnType.className !== undefined) {
+                $.hookMethod(clazz, methods[i], null, impl);
+            }
         }
     });
 
