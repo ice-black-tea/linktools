@@ -146,7 +146,7 @@
         },
         "chromedriver": {
             "cmd": "chromedriver",
-            "version": "85.0.4183.83",
+            "version": "87.0.4280.88",
             "unpack": "{system}/chromedriver-{version}",
             "darwin": {
                 "url": "http://chromedriver.storage.googleapis.com/{version}/chromedriver_mac64.zip",
