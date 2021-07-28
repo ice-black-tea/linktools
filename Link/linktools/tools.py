@@ -32,10 +32,10 @@ import shutil
 import sys
 from urllib.parse import quote
 
-from .logger import logger
+from . import utils
 from .decorator import cached_property
+from .logger import logger
 from .resource import resource
-from .utils import utils
 
 
 class ConfigTool(object):

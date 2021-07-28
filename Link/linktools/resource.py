@@ -29,8 +29,8 @@
 import json
 import os
 
+from . import utils
 from .decorator import singleton
-from .utils import utils
 
 
 @singleton

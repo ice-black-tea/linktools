@@ -29,125 +29,99 @@
 
 # !/usr/bin/env python3
 # -*- coding:utf-8 -*-
+
+import logging
 import os
-import sys
-import traceback
 
-try:
-    import colorama
-    from colorama import Fore, Back, Style
-    colorama.init(True)
-except ModuleNotFoundError as e:
-    print("\033[1;31mWarning:", str(e), '\033[0m')
-
-from .decorator import singleton, cached_property
-
-
-class LoggerArgs:
-
-    def __init__(self, args, kwargs, default):
-        self.args = args
-        self.kwargs = kwargs
-        self.default_kwargs = default
-        self._cached_kwargs = {}
-
-    @cached_property
-    def indent(self):
-        return self.get("indent") or 0
-
-    @cached_property
-    def tag(self):
-        tag = str(self.get("tag") or "")
-        if len(tag) > 0 and not tag.endswith(" "):
-            tag = tag + " "
-        return tag
-
-    @cached_property
-    def stack(self):
-        result = ""
-        if self.traceback_error is True:
-            result = result + "".join(traceback.format_exc())
-        if self.traceback is True:
-            result = result + "".join(traceback.format_stack(sys._getframe(5)))
-        return result
-
-    @cached_property
-    def message(self):
-        message = ""
-        if self.indent > 0:
-            message = message + self.indent * " "
-        if self.fore is not None:
-            message = message + self.fore
-        if self.back is not None:
-            message = message + self.back
-        if self.style is not None:
-            message = message + self.style
-        if len(self.tag) > 0:
-            message = message + self.tag
-        for arg in self.args:
-            message = message + str(arg)
-        if len(self.stack) > 0:
-            if len(self.args) > 0:
-                message = message + os.linesep
-            message = message + self.stack
-        return message.replace(os.linesep, os.linesep + " " * (self.indent + len(self.tag)))
-
-    def get(self, item):
-        if item not in self._cached_kwargs:
-            self._cached_kwargs[item] = \
-                self.kwargs.pop(item) if item in self.kwargs \
-                else self.default_kwargs.get(item)
-        return self._cached_kwargs[item]
-
-    def __getattr__(self, item):
-        return self.get(item)
+from .decorator import singleton, locked_cached_property
 
 
 @singleton
 class Logger:
-    DEBUG = 1
-    INFO = 2
-    WARNING = 3
-    ERROR = 4
 
     def __init__(self):
-        self.level = self.INFO
+        import colorama
+        colorama.init(True)
+
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(message)s'
+        )
+
+    @locked_cached_property
+    def colorama(cls):
+        import colorama
+        colorama.init(True)
+        return colorama
 
     def debug(self, *args, **kwargs):
-        if self.level <= self.DEBUG:
-            logger_args = LoggerArgs(args, kwargs, default={
-                "fore": Fore.GREEN,
-                "back": Back.RESET,
-                "style": Style.NORMAL,
-            })
-            print(logger_args.message, **kwargs)
+        msg, args, kwargs = self._compatible_args(
+            args, kwargs,
+            fore=self.colorama.Fore.GREEN, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
+        )
+        logging.debug(msg, *args, **kwargs)
 
     def info(self, *args, **kwargs):
-        if self.level <= self.INFO:
-            logger_args = LoggerArgs(args, kwargs, default={
-                "fore": Fore.RESET,
-                "back": Back.RESET,
-                "style": Style.NORMAL,
-            })
-            print(logger_args.message, **kwargs)
+        msg, args, kwargs = self._compatible_args(
+            args, kwargs,
+            fore=self.colorama.Fore.RESET, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
+        )
+        logging.info(msg, *args, **kwargs)
 
     def warning(self, *args, **kwargs):
-        if self.level <= self.WARNING:
-            logger_args = LoggerArgs(args, kwargs, default={
-                "fore": Fore.MAGENTA,
-                "back": Back.RESET,
-                "style": Style.NORMAL,
-            })
-            print(logger_args.message, **kwargs)
+        msg, args, kwargs = self._compatible_args(
+            args, kwargs,
+            fore=self.colorama.Fore.MAGENTA, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
+        )
+        logging.warning(msg, *args, **kwargs)
 
     def error(self, *args, **kwargs):
-        if self.level <= self.ERROR:
-            logger_args = LoggerArgs(args, kwargs, default={
-                "fore": Fore.RED,
-                "back": Back.RESET,
-                "style": Style.NORMAL,
-            })
-            print(logger_args.message, **kwargs)
+        msg, args, kwargs = self._compatible_args(
+            args, kwargs,
+            fore=self.colorama.Fore.RED, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
+        )
+        logging.error(msg, *args, **kwargs)
+
+    @classmethod
+    def _compatible_args(cls, args, kwargs, **options):
+        if "traceback_error" in kwargs:
+            del kwargs["traceback_error"]
+            if "exc_info" not in kwargs:
+                kwargs["exc_info"] = True
+        if "stack" in kwargs:
+            del kwargs["stack"]
+            if "stack_info" not in kwargs:
+                kwargs["stack_info"] = True
+
+        def get_option(item, default=None):
+            if item in kwargs:
+                return kwargs.pop(item)
+            return options.get(item, default)
+
+        msg = ""
+
+        indent = get_option("indent", 0)
+        if indent > 0:
+            msg = msg + indent * " "
+        fore = get_option("fore")
+        if fore is not None:
+            msg = msg + fore
+        back = get_option("back")
+        if back is not None:
+            msg = msg + back
+        style = get_option("style")
+        if style is not None:
+            msg = msg + style
+        tag = get_option("tag", "")
+        if len(tag) > 0:
+            msg = msg + str(tag)
+        for arg in args:
+            msg = msg + str(arg)
+
+        if indent + len(tag) > 0:
+            msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
+
+        return msg, [], kwargs
 
 
 logger = Logger()

@@ -33,7 +33,7 @@ if (sys.version_info.major, sys.version_info.minor) < (3, 5):
 
 from .version import __name__, __version__, __author__, __email__, __url__
 
-from .utils import utils
+from . import utils
 from .tools import tools
 from .resource import resource
 from .argparser import ArgumentParser

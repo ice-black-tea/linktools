@@ -29,9 +29,9 @@
 import json
 import re
 
-from linktools import __name__, utils, resource, tools
-from linktools.android.struct import Package
-from linktools.decorator import cached_property
+from .. import __name__, utils, resource, tools
+from ..android.struct import Package
+from ..decorator import cached_property
 
 
 class AdbError(Exception):
@@ -47,15 +47,15 @@ class AdbError(Exception):
 
 class Adb(object):
 
-    @staticmethod
-    def devices(alive: bool = False) -> [str]:
+    @classmethod
+    def devices(cls, alive: bool = False) -> [str]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
         :return: 设备号数组
         """
         devices = []
-        result = Adb.exec("devices", capture_output=True)
+        result = cls.exec("devices", capture_output=True)
         lines = result.splitlines()
         for i in range(1, len(lines)):
             splits = lines[i].split()
@@ -66,12 +66,12 @@ class Adb(object):
                     devices.append(device)
         return devices
 
-    @staticmethod
-    def popen(*args: [str], **kwargs) -> utils.Process:
+    @classmethod
+    def popen(cls, *args: [str], **kwargs) -> utils.Process:
         return tools.adb.popen(*args, **kwargs)
 
-    @staticmethod
-    def exec(*args: [str], capture_output: bool = True, **kwargs) -> str:
+    @classmethod
+    def exec(cls, *args: [str], capture_output: bool = True, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
@@ -334,8 +334,8 @@ class Device(object):
             result.append(Package(obj))
         return result
 
-    # noinspection PyMethodMayBeStatic
-    def get_storage_path(self, *paths: [str]) -> str:
+    @classmethod
+    def get_storage_path(cls, *paths: [str]) -> str:
         """
         存储文件路径
         :param paths: 文件名
@@ -343,7 +343,8 @@ class Device(object):
         """
         return "/sdcard/%s/%s" % (__name__, "/".join(paths))
 
-    def fix_package_name(self, package_name) -> str:
+    @classmethod
+    def fix_package_name(cls, package_name) -> str:
         """
         获取可识别的包名
         :param package_name: 包名
