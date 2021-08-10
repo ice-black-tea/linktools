@@ -29,8 +29,8 @@
 import json
 import re
 
+from .struct import Package
 from .. import __name__, utils, resource, tools
-from ..android.struct import Package
 from ..decorator import cached_property
 
 

@@ -26,15 +26,17 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import os
 import sys
+
+from . import config
 
 if (sys.version_info.major, sys.version_info.minor) < (3, 5):
     raise Exception("only supports python 3.5 or higher")
 
 from .version import __name__, __version__, __author__, __email__, __url__
 
-from . import utils
+from . import utils, resource, logger
 from .tools import tools
-from .resource import resource
 from .argparser import ArgumentParser
 from .logger import logger

@@ -29,74 +29,55 @@
 
 # !/usr/bin/env python3
 # -*- coding:utf-8 -*-
-
+import functools
 import logging
-import os
 
-from .decorator import singleton, locked_cached_property
+from .version import __name__
+
+MESSAGE = 0x7fffffff
+ERROR = logging.ERROR
+WARNING = logging.WARNING
+INFO = logging.INFO
+DEBUG = logging.DEBUG
 
 
-@singleton
-class Logger:
+@functools.lru_cache(1)
+def _import_modules():
+    manager = logging.Manager(logging.getLogger())
+    manager.setLoggerClass(_Logger)
+    _logging = manager.getLogger(__name__)
+    _logging.level = logging.DEBUG
+    _handler = logging.StreamHandler()
+    _handler.formatter = logging.Formatter('%(message)s')
+    _logging.handlers.append(_handler)
 
-    def __init__(self):
-        import colorama
-        colorama.init(True)
+    import colorama
+    colorama.init(True)
 
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format='%(message)s'
-        )
+    return _logging, colorama
 
-    @locked_cached_property
-    def colorama(cls):
-        import colorama
-        colorama.init(True)
-        return colorama
 
-    def debug(self, *args, **kwargs):
-        msg, args, kwargs = self._compatible_args(
-            args, kwargs,
-            fore=self.colorama.Fore.GREEN, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
-        )
-        logging.debug(msg, *args, **kwargs)
+class _Logger(logging.Logger):
 
-    def info(self, *args, **kwargs):
-        msg, args, kwargs = self._compatible_args(
-            args, kwargs,
-            fore=self.colorama.Fore.RESET, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
-        )
-        logging.info(msg, *args, **kwargs)
-
-    def warning(self, *args, **kwargs):
-        msg, args, kwargs = self._compatible_args(
-            args, kwargs,
-            fore=self.colorama.Fore.MAGENTA, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
-        )
-        logging.warning(msg, *args, **kwargs)
-
-    def error(self, *args, **kwargs):
-        msg, args, kwargs = self._compatible_args(
-            args, kwargs,
-            fore=self.colorama.Fore.RED, back=self.colorama.Back.RESET, style=self.colorama.Style.NORMAL
-        )
-        logging.error(msg, *args, **kwargs)
+    def _log(self, level, msg, args, **kwargs):
+        msg, kwargs = self._compatible_args(*args, **kwargs)
+        return super()._log(level, msg, None, **kwargs)
 
     @classmethod
-    def _compatible_args(cls, args, kwargs, **options):
-        if "traceback_error" in kwargs:
-            del kwargs["traceback_error"]
+    def _compatible_args(cls, *args, traceback_error=False, stack=False, options=None, **kwargs):
+        if traceback_error:
             if "exc_info" not in kwargs:
                 kwargs["exc_info"] = True
-        if "stack" in kwargs:
-            del kwargs["stack"]
+        if stack:
             if "stack_info" not in kwargs:
                 kwargs["stack_info"] = True
 
         def get_option(item, default=None):
             if item in kwargs:
                 return kwargs.pop(item)
-            return options.get(item, default)
+            if options is not None:
+                return options.get(item, default)
+            return None
 
         msg = ""
 
@@ -119,9 +100,62 @@ class Logger:
             msg = msg + str(arg)
 
         if indent + len(tag) > 0:
+            import os
             msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
 
-        return msg, [], kwargs
+        return msg, kwargs
 
 
-logger = Logger()
+def set_level(level):
+    logging, colorama = _import_modules()
+    logging.setLevel(level)
+
+
+def debug(*args, **kwargs):
+    logging, colorama = _import_modules()
+    logging.debug(None, *args, **kwargs,
+                  options={
+                      "fore": colorama.Fore.GREEN,
+                      "back": colorama.Back.RESET,
+                      "style": colorama.Style.NORMAL
+                  })
+
+
+def info(*args, **kwargs):
+    logging, colorama = _import_modules()
+    logging.info(None, *args, **kwargs,
+                 options={
+                     "fore": colorama.Fore.RESET,
+                     "back": colorama.Back.RESET,
+                     "style": colorama.Style.NORMAL
+                 })
+
+
+def warning(*args, **kwargs):
+    logging, colorama = _import_modules()
+    logging.warning(None, *args, **kwargs,
+                    options={
+                        "fore": colorama.Fore.MAGENTA,
+                        "back": colorama.Back.RESET,
+                        "style": colorama.Style.NORMAL
+                    })
+
+
+def error(*args, **kwargs):
+    logging, colorama = _import_modules()
+    logging.error(None, *args, **kwargs,
+                  options={
+                      "fore": colorama.Fore.RED,
+                      "back": colorama.Back.RESET,
+                      "style": colorama.Style.NORMAL
+                  })
+
+
+def message(*args, **kwargs):
+    logging, colorama = _import_modules()
+    logging.log(MESSAGE, None, *args, **kwargs,
+                options={
+                    "fore": colorama.Fore.RESET,
+                    "back": colorama.Back.RESET,
+                    "style": colorama.Style.NORMAL
+                })

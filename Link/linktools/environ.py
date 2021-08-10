@@ -35,7 +35,7 @@ import sys
 from .version import __name__
 
 
-class UserEnv:
+class UserEnviron:
     """
     用户环境变量
     """
@@ -167,15 +167,15 @@ class UserEnv:
                     fd.write(bash_command)
 
     @property
-    def is_windows(self):  # -> bool:
+    def is_windows(self) -> bool:
         return self.platform_name == "windows"
 
     @property
-    def is_linux(self):  # -> bool:
+    def is_linux(self) -> bool:
         return self.platform_name == "linux"
 
     @property
-    def is_darwin(self):  # -> bool:
+    def is_darwin(self) -> bool:
         return self.platform_name == "darwin"
 
     def raise_platform_error(self):

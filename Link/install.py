@@ -32,9 +32,9 @@ import subprocess
 import sys
 
 from linktools import version
-from linktools.environment import UserEnv
+from linktools.environ import UserEnviron
 
-env = UserEnv()
+env = UserEnviron()
 
 
 def install_module(install):
@@ -81,15 +81,14 @@ def install_env(install):
 def install_require(install):
     install_path = os.path.abspath(os.path.dirname(__file__))
     requirements_path = os.path.join(install_path, "requirements.txt")
-    platform_path = os.path.join(install_path, "resource", "requirements", "{platform}.txt".format(platform=env.platform_name))
 
     if install:
         # python -m pip install -r requirements.txt
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path, "-r", platform_path],
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path],
                               stdin=None, stdout=None, stderr=None)
     else:
         # python -m pip uninstall -r requirements.txt
-        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-r", requirements_path, "-r", platform_path],
+        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-r", requirements_path],
                               stdin=None, stdout=None, stderr=None)
 
 

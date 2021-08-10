@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : tools.py
-@time    : 2018/12/11
+@file    : tools.py 
+@time    : 2021/08/06
 @site    :  
 @software: PyCharm 
 
@@ -26,23 +26,39 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import os
 import platform
-import shutil
-import sys
-from urllib.parse import quote
+import typing
+from types import ModuleType, FrameType, GeneratorType
 
-from . import utils, resource, logger
-from .decorator import cached_property
+import pathlib
 
 
-class ConfigTool(object):
 
-    def __init__(self, system: str, name: str, config: dict, parent: object = None):
+class ConfigTool:
+
+    def __init__(
+            self,
+            name: str = None,
+            unpack_path: str = None,
+            download_url: str = None,
+            **kwargs,
+    ):
         self.name = name
-        self.system = system
-        self.parent = parent
+        self.parent = kwargs.get("parent")
         self.raw_config = config
+        self._download_url =
+
+    def unpack_path(self):
+        pass
+
+    def path(self):
+        pass
+
+    def executable(self):
+        pass
+
+    def cmd(self):
+        pass
 
     @cached_property
     def config(self) -> dict:
@@ -163,35 +179,11 @@ class ConfigTool(object):
         return config
 
 
-class ConfigTools(object):
+TOOLS_AAAAAA = ConfigTool("", "", {})
 
-    def __init__(self, system: str = platform.system().lower()):
-        self.system = system
+if platform.system():
+    print(platform)
 
-    @cached_property
-    def config(self) -> dict:
-        return resource.get_config("tools.json", "tools")
+TOOLS_DSAJDKLSAJDLKSA = ConfigTool("", "", {}, parent=TOOLS_AAAAAA)
 
-    @cached_property
-    def items(self) -> dict:
-        items = {}
-        exclude = ["darwin", "linux", "windows"]
-        for name, config in self.config.items():
-            if name not in exclude:
-                items[name] = ConfigTool(self.system, name, config)
-                for sub_name, sub_config in utils.get_item(config, "items", default={}).items():
-                    if sub_name not in exclude:
-                        items[sub_name] = ConfigTool(self.system, sub_name, sub_config, items[name])
-        return items
-
-    def __iter__(self):
-        return iter(self.items.keys())
-
-    def __getitem__(self, item):
-        return self.items[item] if item in self.items else None
-
-    def __getattr__(self, item):
-        return self.items[item] if item in self.items else None
-
-
-tools = ConfigTools()
+print(TOOLS_AAAAAA)

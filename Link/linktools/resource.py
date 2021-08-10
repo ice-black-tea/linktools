@@ -30,33 +30,28 @@ import json
 import os
 
 from . import utils
-from .decorator import singleton
+
+_root_path = os.path.abspath(os.path.join(__file__, "..", "..", "resource"))
+_configs = {}
 
 
-@singleton
-class Resource(object):
-
-    def __init__(self):
-        self._root_path = os.path.abspath(os.path.join(__file__, "..", "..", "resource"))
-        self._configs = {}
-
-    def get_config(self, path: str, *key: [str]):
-        if path not in self._configs:
-            with open(os.path.join(self._root_path, "config", path), "rt") as fd:
-                self._configs[path] = json.load(fd)
-        return utils.get_item(self._configs[path], *key)
-
-    def get_persist_path(self, *paths: [str]):
-        return os.path.join(self._root_path, "persist", *paths)
-
-    def get_cache_path(self, *paths: [str]):
-        return os.path.join(self._root_path, "cache", *paths)
-
-    def get_cache_dir(self, *paths: [str], create: bool = False):
-        path = self.get_cache_path(*paths)
-        if create and not os.path.exists(path):
-            os.makedirs(path)
-        return path
+def get_config(path: str, *key: [str]):
+    if path not in _configs:
+        with open(os.path.join(_root_path, "config", path), "rt") as fd:
+            _configs[path] = json.load(fd)
+    return utils.get_item(_configs[path], *key)
 
 
-resource = Resource()
+def get_persist_path(*paths: [str]):
+    return os.path.join(_root_path, "persist", *paths)
+
+
+def get_cache_path(*paths: [str]):
+    return os.path.join(_root_path, "cache", *paths)
+
+
+def get_cache_dir(*paths: [str], create: bool = False):
+    path = get_cache_path(*paths)
+    if create and not os.path.exists(path):
+        os.makedirs(path)
+    return path
