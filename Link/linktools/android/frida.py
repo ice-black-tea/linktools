@@ -56,7 +56,8 @@ class BaseHelper(object):
         self.server_name = self.config["name"].format(**self.config)
         self.server_url = self.config["url"].format(**self.config)
         self.server_file = resource.get_cache_path(self.server_name)
-        self.server_target_file = "/data/local/tmp/%s/%s" % (__name__, self.server_name)
+        self.server_temp_file = self.device.get_storage_path("frida", self.server_name)
+        self.server_target_file = f"/data/local/tmp/{self.server_name}"
 
     @cached_property
     def config(self) -> dict:
@@ -96,8 +97,9 @@ class BaseHelper(object):
                     shutil.copyfileobj(read, write)
                 os.remove(tmp_file)
             logger.info("Push frida server to %s" % self.server_target_file, tag="[*]")
-            self.device.exec("push", self.server_file, self.server_target_file, capture_output=False)
-            self.device.shell("chmod 755 '%s'" % self.server_target_file)
+            self.device.exec("push", self.server_file, self.server_temp_file, capture_output=False)
+            self.device.sudo("mv", self.server_temp_file, self.server_target_file, capture_output=False)
+            self.device.sudo("chmod 755 '%s'" % self.server_target_file)
 
         thread.start_new_thread(lambda: self.device.sudo(self.server_target_file, capture_output=False), ())
         for i in range(10):

@@ -348,7 +348,7 @@ function JavaHelper() {
         if (obj === undefined || obj == null || !(obj instanceof Object)) {
             return obj;
         }
-        if (obj.hasOwnProperty("length")) {
+        if (Array.isArray(obj)) {
             var array = [];
             for (var i = 0; i < obj.length; i++) {
                 array.push($.toString(obj[i]));
@@ -356,9 +356,9 @@ function JavaHelper() {
             return "[" + array.toString() + "]";
         }
         var ret = null;
-        ignoreError(function() {
+        // ignoreError(function() {
             ret = obj.toString();
-        });
+        // });
         return ret;
     });
 
