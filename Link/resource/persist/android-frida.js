@@ -356,9 +356,9 @@ function JavaHelper() {
             return "[" + array.toString() + "]";
         }
         var ret = null;
-        // ignoreError(function() {
+        ignoreError(function() {
             ret = obj.toString();
-        // });
+        });
         return ret;
     });
 
