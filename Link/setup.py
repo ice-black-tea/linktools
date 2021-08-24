@@ -26,12 +26,15 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import os
 from distutils.core import setup
 
 from linktools import version
 
 if __name__ == '__main__':
+    requires_path = os.path.abspath(os.path.join(__file__, "..", "requirements.txt"))
+    with open(requires_path, "r") as fd:
+        install_requires = fd.readlines()
 
     setup(
         name=version.__name__,
@@ -39,5 +42,6 @@ if __name__ == '__main__':
         version=version.__version__,
         author_email=version.__email__,
         url=version.__url__,
+        install_requires=install_requires,
         packages=["linktools"],
     )
