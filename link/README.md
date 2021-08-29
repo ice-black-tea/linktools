@@ -118,7 +118,7 @@ at_frida.py -f hook.js
 
 ### 输出效果
 
-![frida](resource/imgs/frida.png)
+![frida](imgs/frida.png)
 
 
 ### js使用
@@ -328,7 +328,7 @@ optional arguments:
 
 ### 输出效果
 
-![apps](resource/imgs/apps.png)
+![apps](imgs/apps.png)
 
 ## ct_grep.py
 
@@ -352,7 +352,7 @@ optional arguments:
 
 ## ct_tools.py
 
-读取[配置文件](resource/config/tools.json)，下载使用对应工具
+读取[配置文件](linktools/resource/config/tools.json)，下载使用对应工具
 
 ```bash
 usage: ct_tools.py [-h] [-v] [-d] ...

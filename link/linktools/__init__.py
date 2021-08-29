@@ -35,25 +35,11 @@ from . import utils, logger
 from .version import __name__, __version__, __author__, __email__, __url__
 from .argparser import ArgumentParser
 
-from ._config import Config
+from ._config import Config, create_config
 from ._tools import GeneralTools
 from ._resource import Resource
 
 
-def _get_config():
-    import json
-    import os
-    cfg = Config()
-    config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
-    for root, dirs, files in os.walk(config_path):
-        for name in files:
-            if name.endswith(".py"):
-                cfg.from_pyfile(os.path.join(root, name))
-            elif name.endswith(".json"):
-                cfg.from_file(os.path.join(root, name), load=json.load)
-    return cfg
-
-
-config: Config = utils.LazyLoad(_get_config)
+config: Config = utils.LazyLoad(create_config)
 tools: GeneralTools = utils.LazyLoad(GeneralTools)
 resource: Resource = utils.LazyLoad(Resource)

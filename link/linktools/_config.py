@@ -28,6 +28,8 @@
 """
 
 import errno
+import json
+import os
 from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
@@ -93,3 +95,15 @@ class Config(dict):
                 key = key.lower()
             rv[key] = v
         return rv
+
+
+def create_config():
+    config = Config()
+    config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
+    for root, dirs, files in os.walk(config_path):
+        for name in files:
+            if name.endswith(".py"):
+                config.from_pyfile(os.path.join(root, name))
+            elif name.endswith(".json"):
+                config.from_file(os.path.join(root, name), load=json.load)
+    return config

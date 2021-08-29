@@ -32,7 +32,7 @@ import os
 class Resource(object):
 
     def __init__(self):
-        self._resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resource"))
+        self._resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "resource"))
 
     def get_persist_path(self, *paths: [str]):
         return os.path.join(self._resource_path, "persist", *paths)
