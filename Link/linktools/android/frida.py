@@ -39,7 +39,8 @@ import frida
 from colorama import Fore
 from jsmin import jsmin
 
-from linktools import __name__, utils, resource, logger
+import linktools
+from linktools import utils, resource, logger
 from linktools.android.adb import Device
 from linktools.decorator import cached_property
 
@@ -55,13 +56,13 @@ class BaseHelper(object):
 
         self.server_name = self.config["name"].format(**self.config)
         self.server_url = self.config["url"].format(**self.config)
-        self.server_file = resource.get_cache_path(self.server_name)
+        self.server_file = resource.get_data_path(self.server_name)
         self.server_temp_file = self.device.get_storage_path("frida", self.server_name)
         self.server_target_file = f"/data/local/tmp/{self.server_name}"
 
     @cached_property
     def config(self) -> dict:
-        config = resource.get_config("android.json", "frida_server").copy()
+        config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
         config["version"] = frida.__version__
         config["abi"] = self.device.abi
         return config
@@ -91,7 +92,7 @@ class BaseHelper(object):
         if not self.device.is_file_exist(self.server_target_file):
             if not os.path.exists(self.server_file):
                 logger.info("Download frida server ...", tag="[*]")
-                tmp_file = resource.get_cache_path(self.server_name + ".tmp")
+                tmp_file = resource.get_data_path(self.server_name + ".tmp")
                 utils.download(self.server_url, tmp_file)
                 with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
                     shutil.copyfileobj(read, write)

@@ -26,33 +26,39 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import subprocess
 import sys
 
 from linktools import ArgumentParser
 from linktools import tools
 
-
-def get_parser():
-    parser = ArgumentParser(description='tools wrapper')
-    parser.add_argument('tool', choices=sorted([name for name in iter(tools)]))
-    return parser
-
-
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        get_parser().print_usage()
+    tool_names = sorted([tool.name for tool in iter(tools)])
+
+    parser = ArgumentParser(description='tools wrapper')
+    parser.add_argument('-d', '--daemon', action='store_true', default=False,
+                        help='run tools as a daemon')
+    parser.add_argument('tool', nargs='...', choices=tool_names)
+
+    args = parser.parse_args()
+    if len(args.tool) == 0 or args.tool[0] not in tool_names:
+        parser.print_help()
         exit(-1)
 
-    opt = sys.argv[1]
-    args = sys.argv[2:]
+    tool_name = args.tool[0]
+    tool_args = args.tool[1:]
 
-    if tools[opt] is not None:
-        process, _, _ = tools[opt].exec(*args)
-        exit(process.returncode)
-    elif opt == "-h" or opt == "--help":
-        get_parser().parse_args(["-h"])
-    elif opt == "-v" or opt == "--version":
-        get_parser().parse_args(["-v"])
+    if args.daemon:
+        process = tools[tool_name].popen(
+            *tool_args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        try:
+            process.wait(0)
+        except subprocess.TimeoutExpired as e:
+            pass
     else:
-        get_parser().print_usage()
-        exit(-1)
+        process, _, _ = tools[tool_name].exec(*tool_args)
+        exit(process.returncode)

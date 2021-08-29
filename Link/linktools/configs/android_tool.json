@@ -1,0 +1,11 @@
+{
+    "ANDROID_TOOL_BRIDGE_APK": {
+        "name": "android-tools.apk",
+        "md5": "6c7ddd93187fe20772722fa8e8c0b9e6",
+        "main": "android.tools.Main",
+        "size": 120178,
+        "time": "2021-08-29-14:32:25",
+        "flag_begin": " -*- output -*- by -*- android -*- tools -*- begin -*- ",
+        "flag_end": " -*- output -*- by -*- android -*- tools -*- end -*- "
+    }
+}

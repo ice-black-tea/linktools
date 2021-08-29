@@ -29,9 +29,10 @@
 import json
 import re
 
+import linktools
+from linktools import __name__, utils, resource, tools
+from linktools.decorator import cached_property
 from .struct import Package
-from .. import __name__, utils, resource, tools
-from ..decorator import cached_property
 
 
 class AdbError(Exception):
@@ -102,9 +103,9 @@ class Device(object):
         else:
             self._device_id = device_id
 
-    @cached_property
+    @property
     def config(self) -> dict:
-        return resource.get_config("android.json", "tools_apk")
+        return linktools.config["ANDROID_TOOL_BRIDGE_APK"]
 
     @cached_property
     def id(self) -> str:

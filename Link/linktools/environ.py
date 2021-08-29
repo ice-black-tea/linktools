@@ -35,7 +35,7 @@ import sys
 from .version import __name__
 
 
-class UserEnviron:
+class EnvironVariable:
     """
     用户环境变量
     """
@@ -87,7 +87,7 @@ class UserEnviron:
         self._winreg = winreg
         return self._winreg
 
-    def get(self, key, default=""):  # -> str:
+    def get(self, key, default="") -> str:
         """
         获取环境变量
         :param key:
@@ -105,7 +105,7 @@ class UserEnviron:
             value = os.getenv(key, default)
         return value
 
-    def set(self, key, value):  # -> None:
+    def set(self, key, value) -> None:
         """
         设置环境变量
         :param key: 键
@@ -139,7 +139,7 @@ class UserEnviron:
             with open(self.bash_file, "w") as fd:
                 fd.write(bash_command)
 
-    def delete(self, key):  # -> None:
+    def delete(self, key) -> None:
         """
         删除环境变量
         :param key: 键

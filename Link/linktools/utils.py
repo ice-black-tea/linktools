@@ -33,6 +33,52 @@ import warnings
 from collections import Iterable
 
 
+class LazyLoad(object):
+    __slots__ = ("__var", "__dict__", "__name__", "__wrapped__")
+    __missing__ = object()
+
+    def __init__(self, variable, name=None):
+        object.__setattr__(self, "_LazyLoad__var", variable)
+        object.__setattr__(self, "__name__", name)
+        object.__setattr__(self, "__value__", self.__missing__)
+        object.__setattr__(self, "__wrapped__", variable)
+
+    def _get_current_object(self):
+        value = getattr(self, "__value__")
+        if value != self.__missing__:
+            return value
+        value = self.__var()
+        object.__setattr__(self, "__value__", value)
+        return value
+
+    def __getattr__(self, name):
+        return getattr(self._get_current_object(), name)
+
+    def __setattr__(self, name, value):
+        setattr(self._get_current_object(), name, value)
+
+    def __delattr__(self, name):
+        delattr(self._get_current_object(), name)
+
+    def __getitem__(self, name):
+        return self._get_current_object()[name]
+
+    def __setitem__(self, name, value):
+        self._get_current_object()[name] = value
+
+    def __delitem__(self, key):
+        del self._get_current_object()[key]
+
+    def __len__(self, key):
+        return len(self._get_current_object())
+
+    def __iter__(self):
+        return iter(self._get_current_object())
+
+    def __repr__(self):
+        return repr(self._get_current_object())
+
+
 class Process(subprocess.Popen):
 
     def __init__(self, *args, **kwargs):

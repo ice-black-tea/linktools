@@ -32,9 +32,9 @@ import subprocess
 import sys
 
 from linktools import version
-from linktools.environ import UserEnviron
+from linktools.environ import EnvironVariable
 
-env = UserEnviron()
+env = EnvironVariable()
 
 
 def install_module(install):

@@ -26,32 +26,35 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import json
 import os
 
-from . import utils
 
-_root_path = os.path.abspath(os.path.join(__file__, "..", "..", "resource"))
-_configs = {}
+class Resource(object):
 
+    def __init__(self):
+        self._resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resource"))
 
-def get_config(path: str, *key: [str]):
-    if path not in _configs:
-        with open(os.path.join(_root_path, "config", path), "rt") as fd:
-            _configs[path] = json.load(fd)
-    return utils.get_item(_configs[path], *key)
+    def get_persist_path(self, *paths: [str]):
+        return os.path.join(self._resource_path, "persist", *paths)
 
+    # noinspection PyMethodMayBeStatic
+    def get_data_path(self, *paths: [str]):
+        from . import config
+        return os.path.join(config["SETTINGS_DATA_PATH"], *paths)
 
-def get_persist_path(*paths: [str]):
-    return os.path.join(_root_path, "persist", *paths)
+    def get_data_dir(self, *paths: [str], create: bool = False):
+        path = self.get_data_path(*paths)
+        if create and not os.path.exists(path):
+            os.makedirs(path)
+        return path
 
+    # noinspection PyMethodMayBeStatic
+    def get_temp_path(self, *paths: [str]):
+        from . import config
+        return os.path.join(config["SETTINGS_TEMP_PATH"], *paths)
 
-def get_cache_path(*paths: [str]):
-    return os.path.join(_root_path, "cache", *paths)
-
-
-def get_cache_dir(*paths: [str], create: bool = False):
-    path = get_cache_path(*paths)
-    if create and not os.path.exists(path):
-        os.makedirs(path)
-    return path
+    def get_temp_dir(self, *paths: [str], create: bool = False):
+        path = self.get_temp_path(*paths)
+        if create and not os.path.exists(path):
+            os.makedirs(path)
+        return path

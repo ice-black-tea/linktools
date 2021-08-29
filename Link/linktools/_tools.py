@@ -32,53 +32,67 @@ import shutil
 import sys
 from urllib.parse import quote
 
-from . import utils, resource, logger
-from .decorator import cached_property
+from . import utils, logger
+from .decorator import locked_cached_property
 
 
-class ConfigTool(object):
+class GeneralTool(object):
 
-    def __init__(self, system: str, name: str, config: dict, parent: object = None):
-        self.name = name
-        self.system = system
-        self.parent = parent
-        self.raw_config = config
+    def __init__(self, system: str, name: str, config: dict):
+        self._config = {
+            "name": name,
+            "system": system,
+            "executable": None,
+            "command": None,
+            "download_url": None,
+            "root_path": None,
+            "relative_path": None,
+            "absolute_path": None,
+            "unpack_path": None,
+        }
+        self._config.update(config)
 
-    @cached_property
+    @locked_cached_property
     def config(self) -> dict:
+        from . import resource
+
         # fix config
-        parent = None
-        if self.parent is not None:
-            # noinspection PyUnresolvedReferences
-            parent = self.parent.raw_config
-        config = self._merge_config(self.raw_config, parent, self.system)
+        parent = self._config.get("parent")
+        system = self._config.get("system")
+        config = self._merge_config(self._config, parent, system)
 
         # download url
-        url = utils.get_item(config, "url", default="").format(**config)
+        url = (config.get("download_url") or "").format(**config)
         if not utils.is_empty(url):
-            config["url"] = url
+            config["download_url"] = url
 
         # unpack path
-        unpack = utils.get_item(config, "unpack", default="").format(**config)
-        config["unpack"] = ""
-        if not utils.is_empty(unpack):
-            config["unpack"] = resource.get_cache_dir(unpack, create=True)
+        paths = [system]
+        unpack_path = (config.get("unpack_path") or "").format(**config)
+        if not utils.is_empty(unpack_path):
+            paths.append(unpack_path)
+            config["unpack_path"] = unpack_path
+
+        # root path
+        config["root_path"] = resource.get_data_dir(*paths, create=True)
 
         # file path
-        path = utils.get_item(config, "path", default="").format(**config)
-        config["path"] = ""
-        if not utils.is_empty(path):
-            config["path"] = resource.get_cache_path(os.path.join(unpack, path))
+        relative_path = (config.get("relative_path") or "").format(**config)
+        if not utils.is_empty(relative_path):
+            config["relative_path"] = relative_path
+            config["absolute_path"] = resource.get_data_path(os.path.join(config["root_path"], relative_path))
 
         # set executable
-        cmd = utils.get_item(config, "cmd", default="")
-        if not utils.is_empty(cmd):
-            cmd = shutil.which(cmd)
-        if not utils.is_empty(cmd):
-            config["path"] = cmd
-            config["executable"] = [cmd]
+        command = (config.get("command") or "")
+        if not utils.is_empty(command):
+            command = shutil.which(command)
+        if not utils.is_empty(command):
+            config["absolute_path"] = command
+            config["executable"] = [command]
         else:
-            executable = utils.get_item(config, "executable", default=[config["path"]]).copy()
+            executable = (config.get("executable") or [config["absolute_path"]]).copy()
+            if isinstance(executable, str):
+                executable = [executable]
             for i in range(len(executable)):
                 executable[i] = executable[i].format(**config)
             config["executable"] = executable
@@ -87,33 +101,32 @@ class ConfigTool(object):
 
     @property
     def exists(self) -> bool:
-        return os.path.exists(self.config["path"])
+        return os.path.exists(self.absolute_path)
 
-    @cached_property
-    def path(self) -> str:
-        return self.config["path"]
-
-    @cached_property
+    @property
     def dirname(self) -> str:
         return os.path.dirname(self.path)
 
     def chmod(self, mode=0o0755) -> None:
-        os.chmod(self.config["path"], mode)
+        os.chmod(self.path, mode)
 
     def download(self) -> None:
-        file = resource.get_cache_path(quote(self.config["url"], safe=''))
-        logger.info("download: {}".format(self.config["url"]))
-        utils.download(self.config["url"], file)
-        if not utils.is_empty(self.config["unpack"]):
-            shutil.unpack_archive(file, self.config["unpack"])
+        from . import resource
+        print(self._config)
+        file = resource.get_data_path(quote(self.download_url, safe=''))
+        logger.info("download: {}".format(self.download_url))
+        utils.download(self.download_url, file)
+        if not utils.is_empty(self.unpack_path):
+            shutil.unpack_archive(file, self.root_path)
             os.remove(file)
         else:
-            os.rename(file, self.config["path"])
+            os.rename(file, self.absolute_path)
 
     def popen(self, *args: [str], **kwargs: dict) -> utils.Process:
-        if not os.path.exists(self.config["path"]):
+        from . import tools
+        if not os.path.exists(self.absolute_path):
             self.download()
-        executable = self.config["executable"]
+        executable = self.executable
         if executable[0] == "python":
             args = [sys.executable, *executable[1:], *args]
             return utils.popen(*args, **kwargs)
@@ -129,69 +142,63 @@ class ConfigTool(object):
         out, err = process.communicate()
         return process, out, err
 
-    @staticmethod
-    def _merge_config(config: dict, parent: dict, system: str) -> dict:
+    @classmethod
+    def _merge_config(cls, config: dict, parent: dict, system: str) -> dict:
         # merge config
         if parent is not None:
-            # noinspection PyProtectedMember,PyUnresolvedReferences
-            fixed = ConfigTool._fix_config(parent.copy(), system)
+            fixed = cls._fix_config(parent.copy(), system)
             for key, value in config.items():
-                fixed[key] = value
+                if key not in fixed or value is not None:
+                    fixed[key] = value
         else:
             fixed = config.copy()
 
-        fixed = ConfigTool._fix_config(fixed, system)
-        fixed = ConfigTool._fix_config_value(fixed, system)
-        fixed["system"] = system
+        fixed = cls._fix_config(fixed, system)
+        fixed = cls._fix_config_value(fixed, system)
 
         return fixed
 
-    @staticmethod
-    def _fix_config(config: dict, system: str) -> dict:
+    @classmethod
+    def _fix_config(cls, config: dict, system: str) -> dict:
         obj = utils.get_item(config, system, default=None)
         if obj is not None:
             for key, value in obj.items():
                 config[key] = value
         return config
 
-    @staticmethod
-    def _fix_config_value(config: dict, system: str) -> dict:
+    @classmethod
+    def _fix_config_value(cls, config: dict, system: str) -> dict:
         for key in config.keys():
             value = utils.get_item(config[key], system, default=None)
             if value is not None:
                 config[key] = value
         return config
 
+    def __getattr__(self, item):
+        return self.config[item]
 
-class ConfigTools(object):
+
+class GeneralTools(object):
 
     def __init__(self, system: str = platform.system().lower()):
         self.system = system
 
-    @cached_property
-    def config(self) -> dict:
-        return resource.get_config("tools.json", "tools")
-
-    @cached_property
+    @locked_cached_property
     def items(self) -> dict:
+        from . import config
+        configs = config.get_namespace("GENERAL_TOOL_")
         items = {}
-        exclude = ["darwin", "linux", "windows"]
-        for name, config in self.config.items():
-            if name not in exclude:
-                items[name] = ConfigTool(self.system, name, config)
-                for sub_name, sub_config in utils.get_item(config, "items", default={}).items():
-                    if sub_name not in exclude:
-                        items[sub_name] = ConfigTool(self.system, sub_name, sub_config, items[name])
+        for key in configs:
+            value = configs[key]
+            name = value.get("name") or key
+            items[name] = GeneralTool(self.system, name, value)
         return items
 
     def __iter__(self):
-        return iter(self.items.keys())
+        return iter(self.items.values())
 
     def __getitem__(self, item):
         return self.items[item] if item in self.items else None
 
     def __getattr__(self, item):
         return self.items[item] if item in self.items else None
-
-
-tools = ConfigTools()

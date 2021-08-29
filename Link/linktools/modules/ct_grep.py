@@ -216,8 +216,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-        raise Exception(111)
     except (KeyboardInterrupt, EOFError):
         pass
     except Exception as e:
-        logger.error("dadsadsa", traceback_error=True)
+        logger.error(traceback_error=True)

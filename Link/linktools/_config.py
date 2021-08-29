@@ -28,19 +28,16 @@
 """
 
 import errno
-import os
 from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
 
 class Config(dict):
 
-    def __init__(self, root_path: str, defaults: Optional[dict] = None) -> None:
+    def __init__(self, defaults: Optional[dict] = None):
         dict.__init__(self, defaults or {})
-        self.root_path = root_path
 
     def from_pyfile(self, filename: str, silent: bool = False) -> bool:
-        filename = os.path.join(self.root_path, filename)
         d = ModuleType("config")
         d.__file__ = filename
         try:
@@ -60,7 +57,6 @@ class Config(dict):
                 self[key] = getattr(obj, key)
 
     def from_file(self, filename: str, load: Callable[[IO[Any]], Mapping], silent: bool = False) -> bool:
-        filename = os.path.join(self.root_path, filename)
 
         try:
             with open(filename) as f:

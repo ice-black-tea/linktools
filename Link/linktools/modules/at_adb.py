@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools import utils, logger
+from linktools import logger
 from linktools.android import Adb, AdbError, AdbArgumentParser
 
 
@@ -46,12 +46,21 @@ def main():
     ]
 
     parser = AdbArgumentParser(description="adb wrapper")
-    args, extras = parser.parse_known_args()
+    parser.add_argument('adb_args', nargs='...', help="adb args")
+    args, extra = parser.parse_known_args()
 
-    if not utils.is_empty(extras) and extras[0] not in general_commands:
-        Adb.exec("-s", args.parse_adb_serial(), *extras, capture_output=False)
-    else:
-        Adb.exec(*extras, capture_output=False)
+    adb_args = [*extra, *args.adb_args]
+    if len(adb_args) == 0:
+        process = Adb.popen(capture_output=False)
+        process.communicate()
+        return process.returncode
+
+    # 如果第一个不是"-"开头的参数，并且参数需要添加设备，就额外添加"-s serial"参数
+    if len(adb_args) > 0 and not adb_args[0].startswith("-"):
+        if adb_args[0] not in general_commands:
+            adb_args = ["-s", args.parse_adb_serial(), *adb_args]
+
+    Adb.exec(*adb_args, capture_output=False)
 
 
 if __name__ == '__main__':

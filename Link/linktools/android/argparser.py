@@ -68,7 +68,7 @@ class _NamespaceWrapper:
         return self.namespace.__str__()
 
     def _load_last_device(self):
-        path = resource.get_cache_path("adb_device.txt")
+        path = resource.get_data_path("adb_device.txt")
         try:
             with open(path, "rt") as fd:
                 return fd.read()
@@ -76,12 +76,20 @@ class _NamespaceWrapper:
             return None
 
     def _save_last_device(self, device):
-        path = resource.get_cache_path("adb_device.txt")
+        path = resource.get_data_path("adb_device.txt")
         try:
             with open(path, "wt+") as fd:
                 fd.write(device)
         except:
             pass
+
+    def has_adb_serial(self):
+        return self.adb_last or \
+               self.adb_index or \
+               self.adb_connect or \
+               self.adb_device or \
+               self.adb_emulator or \
+               self.adb_serial
 
     def parse_adb_serial(self):
         if self.adb_last:

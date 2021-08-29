@@ -89,14 +89,14 @@ task buildTools {
         def apkPath = "${apkDir}/${apkName}"
         def apkMd5 = calcMd5(apkPath)
 
-        def resourceDir = file("${rootDir}/../Link/resource").getAbsolutePath()
+        def rootDir = file("${rootDir}/../Link").getAbsolutePath()
 
-        def targetPrefix = "android-tools"
-        def targetName = "${targetPrefix}.apk"
-        def targetDir = "${resourceDir}/persist"
+        def targetName = "android-tools.apk"
+        def targetDir = "${rootDir}/resource/persist"
         def targetPath = "${targetDir}/${targetName}"
 
-        def configPath = "${resourceDir}/config/android.json"
+        def configDir = "${rootDir}/linktools/configs"
+        def configPath = "${configDir}/android_tool.json"
         def config = readConfig(configPath)
 
         println(config)
@@ -111,14 +111,14 @@ task buildTools {
                 rename(apkName, targetName)
             }
 
-            config.tools_apk = [:]
-            config.tools_apk.name = targetName
-            config.tools_apk.md5 = apkMd5
-            config.tools_apk.main = "android.tools.Main"
-            config.tools_apk.size = file(targetPath).length()
-            config.tools_apk.time = new Date().format("yyyy-MM-dd-HH:mm:ss", TimeZone.getTimeZone("GMT+08:00"))
-            config.tools_apk.flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
-            config.tools_apk.flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
+            config.ANDROID_TOOL_BRIDGE_APK = [:]
+            config.ANDROID_TOOL_BRIDGE_APK.name = targetName
+            config.ANDROID_TOOL_BRIDGE_APK.md5 = apkMd5
+            config.ANDROID_TOOL_BRIDGE_APK.main = "android.tools.Main"
+            config.ANDROID_TOOL_BRIDGE_APK.size = file(targetPath).length()
+            config.ANDROID_TOOL_BRIDGE_APK.time = new Date().format("yyyy-MM-dd-HH:mm:ss", TimeZone.getTimeZone("GMT+08:00"))
+            config.ANDROID_TOOL_BRIDGE_APK.flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
+            config.ANDROID_TOOL_BRIDGE_APK.flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
             writeConfig(configPath, config)
         }
     }
