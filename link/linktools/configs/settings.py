@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : __init__.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : settings.py 
+@time    : 2021/08/30
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,3 +26,13 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+import os
+import pathlib
+
+from linktools.version import __name__
+
+SETTING_DATA_PATH = os.path.join(str(pathlib.Path.home()), __name__, "data")
+SETTING_TEMP_PATH = os.path.join(str(pathlib.Path.home()), __name__, "temp")
+
+SETTING_CHROMEDRIVER_VERSION = "87.0.4280.88"

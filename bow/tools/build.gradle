@@ -92,7 +92,7 @@ task buildTools {
         def rootDir = file("${rootDir}/../link").getAbsolutePath()
 
         def targetName = "android-tools.apk"
-        def targetDir = "${rootDir}/resource/persist"
+        def targetDir = "${rootDir}/linktools/resource"
         def targetPath = "${targetDir}/${targetName}"
 
         def configDir = "${rootDir}/linktools/configs"

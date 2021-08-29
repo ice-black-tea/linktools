@@ -50,6 +50,7 @@ if __name__ == '__main__':
         version=getattr(version, "__version__"),
         author_email=getattr(version, "__email__"),
         url=getattr(version, "__url__"),
+        include_package_data=True,
         install_requires=install_requires,
         packages=find_packages(),
     )

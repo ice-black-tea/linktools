@@ -40,7 +40,7 @@ class Resource(object):
     # noinspection PyMethodMayBeStatic
     def get_data_path(self, *paths: [str]):
         from . import config
-        return os.path.join(config["SETTINGS_DATA_PATH"], *paths)
+        return os.path.join(config["SETTING_DATA_PATH"], *paths)
 
     def get_data_dir(self, *paths: [str], create: bool = False):
         path = self.get_data_path(*paths)
@@ -51,7 +51,7 @@ class Resource(object):
     # noinspection PyMethodMayBeStatic
     def get_temp_path(self, *paths: [str]):
         from . import config
-        return os.path.join(config["SETTINGS_TEMP_PATH"], *paths)
+        return os.path.join(config["SETTING_TEMP_PATH"], *paths)
 
     def get_temp_dir(self, *paths: [str], create: bool = False):
         path = self.get_temp_path(*paths)

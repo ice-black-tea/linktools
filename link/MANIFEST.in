@@ -1,0 +1,2 @@
+include linktools/configs/*
+include linktools/resource/*
