@@ -113,7 +113,7 @@ Java.perform(function () {
 
 在终端中运行
 ```bash
-ATFrida.py -f hook.js
+at_frida.py -f hook.js
 ```
 
 ### 输出效果
@@ -355,19 +355,17 @@ optional arguments:
 读取[配置文件](resource/config/tools.json)，下载使用对应工具
 
 ```bash
-$ ATTools.py 
-usage: ct_tools.py [-h]
-                   {adb,apktool,baksmali,compact_dex_converter,fastboot,java,mipay_extract,smali,vdex_extractor}
-```
+usage: ct_tools.py [-h] [-v] [-d] ...
 
-## ct_ools_bg.py
+tools wrapper
 
-读取[配置文件](resource/config/tools.json)，下载后台使用对应工具
+positional arguments:
+  {aapt,adb,apktool,baksmali,chromedriver,compact_dex_converter,dex2jar,fastboot,jadx,jadx-gui,java,mipay_extract,smali,vdex_extractor}
 
-```bash
-$ ATToolsBg.py 
-usage: ct_ools_bg.py [-h]
-                   {adb,apktool,baksmali,compact_dex_converter,fastboot,java,mipay_extract,smali,vdex_extractor}
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -d, --daemon          run tools as a daemon
 ```
 
 

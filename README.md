@@ -2,6 +2,15 @@
 
 ## 使用
 
+## 目录结构
+
+```
+.
+├── bow                 android项目，编译的apk产物是Link的依赖项
+├── link                python项目，工具集入口
+└── misc                杂项，存储一些定制脚本
+```
+
 ### 依赖项
 
 python & pip (3.5及以上): <https://www.python.org/downloads/>

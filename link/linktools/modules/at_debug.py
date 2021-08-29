@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : ATAdb.py
-@time    : 2019/03/04
+@file    : at_debug.py
+@time    : 2019/04/22
 @site    :  
 @software: PyCharm 
 
@@ -26,41 +26,32 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
-from linktools import logger
-from linktools.android import Adb, AdbError, AdbArgumentParser
+from linktools import utils, logger
+from linktools.android import Device, AdbError, AdbArgumentParser
 
 
 def main():
-    general_commands = [
-        "devices",
-        "help",
-        "version",
-        "connect",
-        "disconnect",
-        "keygen",
-        "wait-for-",
-        "start-server",
-        "kill-server",
-        "reconnect",
-    ]
+    parser = AdbArgumentParser(description='debugger')
+    parser.add_argument('package', action='store', default=None,
+                        help='regular expression')
+    parser.add_argument('activity', action='store', default=None,
+                        help='regular expression')
+    parser.add_argument('-p', '--port', action='store', type=int, default=8701,
+                        help='fetch all apps')
 
-    parser = AdbArgumentParser(description="adb wrapper")
-    parser.add_argument('adb_args', nargs='...', help="adb args")
-    args, extra = parser.parse_known_args()
+    args = parser.parse_args()
+    device = Device(args.parse_adb_serial())
 
-    adb_args = [*extra, *args.adb_args]
-    if len(adb_args) == 0:
-        process = Adb.popen(capture_output=False)
-        process.communicate()
-        return process.returncode
+    device.shell("am", "force-stop", args.package, capture_output=False)
+    device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_output=False)
 
-    # 如果第一个不是"-"开头的参数，并且参数需要添加设备，就额外添加"-s serial"参数
-    if len(adb_args) > 0 and not adb_args[0].startswith("-"):
-        if adb_args[0] not in general_commands:
-            adb_args = ["-s", args.parse_adb_serial(), *adb_args]
+    pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
+    device.exec("forward", "tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_output=False)
 
-    Adb.exec(*adb_args, capture_output=False)
+    data = input("jdb connect? [Y/n]: ").strip()
+    if data in ["", "Y", "y"]:
+        utils.exec("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port),
+                   capture_output=False)
 
 
 if __name__ == '__main__':

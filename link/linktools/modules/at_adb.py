@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : ATCallTools.py
-@time    : 2018/12/02
+@file    : at_adb.py
+@time    : 2019/03/04
 @site    :  
 @software: PyCharm 
 
@@ -26,16 +26,41 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
 from linktools import logger
-from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.android import Adb, AdbError, AdbArgumentParser
 
 
 def main():
-    parser = AdbArgumentParser(description='used for debugging android-tools.apk')
-    parser.add_argument('tool_args', nargs='...', help="tool args")
-    args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
-    device.call_tools(*args.tool_args, capture_output=False)
+    general_commands = [
+        "devices",
+        "help",
+        "version",
+        "connect",
+        "disconnect",
+        "keygen",
+        "wait-for-",
+        "start-server",
+        "kill-server",
+        "reconnect",
+    ]
+
+    parser = AdbArgumentParser(description="adb wrapper")
+    parser.add_argument('adb_args', nargs='...', help="adb args")
+    args, extra = parser.parse_known_args()
+
+    adb_args = [*extra, *args.adb_args]
+    if len(adb_args) == 0:
+        process = Adb.popen(capture_output=False)
+        process.communicate()
+        return process.returncode
+
+    # 如果第一个不是"-"开头的参数，并且参数需要添加设备，就额外添加"-s serial"参数
+    if len(adb_args) > 0 and not adb_args[0].startswith("-"):
+        if adb_args[0] not in general_commands:
+            adb_args = ["-s", args.parse_adb_serial(), *adb_args]
+
+    Adb.exec(*adb_args, capture_output=False)
 
 
 if __name__ == '__main__':

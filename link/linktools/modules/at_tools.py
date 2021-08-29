@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : ATDebug.py
-@time    : 2019/04/22
+@file    : at_call_tools.py
+@time    : 2018/12/02
 @site    :  
 @software: PyCharm 
 
@@ -26,32 +26,16 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from linktools import utils, logger
+from linktools import logger
 from linktools.android import Device, AdbError, AdbArgumentParser
 
 
 def main():
-    parser = AdbArgumentParser(description='debugger')
-    parser.add_argument('package', action='store', default=None,
-                        help='regular expression')
-    parser.add_argument('activity', action='store', default=None,
-                        help='regular expression')
-    parser.add_argument('-p', '--port', action='store', type=int, default=8701,
-                        help='fetch all apps')
-
+    parser = AdbArgumentParser(description='used for debugging android-tools.apk')
+    parser.add_argument('tool_args', nargs='...', help="tool args")
     args = parser.parse_args()
     device = Device(args.parse_adb_serial())
-
-    device.shell("am", "force-stop", args.package, capture_output=False)
-    device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_output=False)
-
-    pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
-    device.exec("forward", "tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_output=False)
-
-    data = input("jdb connect? [Y/n]: ").strip()
-    if data in ["", "Y", "y"]:
-        utils.exec("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port),
-                   capture_output=False)
+    device.call_tools(*args.tool_args, capture_output=False)
 
 
 if __name__ == '__main__':

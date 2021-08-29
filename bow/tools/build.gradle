@@ -89,7 +89,7 @@ task buildTools {
         def apkPath = "${apkDir}/${apkName}"
         def apkMd5 = calcMd5(apkPath)
 
-        def rootDir = file("${rootDir}/../Link").getAbsolutePath()
+        def rootDir = file("${rootDir}/../link").getAbsolutePath()
 
         def targetName = "android-tools.apk"
         def targetDir = "${rootDir}/resource/persist"
