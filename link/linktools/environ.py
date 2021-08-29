@@ -32,7 +32,8 @@ import re
 import subprocess
 import sys
 
-from .version import __name__
+from . import ArgumentParser, logger, version
+from .decorator import cached_property
 
 
 class EnvironVariable:
@@ -40,7 +41,7 @@ class EnvironVariable:
     用户环境变量
     """
 
-    _begin_template = "\n# {key} begin, created by ##name##, do not modify! \n".replace("##name##", __name__)
+    _begin_template = "\n# {key} begin, created by ##name##, do not modify! \n".replace("##name##", version.__name__)
     _end_template = "\n# {key} end \n"
 
     def __init__(self):
@@ -74,7 +75,7 @@ class EnvironVariable:
     def bak_bash_file(self):
         return self.bash_file
 
-    @property
+    @cached_property
     def winreg(self):
         if self._winreg is not None:
             return self._winreg
@@ -116,20 +117,24 @@ class EnvironVariable:
 
         if self.is_windows:
             command = "setx \"{key}\" \"{value}\"".format(key=key, value=value)
+            logger.debug("exec command: ", command)
+
             subprocess.call(command, stdout=subprocess.PIPE)
 
         elif self.is_linux or self.is_darwin:
-            command_begin = self._begin_template.format(key=key)
-            command_end = self._end_template.format(key=key)
             command = "export \"{key}\"=\"{value}\"".format(key=key, value=value)
-            command = command_begin + command + command_end
+            logger.debug("append to " + self.bash_file + ": ", command)
+
+            data_begin = self._begin_template.format(key=key)
+            data_end = self._end_template.format(key=key)
+            command = data_begin + command + data_end
 
             bash_command = ""
             if os.path.exists(self.bash_file):
                 with open(self.bash_file, "r") as fd:
                     bash_command = fd.read()
 
-            result = re.search(r"{begin}.+{end}".format(begin=command_begin, end=command_end), bash_command)
+            result = re.search(r"{begin}.+{end}".format(begin=data_begin, end=data_end), bash_command)
             if result is not None:
                 span = result.span()
                 bash_command = bash_command[:span[0]] + command + bash_command[span[1]:]
@@ -145,12 +150,17 @@ class EnvironVariable:
         :param key: 键
         """
         if self.is_windows:
+            logger.debug("remove ", version.__name__, " key: ", key)
+
             reg_key = self.winreg.OpenKey(self.root, self.sub_key, 0, self.winreg.KEY_WRITE)
             try:
                 self.winreg.DeleteValue(reg_key, key)
-            except WindowsError as e:
+            except WindowsError:
                 pass
+
         elif self.is_linux or self.is_darwin:
+            logger.debug("remove ", version.__name__, " key: ", key)
+
             command_begin = self._begin_template.format(key=key)
             command_end = self._end_template.format(key=key)
 
@@ -180,3 +190,61 @@ class EnvironVariable:
 
     def raise_platform_error(self):
         raise Exception("{platform} is not supported".format(platform=self.platform_name))
+
+
+if __name__ == '__main__':
+
+    logger.set_level(logger.DEBUG)
+
+    env = EnvironVariable()
+
+    parser = ArgumentParser()
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-i', '--install', action='store_const', const=True, default=False,
+                       help='set environment variables')
+    group.add_argument('-u', '--uninstall', action='store_const', const=True, default=False,
+                       help='remove environment variables')
+
+    if env.is_linux or env.is_darwin:
+        parser.add_argument('--bash-file', metavar="PATH", action='store', default=env.bash_file,
+                            help='bash file path is required (default: %(default)s)')
+
+    args = parser.parse_args()
+
+    install = args.uninstall is not True
+
+    if env.is_linux or env.is_darwin:
+        env.bash_file = args.bash_file
+        if not os.path.exists(env.bash_file):
+            raise Exception("{path} is not exists".format(path=env.bash_file))
+
+    try:
+        tools_key = "LINK_TOOLS_PATH"
+        root_path = os.path.abspath(os.path.dirname(__file__))
+        tools_path = os.path.join(root_path, "linktools", "modules")
+
+        if args.install:
+            env.set(tools_key, tools_path)
+            if env.is_windows:
+                path_env = env.get("PATH")
+                if tools_key not in path_env:
+                    path_env = "{key};%%{value}%%".format(key=path_env, value=tools_key)
+                    env.set("PATH", path_env)
+
+            elif env.is_linux or env.is_darwin:
+                path_env = "$PATH:${value}".format(value=tools_key)
+                env.set("PATH", path_env)
+
+        elif args.uninstall:
+            env.delete(tools_key)
+            if env.is_windows:
+                path_env = env.get("PATH")
+                if tools_key in path_env:
+                    path_env = path_env.replace(";%%{value}%%".format(value=tools_key), "")
+                    env.set("PATH", path_env)
+
+            elif env.is_linux or env.is_darwin:
+                env.delete("PATH")
+
+    except Exception as e:
+        logger.error(traceback_error=True)
