@@ -228,7 +228,7 @@ if __name__ == '__main__':
             if env.is_windows:
                 path_env = env.get("PATH")
                 if tools_key not in path_env:
-                    path_env = "{key};%%{value}%%".format(key=path_env, value=tools_key)
+                    path_env = "{key};%{value}%".format(key=path_env, value=tools_key)
                     env.set("PATH", path_env)
 
             elif env.is_linux or env.is_darwin:
@@ -240,7 +240,7 @@ if __name__ == '__main__':
             if env.is_windows:
                 path_env = env.get("PATH")
                 if tools_key in path_env:
-                    path_env = path_env.replace(";%%{value}%%".format(value=tools_key), "")
+                    path_env = path_env.replace(";%{value}%".format(value=tools_key), "")
                     env.set("PATH", path_env)
 
             elif env.is_linux or env.is_darwin:

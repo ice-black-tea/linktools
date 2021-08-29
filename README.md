@@ -19,7 +19,7 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 
 ```bash
 # 安装python模块（必须使用python3.5或以上）
-python3 -m pip install -e git+git@github.com:ice-black-tea/Zelda.git#egg=linktools\&subdirectory=link
+python3 -m pip install -e "git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
 
 # 可选，将工具集路径到环境变量，重启终端后生效
 python3 -m linktools.environ -i
