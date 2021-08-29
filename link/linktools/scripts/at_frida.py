@@ -35,6 +35,7 @@ from watchdog.observers import Observer
 
 from linktools import utils, logger
 from linktools.android import AdbError, AdbArgumentParser
+from linktools.decorator import entry_point
 
 try:
     # noinspection PyPackageRequirements
@@ -98,6 +99,7 @@ class FridaEventHandler(FileSystemEventHandler):
             self.script.load()
 
 
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AdbArgumentParser(description='easy to use frida')
     parser.add_argument('-p', '--package', action='store', default=None,
@@ -128,11 +130,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError, FileNotFoundError) as e:
-        logger.error(e)
-    except (AdbError, ServerNotRunningError) as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()

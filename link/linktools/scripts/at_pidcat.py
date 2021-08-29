@@ -27,6 +27,7 @@ from urwid.old_str_util import is_wide_char
 
 from linktools import logger
 from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.decorator import entry_point
 
 __version__ = '2.1.0'
 
@@ -34,6 +35,7 @@ LOG_LEVELS = 'VDIWEF'
 LOG_LEVELS_MAP = dict([(LOG_LEVELS[i], i) for i in range(len(LOG_LEVELS))])
 
 
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AdbArgumentParser(description='Filter logcat by package name', conflict_handler='resolve')
     parser.add_argument('package', nargs='*', help='application package name(s)')
@@ -367,9 +369,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError, AdbError) as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()

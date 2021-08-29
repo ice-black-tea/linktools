@@ -35,7 +35,7 @@ class Resource(object):
         self._resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "resource"))
 
     def get_persist_path(self, *paths: [str]):
-        return os.path.join(self._resource_path, "persist", *paths)
+        return os.path.join(self._resource_path, *paths)
 
     # noinspection PyMethodMayBeStatic
     def get_data_path(self, *paths: [str]):

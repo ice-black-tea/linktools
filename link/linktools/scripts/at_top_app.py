@@ -32,8 +32,10 @@ import sys
 
 from linktools import utils, logger
 from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.decorator import entry_point
 
 
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AdbArgumentParser(description='show top-level app\'s basic information')
 
@@ -90,9 +92,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError, AdbError) as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()

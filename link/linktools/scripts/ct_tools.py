@@ -28,10 +28,12 @@
 """
 import subprocess
 
-from linktools import ArgumentParser
-from linktools import tools
+from linktools import ArgumentParser, tools
+from linktools.decorator import entry_point
 
-if __name__ == "__main__":
+
+@entry_point()
+def main():
     tool_names = sorted([tool.name for tool in iter(tools)])
 
     parser = ArgumentParser(description='tools wrapper')
@@ -61,3 +63,7 @@ if __name__ == "__main__":
     else:
         process, _, _ = tools[tool_name].exec(*tool_args)
         exit(process.returncode)
+
+
+if __name__ == "__main__":
+    main()

@@ -29,6 +29,22 @@
 import threading
 
 
+def entry_point(known_errors=()):
+    from linktools import logger
+
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except (KeyboardInterrupt, EOFError, *known_errors) as e:
+                logger.error(e)
+            except Exception:
+                logger.error(traceback_error=True)
+        return wrapper
+
+    return decorator
+
+
 def singleton(cls):
     instances = {}
 

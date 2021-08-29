@@ -33,6 +33,7 @@ from colorama import Fore, Style, Back
 from linktools import utils, logger
 from linktools.android import Device, AdbError, AdbArgumentParser, Package, Permission, Component, Activity, Service, \
     Receiver, Provider, IntentFilter
+from linktools.decorator import entry_point
 
 
 class PrintLevel:
@@ -225,6 +226,7 @@ class PackagePrinter:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AdbArgumentParser(description='fetch application info')
 
@@ -298,9 +300,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError, AdbError) as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()

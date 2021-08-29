@@ -38,6 +38,7 @@ import zipfile
 import lief
 import magic
 from colorama import Fore
+from linktools.decorator import entry_point
 
 from linktools import utils, logger
 from linktools.android.argparser import ArgumentParser
@@ -189,6 +190,7 @@ class GrepMatcher:
         return out
 
 
+@entry_point()
 def main():
     parser = ArgumentParser(description='match files with regular expression')
 
@@ -214,9 +216,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError):
-        pass
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()

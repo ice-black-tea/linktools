@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import os
+import pkgutil
 from distutils.core import setup
 from types import ModuleType
 
@@ -42,12 +43,8 @@ if __name__ == '__main__':
 
     scripts = []
     scripts_path = os.path.join(root_path, "linktools", "scripts")
-    for name in os.listdir(scripts_path):
-        path = os.path.join(scripts_path, name)
-        if os.path.isdir(path):
-            continue
-        elif path.endswith(".py"):
-            scripts.append(os.path.join("linktools", "scripts", name))
+    for _, name, _ in pkgutil.iter_modules([scripts_path]):
+        scripts.append("{name} = linktools.scripts.{name}:main".format(name=name))
 
     requires_path = os.path.join(root_path, "requirements.txt")
     with open(requires_path, "r") as fd:
@@ -62,5 +59,5 @@ if __name__ == '__main__':
         include_package_data=True,
         install_requires=install_requires,
         packages=find_packages(),
-        scripts=scripts,
+        entry_points={"console_scripts": scripts},
     )

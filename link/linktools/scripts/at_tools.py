@@ -26,10 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from linktools import logger
 from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.decorator import entry_point
 
 
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AdbArgumentParser(description='used for debugging android-tools.apk')
     parser.add_argument('tool_args', nargs='...', help="tool args")
@@ -39,9 +40,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError, AdbError) as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()

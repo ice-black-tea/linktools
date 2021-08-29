@@ -27,10 +27,11 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools import logger
 from linktools.android import Adb, AdbError, AdbArgumentParser
+from linktools.decorator import entry_point
 
 
+@entry_point(known_errors=[AdbError])
 def main():
     general_commands = [
         "devices",
@@ -64,9 +65,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError, AdbError) as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(traceback_error=True)
+    main()
