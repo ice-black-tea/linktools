@@ -35,14 +35,23 @@ from setuptools import find_packages
 if __name__ == '__main__':
     root_path = os.path.abspath(os.path.dirname(__file__))
 
-    requires_path = os.path.join(root_path, "requirements.txt")
-    with open(requires_path, "r") as fd:
-        install_requires = fd.readlines()
-
     version = ModuleType("version")
     version_path = os.path.join(root_path, "linktools", "version.py")
     with open(version_path, mode="rb") as fd:
         exec(compile(fd.read(), "version", "exec"), version.__dict__)
+
+    scripts = []
+    scripts_path = os.path.join(root_path, "linktools", "scripts")
+    for name in os.listdir(scripts_path):
+        path = os.path.join(scripts_path, name)
+        if os.path.isdir(path):
+            continue
+        elif path.endswith(".py"):
+            scripts.append(os.path.join("linktools", "scripts", name))
+
+    requires_path = os.path.join(root_path, "requirements.txt")
+    with open(requires_path, "r") as fd:
+        install_requires = fd.readlines()
 
     setup(
         name=getattr(version, "__name__"),
@@ -53,4 +62,5 @@ if __name__ == '__main__':
         include_package_data=True,
         install_requires=install_requires,
         packages=find_packages(),
+        scripts=scripts,
     )

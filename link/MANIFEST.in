@@ -1,2 +1,3 @@
 include linktools/configs/*
 include linktools/resource/*
+include linktools/scripts/*.py

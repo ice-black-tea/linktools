@@ -35,11 +35,11 @@ from . import utils, logger
 from .version import __name__, __version__, __author__, __email__, __url__
 from .argparser import ArgumentParser
 
-from ._config import Config, create_config
+from ._config import Config, create_default_config
 from ._tools import GeneralTools
 from ._resource import Resource
 
 
-config: Config = utils.LazyLoad(create_config)
+config: Config = utils.LazyLoad(create_default_config)
 tools: GeneralTools = utils.LazyLoad(GeneralTools)
 resource: Resource = utils.LazyLoad(Resource)

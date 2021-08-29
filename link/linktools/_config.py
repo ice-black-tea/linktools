@@ -97,13 +97,15 @@ class Config(dict):
         return rv
 
 
-def create_config():
+def create_default_config():
     config = Config()
     config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
-    for root, dirs, files in os.walk(config_path):
-        for name in files:
-            if name.endswith(".py"):
-                config.from_pyfile(os.path.join(root, name))
-            elif name.endswith(".json"):
-                config.from_file(os.path.join(root, name), load=json.load)
+    for name in os.listdir(config_path):
+        path = os.path.join(config_path, name)
+        if os.path.isdir(path):
+            continue
+        elif path.endswith(".py"):
+            config.from_pyfile(path)
+        elif path.endswith(".json"):
+            config.from_file(path, load=json.load)
     return config

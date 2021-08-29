@@ -221,7 +221,7 @@ if __name__ == '__main__':
     try:
         tools_key = "LINK_TOOLS_PATH"
         root_path = os.path.abspath(os.path.dirname(__file__))
-        tools_path = os.path.join(root_path, "modules")
+        tools_path = os.path.join(root_path, "scripts")
 
         if args.install:
             env.set(tools_key, tools_path)
