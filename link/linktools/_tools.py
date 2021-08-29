@@ -112,7 +112,6 @@ class GeneralTool(object):
 
     def download(self) -> None:
         from . import resource
-        print(self._config)
         file = resource.get_data_path(quote(self.download_url, safe=''))
         logger.info("download: {}".format(self.download_url))
         utils.download(self.download_url, file)

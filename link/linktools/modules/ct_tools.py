@@ -27,7 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import subprocess
-import sys
 
 from linktools import ArgumentParser
 from linktools import tools
