@@ -20,8 +20,8 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 直接安装
 
 ```bash
-# 安装python模块（必须使用python3.5或以上）
-# linktools @ git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link
+# 直接使用pip安装python模块（必须使用python3.5或以上）
+# 也可以直接在requirements.txt添加依赖项：linktools @ git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link
 python3 -m pip install "git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
 ```
 
