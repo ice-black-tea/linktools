@@ -7,5 +7,5 @@ python-magic
 urwid
 lief>=0.10.1
 jsmin
-python-magic-bin;platform_system=="Darwin"
-python-magic-bin;platform_system=="Windows"
+python-magic-bin; platform_system=="Darwin"
+python-magic-bin; platform_system=="Windows"
