@@ -31,8 +31,6 @@
 # -*- coding:utf-8 -*-
 import logging
 
-import colorama
-
 from . import utils
 from .version import __name__
 
@@ -41,6 +39,23 @@ ERROR = logging.ERROR
 WARNING = logging.WARNING
 INFO = logging.INFO
 DEBUG = logging.DEBUG
+
+
+def _get_colorama():
+    import colorama
+    colorama.init(autoreset=False, convert=True)
+    return colorama
+
+
+def _get_logger():
+    manager = logging.Manager(logging.getLogger())
+    manager.setLoggerClass(_Logger)
+    logger = manager.getLogger(__name__)
+    logger.level = logging.DEBUG
+    handler = logging.StreamHandler()
+    handler.formatter = logging.Formatter('%(message)s')
+    logger.handlers.append(handler)
+    return logger
 
 
 class _Logger(logging.Logger):
@@ -99,18 +114,7 @@ class _Logger(logging.Logger):
         return msg, kwargs
 
 
-def _get_logger():
-    manager = logging.Manager(logging.getLogger())
-    manager.setLoggerClass(_Logger)
-    logger = manager.getLogger(__name__)
-    logger.level = logging.DEBUG
-    handler = logging.StreamHandler()
-    handler.formatter = logging.Formatter('%(message)s')
-    logger.handlers.append(handler)
-    return logger
-
-
-colorama.init(autoreset=False, wrap=True)
+colorama = utils.LazyLoad(_get_colorama)
 logger = utils.LazyLoad(_get_logger)
 
 
