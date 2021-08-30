@@ -9,7 +9,7 @@
 └── misc                杂项，存储一些定制脚本
 ```
 
-## 使用
+## 安装使用
 
 ### 依赖项
 
@@ -51,16 +51,15 @@ CALLBACK_GENERAL_TOOL_CHROMEDRIVER = lambda cfg: (cfg["GENERAL_TOOL_CHROMEDRIVER
 python3 -m pip uninstall linktools
 ```
 
-### 工具集
+## 工具集
 
-[点这里](Link/README.md)
+工具集入口在link目录中，详情参见：[传送门](link/README.md)
 
-## todo
+## TODO
 
-* frida.js添加hook重载、子类、多classloader支持、过ssl pinning...
-* 添加intent fuzz功能
-* 添加系统服务fuzz功能
-* 添加获取所有权限（dangerous、normal、与声明保护等级不一样的权限...）
-* 解决gadbd在高版本无法调用am、pm等命令功能
-* 解析android端口、进程等内容，列出潜在危险点
-... ...
+- [ ] frida.js添加hook重载、子类、多classloader支持、过ssl pinning ... ...
+- [ ] 添加intent fuzz功能
+- [ ] 添加系统服务fuzz功能
+- [ ] 添加获取所有权限（dangerous、normal、与声明保护等级不一样的权限...）
+- [ ] 解决gadbd在高版本无法调用am、pm等命令功能
+- [ ] 解析android端口、进程等内容，列出潜在危险点 ... ...
