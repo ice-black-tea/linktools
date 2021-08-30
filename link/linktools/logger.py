@@ -110,7 +110,7 @@ def _get_logger():
     return logger
 
 
-colorama.init(autoreset=False, convert=True)
+colorama.init(autoreset=False, wrap=True)
 logger = utils.LazyLoad(_get_logger)
 
 
