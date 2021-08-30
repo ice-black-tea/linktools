@@ -25,7 +25,7 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 python3 -m pip install "git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
 ```
 
-## 配置环境变量（可选）
+### 配置环境变量（可选）
 
 添加“LINKTOOLS_SETTING”环境变量，值为python文件的绝对路径，如：
 
