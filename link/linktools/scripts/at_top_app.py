@@ -57,19 +57,19 @@ def main():
     device = Device(args.parse_adb_serial())
 
     if args.package:
-        logger.info(device.get_top_package_name())
+        logger.message(device.get_top_package_name())
     elif args.activity:
-        logger.info(device.get_top_activity_name())
+        logger.message(device.get_top_activity_name())
     elif args.path:
-        logger.info(device.get_apk_path(device.get_top_package_name()))
+        logger.message(device.get_apk_path(device.get_top_package_name()))
     elif args.kill:
         device.shell("am", "force-stop", device.get_top_package_name(), capture_output=False)
     elif "--apk" in sys.argv:
         package_name = device.get_top_package_name()
-        logger.info("get top-level package: {}".format(package_name))
+        logger.message("get top-level package: {}".format(package_name))
         package = utils.get_item(device.get_packages(package_name, basic_info=True), 0)
         if package is not None:
-            logger.info("get top-level package path: {}".format(package.sourceDir))
+            logger.message("get top-level package path: {}".format(package.sourceDir))
             path = device.get_storage_path("{}_{}.apk".format(package.name, package.versionName))
             dest = args.apk if not utils.is_empty(args.apk) else "."
             device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
@@ -86,9 +86,9 @@ def main():
         device.shell("rm", path)
     else:
         package = device.get_top_package_name()
-        logger.info("package:  ", package)
-        logger.info("activity: ", device.get_top_activity_name())
-        logger.info("path:     ", device.get_apk_path(package))
+        logger.message("package:  ", package)
+        logger.message("activity: ", device.get_top_activity_name())
+        logger.message("path:     ", device.get_apk_path(package))
 
 
 if __name__ == '__main__':

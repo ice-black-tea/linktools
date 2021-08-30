@@ -122,9 +122,9 @@ class GrepMatcher:
             for i in range(0, len(lines)):
                 out = self.match_content(lines[i].rstrip())
                 if not utils.is_empty(out):
-                    logger.info(Fore.CYAN, filename,
-                                Fore.RESET, ":", Fore.GREEN, i + 1,
-                                Fore.RESET, ": ", out)
+                    logger.message(Fore.CYAN, filename,
+                                   Fore.RESET, ":", Fore.GREEN, i + 1,
+                                   Fore.RESET, ": ", out)
 
     @GrepHandler.match(
         "application/zip",

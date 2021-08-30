@@ -66,7 +66,7 @@ class FridaScript(object):
             return
         self.last_md5 = md5
 
-        logger.info("Loading script: %s" % self.path, tag="[*]")
+        logger.message("Loading script: %s" % self.path, tag="[*]")
         self.helper.detach_sessions()
 
         if not self.restart:

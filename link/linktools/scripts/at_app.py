@@ -58,16 +58,16 @@ class PrintStream(PrintLevel):
         if not self.min <= level <= self.max:
             pass
         elif level == PrintLevel.title:
-            logger.info(text, style=Style.BRIGHT, indent=indent)
+            logger.message(text, style=Style.BRIGHT, indent=indent)
         elif level == PrintLevel.dangerous:
-            logger.info(text, fore=Fore.RED, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
+            logger.message(text, fore=Fore.RED, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
         elif level == PrintLevel.useless:
-            logger.info(text, fore=Fore.YELLOW, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
+            logger.message(text, fore=Fore.YELLOW, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
         else:
-            logger.info(text, indent=indent)
+            logger.message(text, indent=indent)
 
     def print_line(self):
-        logger.info()
+        logger.message()
 
 
 class PrintStreamWrapper(PrintLevel):

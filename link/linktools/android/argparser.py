@@ -128,13 +128,13 @@ class _NamespaceWrapper:
             elif len(devices) == 1:
                 setattr(self, "adb_serial", next(iter(devices)))
             else:
-                logger.info("more than one device/emulator")
+                logger.message("more than one device/emulator")
                 for i in range(len(devices)):
                     try:
                         name = Device(devices[i]).get_prop("ro.product.name")
                     except:
                         name = ""
-                    logger.info("%d: %-20s [%s]" % (i + 1, devices[i], name))
+                    logger.message("%d: %-20s [%s]" % (i + 1, devices[i], name))
                 while True:
                     data = input("enter device index (%d ~ %d) [default 1]: " % (1, len(devices)))
                     if utils.is_empty(data):
