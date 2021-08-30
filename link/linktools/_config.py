@@ -34,10 +34,49 @@ from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
 
+def create_default_config():
+    config = Config()
+
+    # 导入configs文件夹中所有配置文件
+    config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
+    for name in os.listdir(config_path):
+        path = os.path.join(config_path, name)
+        if os.path.isdir(path):
+            continue
+        elif path.endswith(".py"):
+            config.from_pyfile(path)
+        elif path.endswith(".json"):
+            config.from_file(path, load=json.load)
+
+    # 导入环境变量LINKTOOLS_SETTING中的配置文件
+    config.from_envvar("LINKTOOLS_SETTING", silent=True)
+
+    # 判断是否为回调类型，如果是则调用
+    callbacks = config.get_namespace("CALLBACK_")
+    for key in callbacks:
+        if hasattr(callbacks[key], "__call__"):
+            callbacks[key](config)
+
+    return config
+
+
 class Config(dict):
 
     def __init__(self, defaults: Optional[dict] = None):
         dict.__init__(self, defaults or {})
+
+    def from_envvar(self, variable_name: str, silent: bool = False) -> bool:
+        rv = os.environ.get(variable_name)
+        if not rv:
+            if silent:
+                return False
+            raise RuntimeError(
+                f"The environment variable {variable_name!r} is not set"
+                " and as such configuration could not be loaded. Set"
+                " this variable and make it point to a configuration"
+                " file"
+            )
+        return self.from_pyfile(rv, silent=silent)
 
     def from_pyfile(self, filename: str, silent: bool = False) -> bool:
         d = ModuleType("config")
@@ -59,7 +98,6 @@ class Config(dict):
                 self[key] = getattr(obj, key)
 
     def from_file(self, filename: str, load: Callable[[IO[Any]], Mapping], silent: bool = False) -> bool:
-
         try:
             with open(filename) as f:
                 obj = load(f)
@@ -88,24 +126,10 @@ class Config(dict):
             if not k.startswith(namespace):
                 continue
             if trim_namespace:
-                key = k[len(namespace) :]
+                key = k[len(namespace):]
             else:
                 key = k
             if lowercase:
                 key = key.lower()
             rv[key] = v
         return rv
-
-
-def create_default_config():
-    config = Config()
-    config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
-    for name in os.listdir(config_path):
-        path = os.path.join(config_path, name)
-        if os.path.isdir(path):
-            continue
-        elif path.endswith(".py"):
-            config.from_pyfile(path)
-        elif path.endswith(".json"):
-            config.from_file(path, load=json.load)
-    return config

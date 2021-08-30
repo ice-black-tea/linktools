@@ -2,9 +2,11 @@
 
 工具集入口
 
-## frida
+## 开始使用
 
-### 方法1：运行frida hook脚本
+### frida
+
+#### 方法1：运行frida hook脚本
 
 如hook.py：
 ```python
@@ -45,7 +47,7 @@ if __name__ == '__main__':
 ```
 
 
-### 方法2：使用at_frida (推荐)
+#### 方法2：使用at_frida (推荐)
 
 注入js文件或js代码到指定进程，支持根据设备下载对应的frida-server，js文件实时加载，应用重启后注入等功能
 
@@ -116,12 +118,12 @@ Java.perform(function () {
 at_frida -f hook.js
 ```
 
-### 输出效果
+#### 输出效果
 
 ![frida](imgs/frida.png)
 
 
-### js使用
+#### js使用
 
 内置JavaHelper类的成员函数
 
@@ -250,7 +252,7 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
-## at_top_app
+### at_top_app
 
 显示顶层应用信息、获取顶层应用apk、截屏等
 
@@ -274,7 +276,7 @@ optional arguments:
   --screen [path]       capture screen and pull file
 ```
 
-## at_inetnt
+### at_inetnt
 
 打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
 
@@ -302,7 +304,7 @@ optional arguments:
                         such as https://antiy.cn)
 ```
 
-## at_app
+### at_app
 
 展示app基本信息
 
@@ -326,11 +328,11 @@ optional arguments:
                         order by target field
 ```
 
-### 输出效果
+#### 输出效果
 
 ![apps](imgs/apps.png)
 
-## ct_grep
+### ct_grep
 
 正则匹配文件内容 (含解析zip、elf等格式）
 
@@ -350,9 +352,9 @@ optional arguments:
   -i, --ignore-case  ignore case
 ```
 
-## ct_tools
+### ct_tools
 
-读取[配置文件](linktools/resource/config/tools.json)，下载使用对应工具
+读取[配置文件](linktools/configs/general_tools.py)，下载使用对应工具
 
 ```bash
 usage: ct_tools.py [-h] [-v] [-d] ...
@@ -369,6 +371,6 @@ optional arguments:
 ```
 
 
-## at_tools
+### at_tools
 
 测试android-tools.apk时使用

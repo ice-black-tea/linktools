@@ -34,5 +34,3 @@ from linktools.version import __name__
 
 SETTING_DATA_PATH = os.path.join(str(pathlib.Path.home()), __name__, "data")
 SETTING_TEMP_PATH = os.path.join(str(pathlib.Path.home()), __name__, "temp")
-
-SETTING_CHROMEDRIVER_VERSION = "87.0.4280.88"

@@ -96,7 +96,7 @@ task buildTools {
         def targetPath = "${targetDir}/${targetName}"
 
         def configDir = "${rootDir}/linktools/configs"
-        def configPath = "${configDir}/android_tool.json"
+        def configPath = "${configDir}/android_tools.json"
         def config = readConfig(configPath)
 
         println(config)

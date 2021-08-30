@@ -25,6 +25,25 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 python3 -m pip install "git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
 ```
 
+## 配置环境变量（可选）
+
+添加“LINKTOOLS_SETTING”环境变量，值为python文件的绝对路径，如：
+
+```bash
+LINKTOOLS_SETTING="/Users/admin/linktools/setting.cfg"
+```
+
+然后在setting.cfg中添加配置，如：
+
+```python
+# 数据会默认存储在“~/linktools/”目录下，修改文件存储路径，需要有读写权限
+SETTING_DATA_PATH = "/Users/admin/linktools/data"
+SETTING_TEMP_PATH = "/Users/admin/linktools/temp"
+
+# 采用回调的方式，根据当前系统按照的浏览器版本，修改chromedriver版本号，回调必须以“CALLBACK_”开头
+CALLBACK_GENERAL_TOOL_CHROMEDRIVER = lambda cfg: (cfg["GENERAL_TOOL_CHROMEDRIVER"].update(version="1.1.1.1"))
+```
+
 ### 卸载
 
 ```bash

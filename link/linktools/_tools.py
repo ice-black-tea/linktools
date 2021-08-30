@@ -189,8 +189,9 @@ class GeneralTools(object):
         items = {}
         for key in configs:
             value = configs[key]
-            name = value.get("name") or key
-            items[name] = GeneralTool(self.system, name, value)
+            if isinstance(value, dict):
+                name = value.get("name") or key
+                items[name] = GeneralTool(self.system, name, value)
         return items
 
     def __iter__(self):
