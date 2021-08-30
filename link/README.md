@@ -45,12 +45,12 @@ if __name__ == '__main__':
 ```
 
 
-### 方法2：使用at_frida.py (推荐)
+### 方法2：使用at_frida (推荐)
 
 注入js文件或js代码到指定进程，支持根据设备下载对应的frida-server，js文件实时加载，应用重启后注入等功能
 
 ```bash
-$ at_frida.py -h
+$ at_frida -h
 usage: at_frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
 
 easy to use frida
@@ -113,7 +113,7 @@ Java.perform(function () {
 
 在终端中运行
 ```bash
-at_frida.py -f hook.js
+at_frida -f hook.js
 ```
 
 ### 输出效果
@@ -250,12 +250,12 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
-## at_top_app.py
+## at_top_app
 
 显示顶层应用信息、获取顶层应用apk、截屏等
 
 ```bash
-$ at_top_app.py -h
+$ at_top_app -h
 usage: at_top_app.py [-h] [-v] [-s SERIAL]
                      [--package | --activity | --path | --apk [path] |
                      --screen [path]]
@@ -274,12 +274,12 @@ optional arguments:
   --screen [path]       capture screen and pull file
 ```
 
-## at_inetnt.py
+## at_inetnt
 
 打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
 
 ```bash
-$ at_inetnt.py -h
+$ at_inetnt -h
 usage: at_inetnt.py [-h] [-v] [-s SERIAL]
                     (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
 
@@ -302,12 +302,12 @@ optional arguments:
                         such as https://antiy.cn)
 ```
 
-## at_app.py
+## at_app
 
 展示app基本信息
 
 ```bash
-$ at_app.py -h
+$ at_app -h
 usage: at_app.py [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
                  [-o field [field ...]]
 
@@ -330,12 +330,12 @@ optional arguments:
 
 ![apps](imgs/apps.png)
 
-## ct_grep.py
+## ct_grep
 
 正则匹配文件内容 (含解析zip、elf等格式）
 
 ```bash
-$ ct_grep.py -h
+$ ct_grep -h
 usage: ct_grep.py [-h] [-v] [-i] pattern [file [file ...]]
 
 match files with regular expressions
@@ -350,7 +350,7 @@ optional arguments:
   -i, --ignore-case  ignore case
 ```
 
-## ct_tools.py
+## ct_tools
 
 读取[配置文件](linktools/resource/config/tools.json)，下载使用对应工具
 
@@ -369,6 +369,6 @@ optional arguments:
 ```
 
 
-## at_tools.py
+## at_tools
 
 测试android-tools.apk时使用
