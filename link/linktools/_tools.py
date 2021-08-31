@@ -30,6 +30,7 @@ import os
 import platform
 import shutil
 import sys
+import typing
 from urllib.parse import quote
 
 from . import utils, logger
@@ -40,11 +41,18 @@ def _create_default_tools():
     tools = GeneralTools()
 
     # set environment variable
+    index = 0
     separator = ";" if tools.system == "windows" else ":"
     dir_names = os.environ["PATH"].split(separator)
     for tool in tools:
-        if len(tool.executable) == 1 and tool.dirname not in dir_names:
-            dir_names.append(tool.dirname)
+        # dirname(executable[0]) -> environ["PATH"]
+        if len(tool.executable) > 0:
+            dir_name = os.path.dirname(tool.executable[0])
+            if len(dir_name) > 0 and dir_name not in dir_names:
+                # insert to head
+                dir_names.insert(index, tool.dirname)
+                index += 1
+    # add all paths to environment variables
     os.environ["PATH"] = separator.join(dir_names)
 
     return tools
@@ -190,11 +198,11 @@ class GeneralTool(object):
 
 class GeneralTools(object):
 
-    def __init__(self, system: str = platform.system().lower(), init_environ=False):
+    def __init__(self, system: str = platform.system().lower()):
         self.system = system
 
     @locked_cached_property
-    def items(self) -> dict:
+    def items(self) -> typing.Mapping[str, GeneralTool]:
         from . import config
         configs = config.get_namespace("GENERAL_TOOL_")
         items = {}
@@ -205,11 +213,11 @@ class GeneralTools(object):
                 items[name] = GeneralTool(self.system, name, value)
         return items
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[GeneralTool]:
         return iter(self.items.values())
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> typing.Union[GeneralTool, None]:
         return self.items[item] if item in self.items else None
 
-    def __getattr__(self, item):
+    def __getattr__(self, item) -> typing.Union[GeneralTool, None]:
         return self.items[item] if item in self.items else None

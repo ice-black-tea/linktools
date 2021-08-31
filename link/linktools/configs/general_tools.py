@@ -127,8 +127,8 @@ GENERAL_TOOL_COMPACT_DEX_CONVERTER = {
     },
     "windows": {
         "executable": [
-            "tools/cdex/flinux.exe",
-            "tools/cdex/compact_dex_converter_linux"
+            "{root_path}/tools/cdex/flinux.exe",
+            "{root_path}/tools/cdex/compact_dex_converter_linux"
         ]
     }
 }
