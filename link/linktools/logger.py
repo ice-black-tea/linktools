@@ -44,7 +44,7 @@ DEBUG = logging.DEBUG
 def _get_colorama():
     import platform
     import ctypes
-    if "win" in platform.system().lower():  # works for Win7, 8, 10 ...
+    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
         k = ctypes.windll.kernel32
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
 
