@@ -33,7 +33,21 @@ import sys
 from urllib.parse import quote
 
 from . import utils, logger
-from .decorator import locked_cached_property
+from .decorator import locked_cached_property, cached_property
+
+
+def _create_default_tools():
+    tools = GeneralTools()
+
+    # set environment variable
+    separator = ";" if tools.system == "windows" else ":"
+    dir_names = os.environ["PATH"].split(separator)
+    for tool in tools:
+        if len(tool.executable) == 1 and tool.dirname not in dir_names:
+            dir_names.append(tool.dirname)
+    os.environ["PATH"] = separator.join(dir_names)
+
+    return tools
 
 
 class GeneralTool(object):
@@ -52,9 +66,9 @@ class GeneralTool(object):
         }
         self._config.update(config)
 
-    @locked_cached_property
+    @cached_property
     def config(self) -> dict:
-        from . import resource
+        from . import resource, tools
 
         # fix config
         parent = self._config.get("parent")
@@ -90,11 +104,11 @@ class GeneralTool(object):
             config["absolute_path"] = command
             config["executable"] = [command]
         else:
-            executable = (config.get("executable") or [config["absolute_path"]]).copy()
+            executable = (config.get("executable") or [config["absolute_path"]])
             if isinstance(executable, str):
                 executable = [executable]
             for i in range(len(executable)):
-                executable[i] = executable[i].format(**config)
+                executable[i] = executable[i].format(tools=tools, **config)
             config["executable"] = executable
 
         return config
@@ -105,10 +119,7 @@ class GeneralTool(object):
 
     @property
     def dirname(self) -> str:
-        return os.path.dirname(self.path)
-
-    def chmod(self, mode=0o0755) -> None:
-        os.chmod(self.path, mode)
+        return os.path.dirname(self.absolute_path)
 
     def download(self) -> None:
         from . import resource
@@ -179,7 +190,7 @@ class GeneralTool(object):
 
 class GeneralTools(object):
 
-    def __init__(self, system: str = platform.system().lower()):
+    def __init__(self, system: str = platform.system().lower(), init_environ=False):
         self.system = system
 
     @locked_cached_property

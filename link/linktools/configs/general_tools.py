@@ -42,8 +42,8 @@ GENERAL_TOOL_SMALI = {
 }
 
 GENERAL_TOOL_APKTOOL = {
-    "version": "2.3.4",
-    "download_url": "https://bitbucket.org/iBotPeaches/apktool/downloads/apkGENERAL_TOOL_{version}.jar",
+    "version": "2.5.0",
+    "download_url": "https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar",
     "relative_path": "apktool-{version}.jar",
     "executable": ["java", "-jar", "{absolute_path}"]
 }

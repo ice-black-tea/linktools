@@ -34,7 +34,7 @@ from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
 
-def create_default_config():
+def _create_default_config():
     config = Config()
 
     # 导入configs文件夹中所有配置文件
