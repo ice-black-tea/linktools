@@ -49,7 +49,7 @@ class AdbError(Exception):
 class Adb(object):
 
     @classmethod
-    def devices(cls, alive: bool = False) -> [str]:
+    def devices(cls, alive: bool = None) -> [str]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
@@ -63,7 +63,13 @@ class Adb(object):
             if len(splits) >= 2:
                 device = splits[0]
                 status = splits[1]
-                if not alive or status == "device":
+                if alive is True:
+                    if status == "device":
+                        devices.append(device)
+                elif alive is False:
+                    if status != "device":
+                        devices.append(device)
+                else:
                     devices.append(device)
         return devices
 
