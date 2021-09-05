@@ -110,64 +110,68 @@ class _Logger(logging.Logger):
             import os
             msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
 
-        if fore is not None and fore != colorama.Fore.RESET:
-            msg = msg + colorama.Fore.RESET
-        if back is not None and back != colorama.Back.RESET:
-            msg = msg + colorama.Back.RESET
-        if style is not None and style != colorama.Style.RESET_ALL:
-            msg = msg + colorama.Style.RESET_ALL
+        if fore is not None and fore != _colorama.Fore.RESET:
+            msg = msg + _colorama.Fore.RESET
+        if back is not None and back != _colorama.Back.RESET:
+            msg = msg + _colorama.Back.RESET
+        if style is not None and style != _colorama.Style.RESET_ALL:
+            msg = msg + _colorama.Style.RESET_ALL
 
         return msg, kwargs
 
 
-colorama = utils.LazyLoad(_get_colorama)
-logger = utils.LazyLoad(_get_logger)
+_colorama = utils.lazy_load(_get_colorama)
+_logger = utils.lazy_load(_get_logger)
 
 
 def set_level(level):
-    logger.setLevel(level)
+    _logger.setLevel(level)
+
+
+def get_level():
+    return _logger.level
 
 
 def debug(*args, **kwargs):
-    logger.debug(None, *args, **kwargs,
+    _logger.debug(None, *args, **kwargs,
+                  options={
+                      "fore": _colorama.Fore.GREEN,
+                      "back": None,
+                      "style": None
+                  })
+
+
+def info(*args, **kwargs):
+    _logger.info(None, *args, **kwargs,
                  options={
-                     "fore": colorama.Fore.GREEN,
+                     "fore": None,
                      "back": None,
                      "style": None
                  })
 
 
-def info(*args, **kwargs):
-    logger.info(None, *args, **kwargs,
+def warning(*args, **kwargs):
+    _logger.warning(None, *args, **kwargs,
+                    options={
+                        "fore": _colorama.Fore.MAGENTA,
+                        "back": None,
+                        "style": None
+                    })
+
+
+def error(*args, **kwargs):
+    _logger.error(None, *args, **kwargs,
+                  options={
+                      "fore": _colorama.Fore.RED,
+                      "back": None,
+                      "style": None
+                  })
+
+
+def message(*args, **kwargs):
+    _logger.log(MESSAGE, None, *args, **kwargs,
                 options={
                     "fore": None,
                     "back": None,
                     "style": None
                 })
-
-
-def warning(*args, **kwargs):
-    logger.warning(None, *args, **kwargs,
-                   options={
-                       "fore": colorama.Fore.MAGENTA,
-                       "back": None,
-                       "style": None
-                   })
-
-
-def error(*args, **kwargs):
-    logger.error(None, *args, **kwargs,
-                 options={
-                     "fore": colorama.Fore.RED,
-                     "back": None,
-                     "style": None
-                 })
-
-
-def message(*args, **kwargs):
-    logger.log(MESSAGE, None, *args, **kwargs,
-               options={
-                   "fore": None,
-                   "back": None,
-                   "style": None
-               })

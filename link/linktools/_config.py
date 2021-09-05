@@ -27,15 +27,20 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-import errno
 import json
 import os
+import pathlib
 from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
+from . import version
+
 
 def _create_default_config():
-    config = Config()
+    config = Config(dict(
+        SETTING_DATA_PATH=os.path.join(str(pathlib.Path.home()), version.__name__, "data"),
+        SETTING_TEMP_PATH=os.path.join(str(pathlib.Path.home()), version.__name__, "temp"),
+    ))
 
     # 导入configs文件夹中所有配置文件
     config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))

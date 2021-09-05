@@ -26,9 +26,10 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import json
 import subprocess
 
-from linktools import ArgumentParser, tools
+from linktools import ArgumentParser, tools, logger
 from linktools.decorator import entry_point
 
 
@@ -37,8 +38,15 @@ def main():
     tool_names = sorted([tool.name for tool in iter(tools)])
 
     parser = ArgumentParser(description='tools wrapper')
-    parser.add_argument('-d', '--daemon', action='store_true', default=False,
-                        help='run tools as a daemon')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-c', '--config', action='store_true', default=False,
+                       help='show the config of tool')
+    group.add_argument('--download', action='store_true', default=False,
+                       help='download tool files')
+    group.add_argument('--clear', action='store_true', default=False,
+                       help='clear tool files')
+    group.add_argument('-d', '--daemon', action='store_true', default=False,
+                       help='execute tools as a daemon')
     parser.add_argument('tool', nargs='...', choices=tool_names)
 
     args = parser.parse_args()
@@ -49,7 +57,21 @@ def main():
     tool_name = args.tool[0]
     tool_args = args.tool[1:]
 
-    if args.daemon:
+    if args.config:
+        logger.message(
+            json.dumps(tools[tool_name].config, indent=2, ensure_ascii=False)
+        )
+
+    elif args.download:
+        if not tools[tool_name].exists:
+            tools[tool_name].prepare(force_download=False)
+        logger.message(f"download tool files success: {tools[tool_name].absolute_path}")
+
+    elif args.clear:
+        tools[tool_name].clear()
+        logger.message(f"clear tool files success")
+
+    elif args.daemon:
         process = tools[tool_name].popen(
             *tool_args,
             stdin=subprocess.PIPE,
@@ -57,9 +79,10 @@ def main():
             stderr=subprocess.PIPE
         )
         try:
-            process.wait(0)
+            process.communicate(timeout=0)
         except subprocess.TimeoutExpired as e:
             pass
+
     else:
         process, _, _ = tools[tool_name].exec(*tool_args)
         exit(process.returncode)

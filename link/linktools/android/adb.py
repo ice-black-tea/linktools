@@ -28,6 +28,7 @@
 """
 import json
 import re
+import subprocess
 
 import linktools
 from linktools import __name__, utils, resource, tools
@@ -74,7 +75,7 @@ class Adb(object):
         return devices
 
     @classmethod
-    def popen(cls, *args: [str], **kwargs) -> utils.Process:
+    def popen(cls, *args: [str], **kwargs) -> subprocess.Popen:
         return tools.adb.popen(*args, **kwargs)
 
     @classmethod
@@ -151,7 +152,7 @@ class Device(object):
             return uid
         raise AdbError("unknown adb uid: %s" % result)
 
-    def popen(self, *args: [str], **kwargs) -> utils.Process:
+    def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
         """
         执行命令
         :param args: 命令行参数

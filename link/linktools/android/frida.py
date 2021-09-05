@@ -289,6 +289,7 @@ class FridaHelper(BaseHelper):
         logger.info("Attach process: %s (%d)" % (process_name, process_id), tag="[*]")
 
         session = self.frida_device.attach(process_id)
+        session.enable_child_gating()
         kwargs = {
             "session": session,
             "process_id": process_id,

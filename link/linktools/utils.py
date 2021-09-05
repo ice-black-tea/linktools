@@ -26,60 +26,64 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import functools
 import os
 import subprocess
 import warnings
 from collections import Iterable
 
 
-class LazyLoad(object):
-    __slots__ = ("__var", "__dict__", "__name__", "__wrapped__")
+class _LazyLoad(object):
     __missing__ = object()
 
-    def __init__(self, variable, name=None):
-        object.__setattr__(self, "_LazyLoad__var", variable)
-        object.__setattr__(self, "__name__", name)
-        object.__setattr__(self, "__value__", self.__missing__)
-        object.__setattr__(self, "__wrapped__", variable)
+    def __init__(self, fn):
+        object.__setattr__(self, "_LazyLoad__fn", fn)
+        object.__setattr__(self, "_LazyLoad__object", self.__missing__)
 
-    def _get_current_object(self):
-        value = getattr(self, "__value__")
-        if value != self.__missing__:
-            return value
-        value = self.__var()
-        object.__setattr__(self, "__value__", value)
-        return value
+    def __get_object(self):
+        obj = getattr(self, "_LazyLoad__object")
+        if obj != self.__missing__:
+            return obj
+        obj = getattr(self, "_LazyLoad__fn")()
+        object.__setattr__(self, "__value__", obj)
+        return obj
 
     def __getattr__(self, name):
-        return getattr(self._get_current_object(), name)
+        return getattr(self.__get_object(), name)
 
     def __setattr__(self, name, value):
-        setattr(self._get_current_object(), name, value)
+        setattr(self.__get_object(), name, value)
 
     def __delattr__(self, name):
-        delattr(self._get_current_object(), name)
+        delattr(self.__get_object(), name)
 
     def __getitem__(self, name):
-        return self._get_current_object()[name]
+        return self.__get_object()[name]
 
     def __setitem__(self, name, value):
-        self._get_current_object()[name] = value
+        self.__get_object()[name] = value
 
     def __delitem__(self, key):
-        del self._get_current_object()[key]
+        del self.__get_object()[key]
 
     def __len__(self, key):
-        return len(self._get_current_object())
+        return len(self.__get_object())
 
     def __iter__(self):
-        return iter(self._get_current_object())
+        return iter(self.__get_object())
 
     def __repr__(self):
-        return repr(self._get_current_object())
+        return repr(self.__get_object())
+
+    def __str__(self):
+        return str(self.__get_object())
 
 
-class Process(subprocess.Popen):
+def lazy_load(fn, *args, **kwargs):
+    return _LazyLoad(functools.partial(fn, *args, **kwargs))
+
+
+class _Process(subprocess.Popen):
 
     def __init__(self, *args, **kwargs):
         """
@@ -97,22 +101,22 @@ class Process(subprocess.Popen):
         subprocess.Popen.__init__(self, args, shell=False, **kwargs)
 
 
-def popen(*args, **kwargs) -> Process:
+def popen(*args, **kwargs) -> subprocess.Popen:
     """
     打开进程
     :param args: 参数
     :return: 子进程
     """
-    return Process(*args, **kwargs)
+    return _Process(*args, **kwargs)
 
 
-def exec(*args, **kwargs) -> (Process, str, str):
+def exec(*args, **kwargs) -> (subprocess.Popen, str, str):
     """
     执行命令
     :param args: 参数
     :return: 子进程
     """
-    process = Process(*args, **kwargs)
+    process = _Process(*args, **kwargs)
     out, err = process.communicate()
     return process, out, err
 

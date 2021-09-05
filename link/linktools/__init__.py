@@ -39,6 +39,6 @@ from ._config import Config, _create_default_config
 from ._tools import GeneralTools, _create_default_tools
 from ._resource import Resource
 
-config: Config = utils.LazyLoad(_create_default_config)
-tools: GeneralTools = utils.LazyLoad(_create_default_tools)
-resource: Resource = utils.LazyLoad(Resource)
+config: Config = utils.lazy_load(_create_default_config)
+tools: GeneralTools = utils.lazy_load(_create_default_tools)
+resource: Resource = utils.lazy_load(Resource)
