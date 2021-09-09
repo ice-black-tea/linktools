@@ -26,18 +26,18 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
-import _frida
 import _thread as thread
 import lzma
 import os
 import shutil
 import time
+from typing import Optional
 
+import _frida
 import colorama
 import frida
+from calmjs.parse import es5
 from colorama import Fore
-from jsmin import jsmin
 
 import linktools
 from linktools import utils, resource, logger
@@ -139,7 +139,7 @@ class BaseHelper(object):
         except frida.ProcessNotFoundError:
             return False
 
-    def get_process(self, name) -> _frida.Process:
+    def get_process(self, name) -> Optional[_frida.Process]:
         """
         通过进程名到的所有进程
         :param name: 进程名
@@ -216,7 +216,7 @@ class FridaHelper(BaseHelper):
         super().__init__(device_id)
         self.sessions = []
         with open(resource.get_persist_path("android-frida.js"), "rt") as fd:
-            self._pre_script_code = jsmin(fd.read()).replace("\n", " ")
+            self._pre_script_code = es5.minify_print(fd.read(), obfuscate=True)
         self.on_init()
 
     def on_init(self) -> None:
