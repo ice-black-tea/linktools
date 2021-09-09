@@ -5,7 +5,7 @@ tqdm
 watchdog
 urwid
 lief>=0.10.1
-slimit
+calmjs.parse
 python-magic; platform_system=="Linux"
 python-magic-bin; platform_system=="Darwin"
 python-magic-bin; platform_system=="Windows"
