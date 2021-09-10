@@ -102,7 +102,8 @@ class _Logger(logging.Logger):
             msg = msg + style
         tag = get_option("tag", "")
         if len(tag) > 0:
-            msg = msg + str(tag)
+            tag = str(tag) + " "
+            msg = msg + tag
         for arg in args:
             msg = msg + str(arg)
 
