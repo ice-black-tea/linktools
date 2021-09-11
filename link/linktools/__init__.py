@@ -26,18 +26,13 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import sys
-
-if (sys.version_info.major, sys.version_info.minor) < (3, 5):
-    raise Exception("only supports python 3.5 or higher")
 
 from . import utils, logger
-from .version import __name__, __version__, __author__, __email__, __url__
-from .argparser import ArgumentParser
-
 from ._config import Config, _create_default_config
-from ._tools import GeneralTools, _create_default_tools
 from ._resource import Resource
+from ._tools import GeneralTools, _create_default_tools
+from .argparser import ArgumentParser
+from .version import __name__, __version__, __author__, __email__, __url__
 
 config: Config = utils.lazy_load(_create_default_config)
 tools: GeneralTools = utils.lazy_load(_create_default_tools)

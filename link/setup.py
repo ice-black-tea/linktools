@@ -41,6 +41,10 @@ if __name__ == '__main__':
     with open(version_path, mode="rb") as fd:
         exec(compile(fd.read(), "version", "exec"), version.__dict__)
 
+    description_path = os.path.join(root_path, "README.md")
+    with open(description_path, "r") as fd:
+        description = fd.read()
+
     scripts = []
     scripts_path = os.path.join(root_path, "linktools", "scripts")
     for _, name, _ in pkgutil.iter_modules([scripts_path]):
@@ -51,11 +55,18 @@ if __name__ == '__main__':
         install_requires = fd.readlines()
 
     setup(
+        python_requires='>=3.5',
+        license='Apache 2.0',
+
         name=getattr(version, "__name__"),
         author=getattr(version, "__author__"),
         version=getattr(version, "__version__"),
         author_email=getattr(version, "__email__"),
         url=getattr(version, "__url__"),
+
+        long_description=description,
+        long_description_content_type='text/markdown',
+
         include_package_data=True,
         install_requires=install_requires,
         packages=find_packages(),

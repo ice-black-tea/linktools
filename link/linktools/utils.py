@@ -42,10 +42,9 @@ class _LazyLoad(object):
 
     def __get_object(self):
         obj = getattr(self, "_LazyLoad__object")
-        if obj != self.__missing__:
-            return obj
-        obj = getattr(self, "_LazyLoad__fn")()
-        object.__setattr__(self, "_LazyLoad__object", obj)
+        if obj == self.__missing__:
+            obj = getattr(self, "_LazyLoad__fn")()
+            object.__setattr__(self, "_LazyLoad__object", obj)
         return obj
 
     def __getattr__(self, name):

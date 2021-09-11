@@ -120,7 +120,7 @@ at_frida -f hook.js
 
 #### 输出效果
 
-![frida](imgs/frida.png)
+![frida](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/imgs/frida.png)
 
 
 #### js使用
@@ -330,7 +330,7 @@ optional arguments:
 
 #### 输出效果
 
-![apps](imgs/apps.png)
+![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/imgs/apps.png)
 
 ### ct_grep
 
@@ -354,7 +354,7 @@ optional arguments:
 
 ### ct_tools
 
-读取[配置文件](linktools/configs/general_tools.py)，下载使用对应工具
+读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.py)，下载使用对应工具
 
 ```bash
 usage: ct_tools.py [-h] [-v] [-d] ...

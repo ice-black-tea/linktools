@@ -28,7 +28,7 @@
 """
 import argparse
 
-from linktools import __version__
+from linktools.version import __version__
 
 
 class ArgumentParser(argparse.ArgumentParser):
