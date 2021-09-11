@@ -1,53 +1,43 @@
 # Link Tools
 
-工具集入口
-
 ## 开始使用
 
-### frida
+### 依赖项
 
-#### 方法1：运行frida hook脚本
+python & pip (3.5及以上): <https://www.python.org/downloads/>
 
-如hook.py：
-```python
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+### 安装
 
-import sys
-from linktools.android.frida import FridaHelper
+直接安装
 
-jscode = """
-Java.perform(function () {
-
-    var helper = new JavaHelper();
-    var Clazz = Java.use("java.lang.Class");
-    var HashMap = Java.use("java.util.HashMap");
-
-    HashMap.put.implementation = function() {
-
-        send("this.threshold = " + this.threshold.value);
-
-        var clazz = Java.cast(this.getClass(), Clazz);
-        var field = clazz.getDeclaredField("threshold");
-        field.setAccessible(true);
-        send("this.threshold = " + field.getInt(this));
-
-        // call origin method
-        var ret = helper.callMethod(this, arguments);
-        helper.printStack();
-        helper.printArguments(arguments, ret);
-        return ret;
-    }
-});
-"""
-
-if __name__ == '__main__':
-    FridaHelper().run_script("xxx.xxx.xxx", jscode)
-    sys.stdin.read()
+```bash
+# 也可以直接使用github上的最新版本："linktools @ git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
+python3 -m pip install linktools
 ```
 
+### 配置环境变量（可选）
 
-#### 方法2：使用at_frida (推荐)
+添加“LINKTOOLS_SETTING”环境变量，值为python文件的绝对路径，如：
+
+```bash
+LINKTOOLS_SETTING="/Users/admin/linktools/setting.cfg"
+```
+
+然后在setting.cfg中添加配置，如：
+
+```python
+# 下载的工具和其他缓存会默认存储在“~/linktools/”目录下，可通过以下配置修改
+SETTING_DATA_PATH = "/Users/admin/linktools/data"
+SETTING_TEMP_PATH = "/Users/admin/linktools/temp"
+
+# 以“CALLBACK_”开头为回调函数，在配置加载完成时调用，回调类型函数入参为配置项字典
+# 如：根据当前系统安装的chrome浏览器版本，修改chromedriver版本号
+CALLBACK_GENERAL_TOOL_CHROMEDRIVER = lambda cfg: cfg["GENERAL_TOOL_CHROMEDRIVER"].update(version="1.1.1.1")
+```
+
+## 相关功能
+
+### at_frida
 
 注入js文件或js代码到指定进程，支持根据设备下载对应的frida-server，js文件实时加载，应用重启后注入等功能
 
@@ -121,7 +111,6 @@ at_frida -f hook.js
 #### 输出效果
 
 ![frida](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/imgs/frida.png)
-
 
 #### js使用
 
@@ -282,7 +271,7 @@ optional arguments:
 
 ```bash
 $ at_inetnt -h
-usage: at_inetnt.py [-h] [-v] [-s SERIAL]
+usage: at_inetnt [-h] [-v] [-s SERIAL]
                     (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
 
 common intent action
@@ -310,7 +299,7 @@ optional arguments:
 
 ```bash
 $ at_app -h
-usage: at_app.py [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
+usage: at_app [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
                  [-o field [field ...]]
 
 fetch application info
@@ -357,7 +346,8 @@ optional arguments:
 读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.py)，下载使用对应工具
 
 ```bash
-usage: ct_tools.py [-h] [-v] [-d] ...
+$ ct_tools -h
+usage: ct_tools [-h] [-v] [-d] ...
 
 tools wrapper
 
