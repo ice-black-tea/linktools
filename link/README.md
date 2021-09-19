@@ -12,7 +12,7 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 
 ```bash
 # 也可以直接使用github上的最新版本："linktools @ git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
-python3 -m pip install linktools
+python3 -m pip install "linktools[frida,magic]" # 如果用不到frida可以不加frida
 ```
 
 ### 配置环境变量（可选）
@@ -110,7 +110,7 @@ at_frida -f hook.js
 
 #### 输出效果
 
-![frida](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/imgs/frida.png)
+![frida](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/frida.png)
 
 #### js使用
 
@@ -319,7 +319,7 @@ optional arguments:
 
 #### 输出效果
 
-![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/imgs/apps.png)
+![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/apps.png)
 
 ### ct_grep
 

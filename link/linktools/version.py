@@ -28,7 +28,7 @@
 """
 
 __name__ = "linktools"
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 __author__ = "Hu Ji"
 __email__ = "669898595@qq.com"
 __url__ = "https://github.com/ice-black-tea/Zelda/tree/master/link"

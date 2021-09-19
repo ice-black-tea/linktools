@@ -29,7 +29,6 @@
 import functools
 import os
 import subprocess
-import warnings
 from collections import Iterable
 
 
@@ -306,42 +305,59 @@ def cookie_to_dict(cookie):
     return cookies
 
 
-def download(url: str, path: str) -> int:
+def download(url: str, path: str, proxies=None) -> int:
     """
     从指定url下载文件
     :param url: 下载链接
     :param path: 保存路径
     :return: 文件大小
     """
-    import requests
-    from tqdm import tqdm, TqdmSynchronisationWarning
     from urllib.request import urlopen, Request
+    from tqdm import tqdm
+    from linktools import config
 
-    dir = os.path.dirname(path)
-    if not os.path.exists(dir):
-        os.makedirs(dir)
+    import contextlib
+
+    dir_path = os.path.dirname(path)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
     tmp_path = path + ".download"
+
+    offset = 0
     if os.path.exists(tmp_path):
         offset = os.path.getsize(tmp_path)
-    else:
-        offset = 0
 
-    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36"
-    size = int(urlopen(Request(url, headers={"User-Agent": user_agent})).info().get('Content-Length', -1))
-    if size == -1:
-        raise Exception("error Content-Length")
-    if offset >= size:
-        return size
-    header = {"User-Agent": user_agent, "Range": "bytes=%s-%s" % (offset, size)}
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", TqdmSynchronisationWarning)
-        pbar = tqdm(total=size, initial=offset, unit='B', unit_scale=True, desc=url.split('/')[-1])
-        req = requests.get(url, headers=header, stream=True)
-        with (open(tmp_path, 'ab')) as fd:
-            for chunk in req.iter_content(chunk_size=1024):
-                if chunk:
-                    fd.write(chunk)
-                    pbar.update(1024)
-        pbar.close()
+    with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=os.path.split(url)[1]) as t:
+
+        request_headers = {
+            "User-Agent": config["DOWNLOAD_USER_AGENT"],
+            "Range": f"bytes={offset}-"
+        }
+
+        with contextlib.closing(urlopen(Request(url, headers=request_headers))) as fp:
+
+            response_headers = fp.info()
+            if "content-length" in response_headers:
+                t.total = offset + int(response_headers["Content-Length"])
+
+            with open(tmp_path, 'ab') as tfp:
+                bs = 1024 * 8
+                read = 0
+
+                t.update(offset + read - t.n)
+
+                while True:
+                    block = fp.read(bs)
+                    if not block:
+                        break
+                    read += len(block)
+                    tfp.write(block)
+
+                    t.update(offset + read - t.n)
+
+    size = os.path.getsize(tmp_path)
+    if size <= 0:
+        raise RuntimeError(f"download error: {url}")
     os.rename(tmp_path, path)
+
     return size

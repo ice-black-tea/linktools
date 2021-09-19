@@ -35,16 +35,8 @@ from watchdog.observers import Observer
 
 from linktools import utils, logger
 from linktools.android import AdbError, AdbArgumentParser
+from linktools.android.frida import FridaHelper
 from linktools.decorator import entry_point
-
-try:
-    # noinspection PyPackageRequirements
-    from frida import ServerNotRunningError
-    from linktools.android.frida import FridaHelper
-except ModuleNotFoundError:
-    logger.error("please use the following command to install frida first:", os.linesep,
-                 sys.executable, " -m pip install frida")
-    exit(1)
 
 
 class FridaScript(object):
