@@ -241,13 +241,13 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
-### at-top-app
+### at-top
 
 显示顶层应用信息、获取顶层应用apk、截屏等
 
 ```bash
-$ at-top-app -h
-usage: at-top-app [-h] [-v] [-s SERIAL]
+$ at-top -h
+usage: at-top [-h] [-v] [-s SERIAL]
                      [--package | --activity | --path | --apk [path] |
                      --screen [path]]
 
