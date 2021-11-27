@@ -29,10 +29,6 @@ LINKTOOLS_SETTING="/Users/admin/linktools/setting.cfg"
 # 下载的工具和其他缓存会默认存储在“~/linktools/”目录下，可通过以下配置修改
 SETTING_DATA_PATH = "/Users/admin/linktools/data"
 SETTING_TEMP_PATH = "/Users/admin/linktools/temp"
-
-# 以“CALLBACK_”开头为回调函数，在配置加载完成时调用，回调类型函数入参为配置项字典
-# 如：根据当前系统安装的chrome浏览器版本，修改chromedriver版本号
-CALLBACK_GENERAL_TOOL_CHROMEDRIVER = lambda cfg: cfg["GENERAL_TOOL_CHROMEDRIVER"].update(version="1.1.1.1")
 ```
 
 ## 相关功能
