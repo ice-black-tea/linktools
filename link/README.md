@@ -37,13 +37,13 @@ CALLBACK_GENERAL_TOOL_CHROMEDRIVER = lambda cfg: cfg["GENERAL_TOOL_CHROMEDRIVER"
 
 ## 相关功能
 
-### at_frida
+### at-frida
 
 注入js文件或js代码到指定进程，支持根据设备下载对应的frida-server，js文件实时加载，应用重启后注入等功能
 
 ```bash
-$ at_frida -h
-usage: at_frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
+$ at-frida -h
+usage: at-frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
 
 easy to use frida
 
@@ -105,7 +105,7 @@ Java.perform(function () {
 
 在终端中运行
 ```bash
-at_frida -f hook.js
+at-frida -f hook.js
 ```
 
 #### 输出效果
@@ -241,13 +241,13 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
-### at_top_app
+### at-top-app
 
 显示顶层应用信息、获取顶层应用apk、截屏等
 
 ```bash
-$ at_top_app -h
-usage: at_top_app.py [-h] [-v] [-s SERIAL]
+$ at-top-app -h
+usage: at-top-app [-h] [-v] [-s SERIAL]
                      [--package | --activity | --path | --apk [path] |
                      --screen [path]]
 
@@ -265,13 +265,13 @@ optional arguments:
   --screen [path]       capture screen and pull file
 ```
 
-### at_inetnt
+### at-inetnt
 
 打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
 
 ```bash
-$ at_inetnt -h
-usage: at_inetnt [-h] [-v] [-s SERIAL]
+$ at-inetnt -h
+usage: at-inetnt [-h] [-v] [-s SERIAL]
                     (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
 
 common intent action
@@ -293,13 +293,13 @@ optional arguments:
                         such as https://antiy.cn)
 ```
 
-### at_app
+### at-app
 
 展示app基本信息
 
 ```bash
-$ at_app -h
-usage: at_app [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
+$ at-app -h
+usage: at-app [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
                  [-o field [field ...]]
 
 fetch application info
@@ -321,13 +321,13 @@ optional arguments:
 
 ![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/apps.png)
 
-### ct_grep
+### ct-grep
 
 正则匹配文件内容 (含解析zip、elf等格式）
 
 ```bash
-$ ct_grep -h
-usage: ct_grep.py [-h] [-v] [-i] pattern [file [file ...]]
+$ ct-grep -h
+usage: ct-grep [-h] [-v] [-i] pattern [file [file ...]]
 
 match files with regular expressions
 
@@ -341,13 +341,13 @@ optional arguments:
   -i, --ignore-case  ignore case
 ```
 
-### ct_tools
+### ct-tools
 
 读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.py)，下载使用对应工具
 
 ```bash
-$ ct_tools -h
-usage: ct_tools [-h] [-v] [-d] ...
+$ ct-tools -h
+usage: ct-tools [-h] [-v] [-d] ...
 
 tools wrapper
 
@@ -361,6 +361,6 @@ optional arguments:
 ```
 
 
-### at_tools
+### at-tools
 
 测试android-tools.apk时使用

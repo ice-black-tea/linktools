@@ -26,7 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import errno
 import json
 import os
 import pathlib
@@ -37,15 +37,19 @@ from . import version
 
 
 def _create_default_config():
-    config = Config(dict(
-        SETTING_DATA_PATH=os.path.join(str(pathlib.Path.home()), version.__name__, "data"),
-        SETTING_TEMP_PATH=os.path.join(str(pathlib.Path.home()), version.__name__, "temp"),
+    config = Config()
 
-        DOWNLOAD_USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/75.0.3770.100 "
-                            "Safari/537.36"
-    ))
+    # 初始化路径相关参数
+    config["SETTING_ROOT_PATH"] = os.path.join(str(pathlib.Path.home()), f".{version.__name__}")
+    config["SETTING_DATA_PATH"] = None  # default {SETTING_ROOT_PATH}/data
+    config["SETTING_TEMP_PATH"] = None  # default {SETTING_ROOT_PATH}/temp
+
+    # 初始化下载相关参数
+    config["SETTING_DOWNLOAD_USER_AGENT"] = \
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) " \
+        "AppleWebKit/537.36 (KHTML, like Gecko) " \
+        "Chrome/75.0.3770.100 " \
+        "Safari/537.36"
 
     # 导入configs文件夹中所有配置文件
     config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
@@ -61,16 +65,12 @@ def _create_default_config():
     # 导入环境变量LINKTOOLS_SETTING中的配置文件
     config.from_envvar("LINKTOOLS_SETTING", silent=True)
 
-    # 判断是否为回调类型，如果是则调用
-    callbacks = config.get_namespace("CALLBACK_")
-    for key in callbacks:
-        if hasattr(callbacks[key], "__call__"):
-            callbacks[key](config)
-
     return config
 
 
 class Config(dict):
+
+    "Code stolen from werkzeug.local.Proxy"
 
     def __init__(self, defaults: Optional[dict] = None):
         dict.__init__(self, defaults or {})
@@ -143,3 +143,10 @@ class Config(dict):
                 key = key.lower()
             rv[key] = v
         return rv
+
+    def update_from_environ(self, *target_keys: [str]):
+        for key in os.environ:
+            if (target_keys is None or key in target_keys) and key in self:
+                value = os.environ[key]
+                if value is not None and len(value) > 0:
+                    self[key] = value

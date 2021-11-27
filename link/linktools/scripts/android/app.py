@@ -49,7 +49,6 @@ class PrintLevel:
 class PrintStream(PrintLevel):
 
     def __init__(self, max_level=PrintLevel.max, min_level=PrintLevel.min, file=None):
-        colorama.init(True)
         self.max = max_level
         self.min = min_level
         self.file = file

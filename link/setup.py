@@ -49,10 +49,20 @@ if __name__ == '__main__':
     with open(description_path, "r") as fd:
         description = fd.read()
 
+    def extend_scripts(script_module, script_prefix):
+        scripts_path = get_path("linktools", "scripts", script_module)
+        for _, module_name, _ in pkgutil.iter_modules([scripts_path]):
+            if not module_name.startswith("_"):
+                scripts.append("{script_prefix}-{script_name} = {module_prefix}.{module_name}:main".format(
+                    script_prefix=script_prefix,
+                    script_name=module_name.replace("_", "-"),
+                    module_prefix=f"linktools.scripts.{script_module}",
+                    module_name=module_name
+                ))
+
     scripts = []
-    scripts_path = get_path("linktools", "scripts")
-    for _, name, _ in pkgutil.iter_modules([scripts_path]):
-        scripts.append("{name} = linktools.scripts.{name}:main".format(name=name))
+    extend_scripts(script_module="common", script_prefix="ct")
+    extend_scripts(script_module="android", script_prefix="at")
 
     setup(
         name=getattr(version, "__name__"),

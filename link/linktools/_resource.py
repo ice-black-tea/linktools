@@ -28,19 +28,36 @@
 """
 import os
 
+from .decorator import cached_property
+
 
 class Resource(object):
 
-    def __init__(self):
-        self._resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "resource"))
+    @cached_property
+    def _resource_path(self):
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "resource"))
+
+    @cached_property
+    def _data_path(self):
+        from . import config
+        path = config["SETTING_DATA_PATH"]
+        if path is None or len(path) == 0:
+            path = os.path.join(config["SETTING_ROOT_PATH"], "data")
+        return path
+
+    @cached_property
+    def _temp_path(self):
+        from . import config
+        path = config["SETTING_TEMP_PATH"]
+        if path is None or len(path) == 0:
+            path = os.path.join(config["SETTING_TEMP_PATH"], "temp")
+        return path
 
     def get_persist_path(self, *paths: [str]):
         return os.path.join(self._resource_path, *paths)
 
-    # noinspection PyMethodMayBeStatic
     def get_data_path(self, *paths: [str]):
-        from . import config
-        return os.path.join(config["SETTING_DATA_PATH"], *paths)
+        return os.path.join(self._data_path, *paths)
 
     def get_data_dir(self, *paths: [str], create: bool = False):
         path = self.get_data_path(*paths)
@@ -48,10 +65,8 @@ class Resource(object):
             os.makedirs(path)
         return path
 
-    # noinspection PyMethodMayBeStatic
     def get_temp_path(self, *paths: [str]):
-        from . import config
-        return os.path.join(config["SETTING_TEMP_PATH"], *paths)
+        return os.path.join(self._temp_path, *paths)
 
     def get_temp_dir(self, *paths: [str], create: bool = False):
         path = self.get_temp_path(*paths)
