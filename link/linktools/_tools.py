@@ -95,7 +95,7 @@ class GeneralTool(object):
             config["download_url"] = url
 
         # unpack path
-        paths = [system]
+        paths = ["tools"]
         unpack_path = (config.get("unpack_path") or "").format(tools=self._container, **config)
         if not utils.is_empty(unpack_path):
             paths.append(unpack_path)

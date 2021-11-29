@@ -42,7 +42,7 @@ class Resource(object):
         from . import config
         path = config["SETTING_DATA_PATH"]
         if path is None or len(path) == 0:
-            path = os.path.join(config["SETTING_ROOT_PATH"], "data")
+            path = os.path.join(config["SETTING_STORAGE_PATH"], "data")
         return path
 
     @cached_property
@@ -50,7 +50,7 @@ class Resource(object):
         from . import config
         path = config["SETTING_TEMP_PATH"]
         if path is None or len(path) == 0:
-            path = os.path.join(config["SETTING_TEMP_PATH"], "temp")
+            path = os.path.join(config["SETTING_STORAGE_PATH"], "temp")
         return path
 
     def get_persist_path(self, *paths: [str]):

@@ -40,9 +40,9 @@ def _create_default_config():
     config = Config()
 
     # 初始化路径相关参数
-    config["SETTING_ROOT_PATH"] = os.path.join(str(pathlib.Path.home()), f".{version.__name__}")
-    config["SETTING_DATA_PATH"] = None  # default {SETTING_ROOT_PATH}/data
-    config["SETTING_TEMP_PATH"] = None  # default {SETTING_ROOT_PATH}/temp
+    config["SETTING_STORAGE_PATH"] = os.path.join(str(pathlib.Path.home()), f".{version.__name__}")
+    config["SETTING_DATA_PATH"] = None  # default {SETTING_STORAGE_PATH}/data
+    config["SETTING_TEMP_PATH"] = None  # default {SETTING_STORAGE_PATH}/temp
 
     # 初始化下载相关参数
     config["SETTING_DOWNLOAD_USER_AGENT"] = \
