@@ -50,7 +50,7 @@ class Resource(object):
         from . import config
         path = config["SETTING_TEMP_PATH"]
         if path is None or len(path) == 0:
-            path = os.path.join(config["SETTING_TEMP_PATH"], "temp")
+            path = os.path.join(config["SETTING_ROOT_PATH"], "temp")
         return path
 
     def get_persist_path(self, *paths: [str]):
