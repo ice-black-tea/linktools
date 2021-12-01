@@ -411,6 +411,10 @@ def get_item(obj: object, *keys, type: type = None, default: type(object) = None
             obj = obj.__dict__[key]
         except:
             return default
+
+    if obj is None:
+        return obj
+
     if type is not None:
         try:
             obj = type(obj)
@@ -431,6 +435,7 @@ def pop_item(obj: object, *keys, type: type = None, default: type(object) = None
     """
     last_obj = None
     last_key = None
+
     for key in keys:
         if obj is None:
             return default
@@ -446,12 +451,17 @@ def pop_item(obj: object, *keys, type: type = None, default: type(object) = None
             obj = obj.__dict__[key]
         except:
             return default
+
     if last_obj is not None and last_key is not None:
         try:
             # noinspection PyUnresolvedReferences
             del last_obj[last_key]
         except:
             pass
+
+    if obj is None:
+        return obj
+
     if type is not None:
         try:
             obj = type(obj)
@@ -475,7 +485,7 @@ def get_array_item(obj: object, *keys, type: type = None, default: [type(object)
         return default
     array = []
     for obj in objs:
-        if type is not None:
+        if obj is not None and type is not None:
             try:
                 array.append(type(obj))
             except:

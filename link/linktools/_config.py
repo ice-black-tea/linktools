@@ -33,6 +33,8 @@ import pathlib
 from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
+import yaml
+
 from . import version
 
 
@@ -61,6 +63,8 @@ def _create_default_config():
             config.from_pyfile(path)
         elif path.endswith(".json"):
             config.from_file(path, load=json.load)
+        elif path.endswith(".yml"):
+            config.from_file(path, load=yaml.safe_load)
 
     # 导入环境变量LINKTOOLS_SETTING中的配置文件
     config.from_envvar("LINKTOOLS_SETTING", silent=True)
@@ -143,10 +147,3 @@ class Config(dict):
                 key = key.lower()
             rv[key] = v
         return rv
-
-    def update_from_environ(self, *target_keys: [str]):
-        for key in os.environ:
-            if (target_keys is None or key in target_keys) and key in self:
-                value = os.environ[key]
-                if value is not None and len(value) > 0:
-                    self[key] = value

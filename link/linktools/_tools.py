@@ -59,73 +59,90 @@ def _create_default_tools():
     return tools
 
 
-class GeneralTool(object):
-    _default_config = {
-        "name": "",
-        "system": "",
-        "cmdline": "",
-        "download_url": "",
-        "unpack_path": "",
-        "target_path": "",
-        "root_path": "",
-        "absolute_path": "",
-        "executable": int(time.time()),  # True or False (default: True)
-        "executable_cmdline": [],
-        "parent": {},
-    }
+_general_tool_default_config = {
+    "name": "",
+    "cmdline": "",
+    "download_url": "",
+    "unpack_path": "",
+    "target_path": "",
+    "root_path": "",
+    "absolute_path": "",
+    "executable": int(time.time()),  # True or False (default: True)
+    "executable_cmdline": [],
+}
 
-    def __init__(self, container, system: str, name: str, config: dict):
+
+class GeneralTool(object):
+
+    def __init__(self, container, name: str, config: dict):
         self._container = container
-        self._raw_config = self._default_config.copy()
-        self._raw_config.update(name=name, system=system)
+        self._raw_config = _general_tool_default_config.copy()
+        self._raw_config.update(container.config)
+        self._raw_config.update(name=name)
         self._raw_config.update(config)
+
+        self._verifiers = [
+            self._get_verifier("system"),
+            self._get_verifier("processor"),
+            self._get_verifier("architecture")
+        ]
 
     @cached_property
     def config(self) -> dict:
         from . import resource
 
-        # fix config
-        system = self._raw_config.get("system")
-        parent = self._raw_config.get("parent")
-        config = self._merge_config(self._raw_config, parent, system)
+        config = {k: v for k, v in self._raw_config.items()}
 
         # download url
-        url = (config.get("download_url") or "").format(tools=self._container, **config)
-        if not utils.is_empty(url):
-            config["download_url"] = url
+        download_url = self._get_raw_item("download_url", type=str) or ""
+        config["download_url"] = download_url.format(
+            tools=self._container,
+            **config
+        )
 
         # unpack path
+        unpack_path = self._get_raw_item("unpack_path", type=str) or ""
+        config["unpack_path"] = unpack_path.format(
+            tools=self._container,
+            **config
+        )
+
+        # root path: tools/{unpack_path}/
         paths = ["tools"]
-        unpack_path = (config.get("unpack_path") or "").format(tools=self._container, **config)
-        if not utils.is_empty(unpack_path):
-            paths.append(unpack_path)
-            config["unpack_path"] = unpack_path
+        if not utils.is_empty(config["unpack_path"]):
+            paths.append(config["unpack_path"])
+        config["root_path"] = resource.get_data_dir(
+            *paths,
+            create=True
+        )
 
-        # root path: {system}/{unpack_path}/
-        config["root_path"] = resource.get_data_dir(*paths, create=True)
-
-        # file path: {system}/{unpack_path}/{target_path}
-        target_path = (config.get("target_path") or "").format(tools=self._container, **config)
-        if not utils.is_empty(target_path):
-            config["target_path"] = target_path
-            config["absolute_path"] = os.path.join(config["root_path"], target_path)
+        # file path: tools/{unpack_path}/{target_path}
+        target_path = self._get_raw_item("target_path", type=str) or ""
+        config["target_path"] = target_path.format(
+            tools=self._container,
+            **config
+        )
+        config["absolute_path"] = os.path.join(
+            config["root_path"],
+            config["target_path"]
+        )
 
         # is it executable
-        config["executable"] = True if config.get("executable") else False
+        config["executable"] = self._get_raw_item("executable", type=bool)
 
         # set executable cmdline
-        cmdline = (config.get("cmdline") or "")
+        cmdline = (self._get_raw_item("cmdline", type=str) or "")
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
         if not utils.is_empty(cmdline):
             config["absolute_path"] = cmdline
             config["executable_cmdline"] = [cmdline]
         else:
-            executable_cmdline = (config.get("executable_cmdline") or [config["absolute_path"]])
+            executable_cmdline = (self._get_raw_item("executable_cmdline") or [config["absolute_path"]])
             if isinstance(executable_cmdline, str):
                 executable_cmdline = [executable_cmdline]
             for i in range(len(executable_cmdline)):
-                executable_cmdline[i] = executable_cmdline[i].format(tools=self._container, **config)
+                executable_cmdline[i] = str(executable_cmdline[i]).format(tools=self._container, **config)
             config["executable_cmdline"] = executable_cmdline
 
         return config
@@ -183,49 +200,73 @@ class GeneralTool(object):
         out, err = process.communicate()
         return process, out, err
 
-    @classmethod
-    def _merge_config(cls, config: dict, parent: dict, system: str) -> dict:
-        # merge config
-        if parent is not None and len(parent) > 0:
-            fixed = cls._fix_config_key(parent.copy(), system)
-            fixed = cls._fix_config_value(fixed, system)
-            for key, value in fixed.items():
-                if key not in config or config[key] == cls._default_config[key]:
-                    config[key] = value
-
-        config = cls._fix_config_key(config, system)
-        config = cls._fix_config_value(config, system)
-
-        return config
-
-    @classmethod
-    def _fix_config_key(cls, config: dict, system: str) -> dict:
-        if system in config:
-            obj = config.pop(system)
-            if isinstance(obj, dict):
-                for key, value in obj.items():
-                    config[key] = value
-        return config
-
-    @classmethod
-    def _fix_config_value(cls, config: dict, system: str) -> dict:
-        for key in config.keys():
-            obj = config[key]
-            if isinstance(obj, dict):
-                if system in obj:
-                    config[key] = obj.get(system)
-        return config
-
     def __getattr__(self, item):
         return self.config[item]
+
+    @classmethod
+    def _get_verifier(cls, item: str):
+        def verify(self, when_block):
+            when_scope = utils.get_item(when_block, item)
+            if when_scope is not None:
+                value = self._container.config[item]
+                if isinstance(when_scope, str):
+                    if value != when_scope:
+                        return False
+                elif isinstance(when_scope, (tuple, list, set)):
+                    if value not in when_scope:
+                        return False
+            return True
+
+        return verify
+
+    def _get_raw_item(self, key: str, type=None, default=None):
+        value = utils.get_item(self._raw_config, key, default=default)
+        if isinstance(value, dict) and "case" in value:
+            case_block = value.get("case")
+
+            # traverse all blocks
+            for cond_block in case_block:
+
+                # if it is a when block
+                when_block = utils.get_item(cond_block, "when")
+                if when_block is not None:
+                    # check if the system matches
+                    is_verified = True
+                    for verify in self._verifiers:
+                        if not verify(self, when_block):
+                            is_verified = False
+                            break
+                    # if any one of the verification fails, skip
+                    if not is_verified:
+                        continue
+                    # all items are verified
+                    return utils.get_item(cond_block, "then", type=type, default=default)
+
+                # if it is a else block
+                else_block = utils.get_item(cond_block, "else")
+                if else_block is not None:
+                    return utils.get_item(else_block, type=type, default=default)
+
+            # use default value
+            return utils.get_item(default, type=type, default=default)
+
+        # use config value
+        return utils.get_item(value, type=type, default=default)
 
 
 class GeneralTools(object):
 
-    def __init__(self, system: str = platform.system().lower()):
-        self.items = self._init_items(system)
+    def __init__(self, **kwargs):
+        self.config = kwargs
+        if "system" not in kwargs:
+            self.config["system"] = platform.system().lower()
+        if "processor" not in kwargs:
+            self.config["processor"] = platform.processor().lower()
+        if "architecture" not in kwargs:
+            self.config["architecture"] = platform.architecture()[0].lower()
+        self.items = self._init_items()
 
-    def _init_items(self, system) -> typing.Mapping[str, GeneralTool]:
+    def _init_items(self) -> typing.Mapping[str, GeneralTool]:
         from . import config
         configs = config.get_namespace("GENERAL_TOOL_")
         items = {}
@@ -233,7 +274,7 @@ class GeneralTools(object):
             value = configs[key]
             if isinstance(value, dict):
                 name = value.get("name") or key
-                items[name] = GeneralTool(self, system, name, value)
+                items[name] = GeneralTool(self, name, value)
         return items
 
     def __iter__(self) -> typing.Iterator[GeneralTool]:

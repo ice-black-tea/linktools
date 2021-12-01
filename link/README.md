@@ -339,7 +339,7 @@ optional arguments:
 
 ### ct-tools
 
-读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.py)，下载使用对应工具
+读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.yml)，下载使用对应工具
 
 ```bash
 $ ct-tools -h

@@ -1,0 +1,189 @@
+# general tools
+
+GENERAL_TOOL_BAKSMALI:
+  version: 2.5.2
+  download_url: https://bitbucket.org/JesusFreke/smali/downloads/baksmali-{version}.jar
+  target_path: baksmali-{version}.jar
+  executable: false
+  executable_cmdline: ["java", "-jar", "{absolute_path}"]
+
+GENERAL_TOOL_SMALI:
+  version: 2.5.2
+  download_url: https://bitbucket.org/JesusFreke/smali/downloads/smali-{version}.jar
+  target_path: smali-{version}.jar
+  executable: false
+  executable_cmdline: ["java", "-jar", "{absolute_path}"]
+
+GENERAL_TOOL_APKTOOL:
+  version: 2.5.0
+  download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
+  target_path: apktool-{version}.jar
+  executable: false,
+  executable_cmdline: ["java", "-jar", "{absolute_path}"]
+
+GENERAL_TOOL_DEX2JAR:
+  version: 2.1
+  download_url: https://github.com/pxb1988/dex2jar/files/1867564/dex-tools-2.1-SNAPSHOT.zip
+  unpack_path: dex2jar-{version}
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: dex-tools-{version}-SNAPSHOT/d2j-dex2jar.sh
+      - when: {system: windows}
+        then: dex-tools-{version}-SNAPSHOT/d2j-dex2jar.bat
+      - else: ~
+
+GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
+  cmdline: adb
+  download_url: https://dl.google.com/android/repository/platform-tools-latest-{system}.zip
+  unpack_path: platform-tools
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: platform-tools/adb
+      - when: {system: windows}
+        then: platform-tools/adb.exe
+      - else: ~
+
+GENERAL_TOOL_FASTBOOT:
+  <<: *GENERAL_TOOL_ADB
+  cmdline: fastboot
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: platform-tools/fastboot
+      - when: {system: windows}
+        then: platform-tools/fastboot.exe
+      - else: ~
+
+GENERAL_TOOL_JAVA8: &GENERAL_TOOL_JAVA8
+  version: 1.8.0_121
+  download_url:
+    case:
+      - when: {system: darwin}
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-8u121-macosx-x64.tar.gz  # 修改版本时需要调整
+      - when: {system: linux}
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-8u121-linux-x64.tar.gz  # 修改版本时需要调整
+      - when: {system: windows}
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-8u121-windows-x64.tar.gz  # 修改版本时需要调整
+      - else: ~
+  unpack_path: java-{version}
+  target_path:
+    case:
+      - when: {system: darwin}
+        then: jre{version}.jre/Contents/Home/bin/java
+      - when: {system: linux}
+        then: jre{version}/bin/java
+      - when: {system: windows}
+        then: jre{version}/bin/java.exe
+      - else: ~
+
+GENERAL_TOOL_JAVA:
+  <<: *GENERAL_TOOL_JAVA8
+  cmdline: java
+
+GENERAL_TOOL_MIPAY_EXTRACT: &GENERAL_TOOL_MIPAY_EXTRACT
+  version: 8.12.6
+  download_url: https://bitbucket.org/ice-black-tea/tools/downloads/mipay-extract-{version}.zip
+  unpack_path: eufix-{version}
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: extract.sh
+      - when: {system: windows}
+        then: extract.bat
+      - else: ~
+
+GENERAL_TOOL_VDEX_EXTRACTOR:
+  <<: *GENERAL_TOOL_MIPAY_EXTRACT
+  target_path:
+    case:
+      - when: {system: darwin}
+        then: tools/darwin/vdexExtractor
+      - when: {system: linux}
+        then: tools/vdexExtractor
+      - when: {system: windows}
+        then: tools/vdexExtractor
+      - else: ~
+
+GENERAL_TOOL_COMPACT_DEX_CONVERTER:
+  <<: *GENERAL_TOOL_MIPAY_EXTRACT
+  target_path:
+    case:
+      - when: {system: darwin}
+        then: tools/cdex/compact_dex_converter_mac
+      - when: {system: linux}
+        then: tools/cdex/compact_dex_converter_linux
+      - when: {system: windows}
+        then: tools/cdex/flinux.exe
+      - else: ~
+  executable_cmdline:
+    case:
+      - when: {system: windows}
+        then: ["{root_path}/tools/cdex/flinux.exe", "{root_path}/tools/cdex/compact_dex_converter_linux"]
+      - else: ~
+
+GENERAL_TOOL_AAPT:
+  cmdline: aapt
+  version: v0.2-4913185
+  download_url:
+    case:
+      - when: {system: darwin}
+        then: https://dl.androidaapt.com/aapt-macos.zip
+      - when: {system: linux}
+        then: https://dl.androidaapt.com/aapt-linux.zip
+      - when: {system: windows}
+        then: https://dl.androidaapt.com/aapt-windows.zip
+      - else: ~
+  unpack_path: aapt-{version}
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: aapt
+      - when: {system: windows}
+        then: aapt.exe
+      - else: ~
+
+GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
+  version: 1.2.0
+  download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
+  unpack_path: jadx-{version}
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: bin/jadx
+      - when: {system: windows}
+        then: bin/jadx.bat
+      - else: ~
+
+GENERAL_TOOL_JADX_GUI:
+  <<: *GENERAL_TOOL_JADX
+  name: jadx-gui
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: bin/jadx-gui
+      - when: {system: windows}
+        then: bin/jadx-gui.bat
+      - else: ~
+
+GENERAL_TOOL_CHROMEDRIVER:
+  cmdline: chromedriver
+  version: 87.0.4280.88
+  download_url:
+    case:
+      - when: {system: darwin}
+        then: http://chromedriver.storage.googleapis.com/{version}/chromedriver_mac64.zip
+      - when: {system: linux}
+        then: http://chromedriver.storage.googleapis.com/{version}/chromedriver_linux64.zip
+      - when: {system: windows}
+        then: http://chromedriver.storage.googleapis.com/{version}/chromedriver_win32.zip
+      - else: ~
+  unpack_path: chromedriver-{version}
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: chromedriver
+      - when: {system: windows}
+        then: chromedriver.exe
+      - else: ~
