@@ -96,7 +96,7 @@ class Config(dict):
         d = ModuleType("config")
         d.__file__ = filename
         try:
-            with open(filename, mode="rb") as config_file:
+            with open(filename, "rb") as config_file:
                 exec(compile(config_file.read(), filename, "exec"), d.__dict__)
         except OSError as e:
             if silent and e.errno in (errno.ENOENT, errno.EISDIR, errno.ENOTDIR):
@@ -113,7 +113,7 @@ class Config(dict):
 
     def from_file(self, filename: str, load: Callable[[IO[Any]], Mapping], silent: bool = False) -> bool:
         try:
-            with open(filename) as f:
+            with open(filename, "rb") as f:
                 obj = load(f)
         except OSError as e:
             if silent and e.errno in (errno.ENOENT, errno.EISDIR):
