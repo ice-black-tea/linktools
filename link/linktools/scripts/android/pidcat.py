@@ -270,7 +270,7 @@ def main():
                 seen_pids = True
                 pids.add(pid)
 
-    for line in device.exec("ps", "-A", stdout=PIPE, stderr=DEVNULL).splitlines():
+    for line in device.shell("ps", "-A", stdout=PIPE, stderr=DEVNULL).splitlines():
         pid_match = PID_LINE.match(line.strip())
         if pid_match is not None:
             pid = pid_match.group(1)

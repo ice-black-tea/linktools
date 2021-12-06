@@ -26,69 +26,12 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
-import hashlib
-import sys
-
-from watchdog.events import *
-from watchdog.observers import Observer
+import os
 
 from linktools import utils, logger
-from linktools.android import AdbError, AdbArgumentParser
-from linktools.android.frida import FridaHelper
+from linktools.android import AdbError, AdbArgumentParser, Device
+from linktools.android.frida import FridaAndroidServer, FridaApplication
 from linktools.decorator import entry_point
-
-
-class FridaScript(object):
-
-    def __init__(self, path: str, helper: FridaHelper, name: str, regular: bool, restart: bool):
-        self.helper = helper
-        self.name = name
-        self.regular = regular
-        self.path = path
-        self.restart = restart
-        self.last_md5 = ""
-
-    def load(self):
-        with open(self.path, "r") as fd:
-            jscode = fd.read()
-        # check md5
-        md5 = hashlib.md5(jscode.encode("utf-8")).hexdigest()
-        if self.last_md5 == md5:
-            return
-        self.last_md5 = md5
-
-        logger.message("Loading script: %s" % self.path, tag="[*]")
-        self.helper.detach_sessions()
-
-        if not self.restart:
-            processes = self.helper.get_processes(self.name) if not self.regular \
-                else filter(lambda x: re.match(self.name, x.name), self.helper.get_processes())
-            self.helper.run_script(processes, jscode)
-        else:
-            self.helper.restart_and_run_script(self.name, jscode)
-
-
-class FridaEventHandler(FileSystemEventHandler):
-
-    def __init__(self, script: FridaScript):
-        FileSystemEventHandler.__init__(self)
-        self.script = script
-
-    def on_moved(self, event):
-        if event.dest_path == self.script.path:
-            self.script.load()
-
-    def on_created(self, event):
-        if event.src_path == self.script.path:
-            self.script.load()
-
-    def on_deleted(self, event):
-        pass
-
-    def on_modified(self, event):
-        if event.src_path == self.script.path:
-            self.script.load()
 
 
 @entry_point(known_errors=[AdbError])
@@ -96,29 +39,72 @@ def main():
     parser = AdbArgumentParser(description='easy to use frida')
     parser.add_argument('-p', '--package', action='store', default=None,
                         help='target package [default top-level package]')
-    parser.add_argument('-r', '--restart', action='store_true', default=False,
-                        help='inject after restart [default false]')
+    parser.add_argument('--spawn', action='store_true', default=False,
+                        help='inject after spawn [default false]')
     parser.add_argument('--regular', action='store_true', default=False,
                         help="regular match package name")
-    parser.add_argument('file', action='store', default=None,
-                        help='javascript file')
+    parser.add_argument("-l", "--load", help="load SCRIPT", metavar="SCRIPT",
+                        action='store', dest="user_script", default=None)
+    parser.add_argument("-e", "--eval", help="evaluate CODE", metavar="CODE",
+                        action='store', dest="eval_code", default=None)
 
     args = parser.parse_args()
-    helper = FridaHelper(device_id=args.parse_adb_serial())
 
+    device = Device(args.parse_adb_serial())
     package = args.package
+    user_script = args.user_script
+    eval_code = args.eval_code
+
     if utils.is_empty(package):
-        package = helper.device.get_top_package_name()
+        package = device.get_top_package_name()
+    if user_script is not None:
+        user_script = os.path.abspath(os.path.expanduser(user_script))
 
-    observer = Observer()
-    path = utils.abspath(args.file)
-    script = FridaScript(path, helper, package, args.regular, args.restart)
-    event_handler = FridaEventHandler(script)
-    observer.schedule(event_handler, os.path.dirname(path))
-    observer.start()
-    script.load()
+    class ReloadFridaApplication(FridaApplication):
 
-    sys.stdin.read()
+        def on_spawn_added(self, spawn):
+            logger.debug(f"Spawn added: {spawn}", tag="[✔]")
+            if device.extract_package_name(spawn.identifier) == package:
+                self.load_script(spawn.pid, resume=True)
+            else:
+                self.resume(spawn.pid)
+
+        def on_session_detached(self, session, reason) -> None:
+            logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
+            if len(self._sessions) == 0:
+                app.load_script(app.device.spawn(package), resume=True)
+
+    with FridaAndroidServer(device_id=device.id) as server:
+
+        app = ReloadFridaApplication(
+            server,
+            user_script=user_script,
+            eval_code=eval_code,
+            enable_spawn_gating=True
+        )
+
+        if not args.spawn:
+            target_pids = set()
+
+            # 匹配所有app
+            for target_app in app.enumerate_applications():
+                if target_app.pid not in target_pids:
+                    if target_app.pid > 0 and target_app.identifier == package:
+                        app.load_script(target_app.pid)
+                        target_pids.add(target_app.pid)
+
+            # 匹配所以进程
+            for target_process in app.enumerate_processes():
+                if target_process.pid > 0 and target_process.pid not in target_pids:
+                    if device.extract_package_name(target_process.name) == package:
+                        app.load_script(target_process.pid)
+                        target_pids.add(target_process.pid)
+
+        else:
+            # 直接启动进程
+            app.load_script(app.spawn(package), resume=True)
+
+        app.run()
 
 
 if __name__ == '__main__':

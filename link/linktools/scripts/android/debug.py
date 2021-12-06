@@ -48,7 +48,7 @@ def main():
     device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_output=False)
 
     pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
-    device.exec("forward", "tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_output=False)
+    device.forward("tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_output=False)
 
     data = input("jdb connect? [Y/n]: ").strip()
     if data in ["", "Y", "y"]:

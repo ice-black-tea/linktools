@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import os
 import sys
 
 import linktools
@@ -77,8 +78,8 @@ def main():
                      "-d", "package:%s" % package,
                      capture_output=False)
     elif "--setting-cert" in sys.argv:
-        path = "/data/local/tmp/%s/cert/%s" % (linktools.__name__, utils.basename(args.path))
-        device.exec("push", args.path, path, capture_output=False)
+        path = "/data/local/tmp/%s/cert/%s" % (linktools.__name__, os.path.basename(args.path))
+        device.push(args.path, path, capture_output=False)
         device.shell("am", "start", "--user", "0",
                      "-n", "com.android.certinstaller/.CertInstallerMain",
                      "-a", "android.intent.action.VIEW",
@@ -86,8 +87,8 @@ def main():
                      "-d", "file://%s" % path,
                      capture_output=False)
     elif "--install" in sys.argv:
-        path = device.get_storage_path(utils.basename(args.path))
-        device.exec("push", args.path, path, capture_output=False)
+        path = device.get_storage_path(os.path.basename(args.path))
+        device.push(args.path, path, capture_output=False)
         device.shell("am", "start", "--user", "0",
                      "-a", "android.intent.action.VIEW",
                      "-t", "application/vnd.android.package-archive",

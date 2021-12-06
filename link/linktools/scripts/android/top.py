@@ -74,7 +74,7 @@ def main():
             dest = args.apk if not utils.is_empty(args.apk) else "."
             device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
             device.shell("cp", package.sourceDir, path, capture_output=False)
-            device.exec("pull", path, dest, capture_output=False)
+            device.pull(path, dest, capture_output=False)
             device.shell("rm", path)
     elif "--screen" in sys.argv:
         now = datetime.datetime.now()
@@ -82,7 +82,7 @@ def main():
         dest = args.screen if not utils.is_empty(args.screen) else "."
         device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
         device.shell("screencap", "-p", path, capture_output=False)
-        device.exec("pull", path, dest, capture_output=False)
+        device.pull(path, dest, capture_output=False)
         device.shell("rm", path)
     else:
         package = device.get_top_package_name()

@@ -247,11 +247,12 @@ function JavaHelper() {
 
     /**
      * 获取hook实现，调用愿方法并展示栈和返回值
-     * :param printStack:   是否展示栈，默认为true
-     * :param printArgs:    是否展示参数，默认为true
+     * :param options:      hook选项，如：{printStack: true, printArgs: true}
      * :return:             hook实现
      */
-    addMethod(this, "getHookImpl", function(printStack, printArgs) {
+    addMethod(this, "getHookImpl", function(options) {
+        var printStack = options["printStack"] || false;
+        var printArgs = options["printArgs"] || false;
         return function(obj, args) {
             var message = {};
             var ret = this.apply(obj, args);

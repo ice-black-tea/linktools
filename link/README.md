@@ -1,59 +1,208 @@
 # Link Tools
 
-## 开始使用
+## 1. 开始使用
 
-### 依赖项
+### 1.1 依赖项
 
 python & pip (3.5及以上): <https://www.python.org/downloads/>
 
-### 安装
+### 1.2 安装
 
 直接安装
 
 ```bash
 # 也可以直接使用github上的最新版本："linktools @ git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
-python3 -m pip install "linktools[frida,magic]" # 如果用不到frida可以不加frida
+python3 -m pip install -U "linktools[frida,magic]" # 如果用不到frida可以不加frida
 ```
 
-### 配置环境变量（可选）
+### 1.3 配置环境变量（可选）
 
 添加“LINKTOOLS_SETTING”环境变量，值为python文件的绝对路径，如：
 
 ```bash
-LINKTOOLS_SETTING="/Users/admin/linktools/setting.cfg"
+LINKTOOLS_SETTING="/Users/admin/.linktools/setting.cfg"
 ```
 
 然后在setting.cfg中添加配置，如：
 
 ```python
-# 下载的工具和其他缓存会默认存储在“~/linktools/”目录下，可通过以下配置修改
-SETTING_DATA_PATH = "/Users/admin/linktools/data"
-SETTING_TEMP_PATH = "/Users/admin/linktools/temp"
+# 下载的工具和其他缓存会默认存储在“~/.linktools/”目录下，可通过以下配置修改
+SETTING_DATA_PATH = "/Users/admin/.linktools/data"
+SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 ```
 
-## 相关功能
+## 2. 相关功能
 
-### at-frida
+### 2.1 通用功能（脚本前缀为ct-）
 
-注入js文件或js代码到指定进程，支持根据设备下载对应的frida-server，js文件实时加载，应用重启后注入等功能
+#### 2.1.1 ct-grep
+
+正则匹配文件内容 (含解析zip、elf等格式）
 
 ```bash
-$ at-frida -h
-usage: at-frida.py [-h] [-v] [-s SERIAL] [-p PACKAGE] (-f FILE | -c CODE) [-r]
+$ ct-grep -h
+usage: ct-grep [-h] [-v] [-i] pattern [file [file ...]]
 
-easy to use frida
+match files with regular expressions
+
+positional arguments:
+  pattern            regular expression
+  file               target files path
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -v, --version      show program's version number and exit
+  -i, --ignore-case  ignore case
+```
+
+#### 2.1.2 ct-tools
+
+读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.yml)，下载使用对应工具
+
+```bash
+$ ct-tools -h
+usage: ct-tools [-h] [-v] [-d] ...
+
+tools wrapper
+
+positional arguments:
+  {aapt,adb,apktool,baksmali,chromedriver,compact_dex_converter,dex2jar,fastboot,jadx,jadx-gui,java,mipay_extract,smali,vdex_extractor}
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -d, --daemon          run tools as a daemon
+```
+
+
+### 2.2 android相关功能（脚本前缀为at-）
+
+#### 2.2.1 at-adb
+
+若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机
+
+#### 2.2.2 at-pidcat
+
+集成了<https://github.com/JakeWharton/pidcat>，并且修复了中文字符宽度问题
+
+#### 2.2.3 at-top
+
+显示顶层应用信息、获取顶层应用apk、截屏等
+
+```bash
+$ at-top -h
+usage: at-top [-h] [-v] [-s SERIAL]
+                     [--package | --activity | --path | --apk [path] |
+                     --screen [path]]
+
+show top-level app's basic information
 
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
   -s SERIAL, --serial SERIAL
                         use device with given serial
+  --package             show top-level package name
+  --activity            show top-level activity name
+  --path                show top-level package path
+  --apk [path]          pull top-level apk file
+  --screen [path]       capture screen and pull file
+```
+
+#### 2.2.4 at-inetnt
+
+打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
+
+```bash
+$ at-inetnt -h
+usage: at-inetnt [-h] [-v] [-s SERIAL]
+                    (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
+
+common intent action
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -s SERIAL, --serial SERIAL
+                        use device with given serial
+  --setting             start setting activity
+  --setting-dev         start development setting activity
+  --setting-dev2        start development setting activity
+  --setting-app [PACKAGE]
+                        start application setting activity [default top-level
+                        package]
+  --setting-cert PATH   start cert installer activity and install cert (need
+                        '/data/local/tmp' write permission)
+  --browser URL         start browser activity and jump to url (need scheme,
+                        such as https://antiy.cn)
+```
+
+#### 2.2.5 at-app
+
+通过执行agent调用pms读取app基本信息并展示
+
+```bash
+$ at-app -h
+usage: at-app [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
+                 [-o field [field ...]]
+
+fetch application info
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -s SERIAL, --serial SERIAL
+                        use device with given serial
+  -a, --all             fetch all apps
+  -t, --top             fetch top-level app only
+  -p pkg [pkg ...], --packages pkg [pkg ...]
+                        fetch target apps
+  -o field [field ...], --order-by field [field ...]
+                        order by target field
+```
+
+**输出效果**
+
+![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/apps.png)
+
+#### 2.2.6 at-frida
+
+该功能旨在方便使用frida，可根据应用名注入js文件或js代码到指定进程。提供了以下特性：
+1. 可以支持根据设备和本地安装的frida版本
+2. 监听了spawn进程变化情况，可以同时hook主进程和各个子进程
+3. 监听js文件变化，实时加载
+4. 注入了内置脚本，封装常用功能
+
+```bash
+$ at-frida -h
+usage: at-frida [-h] [-v] [-s serial | -d | --emulator | -i index | -c ip[:port] | --last] [-p PACKAGE] [--spawn] [--regular] [-l SCRIPT] [-e CODE]
+
+easy to use frida
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
   -p PACKAGE, --package PACKAGE
                         target package [default top-level package]
-  -f FILE, --file FILE  javascript file
-  -c CODE, --code CODE  javascript code
-  -r, --restart         inject after restart [default false]
+  --spawn               inject after spawn [default false]
+  --regular             regular match package name
+  -l SCRIPT, --load SCRIPT
+                        load SCRIPT
+  -e CODE, --eval CODE  evaluate CODE
+
+adb optional arguments:
+  -s serial, --serial serial
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  --emulator            use TCP/IP device (adb -e option)
+  -i index, --index index
+                        use device with given index
+  -c ip[:port], --connect ip[:port]
+                        use device with TCP/IP
+  --last                use last device
 ```
+
+**1) 以命令行方式运行**
 
 如hook.js文件：
 ```javascript
@@ -86,7 +235,7 @@ Java.perform(function () {
     });
 
     // hook HashMap.put, print stack and args
-    $.hookMethods("java.util.HashMap", "put", $.getHookImpl(true /* print stack */, true /* print args */));
+    $.hookMethods("java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true}));
 
     // hook HashMap.put, print stack and args
     var HashMap = Java.use("java.util.HashMap");
@@ -101,14 +250,52 @@ Java.perform(function () {
 
 在终端中运行
 ```bash
-at-frida -f hook.js
+$ at-frida -l hook.js
 ```
 
-#### 输出效果
+**2) 当然也可以使用python方式调用**
+
+如hook.py文件：
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from linktools.android.frida import FridaAndroidServer, FridaApplication
+
+jscode = """
+    var $ = new JavaHelper();
+    $.hookMethods(
+        "java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true})
+    );
+"""
+
+if __name__ == "__main__":
+
+    with FridaAndroidServer() as server:
+
+        app = FridaApplication(
+            server,
+            eval_code=jscode,
+            enable_spawn_gating=True
+        )
+
+        for target_app in app.enumerate_applications():
+            if target_app.identifier == "com.topjohnwu.magisk":
+                app.load_script(target_app.pid)
+
+        app.run()
+```
+
+在终端中运行
+```bash
+$ python3 hook.py
+```
+
+**3) 输出效果**
 
 ![frida](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/frida.png)
 
-#### js使用
+**4) 内置js使用方式**
 
 内置JavaHelper类的成员函数
 
@@ -175,11 +362,10 @@ function callMethod(obj, args) {}
 
 /**
  * 获取hook实现，调用愿方法并展示栈和返回值
- * :param printStack:   是否展示栈，默认为true
- * :param printArgs:    是否展示参数，默认为true
+ * :param options:      hook选项，如：{printStack: true, printArgs: true}
  * :return:             hook实现
  */
-function getHookImpl(printStack, printArgs) {}
+function getHookImpl(options) {}
 
 /**
  * 获取当前java栈
@@ -237,126 +423,6 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
-### at-top
-
-显示顶层应用信息、获取顶层应用apk、截屏等
-
-```bash
-$ at-top -h
-usage: at-top [-h] [-v] [-s SERIAL]
-                     [--package | --activity | --path | --apk [path] |
-                     --screen [path]]
-
-show top-level app's basic information
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s SERIAL, --serial SERIAL
-                        use device with given serial
-  --package             show top-level package name
-  --activity            show top-level activity name
-  --path                show top-level package path
-  --apk [path]          pull top-level apk file
-  --screen [path]       capture screen and pull file
-```
-
-### at-inetnt
-
-打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
-
-```bash
-$ at-inetnt -h
-usage: at-inetnt [-h] [-v] [-s SERIAL]
-                    (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
-
-common intent action
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s SERIAL, --serial SERIAL
-                        use device with given serial
-  --setting             start setting activity
-  --setting-dev         start development setting activity
-  --setting-dev2        start development setting activity
-  --setting-app [PACKAGE]
-                        start application setting activity [default top-level
-                        package]
-  --setting-cert PATH   start cert installer activity and install cert (need
-                        '/data/local/tmp' write permission)
-  --browser URL         start browser activity and jump to url (need scheme,
-                        such as https://antiy.cn)
-```
-
-### at-app
-
-展示app基本信息
-
-```bash
-$ at-app -h
-usage: at-app [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
-                 [-o field [field ...]]
-
-fetch application info
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s SERIAL, --serial SERIAL
-                        use device with given serial
-  -a, --all             fetch all apps
-  -t, --top             fetch top-level app only
-  -p pkg [pkg ...], --packages pkg [pkg ...]
-                        fetch target apps
-  -o field [field ...], --order-by field [field ...]
-                        order by target field
-```
-
-#### 输出效果
-
-![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/apps.png)
-
-### ct-grep
-
-正则匹配文件内容 (含解析zip、elf等格式）
-
-```bash
-$ ct-grep -h
-usage: ct-grep [-h] [-v] [-i] pattern [file [file ...]]
-
-match files with regular expressions
-
-positional arguments:
-  pattern            regular expression
-  file               target files path
-
-optional arguments:
-  -h, --help         show this help message and exit
-  -v, --version      show program's version number and exit
-  -i, --ignore-case  ignore case
-```
-
-### ct-tools
-
-读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/configs/general_tools.yml)，下载使用对应工具
-
-```bash
-$ ct-tools -h
-usage: ct-tools [-h] [-v] [-d] ...
-
-tools wrapper
-
-positional arguments:
-  {aapt,adb,apktool,baksmali,chromedriver,compact_dex_converter,dex2jar,fastboot,jadx,jadx-gui,java,mipay_extract,smali,vdex_extractor}
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -d, --daemon          run tools as a daemon
-```
-
-
-### at-tools
+#### 2.2.7 at-agent
 
 测试android-tools.apk时使用

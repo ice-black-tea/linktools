@@ -33,10 +33,10 @@ from linktools.decorator import entry_point
 @entry_point(known_errors=[AdbError])
 def main():
     parser = AdbArgumentParser(description='used for debugging android-tools.apk')
-    parser.add_argument('tool_args', nargs='...', help="tool args")
+    parser.add_argument('agent_args', nargs='...', help="agent args")
     args = parser.parse_args()
     device = Device(args.parse_adb_serial())
-    device.call_tools(*args.tool_args, capture_output=False)
+    device.call_agent(*args.agent_args, capture_output=False)
 
 
 if __name__ == '__main__':

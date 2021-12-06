@@ -26,105 +26,39 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import _thread as thread
+import codecs
+import fnmatch
 import lzma
 import os
 import shutil
+import threading
 import time
-from typing import Optional
+from pathlib import Path, PosixPath
+from typing import Optional, Union
 
 import _frida
-import colorama
 import frida
 from calmjs.parse import es5
 from colorama import Fore
+from frida_tools.application import Reactor
 
 import linktools
 from linktools import utils, resource, logger
-from linktools.android.adb import Device
+from linktools.android import adb
 from linktools.decorator import cached_property
 
 
-class BaseHelper(object):
+class FridaServer(utils.Proxy):  # proxy for frida.core.Device
+    __setattr__ = object.__setattr__
 
-    def __init__(self, device_id: str = None):
-        """
-        :param device_id: 设备号
-        """
-        self.device = Device(device_id=device_id)
-        self.frida_device = frida.get_device(self.device.id)
+    def __init__(self, device: frida.core.Device):
+        super().__init__(lambda: device)
 
-        self.server_name = self.config["name"].format(**self.config)
-        self.server_url = self.config["url"].format(**self.config)
-        self.server_file = resource.get_data_path(self.server_name)
-        self.server_temp_file = self.device.get_storage_path("frida", self.server_name)
-        self.server_target_file = f"/data/local/tmp/{self.server_name}"
+    def start(self):
+        pass
 
-    @cached_property
-    def config(self) -> dict:
-        config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
-        config["version"] = frida.__version__
-        config["abi"] = self.device.abi
-        return config
-
-    def start_server(self) -> bool:
-        """
-        根据frida版本和设备abi类型下载并运行server
-        :return: 运行成功为True，否则为False
-        """
-        if self.is_running():
-            self.device.exec("forward", "tcp:27042", "tcp:27042")
-            self.device.exec("forward", "tcp:27043", "tcp:27043")
-            logger.info("Frida server is running ...", tag="[*]")
-            return True
-        elif self._start_server():
-            self.device.exec("forward", "tcp:27042", "tcp:27042")
-            self.device.exec("forward", "tcp:27043", "tcp:27043")
-            logger.info("Frida server is running ...", tag="[*]")
-            return True
-        else:
-            logger.info("Frida server failed to run ...", tag="[*]")
-            return False
-
-    def _start_server(self) -> bool:
-        logger.info("Start frida server ...", tag="[*]")
-
-        if not self.device.is_file_exist(self.server_target_file):
-            if not os.path.exists(self.server_file):
-                logger.info("Download frida server ...", tag="[*]")
-                tmp_file = resource.get_data_path(self.server_name + ".tmp")
-                utils.download(self.server_url, tmp_file)
-                with lzma.open(tmp_file, "rb") as read, open(self.server_file, "wb") as write:
-                    shutil.copyfileobj(read, write)
-                os.remove(tmp_file)
-            logger.info("Push frida server to %s" % self.server_target_file, tag="[*]")
-            self.device.exec("push", self.server_file, self.server_temp_file, capture_output=False)
-            self.device.sudo("mv", self.server_temp_file, self.server_target_file, capture_output=False)
-            self.device.sudo("chmod 755 '%s'" % self.server_target_file)
-
-        thread.start_new_thread(lambda: self.device.sudo(self.server_target_file, capture_output=False), ())
-        for i in range(10):
-            time.sleep(0.5)
-            if self.is_running():
-                return True
-        return False
-
-    def kill_server(self) -> bool:
-        """
-        强制结束frida server
-        :return: 结束成功为True，否则为False
-        """
-
-        logger.info("Kill frida server ...", tag="[*]")
-        try:
-            process = self.frida_device.get_process(self.server_name)
-            if process is not None:
-                self.device.sudo("kill", "-9", str(process.pid), capture_output=False)
-                return True
-        except frida.ServerNotRunningError:
-            return True
-
-        return False
+    def stop(self):
+        pass
 
     def is_running(self) -> bool:
         """
@@ -132,46 +66,191 @@ class BaseHelper(object):
         :return: 是否正在运行
         """
         try:
-            self.frida_device.get_process(self.server_name)
-            return True
-        except frida.ServerNotRunningError:
-            return False
-        except frida.ProcessNotFoundError:
+            processes = self.enumerate_processes()
+            return processes is not None
+        except (frida.TransportError, frida.ServerNotRunningError):
             return False
 
-    def get_process(self, name) -> Optional[_frida.Process]:
+    def get_process(self, pid: int = None, process_name: str = None) -> Optional["_frida.Process"]:
         """
         通过进程名到的所有进程
-        :param name: 进程名
+        :param pid: 进程id
+        :param process_name: 进程名
         :return: 进程
         """
-        try:
-            return self.frida_device.get_process(name)
-        except Exception as e:
-            logger.error(e, tag="[!]", fore=Fore.RED)
-            return None
+        if process_name is not None:
+            process_name = process_name.lower()
+        for process in self.enumerate_processes():
+            if pid is not None:
+                if process.pid == pid:
+                    return process
+            elif process_name is not None:
+                if fnmatch.fnmatchcase(process.name.lower(), process_name):
+                    return process
+        raise frida.ProcessNotFoundError("unable to find process with pid '%s', name '%s'" % (pid, process_name))
 
-    def get_processes(self, package_name: str = None) -> [_frida.Process]:
+    def get_processes(self, package_name: str = None) -> ["_frida.Process"]:
         """
         根据包名匹配进程名
         :param package_name: 进程名（支持正则）
         :return: 进程列表
         """
         try:
-            all_processes = self.frida_device.enumerate_processes()
+            all_processes = self.enumerate_processes()
             if package_name is None:
                 return all_processes
             processes = []
             for process in all_processes:
-                if self.device.fix_package_name(process.name) == package_name:
+                if self.fix_package_name(process.name) == package_name:
                     processes.append(process)
             return processes
         except Exception as e:
             logger.error(e, tag="[!]", fore=Fore.RED)
             return []
 
+    def __enter__(self):
+        self.start()
+        return self
 
-class FridaHelper(BaseHelper):
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+
+class FridaAndroidServer(FridaServer):
+
+    def __init__(self, device_id: str = None, local_port=47042, remote_port=47042):
+        self._device = adb.Device(device_id=device_id)
+        self._local_port = local_port
+        self._remote_port = remote_port
+        self._local_address = f"localhost:{self._local_port}"
+        super().__init__(frida.get_device_manager().add_remote_device(self._local_address))
+
+        # frida server文件相关参数
+        self._download_url = self.config["url"]
+        # local: {storage_path}/data/frida/frida-server-xxx
+        self._local_path = Path(resource.get_data_dir("frida", create=True)) / self.config["name"]
+        # android: {storage_path}/frida/frida-server-xxx
+        self._remote_temp_path = PosixPath(self._device.get_storage_path()) / "frida" / self.config["name"]
+        # android: /data/local/tmp/fs-xxx
+        self._remote_path = PosixPath("/data/local/tmp") / "fs-{abi}-{version}".format(**self.config)
+
+    @cached_property
+    def config(self) -> dict:
+        config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
+        config["version"] = frida.__version__
+        config["abi"] = self._device.abi
+        config["url"] = config["url"].format(**config)
+        config["name"] = config["name"].format(**config)
+        return config
+
+    @staticmethod
+    def _start(device: adb.Device, remote_path: str, remote_port: Union[str, int]):
+        try:
+            device.sudo(
+                remote_path,
+                "-l", f"0.0.0.0:{remote_port}",
+                capture_output=False
+            )
+        except:
+            logger.error(f"Frida server stop", tag="[!]", fore=Fore.RED)
+
+    def start(self) -> bool:
+        """
+        根据frida版本和设备abi类型下载并运行server
+        :return: 运行成功为True，否则为False
+        """
+        if self._local_port is not None:
+            self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
+
+        if self.is_running():
+            logger.info("Frida server is running ...", tag="[*]")
+            return True
+
+        logger.info("Start frida server ...", tag="[*]")
+
+        self._prepare()
+        threading.Thread(
+            target=self._device.sudo,
+            args=(
+                self._remote_path.as_posix(),
+                "-l", f"0.0.0.0:{self._remote_port}",
+            ),
+            daemon=True
+        ).start()
+
+        for i in range(10):
+            time.sleep(0.5)
+            if self.is_running():
+                logger.info("Frida server is running ...", tag="[*]")
+                return True
+
+        raise frida.ServerNotRunningError("Frida server failed to run ...")
+
+    def _prepare(self):
+        if self._device.is_file_exist(self._remote_path.as_posix()):
+            return
+
+        if not os.path.exists(self._local_path):
+            logger.info("Download frida server ...", tag="[*]")
+            tmp_file = resource.get_temp_path(self._local_path.name + ".tmp")
+            utils.download(self._download_url, tmp_file)
+            with lzma.open(tmp_file, "rb") as read, open(self._local_path, "wb") as write:
+                shutil.copyfileobj(read, write)
+            os.remove(tmp_file)
+
+        logger.info("Push frida server to %s" % self._remote_path, tag="[*]")
+        self._device.push(self._local_path, self._remote_temp_path.as_posix(), capture_output=False)
+        self._device.sudo("mv", self._remote_temp_path.as_posix(), self._remote_path.as_posix(), capture_output=False)
+        self._device.sudo("chmod 755 '%s'" % self._remote_path)
+
+    def stop(self) -> bool:
+        """
+        强制结束frida server
+        :return: 结束成功为True，否则为False
+        """
+
+        logger.info("Kill frida server ...", tag="[*]")
+        try:
+            process = self.get_process(process_name=f"*{self._remote_path.name}*")
+            self.kill(process.pid)
+            return True
+        except frida.ServerNotRunningError:
+            return True
+        except:
+            return False
+
+    def is_running(self) -> bool:
+        """
+        判断服务端运行状态
+        :return: 是否正在运行
+        """
+        try:
+            process = self.get_process(process_name=f"*{self._remote_path.name}*")
+            return process is not None
+        except (frida.TransportError, frida.ServerNotRunningError, frida.ProcessNotFoundError):
+            return False
+
+
+class FridaSession(utils.Proxy):  # proxy for frida.core.Session
+    __setattr__ = object.__setattr__
+
+    def __init__(self, session: frida.core.Session):
+        super().__init__(lambda: session)
+        self.pid: Optional[int] = None
+        self.process_name: Optional[str] = None
+        self.script: Optional[FridaScript] = None
+
+
+class FridaScript(utils.Proxy):  # proxy for frida.core.Session
+    __setattr__ = object.__setattr__
+
+    def __init__(self, script: frida.core.Script):
+        super().__init__(lambda: script)
+        self.session: Optional[FridaSession] = None
+
+
+# noinspection PyUnresolvedReferences
+class FridaApplication:
     """
     ----------------------------------------------------------------------
 
@@ -179,73 +258,343 @@ class FridaHelper(BaseHelper):
         #!/usr/bin/env python3
         # -*- coding: utf-8 -*-
 
-        from linktools import frida_helper
+        from linktools.android.frida import FridaAndroidServer, FridaApplication
 
         jscode = \"\"\"
             var $ = new JavaHelper();
-            var Clazz = Java.use("java.lang.Class");
-            var HashMap = Java.use("java.util.HashMap");
-
-            HashMap.put.implementation = function() {
-
-                send("this.threshold = " + this.threshold.value);
-
-                var clazz = Java.cast(this.getClass(), Clazz);
-                var field = clazz.getDeclaredField("threshold");
-                field.setAccessible(true);
-                send("this.threshold = " + field.getInt(this));
-
-                // call origin method
-                var ret = $.callMethod(this, arguments);
-                $.printStack();
-                $.printArguments(arguments, ret);
-                return ret;
-            }
+            $.hookMethods(
+                "java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true})
+            );
         \"\"\"
 
         if __name__ == "__main__":
-            frida_helper().run_script("xxx.xxx.xxx", jscode)
+
+            with FridaAndroidServer() as server:
+
+                app = FridaApplication(
+                    server,
+                    eval_code=jscode,
+                    enable_spawn_gating=True
+                )
+
+                for target_app in app.device.enumerate_applications():
+                    if target_app.identifier == "com.topjohnwu.magisk":
+                        app.load_script(target_app.pid)
+
+                app.run()
 
     ----------------------------------------------------------------------
     """
 
-    def __init__(self, device_id: str = None):
+    def __init__(
+            self,
+            server: FridaServer,
+            user_script: str = None,
+            eval_code: str = None,
+            enable_spawn_gating=False,
+            enable_child_gating=False,
+            eternalize=False):
         """
-        :param device_id: 设备号
+        :param server: 环境信息
         """
-        super().__init__(device_id)
-        self.sessions = []
+        self._server = server
+
+        self._stop_requested = threading.Event()
+        self._reactor = Reactor(
+            run_until_return=self._run,
+            on_stop=self._on_stop
+        )
+
+        self._user_script = user_script
+        self._eval_code = eval_code
+        self._enable_spawn_gating = enable_spawn_gating
+        self._enable_child_gating = enable_child_gating
+        self._eternalize = eternalize
+
+        self._sessions = {}
+        self._last_change_id = 0
+        self._monitored_files = {}
+
+        self._init()
+
+    def _init(self):
+        self.spawn = self.device.spawn
+        self.resume = self.device.resume
+        self.enumerate_applications = self.device.enumerate_applications
+        self.enumerate_processes = self.device.enumerate_processes
+        self.get_frontmost_application = self.device.get_frontmost_application
+
+        self.device.on("spawn-added", lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start())
+        self.device.on("spawn-removed", lambda spawn: self._reactor.schedule(self.on_spawn_removed))
+        self.device.on("child-added", lambda child: self._reactor.schedule(self.on_child_added(child)))
+        self.device.on("child-removed", lambda child: self._reactor.schedule(self.on_child_removed(child)))
+        self.device.on("output", lambda pid, fd, data: self._reactor.schedule(self.on_output(pid, fd, data)))
+        # self.device.on('process-crashed', xxx)
+        # self.device.on('output', xxx)
+        # self.device.on('uninjected', xxx)
+        # self.device.on('lost', xxx)
+
+        if self._enable_spawn_gating:
+            self.device.enable_spawn_gating()
+
+    @property
+    def device(self) -> frida.core.Device:
+        # noinspection PyTypeChecker
+        return self._server
+
+    @cached_property
+    def _persist_codes(self):
         with open(resource.get_persist_path("android-frida.js"), "rt") as fd:
-            self._pre_script_code = es5.minify_print(fd.read(), obfuscate=True)
-        self.on_init()
+            return [es5.minify_print(fd.read())]
 
-    def on_init(self) -> None:
-        """
-        初始化操作
-        """
-        colorama.init(True)
-        self.start_server()
+    def run(self):
+        try:
+            self._monitor_all()
+            self._reactor.run()
+        finally:
+            self._demonitor_all()
+            self._reactor.stop()
 
-    def on_load(self, **kwargs) -> None:
-        """
-        脚本加载回调
-        :param kwargs: process_id, process_name, session, script, script_code
-        """
-        pass
+    def _run(self, reactor):
+        try:
+            self._stop_requested.wait()
+        except:
+            self._stop_requested.set()
 
-    def on_message(self, message: object, data: object, **kwargs) -> None:
+    def is_running(self):
+        return not self._stop_requested.wait(0)
+
+    def stop(self):
+        self._stop_requested.set()
+
+    def load_script(self, pid, resume=False):
         """
-        消息回调函数
-        :param message: 收到的消息
-        :param data: 收到的数据
-        :param kwargs: process_id, process_name, session, script, script_code
+        加载脚本，注入到指定进程
+        :param pid: 进程id
+        :param resume: 注入后是否需要resume进程
+        """
+        self._reactor.schedule(lambda: self._load_script(pid, resume))
+
+    def attach_session(self, pid):
+        """
+        附加指定进程
+        :param pid: 进程id
+        """
+        self._reactor.schedule(lambda: self._attach_session(pid))
+
+    def detach_session(self, pid):
+        """
+        分离指定进程
+        :param pid: 进程id
+        """
+        self._reactor.schedule(lambda: self._detach_session(pid))
+
+    def _load_script(self, pid: int, resume: bool = False):
+        logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")
+
+        codes = [*self._persist_codes]
+        if self._user_script is not None:
+            with codecs.open(self._user_script, 'rb', 'utf-8') as f:
+                codes.append(f.read())
+        if self._eval_code is not None:
+            codes.append(self._eval_code)
+
+        try:
+            session = self._attach_session(pid)
+
+            script = FridaScript(session.create_script(";".join(codes)))
+            script.session = session
+
+            script.on("message", lambda message, data: self.on_script_message(script, message))
+            script.on("destroyed", lambda: self.on_script_destroyed(script))
+
+            self._unload_script(pid)
+            script.load()
+            session.script = script
+
+            if resume:
+                self.device.resume(pid)
+
+            self._reactor.schedule(lambda: self.on_script_loaded(script))
+
+        except Exception as e:
+            logger.info(f"Load script error: {e}", tag="[!]", fore=Fore.RED)
+            raise e
+
+    def _attach_session(self, pid: int):
+        try:
+            session = self._sessions.get(pid)
+            if session is not None:
+                return session
+
+            logger.debug(f"Attempt to attach process: pid={pid}", tag="[✔]")
+
+            process = self.device.get_process(pid=pid)
+            session = FridaSession(self.device.attach(process.pid))
+            session.pid = process.pid
+            session.process_name = process.name
+
+            if self._enable_child_gating:
+                logger.debug(f"Enable chile gating: {pid}", tag="[✔]")
+                session.enable_child_gating()
+
+            def on_session_detached(reason):
+                if pid in self._sessions:
+                    del self._sessions[pid]
+                # self.on_session_detached(session, reason)
+                self._reactor.schedule(lambda: self.on_session_detached(session, reason))
+
+            session.on("detached", on_session_detached)
+            self._sessions[process.pid] = session
+            self._reactor.schedule(lambda: self.on_session_attached(session))
+
+            return session
+
+        except Exception as e:
+            logger.info(f"Attach session error: {e}", tag="[!]", fore=Fore.RED)
+            raise e
+
+    def _detach_session(self, pid: int):
+        session = self._sessions.get(pid)
+        if session is not None:
+            logger.debug(f"Detach process: pid={pid}", tag="[✔]")
+            try:
+                session.detach()
+            except:
+                pass
+
+    def _unload_script(self, pid: int):
+        session = self._sessions.get(pid)
+        if session is not None and session.script is not None:
+            logger.debug(f"Unload script: pid={pid}", tag="[✔]")
+            try:
+                session.script.unload()
+            except:
+                pass
+            session.script = None
+
+    def _eternalize_script(self, pid: int):
+        session = self._sessions.get(pid)
+        if session is not None and session.script is not None:
+            logger.debug(f"Eternalize script: pid={pid}", tag="[✔]")
+            try:
+                session.script.eternalize()
+            except:
+                pass
+            session.script = None
+
+    def _monitor_all(self):
+
+        def on_change(changed_file, other_file, event_type):
+            if event_type == 'changes-done-hint':
+                return
+            self._last_change_id += 1
+            change_id = self._last_change_id
+            self._reactor.schedule(lambda: process_change(change_id, changed_file), delay=0.05)
+
+        def process_change(change_id, changed_file):
+            if change_id != self._last_change_id:
+                return
+            try:
+                self.on_file_change(changed_file)
+            except Exception as e:
+                logger.info(f"Failed to load script: {e}", tag="[!]", fore=Fore.RED)
+
+        for path in [self._user_script]:
+            if path is None or path in self._monitored_files:
+                return
+
+            logger.debug(f"Monitor file: {path}", tag="[✔]")
+            monitor = frida.FileMonitor(path)
+            monitor.on('change', on_change)
+            monitor.enable()
+            self._monitored_files[path] = monitor
+
+    def _demonitor_all(self):
+        for monitor in self._monitored_files.values():
+            monitor.disable()
+        self._monitored_files = {}
+
+    def _on_stop(self):
+        logger.debug("Stop frida application", tag="[✔]")
+        process_script = self._unload_script
+        if self._eternalize:
+            process_script = self._eternalize_script
+        for session in [s for s in self._sessions.values()]:
+            process_script(session.pid)
+            self._detach_session(session.pid)
+
+        with frida.Cancellable():
+            self._demonitor_all()
+
+    def on_output(self, pid: int, fd, data):
+        logger.debug(f"Output: pid={pid}, fd={fd}, data={data}", tag="[✔]")
+
+    def on_file_change(self, file: str):
+        """
+        脚本文件改变回调，默认重新加载脚本
+        :param file: 脚本文件路径
+        """
+        logger.debug(f"File changed: {file}", tag="[✔]")
+        for session in self._sessions.values():
+            self._load_script(session.pid)
+
+    def on_spawn_added(self, spawn: "_frida.Spawn"):
+        """
+        spaw进程添加回调，默认resume所有spawn进程
+        :param spawn: spawn进程信息
+        """
+        logger.debug(f"Spawn added: {spawn}", tag="[✔]")
+        self.device.resume(spawn.pid)
+
+    def on_spawn_removed(self, spawn: "_frida.Spawn"):
+        """
+        spaw进程移除回调，默认只打印log
+        :param spawn: spawn进程信息
+        """
+        logger.debug(f"Spawn removed: {spawn}", tag="[✔]")
+
+    def on_child_added(self, child: "_frida.Child"):
+        """
+        子进程添加回调，默认resume所有子进程
+        :param child: 子进程信息
+        """
+        logger.debug(f"Child added: {child}", tag="[✔]")
+        self.device.resume(child.pid)
+
+    def on_child_removed(self, child: "_frida.Child"):
+        """
+        子进程移除回调，默认只打印log
+        :param child: 子进程信息
+        """
+        logger.debug(f"Child removed: {child}", tag="[✔]")
+
+    def on_script_loaded(self, script: FridaScript):
+        """
+        脚本加载回调，默认只打印log
+        :param script: frida的脚本
+        """
+        logger.debug(f"Script loaded: {script.session.process_name} ({script.session.pid})", tag="[✔]")
+
+    def on_script_destroyed(self, script: FridaScript):
+        """
+        脚本结束回调函数，默认只打印log
+        :param script: frida的脚本
+        """
+        logger.debug(f"Script destroyed: {script.session.process_name} ({script.session.pid})", tag="[✔]")
+
+    def on_script_message(self, script: FridaScript, message: object):
+        """
+        脚本消息回调函数，默认按照格式打印
+        :param script: frida的脚本
+        :param message: frida server发送的数据
         """
         if utils.get_item(message, "type") == "send":
             payload = utils.get_item(message, "payload")
 
             stack = utils.pop_item(payload, "stack")
             if not utils.is_empty(stack):
-                logger.info(stack, tag="[*]", fore=Fore.CYAN)
+                logger.info(stack, tag=f"[*]", fore=Fore.CYAN)
 
             arguments = utils.pop_item(payload, "arguments")
             if not utils.is_empty(arguments):
@@ -260,119 +609,19 @@ class FridaHelper(BaseHelper):
         else:
             logger.info(message, tag="[?]", fore=Fore.RED)
 
-    def on_destroyed(self, **kwargs) -> None:
+    def on_session_attached(self, session: FridaSession):
         """
-        脚本结束回调函数
-        :param kwargs: process_id, process_name, session, script, script_code
+        会话建立连接回调函数，默认只打印log
+        :param session: 附加的会话
         """
-        pass
+        logger.info(f"Session attached: {session.process_name} ({session.pid})", tag="[*]")
 
-    def on_detached(self, reason: str, **kwargs) -> None:
+    def on_session_detached(self, session: FridaSession, reason: str):
         """
-        会话结束回调函数，默认重启应用
+        会话结束回调函数，默认处理当session全部失效时结束
+        :param session: 结束的会话
         :param reason: 结束原因
-        :param kwargs: process_id, process_name, session, script_code
         """
-        session = kwargs["session"]
-        process_id = kwargs["process_id"]
-        process_name = kwargs["process_name"]
-        script_code = kwargs["script_code"]
-
-        logger.info("Detach process: %s (%d)" % (process_name, process_id), tag="[*]")
-
-        if reason == "process-terminated" and not utils.is_contain(process_name, ":"):
-            self.restart_and_run_script(process_name, script_code)
-        if session in self.sessions:
-            self.sessions.remove(session)
-
-    def _run_script(self, process_id: int, process_name: str, script_code: str) -> _frida.Script:
-        logger.info("Attach process: %s (%d)" % (process_name, process_id), tag="[*]")
-
-        session = self.frida_device.attach(process_id)
-        session.enable_child_gating()
-        kwargs = {
-            "session": session,
-            "process_id": process_id,
-            "process_name": process_name,
-            "script_code": script_code,
-        }
-        session.on("detached", lambda reason: self.on_detached(reason, **kwargs))
-
-        script = session.create_script(self._pre_script_code + script_code)
-        kwargs = {
-            "session": session,
-            "script": script,
-            "process_id": process_id,
-            "process_name": process_name,
-            "script_code": script_code,
-        }
-        script.on("message", lambda message, data: self.on_message(message, data, **kwargs))
-        script.on("destroyed", lambda reason: self.on_destroyed(**kwargs))
-        script.load()
-
-        kwargs = {
-            "session": session,
-            "script": script,
-            "process_id": process_id,
-            "process_name": process_name,
-            "script_code": script_code,
-        }
-
-        self.sessions.append(session)
-        self.on_load(**kwargs)
-
-        return script
-
-    def run_script(self, processes: [_frida.Process], script_code: str) -> [_frida.Script]:
-        """
-        向指定包名的进程中注入并执行js代码
-        :param processes: 需要注入的进程
-        :param script_code: 注入的js代码
-        :return: 脚本对象
-        """
-        scripts = []
-
-        for process in processes:
-            try:
-                script = self._run_script(process.pid, process.name, script_code)
-                scripts.append(script)
-            except Exception as e:
-                logger.error(e, tag="[!]", fore=Fore.RED)
-
-        logger.info("Running ...", tag="[*]")
-
-        return scripts
-
-    def restart_and_run_script(self, package_name: str, script_code: str) -> [_frida.Script]:
-        """
-        向指定包名的进程中注入并执行js代码
-        :param package_name: 需要注入的应用包名
-        :param script_code: 注入的js代码
-        :return: 脚本对象
-        """
-        scripts = []
-
-        package_name = self.device.fix_package_name(package_name)
-
-        try:
-            process_id = self.frida_device.spawn([package_name])
-            script = self._run_script(process_id, package_name, script_code)
-            self.frida_device.resume(process_id)
-            scripts.append(script)
-        except Exception as e:
-            logger.info(e, tag="[!]", fore=Fore.RED)
-
-        logger.info("Running ...", tag="[*]")
-
-        return scripts
-
-    def detach_sessions(self) -> None:
-        """
-        结束所有会话
-        """
-        for session in self.sessions:
-            try:
-                session.detach()
-            except:
-                pass
-        self.sessions.clear()
+        logger.info(f"Session detached: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
+        if len(self._sessions) == 0:
+            self.stop()

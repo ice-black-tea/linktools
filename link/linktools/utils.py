@@ -31,7 +31,6 @@ import os
 import subprocess
 from collections import Iterable
 
-
 __module__ = __name__  # used by Proxy class body
 
 
@@ -125,6 +124,7 @@ class Proxy(object):
             return bool(self._get_current_object())
         except RuntimeError:  # pragma: no cover
             return False
+
     __nonzero__ = __bool__  # Py2
 
     def __dir__(self):
@@ -495,22 +495,48 @@ def get_array_item(obj: object, *keys, type: type = None, default: [type(object)
     return array
 
 
-def abspath(path: str) -> str:
-    """
-    获取绝对路径
-    :param path: 任意路径
-    :return: 绝对路径
-    """
-    return os.path.abspath(os.path.expanduser(path))
+def get_md5(data):
+    import hashlib
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    m = hashlib.md5()
+    m.update(data)
+    return m.hexdigest()
 
 
-def basename(path: str) -> str:
-    """
-    获取文件名
-    :param path: 任意路径
-    :return: 文件名
-    """
-    return os.path.basename(path)
+def gzip_compress(data):
+    import gzip
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    return gzip.compress(data)
+
+
+def get_host_ip():
+    import socket
+    s = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        return s.getsockname()[0]
+    except:
+        return None
+    finally:
+        s.close()
+
+
+def make_uuid():
+    import uuid
+    import random
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(uuid.uuid1()) + str(random.random())))
+
+
+def make_url(url, path, **kwargs):
+    from urllib import parse
+    result = url.rstrip("/") + "/" + path.lstrip("/")
+    if len(kwargs) > 0:
+        query_string = "&".join([f"{parse.quote(key)}={parse.quote(kwargs[key])}" for key in kwargs])
+        result = result + "?" + query_string
+    return result
 
 
 def cookie_to_dict(cookie):
