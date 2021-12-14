@@ -26,3 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    # format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s'
+)

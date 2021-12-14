@@ -31,6 +31,8 @@
 # -*- coding:utf-8 -*-
 import logging
 
+import colorama
+
 from . import utils
 from .version import __name__
 
@@ -41,26 +43,21 @@ INFO = logging.INFO
 DEBUG = logging.DEBUG
 
 
-def _get_colorama():
-    import platform
-    import ctypes
-    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
-        k = ctypes.windll.kernel32
-        k.SetConsoleMode(k.GetStdHandle(-11), 7)
-
-    import colorama
-    colorama.init(autoreset=False)
-    return colorama
+logging.addLevelName(MESSAGE, "message")
 
 
 def _get_logger():
     manager = logging.Manager(logging.getLogger())
     manager.setLoggerClass(_Logger)
     logger = manager.getLogger(__name__)
-    logger.level = logging.DEBUG
-    handler = logging.StreamHandler()
-    handler.formatter = logging.Formatter('%(message)s')
-    logger.handlers.append(handler)
+
+    import platform
+    import ctypes
+    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
+        k = ctypes.windll.kernel32
+        k.SetConsoleMode(k.GetStdHandle(-11), 7)
+    colorama.init(autoreset=False)
+
     return logger
 
 
@@ -111,17 +108,16 @@ class _Logger(logging.Logger):
             import os
             msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
 
-        if fore is not None and fore != _colorama.Fore.RESET:
-            msg = msg + _colorama.Fore.RESET
-        if back is not None and back != _colorama.Back.RESET:
-            msg = msg + _colorama.Back.RESET
-        if style is not None and style != _colorama.Style.RESET_ALL:
-            msg = msg + _colorama.Style.RESET_ALL
+        if fore is not None and fore != colorama.Fore.RESET:
+            msg = msg + colorama.Fore.RESET
+        if back is not None and back != colorama.Back.RESET:
+            msg = msg + colorama.Back.RESET
+        if style is not None and style != colorama.Style.RESET_ALL:
+            msg = msg + colorama.Style.RESET_ALL
 
         return msg, kwargs
 
 
-_colorama = utils.lazy_load(_get_colorama)
 _logger = utils.lazy_load(_get_logger)
 
 
@@ -136,7 +132,7 @@ def get_level():
 def debug(*args, **kwargs):
     _logger.debug(None, *args, **kwargs,
                   options={
-                      "fore": _colorama.Fore.GREEN,
+                      "fore": colorama.Fore.GREEN,
                       "back": None,
                       "style": None
                   })
@@ -154,7 +150,7 @@ def info(*args, **kwargs):
 def warning(*args, **kwargs):
     _logger.warning(None, *args, **kwargs,
                     options={
-                        "fore": _colorama.Fore.MAGENTA,
+                        "fore": colorama.Fore.MAGENTA,
                         "back": None,
                         "style": None
                     })
@@ -163,7 +159,7 @@ def warning(*args, **kwargs):
 def error(*args, **kwargs):
     _logger.error(None, *args, **kwargs,
                   options={
-                      "fore": _colorama.Fore.RED,
+                      "fore": colorama.Fore.RED,
                       "back": None,
                       "style": None
                   })
