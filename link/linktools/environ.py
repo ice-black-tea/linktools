@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import logging
 import os
 import platform
 import re
@@ -194,7 +195,7 @@ class EnvironVariable:
 
 if __name__ == '__main__':
 
-    logger.set_level(logger.DEBUG)
+    logger.setLevel(logging.DEBUG)
 
     env = EnvironVariable()
 

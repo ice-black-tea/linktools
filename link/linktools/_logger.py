@@ -27,30 +27,19 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-# !/usr/bin/env python3
-# -*- coding:utf-8 -*-
 import logging
 
 import colorama
 
 from . import utils
-from .version import __name__
+from .version import __name__ as name
 
-MESSAGE = 0x7fffffff
-ERROR = logging.ERROR
-WARNING = logging.WARNING
-INFO = logging.INFO
-DEBUG = logging.DEBUG
-
+MESSAGE = 0x00001000
 
 logging.addLevelName(MESSAGE, "message")
 
 
 def _get_logger():
-    manager = logging.Manager(logging.getLogger())
-    manager.setLoggerClass(_Logger)
-    logger = manager.getLogger(__name__)
-
     import platform
     import ctypes
     if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
@@ -58,17 +47,62 @@ def _get_logger():
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
     colorama.init(autoreset=False)
 
-    return logger
+    manager = logging.Manager(logging.getLogger())
+    manager.setLoggerClass(Logger)
+    return manager.getLogger(name)
 
 
-class _Logger(logging.Logger):
+class Logger(logging.Logger):
 
+    _init_colorama = False
+
+    def debug(self, *args, **kwargs):
+        super().debug(None, *args, **kwargs,
+                      options={
+                          "fore": colorama.Fore.GREEN,
+                          "back": None,
+                          "style": None
+                      })
+
+    def info(self, *args, **kwargs):
+        super().info(None, *args, **kwargs,
+                     options={
+                         "fore": None,
+                         "back": None,
+                         "style": None
+                     })
+
+    def warning(self, *args, **kwargs):
+        super().warning(None, *args, **kwargs,
+                        options={
+                            "fore": colorama.Fore.MAGENTA,
+                            "back": None,
+                            "style": None
+                        })
+
+    def error(self, *args, **kwargs):
+        super().error(None, *args, **kwargs,
+                      options={
+                          "fore": colorama.Fore.RED,
+                          "back": None,
+                          "style": None
+                      })
+
+    def message(self, *args, **kwargs):
+        super().log(MESSAGE, None, *args, **kwargs,
+                    options={
+                        "fore": None,
+                        "back": None,
+                        "style": None
+                    })
+
+    # noinspection PyTypeChecker, PyProtectedMember
     def _log(self, level, msg, args, **kwargs):
-        msg, kwargs = self._compatible_args(*args, **kwargs)
+        msg, kwargs = self._compatible_args(args, **kwargs)
         return super()._log(level, msg, None, **kwargs)
 
     @classmethod
-    def _compatible_args(cls, *args, traceback_error=False, stack=False, options=None, **kwargs):
+    def _compatible_args(cls, args, traceback_error=False, stack=False, options=None, **kwargs):
         if traceback_error:
             if "exc_info" not in kwargs:
                 kwargs["exc_info"] = True
@@ -97,7 +131,7 @@ class _Logger(logging.Logger):
         style = get_option("style")
         if style is not None:
             msg = msg + style
-        tag = get_option("tag", "")
+        tag = get_option("tag") or ""
         if len(tag) > 0:
             tag = str(tag) + " "
             msg = msg + tag
@@ -118,57 +152,4 @@ class _Logger(logging.Logger):
         return msg, kwargs
 
 
-_logger = utils.lazy_load(_get_logger)
-
-
-def set_level(level):
-    _logger.setLevel(level)
-
-
-def get_level():
-    return _logger.level
-
-
-def debug(*args, **kwargs):
-    _logger.debug(None, *args, **kwargs,
-                  options={
-                      "fore": colorama.Fore.GREEN,
-                      "back": None,
-                      "style": None
-                  })
-
-
-def info(*args, **kwargs):
-    _logger.info(None, *args, **kwargs,
-                 options={
-                     "fore": None,
-                     "back": None,
-                     "style": None
-                 })
-
-
-def warning(*args, **kwargs):
-    _logger.warning(None, *args, **kwargs,
-                    options={
-                        "fore": colorama.Fore.MAGENTA,
-                        "back": None,
-                        "style": None
-                    })
-
-
-def error(*args, **kwargs):
-    _logger.error(None, *args, **kwargs,
-                  options={
-                      "fore": colorama.Fore.RED,
-                      "back": None,
-                      "style": None
-                  })
-
-
-def message(*args, **kwargs):
-    _logger.log(MESSAGE, None, *args, **kwargs,
-                options={
-                    "fore": None,
-                    "back": None,
-                    "style": None
-                })
+logger: Logger = utils.lazy_load(_get_logger)

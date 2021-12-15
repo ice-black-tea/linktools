@@ -164,7 +164,7 @@ class GeneralTool(object):
         if not self.exists:
             from . import resource
             file = resource.get_temp_path(quote(self.download_url, safe=''))
-            logger.debug("download: {}".format(self.download_url))
+            logger.info("download: {}".format(self.download_url))
             utils.download(self.download_url, file)
             if not utils.is_empty(self.unpack_path):
                 shutil.unpack_archive(file, self.root_path)

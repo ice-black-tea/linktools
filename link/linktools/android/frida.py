@@ -87,7 +87,7 @@ class FridaServer(utils.Proxy):  # proxy for frida.core.Device
             elif process_name is not None:
                 if fnmatch.fnmatchcase(process.name.lower(), process_name):
                     return process
-        raise frida.ProcessNotFoundError("unable to find process with pid '%s', name '%s'" % (pid, process_name))
+        raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}', name '{process_name}'")
 
     def get_processes(self, package_name: str = None) -> ["_frida.Process"]:
         """
@@ -151,8 +151,8 @@ class FridaAndroidServer(FridaServer):
                 "-l", f"0.0.0.0:{remote_port}",
                 capture_output=False
             )
-        except:
-            logger.error(f"Frida server stop", tag="[!]", fore=Fore.RED)
+        except Exception as e:
+            logger.error(f"Frida server stop: {e}", tag="[!]", fore=Fore.RED)
 
     def start(self) -> bool:
         """
@@ -187,6 +187,7 @@ class FridaAndroidServer(FridaServer):
         raise frida.ServerNotRunningError("Frida server failed to run ...")
 
     def _prepare(self):
+
         if self._device.is_file_exist(self._remote_path.as_posix()):
             return
 
@@ -198,10 +199,10 @@ class FridaAndroidServer(FridaServer):
                 shutil.copyfileobj(read, write)
             os.remove(tmp_file)
 
-        logger.info("Push frida server to %s" % self._remote_path, tag="[*]")
+        logger.info(f"Push frida server to {self._remote_path}", tag="[*]")
         self._device.push(self._local_path, self._remote_temp_path.as_posix(), capture_output=False)
         self._device.sudo("mv", self._remote_temp_path.as_posix(), self._remote_path.as_posix(), capture_output=False)
-        self._device.sudo("chmod 755 '%s'" % self._remote_path)
+        self._device.sudo(f"chmod 755 {self._remote_path}")
 
     def stop(self) -> bool:
         """
@@ -330,7 +331,6 @@ class FridaApplication:
         self.device.on("child-removed", lambda child: self._reactor.schedule(self.on_child_removed(child)))
         self.device.on("output", lambda pid, fd, data: self._reactor.schedule(self.on_output(pid, fd, data)))
         # self.device.on('process-crashed', xxx)
-        # self.device.on('output', xxx)
         # self.device.on('uninjected', xxx)
         # self.device.on('lost', xxx)
 
@@ -418,7 +418,7 @@ class FridaApplication:
             self._reactor.schedule(lambda: self.on_script_loaded(script))
 
         except Exception as e:
-            logger.info(f"Load script error: {e}", tag="[!]", fore=Fore.RED)
+            logger.warning(f"Load script error: {e}", tag="[!]", fore=Fore.RED)
             raise e
 
     def _attach_session(self, pid: int):
@@ -451,7 +451,7 @@ class FridaApplication:
             return session
 
         except Exception as e:
-            logger.info(f"Attach session error: {e}", tag="[!]", fore=Fore.RED)
+            logger.warning(f"Attach session error: {e}", tag="[!]", fore=Fore.RED)
             raise e
 
     def _detach_session(self, pid: int):
