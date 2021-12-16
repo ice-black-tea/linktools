@@ -63,14 +63,13 @@ class Adb(object):
             if len(splits) >= 2:
                 device = splits[0]
                 status = splits[1]
-                if alive is True:
-                    if status == "device":
-                        devices.append(device)
-                elif alive is False:
-                    if status != "device":
+                if alive is None:
+                    is_device_alive = status in ["bootloader", "device", "recovery", "sideload"]
+                    if (alive and is_device_alive) or (not alive and not is_device_alive):
                         devices.append(device)
                 else:
                     devices.append(device)
+
         return devices
 
     @classmethod

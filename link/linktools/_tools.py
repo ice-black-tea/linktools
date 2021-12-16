@@ -258,24 +258,36 @@ class GeneralTools(object):
 
     def __init__(self, **kwargs):
         self.config = kwargs
-        if "system" not in kwargs:
+        if "system" not in kwargs or self.config["system"] is None:
             self.config["system"] = platform.system().lower()
-        if "processor" not in kwargs:
+        if "processor" not in kwargs or self.config["processor"] is None:
             self.config["processor"] = platform.processor().lower()
-        if "architecture" not in kwargs:
+        if "architecture" not in kwargs or self.config["architecture"] is None:
             self.config["architecture"] = platform.architecture()[0].lower()
-        self.items = self._init_items()
 
-    def _init_items(self) -> typing.Mapping[str, GeneralTool]:
+    @cached_property
+    def items(self) -> typing.Mapping[str, GeneralTool]:
         from . import config
-        configs = config.get_namespace("GENERAL_TOOL_")
         items = {}
+        configs = config.get_namespace("GENERAL_TOOL_")
         for key in configs:
             value = configs[key]
             if isinstance(value, dict):
                 name = value.get("name") or key
                 items[name] = GeneralTool(self, name, value)
         return items
+
+    @property
+    def system(self):
+        return self.config["system"]
+
+    @property
+    def processor(self):
+        return self.config["processor"]
+
+    @property
+    def architecture(self):
+        return self.config["architecture"]
 
     def __iter__(self) -> typing.Iterator[GeneralTool]:
         return iter(self.items.values())

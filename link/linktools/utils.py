@@ -302,7 +302,9 @@ class _Process(subprocess.Popen):
                     kwargs["stderr"] = subprocess.PIPE
         if "cwd" not in kwargs:
             kwargs["cwd"] = os.getcwd()
-        subprocess.Popen.__init__(self, args, shell=False, **kwargs)
+        if "shell" not in kwargs:
+            kwargs["shell"] = False
+        super().__init__(args, **kwargs)
 
 
 def popen(*args, **kwargs) -> subprocess.Popen:
