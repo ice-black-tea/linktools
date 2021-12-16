@@ -64,7 +64,7 @@ def main():
 
     elif args.download:
         if not tools[tool_name].exists:
-            tools[tool_name].prepare(force_download=False)
+            tools[tool_name].prepare()
         logger.message(f"download tool files success: {tools[tool_name].absolute_path}")
 
     elif args.clear:

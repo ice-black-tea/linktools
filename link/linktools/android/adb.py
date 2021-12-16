@@ -63,7 +63,7 @@ class Adb(object):
             if len(splits) >= 2:
                 device = splits[0]
                 status = splits[1]
-                if alive is None:
+                if alive is not None:
                     is_device_alive = status in ["bootloader", "device", "recovery", "sideload"]
                     if (alive and is_device_alive) or (not alive and not is_device_alive):
                         devices.append(device)
@@ -297,22 +297,24 @@ class Device(object):
                 raise AdbError(result[begin:])
         return result
 
-    def get_prop(self, prop: str) -> str:
+    def get_prop(self, prop: str, timeout=None) -> str:
         """
         获取属性值
         :param prop: 属性名
+        :param timeout: 超时时间
         :return: 属性值
         """
-        return self.shell("getprop", prop).rstrip()
+        return self.shell("getprop", prop, timeout=timeout).rstrip()
 
-    def set_prop(self, prop: str, value: str) -> str:
+    def set_prop(self, prop: str, value: str, timeout=None) -> str:
         """
         设置属性值
         :param prop: 属性名
         :param value: 属性值
+        :param timeout: 超时时间
         :return: adb输出结果
         """
-        return self.shell("setprop", prop, value).rstrip()
+        return self.shell("setprop", prop, value, timeout=timeout).rstrip()
 
     def kill(self, package_name) -> str:
         """

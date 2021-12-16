@@ -287,33 +287,24 @@ def lazy_load(fn, *args, **kwargs):
     return Proxy(functools.partial(fn, *args, **kwargs))
 
 
-class _Process(subprocess.Popen):
-
-    def __init__(self, *args, **kwargs):
-        """
-        :param args: 参数
-        """
-        if "capture_output" in kwargs:
-            capture_output = kwargs.pop("capture_output")
-            if capture_output is True:
-                if "stdout" not in kwargs:
-                    kwargs["stdout"] = subprocess.PIPE
-                if "stderr" not in kwargs:
-                    kwargs["stderr"] = subprocess.PIPE
-        if "cwd" not in kwargs:
-            kwargs["cwd"] = os.getcwd()
-        if "shell" not in kwargs:
-            kwargs["shell"] = False
-        super().__init__(args, **kwargs)
-
-
 def popen(*args, **kwargs) -> subprocess.Popen:
     """
     打开进程
     :param args: 参数
     :return: 子进程
     """
-    return _Process(*args, **kwargs)
+    if "capture_output" in kwargs:
+        capture_output = kwargs.pop("capture_output")
+        if capture_output is True:
+            if "stdout" not in kwargs:
+                kwargs["stdout"] = subprocess.PIPE
+            if "stderr" not in kwargs:
+                kwargs["stderr"] = subprocess.PIPE
+    if "cwd" not in kwargs:
+        kwargs["cwd"] = os.getcwd()
+    if "shell" not in kwargs:
+        kwargs["shell"] = False
+    return subprocess.Popen(args, **kwargs)
 
 
 def exec(*args, **kwargs) -> (subprocess.Popen, str, str):
@@ -322,8 +313,12 @@ def exec(*args, **kwargs) -> (subprocess.Popen, str, str):
     :param args: 参数
     :return: 子进程
     """
-    process = _Process(*args, **kwargs)
-    out, err = process.communicate()
+    comm_kwargs = {
+        "input": kwargs.pop("input", None),
+        "timeout": kwargs.pop("timeout", None)
+    }
+    process = popen(*args, **kwargs)
+    out, err = process.communicate(**comm_kwargs)
     return process, out, err
 
 

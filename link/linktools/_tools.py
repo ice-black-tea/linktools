@@ -184,21 +184,22 @@ class GeneralTool(object):
             elif self.absolute_path.startswith(self.root_path):
                 os.remove(self.absolute_path)
 
-    def popen(self, *args: [str], **kwargs: dict) -> subprocess.Popen:
+    def _process(self, fn, *args, **kwargs):
         self.prepare(force_download=False)
         executable_cmdline = self.executable_cmdline
         if executable_cmdline[0] == "python":
             args = [sys.executable, *executable_cmdline[1:], *args]
-            return utils.popen(*args, **kwargs)
+            return fn(*args, **kwargs)
         if executable_cmdline[0] in self._container.items:
             tool = self._container.items[executable_cmdline[0]]
             return tool.popen(*[*executable_cmdline[1:], *args], **kwargs)
-        return utils.popen(*[*executable_cmdline, *args], **kwargs)
+        return fn(*[*executable_cmdline, *args], **kwargs)
+
+    def popen(self, *args: [str], **kwargs: dict) -> subprocess.Popen:
+        return self._process(utils.popen, *args, **kwargs)
 
     def exec(self, *args: [str], **kwargs: dict) -> (subprocess.Popen, str, str):
-        process = self.popen(*args, **kwargs)
-        out, err = process.communicate()
-        return process, out, err
+        return self._process(utils.exec, *args, **kwargs)
 
     def __getattr__(self, item):
         return self.config[item]
