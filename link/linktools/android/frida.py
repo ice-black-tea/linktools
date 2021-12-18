@@ -262,10 +262,12 @@ class FridaApplication:
         from linktools.android.frida import FridaAndroidServer, FridaApplication
 
         jscode = \"\"\"
-            var $ = new JavaHelper();
-            $.hookMethods(
-                "java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true})
-            );
+            Java.perform(function () {
+                var $ = new JavaHelper();
+                $.hookMethods(
+                    "java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true})
+                );
+            });
         \"\"\"
 
         if __name__ == "__main__":
@@ -345,7 +347,7 @@ class FridaApplication:
     @cached_property
     def _persist_codes(self):
         with open(resource.get_persist_path("android-frida.js"), "rt") as fd:
-            return [es5.minify_print(fd.read())]
+            return [es5.minify_print(fd.read(), obfuscate=True)]
 
     def run(self):
         try:
@@ -358,7 +360,7 @@ class FridaApplication:
     def _run(self, reactor):
         try:
             self._stop_requested.wait()
-        except:
+        finally:
             self._stop_requested.set()
 
     def is_running(self):

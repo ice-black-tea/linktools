@@ -235,14 +235,7 @@ function JavaHelper() {
         if (methodName === "<init>") {
             methodName = "$init";
         }
-        var methodArgs = "";
-        if (args.length > 0) {
-            methodArgs += "args[0]";
-            for (var i = 1; i < args.length; i++) {
-                methodArgs += ",args[" + i + "]";
-            }
-        }
-        return eval("obj." + methodName + "(" + methodArgs + ")");
+        return Reflect.get(obj, methodName).apply(obj, args);
     });
 
     /**
