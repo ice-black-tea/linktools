@@ -204,7 +204,8 @@ adb optional arguments:
 
 **1) 以命令行方式运行**
 
-如hook.js文件：
+如 [android.js](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/spear/test/android.js) 文件：
+
 ```javascript
 
 Java.perform(function () {
@@ -248,12 +249,12 @@ Java.perform(function () {
 
 在终端中运行
 ```bash
-$ at-frida -l hook.js
+$ at-frida -l android.js
 ```
 
 **2) 当然也可以使用python方式调用**
 
-如hook.py文件：
+如android.py文件：
 ```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
@@ -289,7 +290,7 @@ if __name__ == "__main__":
 
 在终端中运行
 ```bash
-$ python3 -l hook.py
+$ python3 android.py
 ```
 
 **3) 输出效果**
