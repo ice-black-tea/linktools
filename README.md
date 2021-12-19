@@ -4,9 +4,10 @@
 
 ```tree
 .
-├── bow                 android项目，编译的apk产物是Link的依赖项
-├── link                python项目，工具集入口
-└── misc                杂项，存储一些定制脚本
+├── link                工具集入口，其他文件夹都是为此服务的
+├── bow                 android项目，编译的apk产物是link中android相关功能的依赖项
+├── spear               frida相关脚本，编译后产物是link中frida内置脚本
+└── shield              杂项，存储一些定制脚本
 ```
 
 ## 工具集入口

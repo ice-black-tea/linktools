@@ -74,7 +74,9 @@ def _create_default_config():
 
 class Config(dict):
 
-    "Code stolen from werkzeug.local.Proxy"
+    """
+    Code stolen from flask.Config
+    """
 
     def __init__(self, defaults: Optional[dict] = None):
         dict.__init__(self, defaults or {})

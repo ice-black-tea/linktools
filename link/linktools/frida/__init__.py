@@ -27,209 +27,111 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import codecs
-import fnmatch
-import lzma
-import os
-import shutil
+import collections
 import threading
 import time
-from pathlib import Path, PosixPath
 from typing import Optional, Union
 
 import _frida
 import frida
-from calmjs.parse import es5
 from colorama import Fore
-from frida_tools.application import Reactor
 
-import linktools
 from linktools import utils, resource, logger
-from linktools.android import adb
 from linktools.decorator import cached_property
 
 
-class FridaServer(utils.Proxy):  # proxy for frida.core.Device
-    __setattr__ = object.__setattr__
+class Reactor(object):
+    """
+    Code stolen from frida_tools.application.Reactor
+    """
 
-    def __init__(self, device: frida.core.Device):
-        super().__init__(lambda: device)
+    def __init__(self, run_until_return, on_stop=None):
+        self._running = False
+        self._run_until_return = run_until_return
+        self._on_stop = on_stop
+        self._pending = collections.deque([])
+        self._lock = threading.Lock()
+        self._cond = threading.Condition(self._lock)
 
-    def start(self):
-        pass
+        self.io_cancellable = frida.Cancellable()
+
+        self.ui_cancellable = frida.Cancellable()
+        self._ui_cancellable_fd = self.ui_cancellable.get_pollfd()
+
+    def __del__(self):
+        self._ui_cancellable_fd.release()
+
+    def is_running(self):
+        with self._lock:
+            return self._running
+
+    def run(self):
+        with self._lock:
+            self._running = True
+
+        worker = threading.Thread(target=self._run)
+
+        try:
+            worker.start()
+            self._run_until_return(self)
+        finally:
+            self.stop()
+            worker.join(60)
+
+    def _run(self):
+        running = True
+        while running:
+            now = time.time()
+            work = None
+            timeout = None
+            previous_pending_length = -1
+            with self._lock:
+                for item in self._pending:
+                    (f, when) = item
+                    if now >= when:
+                        work = f
+                        self._pending.remove(item)
+                        break
+                if len(self._pending) > 0:
+                    timeout = max([min(map(lambda item: item[1], self._pending)) - now, 0])
+                previous_pending_length = len(self._pending)
+
+            if work is not None:
+                with self.io_cancellable:
+                    try:
+                        work()
+                    except frida.OperationCancelledError:
+                        pass
+
+            with self._lock:
+                if self._running and len(self._pending) == previous_pending_length:
+                    self._cond.wait(timeout)
+                running = self._running
+
+        if self._on_stop is not None:
+            self._on_stop()
+
+        self.ui_cancellable.cancel()
 
     def stop(self):
-        pass
+        self.schedule(self._stop)
 
-    def is_running(self) -> bool:
-        """
-        判断服务端运行状态
-        :return: 是否正在运行
-        """
-        try:
-            processes = self.enumerate_processes()
-            return processes is not None
-        except (frida.TransportError, frida.ServerNotRunningError):
-            return False
+    def _stop(self):
+        with self._lock:
+            self._running = False
 
-    def get_process(self, pid: int = None, process_name: str = None) -> Optional["_frida.Process"]:
-        """
-        通过进程名到的所有进程
-        :param pid: 进程id
-        :param process_name: 进程名
-        :return: 进程
-        """
-        if process_name is not None:
-            process_name = process_name.lower()
-        for process in self.enumerate_processes():
-            if pid is not None:
-                if process.pid == pid:
-                    return process
-            elif process_name is not None:
-                if fnmatch.fnmatchcase(process.name.lower(), process_name):
-                    return process
-        raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}', name '{process_name}'")
+    def schedule(self, f, delay=None):
+        now = time.time()
+        if delay is not None:
+            when = now + delay
+        else:
+            when = now
+        with self._lock:
+            self._pending.append((f, when))
+            self._cond.notify()
 
-    def get_processes(self, package_name: str = None) -> ["_frida.Process"]:
-        """
-        根据包名匹配进程名
-        :param package_name: 进程名（支持正则）
-        :return: 进程列表
-        """
-        try:
-            all_processes = self.enumerate_processes()
-            if package_name is None:
-                return all_processes
-            processes = []
-            for process in all_processes:
-                if self.fix_package_name(process.name) == package_name:
-                    processes.append(process)
-            return processes
-        except Exception as e:
-            logger.error(e, tag="[!]", fore=Fore.RED)
-            return []
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
-
-
-class FridaAndroidServer(FridaServer):
-
-    def __init__(self, device_id: str = None, local_port=47042, remote_port=47042):
-        self._device = adb.Device(device_id=device_id)
-        self._local_port = local_port
-        self._remote_port = remote_port
-        self._local_address = f"localhost:{self._local_port}"
-        super().__init__(frida.get_device_manager().add_remote_device(self._local_address))
-
-        # frida server文件相关参数
-        self._download_url = self.config["url"]
-        # local: {storage_path}/data/frida/frida-server-xxx
-        self._local_path = Path(resource.get_data_dir("frida", create=True)) / self.config["name"]
-        # android: {storage_path}/frida/frida-server-xxx
-        self._remote_temp_path = PosixPath(self._device.get_storage_path()) / "frida" / self.config["name"]
-        # android: /data/local/tmp/fs-xxx
-        self._remote_path = PosixPath("/data/local/tmp") / "fs-{abi}-{version}".format(**self.config)
-
-    @cached_property
-    def config(self) -> dict:
-        config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
-        config["version"] = frida.__version__
-        config["abi"] = self._device.abi
-        config["url"] = config["url"].format(**config)
-        config["name"] = config["name"].format(**config)
-        return config
-
-    @staticmethod
-    def _start(device: adb.Device, remote_path: str, remote_port: Union[str, int]):
-        try:
-            device.sudo(
-                remote_path,
-                "-l", f"0.0.0.0:{remote_port}",
-                capture_output=False
-            )
-        except Exception as e:
-            logger.error(f"Frida server stop: {e}", tag="[!]", fore=Fore.RED)
-
-    def start(self) -> bool:
-        """
-        根据frida版本和设备abi类型下载并运行server
-        :return: 运行成功为True，否则为False
-        """
-        if self._local_port is not None:
-            self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
-
-        if self.is_running():
-            logger.info("Frida server is running ...", tag="[*]")
-            return True
-
-        logger.info("Start frida server ...", tag="[*]")
-
-        self._prepare()
-        threading.Thread(
-            target=self._device.sudo,
-            args=(
-                self._remote_path.as_posix(),
-                "-l", f"0.0.0.0:{self._remote_port}",
-            ),
-            daemon=True
-        ).start()
-
-        for i in range(10):
-            time.sleep(0.5)
-            if self.is_running():
-                logger.info("Frida server is running ...", tag="[*]")
-                return True
-
-        raise frida.ServerNotRunningError("Frida server failed to run ...")
-
-    def _prepare(self):
-
-        if self._device.is_file_exist(self._remote_path.as_posix()):
-            return
-
-        if not os.path.exists(self._local_path):
-            logger.info("Download frida server ...", tag="[*]")
-            tmp_file = resource.get_temp_path(self._local_path.name + ".tmp")
-            utils.download(self._download_url, tmp_file)
-            with lzma.open(tmp_file, "rb") as read, open(self._local_path, "wb") as write:
-                shutil.copyfileobj(read, write)
-            os.remove(tmp_file)
-
-        logger.info(f"Push frida server to {self._remote_path}", tag="[*]")
-        self._device.push(self._local_path, self._remote_temp_path.as_posix(), capture_output=False)
-        self._device.sudo("mv", self._remote_temp_path.as_posix(), self._remote_path.as_posix(), capture_output=False)
-        self._device.sudo(f"chmod 755 {self._remote_path}")
-
-    def stop(self) -> bool:
-        """
-        强制结束frida server
-        :return: 结束成功为True，否则为False
-        """
-
-        logger.info("Kill frida server ...", tag="[*]")
-        try:
-            process = self.get_process(process_name=f"*{self._remote_path.name}*")
-            self.kill(process.pid)
-            return True
-        except frida.ServerNotRunningError:
-            return True
-        except:
-            return False
-
-    def is_running(self) -> bool:
-        """
-        判断服务端运行状态
-        :return: 是否正在运行
-        """
-        try:
-            process = self.get_process(process_name=f"*{self._remote_path.name}*")
-            return process is not None
-        except (frida.TransportError, frida.ServerNotRunningError, frida.ProcessNotFoundError):
-            return False
+    def cancel_io(self):
+        self.io_cancellable.cancel()
 
 
 class FridaSession(utils.Proxy):  # proxy for frida.core.Session
@@ -291,22 +193,27 @@ class FridaApplication:
 
     def __init__(
             self,
-            server: FridaServer,
+            device: Union[frida.core.Device, "FridaServer"],
             user_script: str = None,
             eval_code: str = None,
             enable_spawn_gating=False,
             enable_child_gating=False,
-            eternalize=False):
+            eternalize=False,
+            debug=False):
         """
         :param server: 环境信息
         """
-        self._server = server
+        self.device: frida.core.Device = device
 
         self._stop_requested = threading.Event()
         self._reactor = Reactor(
             run_until_return=self._run,
             on_stop=self._on_stop
         )
+
+        self._debug = debug
+        self._persist_script = resource.get_persist_path("frida.min.js")
+        self._persist_debug_script = resource.get_persist_path("frida.js")
 
         self._user_script = user_script
         self._eval_code = eval_code
@@ -339,23 +246,12 @@ class FridaApplication:
         if self._enable_spawn_gating:
             self.device.enable_spawn_gating()
 
-    @property
-    def device(self) -> frida.core.Device:
-        # noinspection PyTypeChecker
-        return self._server
-
-    @cached_property
-    def _persist_codes(self):
-        with open(resource.get_persist_path("android-frida.js"), "rt") as fd:
-            return [es5.minify_print(fd.read(), obfuscate=True)]
-
     def run(self):
         try:
             self._monitor_all()
             self._reactor.run()
         finally:
             self._demonitor_all()
-            self._reactor.stop()
 
     def _run(self, reactor):
         try:
@@ -391,18 +287,35 @@ class FridaApplication:
         """
         self._reactor.schedule(lambda: self._detach_session(pid))
 
+    @classmethod
+    def _read_script(cls, path):
+        with codecs.open(path, 'rb', 'utf-8') as f:
+            return f.read()
+
+    @cached_property
+    def _persist_code(self):
+        return self._read_script(self._persist_script)
+
     def _load_script(self, pid: int, resume: bool = False):
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")
 
-        codes = [*self._persist_codes]
+        codes = []
+        if self._debug:
+            codes.append(self._read_script(self._persist_debug_script))
+        else:
+            codes.append(self._persist_code)
+
         if self._user_script is not None:
-            with codecs.open(self._user_script, 'rb', 'utf-8') as f:
-                codes.append(f.read())
+            codes.append(self._read_script(self._user_script))
+
         if self._eval_code is not None:
             codes.append(self._eval_code)
 
         try:
             session = self._attach_session(pid)
+            if session is None:
+                logger.warning(f"Attach session failed, skip loading script", tag="[!]", fore=Fore.RED)
+                return
 
             script = FridaScript(session.create_script(";".join(codes)))
             script.session = session
@@ -421,7 +334,6 @@ class FridaApplication:
 
         except Exception as e:
             logger.warning(f"Load script error: {e}", tag="[!]", fore=Fore.RED)
-            raise e
 
     def _attach_session(self, pid: int):
         try:
@@ -454,7 +366,6 @@ class FridaApplication:
 
         except Exception as e:
             logger.warning(f"Attach session error: {e}", tag="[!]", fore=Fore.RED)
-            raise e
 
     def _detach_session(self, pid: int):
         session = self._sessions.get(pid)
@@ -502,15 +413,17 @@ class FridaApplication:
             except Exception as e:
                 logger.info(f"Failed to load script: {e}", tag="[!]", fore=Fore.RED)
 
-        for path in [self._user_script]:
-            if path is None or path in self._monitored_files:
-                return
+        paths = [self._user_script]
+        if self._debug:
+            paths.append(self._persist_debug_script)
 
-            logger.debug(f"Monitor file: {path}", tag="[✔]")
-            monitor = frida.FileMonitor(path)
-            monitor.on('change', on_change)
-            monitor.enable()
-            self._monitored_files[path] = monitor
+        for path in paths:
+            if path is not None and path not in self._monitored_files:
+                logger.debug(f"Monitor file: {path}", tag="[✔]")
+                monitor = frida.FileMonitor(path)
+                monitor.on('change', on_change)
+                monitor.enable()
+                self._monitored_files[path] = monitor
 
     def _demonitor_all(self):
         for monitor in self._monitored_files.values():

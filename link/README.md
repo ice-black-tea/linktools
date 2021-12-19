@@ -209,17 +209,15 @@ adb optional arguments:
 
 Java.perform(function () {
 
-    var $ = new JavaHelper();
-
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
-    $.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
+    JavaHelper.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
         return this.apply(obj, args);
     });
 
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
     // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String)
     // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String, int)
-    $.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
+    JavaHelper.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
         return this.apply(obj, args);
     });
 
@@ -230,19 +228,19 @@ Java.perform(function () {
     // [*] ...
     // [*] Hook method: long Integer.longValue()
     // [*] Hook method: short Integer.shortValue()
-    $.hookClass("java.lang.Integer", function(obj, args) {
+    JavaHelper.hookClass("java.lang.Integer", function(obj, args) {
         return this.apply(obj, args);
     });
 
     // hook HashMap.put, print stack and args
-    $.hookMethods("java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true}));
+    JavaHelper.hookMethods("java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: false, printArgs: true}));
 
     // hook HashMap.put, print stack and args
     var HashMap = Java.use("java.util.HashMap");
     HashMap.put.implementation = function() {
-        var ret = $.callMethod(this, arguments);
-        $.printStack();
-        $.printArguments(arguments, ret);
+        var ret = JavaHelper.callMethod(this, arguments);
+        JavaHelper.printStack();
+        JavaHelper.printArguments(arguments, ret);
         return ret;
     }
 });
@@ -260,13 +258,16 @@ $ at-frida -l hook.js
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from linktools.android.frida import FridaAndroidServer, FridaApplication
+from linktools.frida import FridaApplication
+from linktools.frida.server import FridaAndroidServer
+
 
 jscode = """
-    var $ = new JavaHelper();
-    $.hookMethods(
-        "java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true})
+Java.perform(function () {
+    JavaHelper.hookMethods(
+        "java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: false, printArgs: true})
     );
+});
 """
 
 if __name__ == "__main__":
@@ -288,7 +289,7 @@ if __name__ == "__main__":
 
 在终端中运行
 ```bash
-$ python3 hook.py
+$ python3 -l hook.py
 ```
 
 **3) 输出效果**
@@ -309,33 +310,20 @@ function findClass(className) {}
 
 /**
  * 获取java类的类对象
- * :param classloader:  java类所在的ClassLoader
  * :param className:    java类名
+ * :param classloader:  java类所在的classLoader，若不填则遍历所有classloader
  * :return:             类对象
  */
-function findClass(classloader, className) {}
-
-/**
- * 为method添加properties
- * :param method:       方法对象
- */
-function addMethodProperties(method) {}
-
-/**
- * hook指定方法对象
- * :param method:       方法对象
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
- */
-function hookMethod(method, impl) {}
+function findClass(className, classloader) {}
 
 /**
  * hook指定方法对象
  * :param clazz:        java类名/类对象
  * :param method:       java方法名/方法对象
- * :param signature:    java方法签名，为null表示不设置签名
+ * :param signatures:   java方法签名，为null表示不设置签名
  * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
  */
-function hookMethod(clazz, method, signature, impl) {}
+function hookMethod(clazz, method, signatures, impl) {}
 
 /**
  * hook指定方法名的所有重载
@@ -377,25 +365,17 @@ function getStackTrace() {}
 
 /**
  * 打印当前栈
- */
-function printStack() {}
-
-/**
- * 打印当前栈
  * :param message:      回显的信息
  */
 function printStack(message) {}
 
 /**
  * 打印当前参数和返回值
- */
-function printArguments(args, ret) {}
-
-/**
- * 打印当前参数和返回值
+ * :param args:         参数
+ * :param ret:          返回值
  * :param message:      回显的信息
  */
-function printArguments(message, args, ret) {}
+function printArguments(args, ret, message) {}
 ```
 
 hook native方法

@@ -30,8 +30,9 @@ import os
 
 from linktools import utils, logger
 from linktools.android import AdbError, AdbArgumentParser, Device
-from linktools.android.frida import FridaAndroidServer, FridaApplication
 from linktools.decorator import entry_point
+from linktools.frida import FridaApplication
+from linktools.frida.server import FridaAndroidServer
 
 
 @entry_point(known_errors=[AdbError])
@@ -47,6 +48,8 @@ def main():
                         action='store', dest="user_script", default=None)
     parser.add_argument("-e", "--eval", help="evaluate CODE", metavar="CODE",
                         action='store', dest="eval_code", default=None)
+    parser.add_argument("-d", "--debug", action='store_true', default=False,
+                        help="debug mode")
 
     args = parser.parse_args()
 
@@ -80,7 +83,8 @@ def main():
             server,
             user_script=user_script,
             eval_code=eval_code,
-            enable_spawn_gating=True
+            enable_spawn_gating=True,
+            debug=args.debug
         )
 
         if not args.spawn:
