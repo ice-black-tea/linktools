@@ -57,5 +57,5 @@ class ArgumentParser(argparse.ArgumentParser):
         if "conflict_handler" not in kwargs:
             kwargs["conflict_handler"] = "resolve"
         super().__init__(**kwargs)
-        self.add_argument("-v", "--version", action="version", version="%(prog)s " + __version__)
-        self.add_argument("-V", "--verbose", action=VerboseAction, help="increase log verbosity")
+        self.add_argument("--version", action="version", version="%(prog)s " + __version__)
+        self.add_argument("-v", "--verbose", action=VerboseAction, help="increase log verbosity")

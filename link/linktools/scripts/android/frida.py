@@ -31,8 +31,7 @@ import os
 from linktools import utils, logger
 from linktools.android import AdbError, AdbArgumentParser, Device
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication
-from linktools.frida.server import FridaAndroidServer
+from linktools.frida import FridaApplication, FridaAndroidServer
 
 
 @entry_point(known_errors=[AdbError])

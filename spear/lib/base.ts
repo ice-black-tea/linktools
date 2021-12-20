@@ -1,3 +1,42 @@
+export class Log {
+
+    static debug = 1;
+    static info = 2;
+    static warning = 3;
+    static error = 4;
+    static $level = Log.info;
+
+    static setLevel(level: number) {
+        Log.$level = level;
+        Log.d("Set log level: " + level);
+    }
+
+    static d(data: any, tag: string = null) {
+        if (Log.$level <= Log.debug) {
+            send({ log: { level: "debug", tag: tag, message: data } });
+        }
+    }
+
+    static i(data: any, tag: string = null) {
+        if (Log.$level <= Log.info) {
+            send({ log: { level: "info", tag: tag, message: data } });
+        }
+    }
+
+    static w(data: any, tag: string = null) {
+        if (Log.$level <= Log.warning) {
+            send({ log: { level: "warning", tag: tag, message: data } });
+        }
+    }
+
+    static e(data: any, tag: string = null) {
+        if (Log.$level <= Log.error) {
+            send({ log: { level: "error", tag: tag, message: data } });
+        }
+    }
+}
+
+
 export class Base {
 
     /**

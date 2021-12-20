@@ -1,4 +1,4 @@
-import { Base } from "./base";
+import { Base, Log } from "./base";
 
 /**
  *  frida class
@@ -111,11 +111,11 @@ export class JavaHelper extends Base {
                 return impl.call(method, this, arguments);
             };
             this.$fixMethod(method);
-            send("Hook method: " + method);
+            Log.i("Hook method: " + method);
         } else {
             method.implementation = null;
             this.$fixMethod(method);
-            send("Unhook method: " + method);
+            Log.i("Unhook method: " + method);
         }
     }
 
@@ -129,7 +129,7 @@ export class JavaHelper extends Base {
     hookMethod<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
         method: string | Java.Method<T>,
-        signatures: [string | Java.Wrapper<T>],
+        signatures: (string | Java.Wrapper<T>)[],
         impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
     ): void {
         var traget_method: any = method;
@@ -237,12 +237,15 @@ export class JavaHelper extends Base {
         return function (obj, args) {
             var message = {};
             var ret = this.apply(obj, args);
-            if (printStack !== false)
+            if (printStack !== false) {
                 message = Object.assign(message, helper.$makeStackObject(this));
-            if (printArgs !== false)
+            }
+            if (printArgs !== false) {
                 message = Object.assign(message, helper.$makeArgsObject(args, ret, this));
-            if (Object.keys(message).length !== 0)
-                send(message);
+            }
+            if (Object.keys(message).length !== 0) {
+                Log.i(message);
+            }
             return ret;
         };
     }
@@ -325,7 +328,7 @@ export class JavaHelper extends Base {
         if (message == void 0) {
             message = elements[0];
         }
-        send(this.$makeStackObject(message, elements));
+        Log.i(this.$makeStackObject(message, elements));
     }
 
     /**
@@ -368,6 +371,6 @@ export class JavaHelper extends Base {
         if (message === void 0) {
             message = this.getStackTrace()[0];
         }
-        send(this.$makeArgsObject(args, ret, message));
+        Log.i(this.$makeArgsObject(args, ret, message));
     }
 }
