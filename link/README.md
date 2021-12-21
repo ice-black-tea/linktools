@@ -111,7 +111,7 @@ optional arguments:
 
 #### 2.2.4 at-inetnt
 
-打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等
+打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能
 
 ```bash
 $ at-inetnt -h
@@ -139,7 +139,7 @@ optional arguments:
 
 #### 2.2.5 at-app
 
-通过执行agent调用pms读取app基本信息并展示
+通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确
 
 ```bash
 $ at-app -h
@@ -168,10 +168,10 @@ optional arguments:
 #### 2.2.6 at-frida
 
 该功能旨在方便使用frida，可根据应用名注入js文件或js代码到指定进程。提供了以下特性：
-1. 可以支持根据设备和本地安装的frida版本
+1. 可以支持根据设备和本地安装的frida版本，自动下载并推送frida server到设备，启动frida server自动化完成
 2. 监听了spawn进程变化情况，可以同时hook主进程和各个子进程
 3. 监听js文件变化，实时加载
-4. 注入了内置脚本，封装常用功能
+4. 注入了内置脚本，封装常用功能，如：过ssl pinning
 
 ```bash
 $ at-frida -h
@@ -209,6 +209,7 @@ adb optional arguments:
 ```javascript
 
 Java.perform(function () {
+    AndroidHelper.bypassSslPinning();
 
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
     JavaHelper.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
@@ -239,7 +240,7 @@ Java.perform(function () {
     // hook HashMap.put, print stack and args
     var HashMap = Java.use("java.util.HashMap");
     HashMap.put.implementation = function() {
-        var ret = JavaHelper.callMethod(this, arguments);
+        var ret = JavaHelper.callMethod(this, arguments); // HashMap.put.call(this, arguments)
         JavaHelper.printStack();
         JavaHelper.printArguments(arguments, ret);
         return ret;

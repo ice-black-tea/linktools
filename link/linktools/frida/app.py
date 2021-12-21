@@ -7,7 +7,6 @@
 # Product   : PyCharm
 # Project   : link
 
-import codecs
 import collections
 import logging
 import os
@@ -179,15 +178,21 @@ class FridaApplication:
     ----------------------------------------------------------------------
     """
 
+    _share_script_trusted_path = utils.lazy_load(resource.get_data_path, "frida", "script_trusted.json")
+
     def __init__(
             self,
             device: Union[frida.core.Device, "FridaServer"],
+            debug: str = False,
+            share_script_url: str = None,
+            share_script_trusted: bool = False,
+            share_script_cached: bool = False,
             user_script: str = None,
             eval_code: str = None,
-            enable_spawn_gating=False,
-            enable_child_gating=False,
-            eternalize=False,
-            debug=False):
+            enable_spawn_gating: bool = False,
+            enable_child_gating: bool = False,
+            eternalize: str = False
+    ):
         """
         :param server: 环境信息
         """
@@ -204,6 +209,11 @@ class FridaApplication:
         self._persist_script = resource.get_persist_path("frida.min.js")
         self._persist_debug_script = resource.get_persist_path("frida.js")
 
+        # 下拉脚本相关配置
+        self._share_script_url = share_script_url.strip() if share_script_url else None
+        self._share_script_trusted = share_script_trusted
+        self._share_script_cached = share_script_cached
+
         self._user_script = user_script
         self._eval_code = eval_code
         self._enable_spawn_gating = enable_spawn_gating
@@ -217,6 +227,7 @@ class FridaApplication:
         self._init()
 
     def _init(self):
+
         self.spawn = self.device.spawn
         self.resume = self.device.resume
         self.enumerate_applications = self.device.enumerate_applications
@@ -251,6 +262,9 @@ class FridaApplication:
     def is_running(self):
         return not self._stop_requested.wait(0)
 
+    def wait(self, timeout=None):
+        return self._stop_requested.wait(timeout)
+
     def stop(self):
         self._stop_requested.set()
 
@@ -278,12 +292,58 @@ class FridaApplication:
 
     @classmethod
     def _read_script(cls, path):
-        with codecs.open(path, 'rb', 'utf-8') as f:
-            return f.read()
+        logger.info(f"Load script file: {path}", tag="[✔]")
+        with open(path, "rb") as f:
+            return f.read().decode("utf-8")
 
     @cached_property
     def _persist_code(self):
         return self._read_script(self._persist_script)
+
+    @cached_property
+    def _share_code(self):
+        if self._share_script_url is None or len(self._share_script_url) == 0:
+            return None
+
+        file_name = utils.get_md5(self._share_script_url)
+        file_dir = resource.get_data_dir("frida", "share_script", create=True)
+        file_path = os.path.join(file_dir, file_name)
+        if not self._share_script_cached or not os.path.exists(file_path):
+            if os.path.exists(file_path):
+                logger.info(f"Remove share script file cache: {file_path}", tag="[*]")
+                os.remove(file_path)
+            logger.info(f"Download share script file: {self._share_script_url}", tag="[*]")
+            utils.download(self._share_script_url, file_path)
+
+        if self._share_script_trusted:
+            return self._read_script(file_path)
+
+        file_md5 = ""
+        file_md5_path = os.path.join(file_dir, file_name + ".md5")
+        if os.path.exists(file_md5_path):
+            with open(file_md5_path, "rt") as fd:
+                file_md5 = fd.read()
+
+        share_code = self._read_script(file_path)
+        share_code_md5 = utils.get_md5(share_code)
+        if file_md5 == share_code_md5:
+            return share_code
+
+        logger.warning(
+            f"This is the first time you're running this particular snippet, or the snippet's source code has changed."
+            f"{os.linesep}Url: {self._share_script_url}"
+            f"{os.linesep}Original file md5: {file_md5}"
+            f"{os.linesep}Current file md5: {share_code_md5}",
+            tag="[!]"
+        )
+        while True:
+            response = input("Are you sure you'd like to trust it? [y/N]: ")
+            if response.lower() in ('n', 'no') or response == '':
+                return None
+            if response.lower() in ('y', 'yes'):
+                with open(file_md5_path, "wt") as fd:
+                    fd.write(share_code_md5)
+                return share_code
 
     def _load_script(self, pid: int, resume: bool = False):
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")
@@ -303,6 +363,9 @@ class FridaApplication:
             codes.append("Log.setLevel(Log.warning);")
         elif logger.isEnabledFor(logging.ERROR):
             codes.append("Log.setLevel(Log.error);")
+
+        if self._share_code is not None:
+            codes.append(self._share_code)
 
         if self._user_script is not None:
             codes.append(self._read_script(self._user_script))
@@ -586,4 +649,3 @@ class FridaApplication:
         logger.info(f"Session detached: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
         if len(self._sessions) == 0:
             self.stop()
-

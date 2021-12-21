@@ -26,10 +26,16 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import contextlib
 import functools
 import os
 import subprocess
+import time
 from collections import Iterable
+from urllib.request import urlopen, Request
+
+from filelock import Timeout, FileLock
+from tqdm import tqdm
 
 __module__ = __name__  # used by Proxy class body
 
@@ -313,12 +319,10 @@ def exec(*args, **kwargs) -> (subprocess.Popen, str, str):
     :param args: 参数
     :return: 子进程
     """
-    comm_kwargs = {
-        "input": kwargs.pop("input", None),
-        "timeout": kwargs.pop("timeout", None)
-    }
+    input = kwargs.pop("input", None)
+    timeout = kwargs.pop("timeout", None)
     process = popen(*args, **kwargs)
-    out, err = process.communicate(**comm_kwargs)
+    out, err = process.communicate(input=input, timeout=timeout)
     return process, out, err
 
 
@@ -544,59 +548,90 @@ def cookie_to_dict(cookie):
     return cookies
 
 
-def download(url: str, path: str, proxies=None) -> int:
+def download(url: str, path: str, user_agent=None, timeout=None) -> None:
     """
     从指定url下载文件
     :param url: 下载链接
     :param path: 保存路径
-    :return: 文件大小
+    :param user_agent: 下载请求头ua
+    :param timeout: 超时时间
     """
-    from urllib.request import urlopen, Request
-    from tqdm import tqdm
+
+    # 这个import放在这里，避免递归import
     from linktools import config
 
-    import contextlib
+    deadline = None
+    if timeout is not None:
+        deadline = time.time() + timeout
 
-    dir_path = os.path.dirname(path)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    tmp_path = path + ".download"
+    # 如果文件存在，就不下载了
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        return
 
-    offset = 0
-    if os.path.exists(tmp_path):
-        offset = os.path.getsize(tmp_path)
+    lock_path = path + ".lock"
+    lock = FileLock(lock_path)
 
-    with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=os.path.split(url)[1]) as t:
+    try:
+        lock.acquire(timeout=timeout, poll_interval=1)
 
-        request_headers = {
-            "User-Agent": config["SETTING_DOWNLOAD_USER_AGENT"],
-            "Range": f"bytes={offset}-"
-        }
+        # 这时候文件存在，说明在上锁期间下载完了
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            return
 
-        with contextlib.closing(urlopen(Request(url, headers=request_headers))) as fp:
+        # 下载之前先把目录创建好
+        dir_path = os.path.dirname(path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
-            response_headers = fp.info()
-            if "content-length" in response_headers:
-                t.total = offset + int(response_headers["Content-Length"])
+        offset = 0
+        download_path = path + ".download"
+        # 如果文件存在，则继续上一次下载
+        if os.path.exists(download_path):
+            offset = os.path.getsize(download_path)
 
-            with open(tmp_path, 'ab') as tfp:
-                bs = 1024 * 8
-                read = 0
+        with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=os.path.split(url)[1]) as t:
 
-                t.update(offset + read - t.n)
+            headers = {
+                "User-Agent": user_agent or config["SETTING_DOWNLOAD_USER_AGENT"],
+                "Range": f"bytes={offset}-"
+            }
 
-                while True:
-                    block = fp.read(bs)
-                    if not block:
-                        break
-                    read += len(block)
-                    tfp.write(block)
+            kwargs = dict()
+            kwargs["url"] = Request(url, headers=headers)
+
+            # 根据用户传入超时时间计算得到urlopen超时时间
+            if deadline is not None:
+                kwargs["timeout"] = deadline - time.time()
+
+            with contextlib.closing(urlopen(**kwargs)) as fp:
+
+                response_headers = fp.info()
+                if "content-length" in response_headers:
+                    t.total = offset + int(response_headers["Content-Length"])
+
+                with open(download_path, 'ab') as tfp:
+                    bs = 1024 * 8
+                    read = 0
 
                     t.update(offset + read - t.n)
 
-    size = os.path.getsize(tmp_path)
-    if size <= 0:
-        raise RuntimeError(f"download error: {url}")
-    os.rename(tmp_path, path)
+                    while True:
+                        block = fp.read(bs)
+                        if not block:
+                            break
+                        read += len(block)
+                        tfp.write(block)
 
-    return size
+                        t.update(offset + read - t.n)
+
+        if os.path.getsize(download_path) <= 0:
+            raise RuntimeError(f"download error: {url}")
+
+        os.rename(download_path, path)
+
+    except Timeout as e:
+        raise TimeoutError(e)
+
+    finally:
+        lock.release(True)
+        os.remove(lock.lock_file)

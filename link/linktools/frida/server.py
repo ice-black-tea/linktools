@@ -30,10 +30,11 @@ import fnmatch
 import lzma
 import os
 import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path, PosixPath
-from typing import Union, Optional
+from typing import Optional
 
 import _frida
 import frida
@@ -125,7 +126,7 @@ class FridaAndroidServer(FridaServer):
         # frida server文件相关参数
         self._download_url = self.config["url"]
         # local: {storage_path}/data/frida/frida-server-xxx
-        self._local_path = Path(resource.get_data_dir("frida", create=True)) / self.config["name"]
+        self._local_path = Path(resource.get_data_path("frida", self.config["name"], create_parent=True))
         # android: {storage_path}/frida/frida-server-xxx
         self._remote_temp_path = PosixPath(self._device.get_storage_path()) / "frida" / self.config["name"]
         # android: /data/local/tmp/fs-xxx
@@ -139,17 +140,6 @@ class FridaAndroidServer(FridaServer):
         config["url"] = config["url"].format(**config)
         config["name"] = config["name"].format(**config)
         return config
-
-    @staticmethod
-    def _start(device: adb.Device, remote_path: str, remote_port: Union[str, int]):
-        try:
-            device.sudo(
-                remote_path,
-                "-l", f"0.0.0.0:{remote_port}",
-                capture_output=False
-            )
-        except Exception as e:
-            logger.error(f"Frida server stop: {e}", tag="[!]", fore=Fore.RED)
 
     def start(self) -> bool:
         """
@@ -171,6 +161,9 @@ class FridaAndroidServer(FridaServer):
             args=(
                 self._remote_path.as_posix(),
                 "-l", f"0.0.0.0:{self._remote_port}",
+            ),
+            kwargs=dict(
+                stdin=subprocess.PIPE,
             ),
             daemon=True
         ).start()
@@ -197,7 +190,7 @@ class FridaAndroidServer(FridaServer):
             os.remove(tmp_file)
 
         logger.info(f"Push frida server to {self._remote_path}", tag="[*]")
-        self._device.push(self._local_path, self._remote_temp_path.as_posix(), capture_output=False)
+        self._device.push(str(self._local_path), self._remote_temp_path.as_posix(), capture_output=False)
         self._device.sudo("mv", self._remote_temp_path.as_posix(), self._remote_path.as_posix(), capture_output=False)
         self._device.sudo(f"chmod 755 {self._remote_path}")
 

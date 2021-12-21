@@ -52,7 +52,9 @@ export class AndroidHelper extends Base {
                 const arraysClass = Java.use("java.util.Arrays");
                 JavaHelper.hookMethods("com.android.org.conscrypt.TrustManagerImpl", "checkServerTrusted", function (obj, args) {
                     Log.d('Bypassing TrustManagerImpl checkServerTrusted');
-                    if (this.returnType.type == "pointer" && this.returnType.className == "java.util.List") {
+                    if (this.returnType.type == 'void') {
+                        return;
+                    } else if (this.returnType.type == "pointer" && this.returnType.className == "java.util.List") {
                         return arraysClass.asList(args[0]);
                     }
                 });
@@ -521,16 +523,6 @@ export class AndroidHelper extends Base {
             // when the Android app uses some uncommon SSL Pinning methods or an heavily //
             // code obfuscation. Inspired by an idea of: https://github.com/httptoolkit  //
             ///////////////////////////////////////////////////////////////////////////////
-            function rudimentaryFix(typeName) {
-                // This is a improvable rudimentary fix, if not works you can patch it manually
-                if (typeName === undefined || typeName == 'void') {
-                    return;
-                } else if (typeName === 'boolean') {
-                    return true;
-                } else {
-                    return null;
-                }
-            }
             try {
                 JavaHelper.hookMethods("javax.net.ssl.SSLPeerUnverifiedException", "$init", function (obj, args) {
 
@@ -546,7 +538,14 @@ export class AndroidHelper extends Base {
                     var methodName = callingFunctionStack.getMethodName();
 
                     JavaHelper.hookMethods(className, methodName, function (obj, args) {
-                        return rudimentaryFix(this.returnType.type)
+                        // This is a improvable rudimentary fix, if not works you can patch it manually
+                        if (this.returnType.type == 'void') {
+                            return;
+                        } else if (this.returnType.type === 'boolean') {
+                            return true;
+                        } else {
+                            return null;
+                        }
                     });
 
                     return this.apply(obj, args);
