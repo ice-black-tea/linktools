@@ -87,25 +87,6 @@ class FridaServer(utils.Proxy):  # proxy for frida.core.Device
                     return process
         raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}', name '{process_name}'")
 
-    def get_processes(self, package_name: str = None) -> ["_frida.Process"]:
-        """
-        根据包名匹配进程名
-        :param package_name: 进程名（支持正则）
-        :return: 进程列表
-        """
-        try:
-            all_processes = self.enumerate_processes()
-            if package_name is None:
-                return all_processes
-            processes = []
-            for process in all_processes:
-                if self.fix_package_name(process.name) == package_name:
-                    processes.append(process)
-            return processes
-        except Exception as e:
-            logger.error(e, tag="[!]", fore=Fore.RED)
-            return []
-
     def __enter__(self):
         self.start()
         return self

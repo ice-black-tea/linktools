@@ -86,7 +86,7 @@ class Reactor(object):
                         work()
                     except frida.OperationCancelledError:
                         pass
-                    except Exception as e:
+                    except BaseException as e:
                         if self._on_error is not None:
                             self._on_error(e, traceback.format_exc())
 
@@ -199,6 +199,8 @@ class FridaApplication:
         self.device: frida.core.Device = device
 
         self._stop_requested = threading.Event()
+        self._stop_event = threading.Event()
+
         self._reactor = Reactor(
             run_until_return=self._run,
             on_stop=self._on_stop,
@@ -248,10 +250,13 @@ class FridaApplication:
 
     def run(self):
         try:
+            self._stop_event.clear()
+            self._stop_requested.clear()
             self._monitor_all()
             self._reactor.run()
         finally:
             self._demonitor_all()
+            self._stop_event.set()
 
     def _run(self, reactor):
         try:
@@ -263,7 +268,7 @@ class FridaApplication:
         return not self._stop_requested.wait(0)
 
     def wait(self, timeout=None):
-        return self._stop_requested.wait(timeout)
+        return self._stop_event.wait(timeout)
 
     def stop(self):
         self._stop_requested.set()
@@ -498,12 +503,12 @@ class FridaApplication:
         self.on_stop()
 
     def on_stop(self):
-        logger.debug("Stop frida application", tag="[✔]")
+        logger.debug("Application stopped", tag="[✔]")
 
     def on_error(self, exc, traceback):
-        logger.error(f"Unhandled exception: {exc.__class__.__name__}{os.linesep}{traceback}",
-                     tag="[!]", fore=Fore.RED)
-        # self.stop()
+        logger.error(f"Unhandled exception: {exc.__class__.__name__}{os.linesep}{traceback}", tag="[!]", fore=Fore.RED)
+        if isinstance(exc, (KeyboardInterrupt, frida.TransportError, frida.ServerNotRunningError)):
+            self.stop()
 
     def on_output(self, pid: int, fd, data):
         logger.debug(f"Output: pid={pid}, fd={fd}, data={data}", tag="[✔]")

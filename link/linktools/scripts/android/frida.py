@@ -124,7 +124,7 @@ def main():
                         app.load_script(target_process.pid)
                         target_pids.add(target_process.pid)
 
-        elif len(target_pids) == 0:
+        if len(target_pids) == 0:
             # 直接启动进程
             app.load_script(app.spawn(package), resume=True)
 
