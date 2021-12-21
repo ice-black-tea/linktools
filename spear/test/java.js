@@ -27,7 +27,7 @@ Java.perform(function () {
     JavaHelper.hookMethods("java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: true, printArgs: true}));
 
     // hook HashMap.put, print stack and args
-    // var HashMap = Java.use("java.util.HashMap");
+    var HashMap = Java.use("java.util.HashMap");
     HashMap.put.implementation = function() {
         var ret = JavaHelper.callMethod(this, arguments);
         JavaHelper.printStack();
