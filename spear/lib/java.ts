@@ -54,7 +54,7 @@ export class JavaHelper extends Base {
      * @returns 类对象
      */
     findClass<T extends Java.Members<T> = {}>(className: string, classloader: Java.Wrapper = void 0): Java.Wrapper<T> {
-        if (classloader !== void 0) {
+        if (classloader !== void 0 && classloader != null) {
             var originClassloader = Java.classFactory.loader;
             try {
                 Reflect.set(Java.classFactory, "loader", classloader);
@@ -63,6 +63,9 @@ export class JavaHelper extends Base {
                 Reflect.set(Java.classFactory, "loader", originClassloader);
             }
         } else {
+            if (Java.androidVersion < "7" ) {
+                return Java.use(className);
+            }
             var error = null;
             var loaders = Java.enumerateClassLoadersSync();
             for (var i in loaders) {
