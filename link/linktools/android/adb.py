@@ -31,7 +31,7 @@ import re
 import subprocess
 
 import linktools
-from linktools import __name__ as module_name, utils, resource, tools
+from linktools import __name__ as module_name, utils, resource, tools, logger
 from linktools.decorator import cached_property
 from .struct import Package
 
@@ -297,91 +297,119 @@ class Device(object):
                 raise AdbError(result[begin:])
         return result
 
-    def get_prop(self, prop: str, timeout=None) -> str:
+    def get_prop(self, prop: str, **kwargs) -> str:
         """
         获取属性值
         :param prop: 属性名
-        :param timeout: 超时时间
         :return: 属性值
         """
-        return self.shell("getprop", prop, timeout=timeout).rstrip()
+        if "capture_output" in kwargs:
+            logger.warning("invalid parameter capture_output, ignored!")
+            kwargs["capture_output"] = True
 
-    def set_prop(self, prop: str, value: str, timeout=None) -> str:
+        return self.shell("getprop", prop, **kwargs).rstrip()
+
+    def set_prop(self, prop: str, value: str, **kwargs) -> str:
         """
         设置属性值
         :param prop: 属性名
         :param value: 属性值
-        :param timeout: 超时时间
         :return: adb输出结果
         """
-        return self.shell("setprop", prop, value, timeout=timeout).rstrip()
+        args = ["setprop", prop, value]
+        return self.shell(*args, **kwargs).rstrip()
 
-    def kill(self, package_name) -> str:
+    def kill(self, package_name, **kwargs) -> str:
         """
         关闭进程
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
         package_name = self.extract_package_name(package_name)
-        return self.shell("am", "kill", package_name).rstrip()
+        args = ["am", "kill", package_name]
+        return self.shell(*args, **kwargs).rstrip()
 
-    def force_stop(self, package_name) -> str:
+    def force_stop(self, package_name, **kwargs) -> str:
         """
         关闭进程
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
         package_name = self.extract_package_name(package_name)
-        return self.shell("am", "force-stop", package_name).rstrip()
+        args = ["am", "force-stop", package_name]
+        return self.shell(*args, **kwargs).rstrip()
 
-    def is_file_exist(self, path) -> bool:
+    def is_file_exist(self, path, **kwargs) -> bool:
         """
         文件是否存在
         :param path: 文件路径
         :return: 是否存在
         """
-        result = self.shell("[", "-a", path, "]", "&&", "echo", "-n ", "1")
-        return utils.bool(utils.int(result, default=0), default=False)
+        if "capture_output" in kwargs:
+            logger.warning("invalid parameter capture_output, ignored!")
+            kwargs["capture_output"] = True
 
-    def get_top_package_name(self) -> str:
+        args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
+        out = self.shell(*args, **kwargs)
+        return utils.bool(utils.int(out, default=0), default=False)
+
+    def get_top_package_name(self, **kwargs) -> str:
         """
         获取顶层包名
         :return: 顶层包名
         """
+        if "capture_output" in kwargs:
+            logger.warning("invalid parameter capture_output, ignored!")
+            kwargs["capture_output"] = True
+
+        timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
-            result = self.shell("dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1")
-            items = result.splitlines()[-1].split()
+            args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1", ]
+            out = self.shell(*args, timeout=timeout_meter.get(), **kwargs)
+            items = out.splitlines()[-1].split()
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0].rstrip()
-        # use dex instead of dumpsys
-        result = self.call_agent("common", "--top-package")
-        if not utils.is_empty(result):
-            return result
+        # use agent instead of dumpsys
+        out = self.call_agent("common", "--top-package", timeout=timeout_meter.get(), **kwargs)
+        if not utils.is_empty(out):
+            return out
         raise AdbError("can not fetch top package")
 
-    def get_top_activity_name(self) -> str:
+    def get_top_activity_name(self, **kwargs) -> str:
         """
         获取顶层activity名
         :return: 顶层activity名
         """
-        result = self.shell("dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1")
+        if "capture_output" in kwargs:
+            logger.warning("invalid parameter capture_output, ignored!")
+            kwargs["capture_output"] = True
+
+        args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
+        result = self.shell(*args, **kwargs)
         items = result.splitlines()[-1].split()
         if items is not None and len(items) >= 2:
             return items[1].rstrip()
         raise AdbError("can not fetch top activity")
 
-    def get_apk_path(self, package: str) -> str:
+    def get_apk_path(self, package: str, **kwargs) -> str:
         """
         获取apk路径
         :return: apk路径
         """
+        if "capture_output" in kwargs:
+            logger.warning("invalid parameter capture_output, ignored!")
+            kwargs["capture_output"] = True
+
+        timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
-            match = re.search(r"^.*package:[ ]*(.*)[\s\S]*$", self.shell("pm", "path", package))
+            out = self.shell("pm", "path", package, timeout=timeout_meter.get(), **kwargs)
+            match = re.search(r"^.*package:[ ]*(.*)[\s\S]*$", out)
             if match is not None:
                 return match.group(1).strip()
-        return utils.get_item(self.get_packages(package, basic_info=True), 0, "sourceDir", default="")
+        obj = self.get_packages(package, basic_info=True, timeout=timeout_meter.get(), **kwargs)
+        return utils.get_item(obj, 0, "sourceDir", default="")
 
-    def get_packages(self, *package_names, system=False, non_system=False, basic_info=False) -> [Package]:
+    def get_packages(self, *package_names, system=False, non_system=False, basic_info=False, **kwargs) -> [Package]:
         """
         获取包信息
         :param package_names: 需要匹配的所有包名，为空则匹配所有
@@ -390,6 +418,10 @@ class Device(object):
         :param basic_info: 只获取基本信息
         :return: 包信息
         """
+        if "capture_output" in kwargs:
+            logger.warning("invalid parameter capture_output, ignored!")
+            kwargs["capture_output"] = True
+
         result = []
         dex_args = ["package"]
         if not utils.is_empty(package_names):
@@ -400,7 +432,7 @@ class Device(object):
             dex_args.append("--non-system")
         if basic_info:
             dex_args.append("--basic-info")
-        objs = json.loads(self.call_agent(*dex_args, capture_output=True))
+        objs = json.loads(self.call_agent(*dex_args, **kwargs))
         for obj in objs:
             result.append(Package(obj))
         return result

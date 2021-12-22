@@ -18,6 +18,7 @@ from typing import Optional, Union
 import _frida
 import frida
 from colorama import Fore
+from filelock import FileLock
 
 from linktools import utils, resource, logger
 from linktools.decorator import cached_property
@@ -199,7 +200,7 @@ class FridaApplication:
         self.device: frida.core.Device = device
 
         self._stop_requested = threading.Event()
-        self._stop_event = threading.Event()
+        self._finished = threading.Event()
 
         self._reactor = Reactor(
             run_until_return=self._run,
@@ -226,15 +227,13 @@ class FridaApplication:
         self._last_change_id = 0
         self._monitored_files = {}
 
-        self._init()
-
-    def _init(self):
-
         self.spawn = self.device.spawn
         self.resume = self.device.resume
         self.enumerate_applications = self.device.enumerate_applications
         self.enumerate_processes = self.device.enumerate_processes
         self.get_frontmost_application = self.device.get_frontmost_application
+
+    def _init(self):
 
         self.device.on("spawn-added", lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start())
         self.device.on("spawn-removed", lambda spawn: self._reactor.schedule(self.on_spawn_removed))
@@ -250,13 +249,14 @@ class FridaApplication:
 
     def run(self):
         try:
-            self._stop_event.clear()
+            self._finished.clear()
             self._stop_requested.clear()
+            self._init()
             self._monitor_all()
             self._reactor.run()
         finally:
             self._demonitor_all()
-            self._stop_event.set()
+            self._finished.set()
 
     def _run(self, reactor):
         try:
@@ -265,10 +265,10 @@ class FridaApplication:
             self._stop_requested.set()
 
     def is_running(self):
-        return not self._stop_requested.wait(0)
+        return not self._finished.wait(0)
 
     def wait(self, timeout=None):
-        return self._stop_event.wait(timeout)
+        return self._finished.wait(timeout)
 
     def stop(self):
         self._stop_requested.set()
@@ -313,42 +313,45 @@ class FridaApplication:
         file_name = utils.get_md5(self._share_script_url)
         file_dir = resource.get_data_dir("frida", "share_script", create=True)
         file_path = os.path.join(file_dir, file_name)
-        if not self._share_script_cached or not os.path.exists(file_path):
-            if os.path.exists(file_path):
-                logger.info(f"Remove share script file cache: {file_path}", tag="[*]")
-                os.remove(file_path)
-            logger.info(f"Download share script file: {self._share_script_url}", tag="[*]")
-            utils.download(self._share_script_url, file_path)
 
-        if self._share_script_trusted:
-            return self._read_script(file_path)
+        with FileLock(file_path + ".share.lock"):  # 文件锁，避免多进程同时操作
 
-        file_md5 = ""
-        file_md5_path = os.path.join(file_dir, file_name + ".md5")
-        if os.path.exists(file_md5_path):
-            with open(file_md5_path, "rt") as fd:
-                file_md5 = fd.read()
+            if not self._share_script_cached or not os.path.exists(file_path):
+                if os.path.exists(file_path):
+                    logger.info(f"Remove share script file cache: {file_path}", tag="[*]")
+                    os.remove(file_path)
+                logger.info(f"Download share script file: {self._share_script_url}", tag="[*]")
+                utils.download(self._share_script_url, file_path)
 
-        share_code = self._read_script(file_path)
-        share_code_md5 = utils.get_md5(share_code)
-        if file_md5 == share_code_md5:
-            return share_code
+            if self._share_script_trusted:
+                return self._read_script(file_path)
 
-        logger.warning(
-            f"This is the first time you're running this particular snippet, or the snippet's source code has changed."
-            f"{os.linesep}Url: {self._share_script_url}"
-            f"{os.linesep}Original file md5: {file_md5}"
-            f"{os.linesep}Current file md5: {share_code_md5}",
-            tag="[!]"
-        )
-        while True:
-            response = input("Are you sure you'd like to trust it? [y/N]: ")
-            if response.lower() in ('n', 'no') or response == '':
-                return None
-            if response.lower() in ('y', 'yes'):
-                with open(file_md5_path, "wt") as fd:
-                    fd.write(share_code_md5)
+            file_md5 = ""
+            file_md5_path = os.path.join(file_dir, file_name + ".md5")
+            if os.path.exists(file_md5_path):
+                with open(file_md5_path, "rt") as fd:
+                    file_md5 = fd.read()
+
+            share_code = self._read_script(file_path)
+            share_code_md5 = utils.get_md5(share_code)
+            if file_md5 == share_code_md5:
                 return share_code
+
+            logger.warning(
+                f"This is the first time you're running this particular snippet, or the snippet's source code has changed."
+                f"{os.linesep}Url: {self._share_script_url}"
+                f"{os.linesep}Original file md5: {file_md5}"
+                f"{os.linesep}Current file md5: {share_code_md5}",
+                tag="[!]"
+            )
+            while True:
+                response = input("Are you sure you'd like to trust it? [y/N]: ")
+                if response.lower() in ('n', 'no') or response == '':
+                    return None
+                if response.lower() in ('y', 'yes'):
+                    with open(file_md5_path, "wt") as fd:
+                        fd.write(share_code_md5)
+                    return share_code
 
     def _load_script(self, pid: int, resume: bool = False):
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")

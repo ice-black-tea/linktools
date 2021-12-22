@@ -32,6 +32,7 @@ import os
 import subprocess
 import time
 from collections import Iterable
+from typing import Union
 from urllib.request import urlopen, Request
 
 from filelock import Timeout, FileLock
@@ -548,6 +549,26 @@ def cookie_to_dict(cookie):
     return cookies
 
 
+class TimeoutMeter:
+
+    def __init__(self, timeout: Union[float, None]):
+        self._deadline = None
+        if timeout is not None:
+            self._deadline = time.time() + timeout
+
+    def get(self) -> Union[float, None]:
+        timeout = None
+        if self._deadline is not None:
+            timeout = self._deadline - time.time()
+        return timeout
+
+    def check(self) -> bool:
+        if self._deadline is not None:
+            if time.time() > self._deadline:
+                return False
+        return True
+
+
 def download(url: str, path: str, user_agent=None, timeout=None) -> None:
     """
     从指定url下载文件
@@ -560,19 +581,17 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
     # 这个import放在这里，避免递归import
     from linktools import config
 
-    deadline = None
-    if timeout is not None:
-        deadline = time.time() + timeout
-
     # 如果文件存在，就不下载了
     if os.path.exists(path) and os.path.getsize(path) > 0:
         return
+
+    timeout_meter = TimeoutMeter(timeout)
 
     lock_path = path + ".lock"
     lock = FileLock(lock_path)
 
     try:
-        lock.acquire(timeout=timeout, poll_interval=1)
+        lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
 
         # 这时候文件存在，说明在上锁期间下载完了
         if os.path.exists(path) and os.path.getsize(path) > 0:
@@ -600,8 +619,9 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
             kwargs["url"] = Request(url, headers=headers)
 
             # 根据用户传入超时时间计算得到urlopen超时时间
-            if deadline is not None:
-                kwargs["timeout"] = deadline - time.time()
+            timeout = timeout_meter.get()
+            if timeout is not None:
+                kwargs["timeout"] = timeout
 
             with contextlib.closing(urlopen(**kwargs)) as fp:
 
