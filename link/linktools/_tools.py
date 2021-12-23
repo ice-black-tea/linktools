@@ -112,8 +112,7 @@ class GeneralTool(object):
         if not utils.is_empty(config["unpack_path"]):
             paths.append(config["unpack_path"])
         config["root_path"] = resource.get_data_dir(
-            *paths,
-            create=True
+            *paths
         )
 
         # file path: tools/{unpack_path}/{target_path}
@@ -166,6 +165,8 @@ class GeneralTool(object):
             file = resource.get_temp_path(quote(self.download_url, safe=''))
             logger.info("download: {}".format(self.download_url))
             utils.download(self.download_url, file)
+            if not os.path.exists(self.root_path):
+                os.makedirs(self.root_path)
             if not utils.is_empty(self.unpack_path):
                 shutil.unpack_archive(file, self.root_path)
                 os.remove(file)
