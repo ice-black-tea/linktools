@@ -38,7 +38,6 @@ from typing import Optional
 
 import _frida
 import frida
-from colorama import Fore
 
 import linktools
 from linktools import resource, logger, utils
@@ -101,8 +100,8 @@ class FridaAndroidServer(FridaServer):
         self._device = adb.Device(device_id=device_id)
         self._local_port = local_port
         self._remote_port = remote_port
-        self._local_address = f"localhost:{self._local_port}"
-        super().__init__(frida.get_device_manager().add_remote_device(self._local_address))
+        self._forward_address = f"localhost:{self._local_port}"
+        super().__init__(frida.get_device_manager().add_remote_device(self._forward_address))
 
         # frida server文件相关参数
         self._download_url = self.config["url"]
@@ -135,7 +134,6 @@ class FridaAndroidServer(FridaServer):
             return True
 
         logger.info("Start frida server ...", tag="[*]")
-
         self._prepare()
         threading.Thread(
             target=self._device.sudo,

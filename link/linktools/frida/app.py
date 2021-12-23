@@ -179,8 +179,6 @@ class FridaApplication:
     ----------------------------------------------------------------------
     """
 
-    _share_script_trusted_path = utils.lazy_load(resource.get_data_path, "frida", "script_trusted.json")
-
     def __init__(
             self,
             device: Union[frida.core.Device, "FridaServer"],
@@ -318,7 +316,7 @@ class FridaApplication:
 
             if not self._share_script_cached or not os.path.exists(file_path):
                 if os.path.exists(file_path):
-                    logger.info(f"Remove share script file cache: {file_path}", tag="[*]")
+                    logger.debug(f"Remove share script file cache: {file_path}", tag="[*]")
                     os.remove(file_path)
                 logger.info(f"Download share script file: {self._share_script_url}", tag="[*]")
                 utils.download(self._share_script_url, file_path)
@@ -338,14 +336,15 @@ class FridaApplication:
                 return share_code
 
             logger.warning(
-                f"This is the first time you're running this particular snippet, or the snippet's source code has changed."
-                f"{os.linesep}Url: {self._share_script_url}"
-                f"{os.linesep}Original file md5: {file_md5}"
-                f"{os.linesep}Current file md5: {share_code_md5}",
+                f"This is the first time you're running this particular snippet, "
+                f"or the snippet's source code has changed.{os.linesep}"
+                f"Url: {self._share_script_url}{os.linesep}"
+                f"Original md5: {file_md5}{os.linesep}"
+                f"Current md5: {share_code_md5}",
                 tag="[!]"
             )
             while True:
-                response = input("Are you sure you'd like to trust it? [y/N]: ")
+                response = input(">>> Are you sure you'd like to trust it? [y/N]: ")
                 if response.lower() in ('n', 'no') or response == '':
                     return None
                 if response.lower() in ('y', 'yes'):

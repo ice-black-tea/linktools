@@ -144,11 +144,11 @@ class Device(object):
         :return: uid
         """
         default = -1
-        result = self.shell("echo", "-n", "${USER_ID}")
-        uid = utils.int(result, default=default)
+        out = self.shell("echo", "-n", "${USER_ID}")
+        uid = utils.int(out, default=default)
         if uid != default:
             return uid
-        raise AdbError("unknown adb uid: %s" % result)
+        raise AdbError("unknown adb uid: %s" % out)
 
     def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
         """
@@ -202,7 +202,7 @@ class Device(object):
             capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
-        args = ["-s", self.id, "uninstall", package_name]
+        args = ["-s", self.id, "uninstall", self.extract_package_name(package_name)]
         return Adb.exec(*args, **kwargs)
 
     def push(self, src: str, dst: str, **kwargs) -> str:
@@ -303,9 +303,8 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        if "capture_output" in kwargs:
-            logger.warning("invalid parameter capture_output, ignored!")
-            kwargs["capture_output"] = True
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")
 
         return self.shell("getprop", prop, **kwargs).rstrip()
 
@@ -325,8 +324,7 @@ class Device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        package_name = self.extract_package_name(package_name)
-        args = ["am", "kill", package_name]
+        args = ["am", "kill", self.extract_package_name(package_name)]
         return self.shell(*args, **kwargs).rstrip()
 
     def force_stop(self, package_name, **kwargs) -> str:
@@ -335,8 +333,7 @@ class Device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        package_name = self.extract_package_name(package_name)
-        args = ["am", "force-stop", package_name]
+        args = ["am", "force-stop", self.extract_package_name(package_name)]
         return self.shell(*args, **kwargs).rstrip()
 
     def is_file_exist(self, path, **kwargs) -> bool:
@@ -345,9 +342,8 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        if "capture_output" in kwargs:
-            logger.warning("invalid parameter capture_output, ignored!")
-            kwargs["capture_output"] = True
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")
 
         args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
         out = self.shell(*args, **kwargs)
@@ -358,9 +354,8 @@ class Device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        if "capture_output" in kwargs:
-            logger.warning("invalid parameter capture_output, ignored!")
-            kwargs["capture_output"] = True
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -380,9 +375,8 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        if "capture_output" in kwargs:
-            logger.warning("invalid parameter capture_output, ignored!")
-            kwargs["capture_output"] = True
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")
 
         args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
         result = self.shell(*args, **kwargs)
@@ -396,9 +390,8 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        if "capture_output" in kwargs:
-            logger.warning("invalid parameter capture_output, ignored!")
-            kwargs["capture_output"] = True
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -418,9 +411,8 @@ class Device(object):
         :param basic_info: 只获取基本信息
         :return: 包信息
         """
-        if "capture_output" in kwargs:
-            logger.warning("invalid parameter capture_output, ignored!")
-            kwargs["capture_output"] = True
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")
 
         result = []
         dex_args = ["package"]
