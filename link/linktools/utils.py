@@ -591,16 +591,16 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
     lock = FileLock(lock_path)
 
     try:
+        # 下载之前先把目录创建好
+        dir_path = os.path.dirname(path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
         lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
 
         # 这时候文件存在，说明在上锁期间下载完了
         if os.path.exists(path) and os.path.getsize(path) > 0:
             return
-
-        # 下载之前先把目录创建好
-        dir_path = os.path.dirname(path)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
 
         offset = 0
         download_path = path + ".download"
