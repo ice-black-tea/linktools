@@ -1,5 +1,3 @@
-import { Base, Log } from "./base";
-
 /**
  *  frida class
  *  └┬─ $classWrapper
@@ -24,18 +22,40 @@ import { Base, Log } from "./base";
 /**
  *  用于方便调用frida的java方法
  */
-export class JavaHelper extends Base {
+export class JavaHelper {
 
-    get javaClass(): Java.Wrapper {
+    get classClass(): Java.Wrapper {
         return Java.use("java.lang.Class");
     }
 
-    get javaString(): Java.Wrapper {
+    get stringClass(): Java.Wrapper {
         return Java.use("java.lang.String");
     }
 
-    get javaThrowable(): Java.Wrapper {
+    get threadClass(): Java.Wrapper {
+        return Java.use("java.lang.Thread");
+    }
+
+    get throwableClass(): Java.Wrapper {
         return Java.use("java.lang.Throwable");
+    }
+
+    get uriClass(): Java.Wrapper {
+        return Java.use("android.net.Uri");
+    }
+
+    get urlClass(): Java.Wrapper {
+        return Java.use("java.net.URL");
+    }
+
+    get mapClass(): Java.Wrapper {
+        return Java.use("java.util.Map");
+    }
+
+    getApplicationContext(): Java.Wrapper {
+        const activityThreadClass = Java.use('android.app.ActivityThread');
+        const contextClass = Java.use('android.content.Context');
+        return Java.cast(activityThreadClass.currentApplication().getApplicationContext(), contextClass);
     }
 
     /**
@@ -63,7 +83,7 @@ export class JavaHelper extends Base {
                 Reflect.set(Java.classFactory, "loader", originClassloader);
             }
         } else {
-            if (Java.androidVersion < "7" ) {
+            if (Java.androidVersion < "7") {
                 return Java.use(className);
             }
             var error = null;
@@ -88,19 +108,28 @@ export class JavaHelper extends Base {
      * 为method添加properties
      * @param method 方法对象
      */
-    $fixMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>): void {
-        method.toString = function () {
-            var ret = this.returnType.className;
-            var name = (this.holder.$className || this.holder.__name__) + "." + this.methodName;
-            var args = "";
-            if (this.argumentTypes.length > 0) {
-                args = this.argumentTypes[0].className;
-                for (var i = 1; i < this.argumentTypes.length; i++) {
-                    args = args + ", " + this.argumentTypes[i].className;
+    private $fixMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>): void {
+        Object.defineProperties(method, {
+            className: {
+                get() {
+                    return this.holder.$className || this.holder.__name__;
+                } 
+            },
+            toJson: {
+                value: function () {
+                    var ret = this.returnType.className;
+                    var name = this.className + "." + this.methodName;
+                    var args = "";
+                    if (this.argumentTypes.length > 0) {
+                        args = this.argumentTypes[0].className;
+                        for (var i = 1; i < this.argumentTypes.length; i++) {
+                            args = args + ", " + this.argumentTypes[i].className;
+                        }
+                    }
+                    return ret + " " + name + "(" + args + ")";
                 }
             }
-            return ret + " " + name + "(" + args + ")";
-        };
+        });
     }
 
     /**
@@ -108,17 +137,17 @@ export class JavaHelper extends Base {
      * @param method 方法对象
      * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
      */
-    $hookMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>, impl: (obj: Java.Wrapper<T>, args: any[]) => any = null): void {
+    private $hookMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>, impl: (obj: Java.Wrapper<T>, args: any[]) => any = null): void {
         if (impl != null) {
             method.implementation = function () {
                 return impl.call(method, this, arguments);
             };
             this.$fixMethod(method);
-            Log.i("Hook method: " + method);
+            Log.i("Hook method: " + this.toString(method));
         } else {
             method.implementation = null;
             this.$fixMethod(method);
-            Log.i("Unhook method: " + method);
+            Log.i("Unhook method: " + this.toString(method));
         }
     }
 
@@ -181,11 +210,11 @@ export class JavaHelper extends Base {
     }
 
     /**
-     * hook指定类的所有方法
+     * hook指定类的所有构造方法
      * @param clazz java类名/类对象
      * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
      */
-    hookClass<T extends Java.Members<T> = {}>(
+    hookAllConstructors<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
         impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
     ): void {
@@ -193,11 +222,22 @@ export class JavaHelper extends Base {
         if (typeof (targetClass) === "string") {
             targetClass = this.findClass(targetClass);
         }
-
-        /* hook constructor*/
         this.hookMethods(targetClass, "$init", impl);
+    }
 
-        /* hook method */
+    /**
+     * hook指定类的所有成员方法
+     * @param clazz java类名/类对象
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    hookAllMethods<T extends Java.Members<T> = {}>(
+        clazz: string | Java.Wrapper<T>,
+        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+    ): void {
+        var targetClass: any = clazz;
+        if (typeof (targetClass) === "string") {
+            targetClass = this.findClass(targetClass);
+        }
         var methodNames = [];
         var targetJavaClass = targetClass.class;
         while (targetJavaClass != null && targetJavaClass.getName() !== "java.lang.Object") {
@@ -210,8 +250,25 @@ export class JavaHelper extends Base {
                     this.hookMethods(targetClass, methodName, impl);
                 }
             }
-            targetJavaClass = Java.cast(targetJavaClass.getSuperclass(), this.javaClass);
+            targetJavaClass = Java.cast(targetJavaClass.getSuperclass(), this.classClass);
         }
+    }
+
+    /**
+     * hook指定类的所有方法（构造、成员方法）
+     * @param clazz java类名/类对象
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     */
+    hookClass<T extends Java.Members<T> = {}>(
+        clazz: string | Java.Wrapper<T>,
+        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+    ): void {
+        var targetClass: any = clazz;
+        if (typeof (targetClass) === "string") {
+            targetClass = this.findClass(targetClass);
+        }
+        this.hookAllConstructors(targetClass, impl);
+        this.hookAllMethods(targetClass, impl);
     }
 
     /**
@@ -229,27 +286,78 @@ export class JavaHelper extends Base {
     }
 
     /**
-     * 获取hook实现，调用愿方法并展示栈和返回值
+     * 获取hook实现，调用原方法并展示栈和返回值
      * @param options hook选项，如：{printStack: true, printArgs: true}
      * @returns hook实现
      */
     getHookImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
-        var helper = this;
-        var printStack = options["printStack"] || false;
-        var printArgs = options["printArgs"] || false;
+        const javaHelperThis = this;
+        const stackOption = options["printStack"] || false;
+        const argsOption = options["printArgs"] || false;
         return function (obj, args) {
-            var message = {};
-            var ret = this.apply(obj, args);
-            if (printStack !== false) {
-                message = Object.assign(message, helper.$makeStackObject(this));
+            let message = {};
+            const ret = this.apply(obj, args);
+            if (stackOption !== false) {
+                message = Object.assign(message, javaHelperThis.$makeStackObject(this));
             }
-            if (printArgs !== false) {
-                message = Object.assign(message, helper.$makeArgsObject(args, ret, this));
+            if (argsOption !== false) {
+                message = Object.assign(message, javaHelperThis.$makeArgsObject(args, ret, this));
             }
             if (Object.keys(message).length !== 0) {
                 Log.i(message);
             }
             return ret;
+        };
+    }
+
+    /**
+     * 获取hook实现，调用原方法并发送调用事件
+     * @param options hook选项，如：{stack: true, args: true, thread: true}
+     * @returns hook实现
+     */
+    getEventImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
+        const javaHelperThis = this;
+
+        let threadOption = false;
+        let stackOption = false;
+        let argsOption = false;
+        const extras = {};
+
+        for (const key in options) {
+            if (key == "thread") {
+                threadOption = options[key];
+            } else if (key == "stack") {
+                stackOption = options[key];
+            } else if (key == "args") {
+                argsOption = options[key];
+            } else {
+                extras[key] = options[key];
+            }
+        }
+
+        return function (obj, args) {
+            const result = this.apply(obj, args);
+            const event = {
+                method_simple_name: this.methodName,
+                method_name: javaHelperThis.toString(this),
+            };
+            if (threadOption === true) {
+                event["thread_id"] = Process.getCurrentThreadId();
+                event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
+            }
+            if (argsOption === true) {
+                event["object"] = javaHelperThis.toJson(obj);
+                event["args"] = javaHelperThis.toJson(Array.prototype.slice.call(args));
+                event["result"] = javaHelperThis.toJson(result);
+            }
+            if (stackOption === true) {
+                event["stack"] = javaHelperThis.toJson(javaHelperThis.getStackTrace());
+            }
+            for (const key in extras) {
+                event[key] = extras[key];
+            }
+            send({ event: event });
+            return result;
         };
     }
 
@@ -308,10 +416,15 @@ export class JavaHelper extends Base {
      * @returns java栈对象
      */
     getStackTrace<T extends Java.Members<T> = {}>(): Java.Wrapper<T>[] {
-        return this.javaThrowable.$new().getStackTrace();
+        const result = [];
+        const elements = this.throwableClass.$new().getStackTrace();
+        for (let i = 0; i < elements.length; i++) {
+            result.push(elements[i]);
+        }
+        return result;
     }
 
-    $makeStackObject<T extends Java.Members<T> = {}>(message: string, elements: Java.Wrapper<T>[] = void 0) {
+    private $makeStackObject<T extends Java.Members<T> = {}>(message: string, elements: Java.Wrapper<T>[] = void 0) {
         if (elements === void 0) {
             elements = this.getStackTrace()
         }
@@ -340,27 +453,50 @@ export class JavaHelper extends Base {
      * @returns toString返回值
      */
     toString(obj: any): string {
-        if (obj === void 0 || obj == null || !(obj instanceof Object)) {
+        obj = this.toJson(obj);
+        if (!(obj instanceof Object)) {
+            return obj;
+        }
+        return JSON.stringify(this.toJson(obj));
+    }
+
+    toJson(obj: any): any {
+        if (!(obj instanceof Object)) {
             return obj;
         }
         if (Array.isArray(obj)) {
-            var array = [];
-            for (var i = 0; i < obj.length; i++) {
-                array.push(this.toString(obj[i]));
+            let result = [];
+            for (let i = 0; i < obj.length; i++) {
+                result.push(this.toJson(obj[i]));
             }
-            return "[" + array.toString() + "]";
+            return result;
         }
-        return this.ignoreError(function () {
-            return obj.toString();
-        }, void 0);
+        if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
+            if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
+                let result = [];
+                for (let i = 0; i < obj.length; i++) {
+                    result.push(this.toJson(obj[i]));
+                }
+                return result;
+            } else if (obj.class.hasOwnProperty("toString")) {
+                return ignoreError(() => obj.toString(), void 0);
+            }
+        }
+        if (obj.hasOwnProperty("toJson")) {
+            return ignoreError(() => obj.toJson(), void 0);
+        }
+        return obj;
     }
 
-    $makeArgsObject(args: any, ret: any, message: any) {
+
+    private $makeArgsObject(args: any, ret: any, message: any) {
         var body = "Arguments: " + message;
-        for (var i = 0; i < args.length; i++)
+        for (var i = 0; i < args.length; i++) {
             body += "\n    Arguments[" + i + "]: " + this.toString(args[i]);
-        if (ret !== void 0)
+        }
+        if (ret !== void 0) {
             body += "\n    Return: " + this.toString(ret);
+        }
         return { "arguments": body };
     }
 
@@ -376,4 +512,5 @@ export class JavaHelper extends Base {
         }
         Log.i(this.$makeArgsObject(args, ret, message));
     }
+
 }

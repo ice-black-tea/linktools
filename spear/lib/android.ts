@@ -1,15 +1,6 @@
-import { Base, Log } from "./base";
-import { JavaHelper } from "./java"
-
-export class AndroidHelper extends Base {
-
-    constructor() {
-        super();
-    }
-
+export class AndroidHelper {
 
     setWebviewDebuggingEnabled() {
-        const JavaHelper: JavaHelper = globalThis.JavaHelper;
 
         Log.i(
             '======================================================\r\n' +
@@ -38,8 +29,6 @@ export class AndroidHelper extends Base {
 
 
     bypassSslPinningLite() {
-
-        const JavaHelper: JavaHelper = globalThis.JavaHelper;
 
         Log.i(
             '======================================================\r\n' +
@@ -90,8 +79,6 @@ export class AndroidHelper extends Base {
      * Source: https://github.com/akabe1/my-FRIDA-scripts
      *************************************************************************/
     bypassSslPinning() {
-
-        const JavaHelper: JavaHelper = globalThis.JavaHelper;
 
         Log.i(
             '======================================================\r\n' +

@@ -598,6 +598,16 @@ class FridaApplication:
         if not utils.is_empty(message):
             log_fn(message, tag=tag)
 
+    def on_script_event(self, script: FridaScript, message: object, data: object):
+        """
+        脚本发送事件回调
+        :param script: frida的脚本
+        :param message: 事件消息
+        :param data: 事件数据
+        """
+        import json
+        logger.info(f"Script event: {json.dumps(message, indent=2, ensure_ascii=False)}", tag="[*]")
+
     def on_script_send(self, script: FridaScript, type: str, message: object, data: object):
         """
         脚本调用send是收到的回调，例send({trace: "xxx"}, null)
@@ -624,6 +634,11 @@ class FridaApplication:
                 log = payload.pop("log", None)
                 if log is not None:
                     self.on_script_log(script, log)
+
+                # log单独解析
+                event = payload.pop("event", None)
+                if event is not None:
+                    self.on_script_event(script, event, data)
 
                 # 解析完log，解析其他的
                 while len(payload) > 0:

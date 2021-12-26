@@ -11,15 +11,10 @@ Java.perform(function () {
     });
 
     // spdy test
-    try {
-        JavaHelper.hookMethods(
-            "anet.channel.entity.ConnType",
-            "isHttpType",
-            function (obj, args) {
-                 return true;
-            });
-    } catch {
-
-    }
+    ignoreError(() => JavaHelper.hookMethods(
+        "anet.channel.entity.ConnType",
+        "isHttpType",
+        () => true
+    ));
 
 });
