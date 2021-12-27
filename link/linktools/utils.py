@@ -26,14 +26,13 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import contextlib
 import functools
+import importlib
 import os
 import subprocess
 import time
 from collections import Iterable
 from typing import Union
-from urllib.request import urlopen, Request
 
 from filelock import Timeout, FileLock
 from tqdm import tqdm
@@ -549,17 +548,22 @@ def cookie_to_dict(cookie):
     return cookies
 
 
+def guess_file_name(url):
+    from urllib.parse import urlparse
+    return os.path.split(urlparse(url).path)[1]
+
+
 class TimeoutMeter:
 
     def __init__(self, timeout: Union[float, None]):
         self._deadline = None
-        if timeout is not None:
+        if timeout is not None and timeout >= 0:
             self._deadline = time.time() + timeout
 
     def get(self) -> Union[float, None]:
         timeout = None
         if self._deadline is not None:
-            timeout = self._deadline - time.time()
+            timeout = max(self._deadline - time.time(), 0)
         return timeout
 
     def check(self) -> bool:
@@ -567,6 +571,51 @@ class TimeoutMeter:
             if time.time() > self._deadline:
                 return False
         return True
+
+
+def _download_with_requests(url, path, headers=None, timeout=None):
+    import requests
+
+    with requests.get(url, headers=headers, stream=True, timeout=timeout) as resp:
+        bs = 1024 * 8
+        total = None
+        read = 0
+
+        if "Content-Length" in resp.headers:
+            total = int(resp.headers.get("Content-Length"))
+        yield total, read
+
+        with open(path, 'ab') as tfp:
+            for chunk in resp.iter_content(bs):
+                if chunk:
+                    read += len(chunk)
+                    tfp.write(chunk)
+                    yield total, read
+
+
+def _download_with_urllib(url, path, headers=None, timeout=None):
+    import contextlib
+    from urllib.request import urlopen, Request
+
+    with contextlib.closing(urlopen(url=Request(url, headers=headers), timeout=timeout)) as fp:
+        bs = 1024 * 8
+        total = None
+        read = 0
+
+        response_headers = fp.info()
+        if "Content-Length" in response_headers:
+            total = int(response_headers["Content-Length"])
+        yield total, read
+
+        with open(path, 'ab') as tfp:
+            read = 0
+            while True:
+                chunk = fp.read(bs)
+                if not chunk:
+                    break
+                read += len(chunk)
+                tfp.write(chunk)
+                yield total, read
 
 
 def download(url: str, path: str, user_agent=None, timeout=None) -> None:
@@ -608,41 +657,24 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
         if os.path.exists(download_path):
             offset = os.path.getsize(download_path)
 
-        with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=os.path.split(url)[1]) as t:
+        from urllib.parse import urlparse
+        with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=guess_file_name(url)) as t:
 
             headers = {
                 "User-Agent": user_agent or config["SETTING_DOWNLOAD_USER_AGENT"],
                 "Range": f"bytes={offset}-"
             }
 
-            kwargs = dict()
-            kwargs["url"] = Request(url, headers=headers)
+            try:
+                importlib.import_module("requests")
+                download_fn = _download_with_requests
+            except ModuleNotFoundError:
+                download_fn = _download_with_urllib
 
-            # 根据用户传入超时时间计算得到urlopen超时时间
-            timeout = timeout_meter.get()
-            if timeout is not None:
-                kwargs["timeout"] = timeout
-
-            with contextlib.closing(urlopen(**kwargs)) as fp:
-
-                response_headers = fp.info()
-                if "content-length" in response_headers:
-                    t.total = offset + int(response_headers["Content-Length"])
-
-                with open(download_path, 'ab') as tfp:
-                    bs = 1024 * 8
-                    read = 0
-
-                    t.update(offset + read - t.n)
-
-                    while True:
-                        block = fp.read(bs)
-                        if not block:
-                            break
-                        read += len(block)
-                        tfp.write(block)
-
-                        t.update(offset + read - t.n)
+            for total, read in download_fn(url, download_path, headers=headers, timeout=timeout_meter.get()):
+                if total is not None:
+                    t.total = offset + total
+                t.update(offset + read - t.n)
 
         if os.path.getsize(download_path) <= 0:
             raise RuntimeError(f"download error: {url}")
