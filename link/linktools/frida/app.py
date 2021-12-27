@@ -153,9 +153,8 @@ class FridaApplication:
 
         jscode = \"\"\"
             Java.perform(function () {
-                var $ = new JavaHelper();
-                $.hookMethods(
-                    "java.util.HashMap", "put", $.getHookImpl({printStack: false, printArgs: true})
+                JavaHelper.hookMethods(
+                    "java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: false, printArgs: true})
                 );
             });
         \"\"\"
