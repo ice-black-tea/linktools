@@ -111,11 +111,15 @@ export class JavaHelper {
     private $fixMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>): void {
         Object.defineProperties(method, {
             className: {
+                configurable: true,
+                enumerable: true,
                 get() {
                     return this.holder.$className || this.holder.__name__;
-                } 
+                },
             },
             toJson: {
+                configurable: true,
+                enumerable: true,
                 value: function () {
                     var ret = this.returnType.className;
                     var name = this.className + "." + this.methodName;

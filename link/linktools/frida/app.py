@@ -140,6 +140,22 @@ class FridaScript(utils.Proxy):  # proxy for frida.core.Session
         self.session: Optional[FridaSession] = None
 
 
+class FridaScriptFile(dict):
+
+    def __init__(self, filename, source):
+        super().__init__()
+        self["filename"] = filename
+        self["source"] = source
+
+    @property
+    def filename(self):
+        return self["filename"]
+
+    @property
+    def source(self):
+        return self["source"]
+
+
 # noinspection PyUnresolvedReferences
 class FridaApplication:
     """
@@ -182,11 +198,12 @@ class FridaApplication:
             self,
             device: Union[frida.core.Device, "FridaServer"],
             debug: str = False,
+            user_parameters: dict[str, any] = None,
+            user_scripts: [str] = None,
+            eval_code: str = None,
             share_script_url: str = None,
             share_script_trusted: bool = False,
             share_script_cached: bool = False,
-            user_script: str = None,
-            eval_code: str = None,
             enable_spawn_gating: bool = False,
             enable_child_gating: bool = False,
             eternalize: str = False
@@ -209,13 +226,15 @@ class FridaApplication:
         self._persist_script = resource.get_persist_path("frida.min.js")
         self._persist_debug_script = resource.get_persist_path("frida.js")
 
+        self._user_parameters = user_parameters or {}
+        self._user_scripts = user_scripts or []
+        self._eval_code = eval_code
+
         # 下拉脚本相关配置
         self._share_script_url = share_script_url.strip() if share_script_url else None
         self._share_script_trusted = share_script_trusted
         self._share_script_cached = share_script_cached
 
-        self._user_script = user_script
-        self._eval_code = eval_code
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
@@ -232,6 +251,9 @@ class FridaApplication:
 
     def _init(self):
 
+        self._finished.clear()
+        self._stop_requested.clear()
+
         self.device.on("spawn-added", lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start())
         self.device.on("spawn-removed", lambda spawn: self._reactor.schedule(self.on_spawn_removed))
         self.device.on("child-added", lambda child: self._reactor.schedule(self.on_child_added(child)))
@@ -246,8 +268,6 @@ class FridaApplication:
 
     def run(self):
         try:
-            self._finished.clear()
-            self._stop_requested.clear()
             self._init()
             self._monitor_all()
             self._reactor.run()
@@ -293,17 +313,17 @@ class FridaApplication:
         self._reactor.schedule(lambda: self._detach_session(pid))
 
     @classmethod
-    def _read_script(cls, path):
+    def _load_script_file(cls, path) -> Union[FridaScriptFile, None]:
         logger.info(f"Load script file: {path}", tag="[✔]")
         with open(path, "rb") as f:
-            return f.read().decode("utf-8")
+            return FridaScriptFile(path, f.read().decode("utf-8"))
 
     @cached_property
-    def _persist_code(self):
-        return self._read_script(self._persist_script)
+    def _persist_script_file(self) -> Union[FridaScriptFile, None]:
+        return self._load_script_file(self._persist_script)
 
     @cached_property
-    def _share_code(self):
+    def _share_script_file(self) -> Union[FridaScriptFile, None]:
         if self._share_script_url is None or len(self._share_script_url) == 0:
             return None
 
@@ -321,7 +341,7 @@ class FridaApplication:
                 utils.download(self._share_script_url, file_path)
 
             if self._share_script_trusted:
-                return self._read_script(file_path)
+                return self._load_script_file(file_path)
 
             file_md5 = ""
             file_md5_path = os.path.join(file_dir, file_name + ".md5")
@@ -329,17 +349,17 @@ class FridaApplication:
                 with open(file_md5_path, "rt") as fd:
                     file_md5 = fd.read()
 
-            share_code = self._read_script(file_path)
-            share_code_md5 = utils.get_md5(share_code)
-            if file_md5 == share_code_md5:
-                return share_code
+            script_file = self._load_script_file(file_path)
+            script_file_md5 = utils.get_md5(script_file.source)
+            if file_md5 == script_file_md5:
+                return script_file
 
             logger.warning(
                 f"This is the first time you're running this particular snippet, "
                 f"or the snippet's source code has changed.{os.linesep}"
                 f"Url: {self._share_script_url}{os.linesep}"
                 f"Original md5: {file_md5}{os.linesep}"
-                f"Current md5: {share_code_md5}",
+                f"Current md5: {script_file_md5}",
                 tag="[!]"
             )
             while True:
@@ -348,54 +368,64 @@ class FridaApplication:
                     return None
                 if response.lower() in ('y', 'yes'):
                     with open(file_md5_path, "wt") as fd:
-                        fd.write(share_code_md5)
-                    return share_code
+                        fd.write(script_file_md5)
+                    return script_file
 
     def _load_script(self, pid: int, resume: bool = False):
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")
 
-        codes = []
+        ######################################################################
+        # 初始化脚本文件
+        ######################################################################
         if self._debug:
-            codes.append(self._read_script(self._persist_debug_script))
+            script_file_entry = self._load_script_file(self._persist_debug_script)
         else:
-            codes.append(self._persist_code)
+            script_file_entry = self._persist_script_file
+
+        script_files = []
 
         # 保持脚本log输出级别同步
         if logger.isEnabledFor(logging.DEBUG):
-            codes.append("Log.setLevel(Log.debug);")
+            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.debug);"))
         elif logger.isEnabledFor(logging.INFO):
-            codes.append("Log.setLevel(Log.info);")
+            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.info);"))
         elif logger.isEnabledFor(logging.WARNING):
-            codes.append("Log.setLevel(Log.warning);")
+            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.warning);"))
         elif logger.isEnabledFor(logging.ERROR):
-            codes.append("Log.setLevel(Log.error);")
+            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.error);"))
 
-        if self._share_code is not None:
-            codes.append(self._share_code)
+        if self._share_script_file is not None:
+            script_files.append(self._share_script_file)
 
-        if self._user_script is not None:
-            codes.append(self._read_script(self._user_script))
+        for user_script in self._user_scripts:
+            script_files.append(self._load_script_file(user_script))
 
         if self._eval_code is not None:
-            codes.append(self._eval_code)
+            script_files.append(FridaScriptFile("<eval_code>", self._eval_code))
 
+        ######################################################################
+        # 附加进程，执行注入
+        ######################################################################
         session = self._attach_session(pid)
         if session is None:
             logger.warning(f"Attach session failed, skip loading script", tag="[!]", fore=Fore.RED)
             return
 
-        script = FridaScript(session.create_script(";".join(codes)))
+        script = FridaScript(session.create_script(script_file_entry.source))
         script.session = session
 
         script.on("message", lambda message, data: self.on_script_message(script, message, data))
         script.on("destroyed", lambda: self.on_script_destroyed(script))
 
         self._unload_script(pid)
-        script.load()
         session.script = script
 
-        if resume:
-            self.device.resume(pid)
+        try:
+            script.load()
+            script.exports.load_scripts(script_files, self._user_parameters)
+        finally:
+            if resume:
+                self.device.resume(pid)
 
         self._reactor.schedule(lambda: self.on_script_loaded(script))
 
@@ -473,7 +503,7 @@ class FridaApplication:
             except Exception as e:
                 logger.info(f"Failed to load script: {e}", tag="[!]", fore=Fore.RED)
 
-        paths = [self._user_script]
+        paths = [*self._user_scripts]
         if self._debug:
             paths.append(self._persist_debug_script)
 

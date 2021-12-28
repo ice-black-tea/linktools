@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import json
 import os
 
 from linktools import utils, logger
@@ -36,25 +37,25 @@ from linktools.frida import FridaApplication, FridaAndroidServer
 
 @entry_point(known_errors=[AdbError])
 def main():
-
     parser = AdbArgumentParser(description='easy to use frida')
     parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package [default top-level package]')
+                        help='target package, default: top-level package')
     parser.add_argument('--spawn', action='store_true', default=False,
-                        help='inject after spawn [default false]')
-    parser.add_argument('--regular', action='store_true', default=False,
-                        help="regular match package name")
+                        help='inject after spawn, default: false')
+
+    parser.add_argument("-P", "--parameters", help="user script parameters", metavar=("KEY", "VALUE"),
+                        action='append', nargs=2, dest="user_parameters", default=None)
+    parser.add_argument("-l", "--load", help="load user script", metavar="SCRIPT",
+                        action='append', dest="user_scripts", default=None)
+    parser.add_argument("-e", "--eval", help="evaluate code", metavar="CODE",
+                        action='store', dest="eval_code", default=None)
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-c", "--codeshare", help="load share script url", metavar="URL",
                        action='store', dest="share_script_url", default=None)
-    group.add_argument("-cc", "--codeshare-cache", help="load share script url, use cache first", metavar="URL",
+    group.add_argument("-cc", "--codeshare-cached", help="load share script url, use cache first", metavar="URL",
                        action='store', dest="cached_share_script_url", default=None)
 
-    parser.add_argument("-l", "--load", help="load user script", metavar="SCRIPT",
-                        action='store', dest="user_script", default=None)
-    parser.add_argument("-e", "--eval", help="evaluate code", metavar="CODE",
-                        action='store', dest="eval_code", default=None)
     parser.add_argument("-d", "--debug", action='store_true', default=False,
                         help="debug mode")
 
@@ -62,7 +63,13 @@ def main():
 
     device = Device(args.parse_adb_serial())
     package = args.package
-    user_script = args.user_script
+
+    user_parameters = {}
+    if args.user_parameters is not None:
+        for parameter in args.user_parameters:
+            user_parameters[parameter[0]] = parameter[1]
+
+    user_scripts = args.user_scripts
     eval_code = args.eval_code
 
     share_script_url = None
@@ -76,8 +83,6 @@ def main():
 
     if utils.is_empty(package):
         package = device.get_top_package_name()
-    if user_script is not None:
-        user_script = os.path.abspath(os.path.expanduser(user_script))
 
     class ReloadFridaApplication(FridaApplication):
 
@@ -98,11 +103,12 @@ def main():
         app = ReloadFridaApplication(
             server,
             debug=args.debug,
+            user_parameters=user_parameters,
+            user_scripts=user_scripts,
+            eval_code=eval_code,
             share_script_url=share_script_url,
             share_script_trusted=False,
             share_script_cached=share_script_cached,
-            user_script=user_script,
-            eval_code=eval_code,
             enable_spawn_gating=True
         )
 

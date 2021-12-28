@@ -8,8 +8,45 @@ declare global {
     const JavaHelper: JavaHelper;
     const AndroidHelper: AndroidHelper;
     const ObjCHelper: ObjCHelper;
+    const parameters: Parameters;
     function ignoreError<T>(fn: () => T, defautValue: T): T;
 }
+
+
+interface Parameters {
+    [name: string]: any;
+}
+
+interface Script {
+    filename: string;
+    source: string;
+}
+
+class ScriptLoader {
+
+    load(scripts: Script[], parameters: Parameters) {
+        Object.defineProperties(globalThis, {
+            parameters: {
+                enumerable: true,
+                value: parameters
+            }
+        });
+
+        for (const script of scripts) {
+            try {
+                (1, eval)(script.source);
+            } catch (e) {
+                throw new Error(`Unable to load ${script.filename}: ${e.stack}`);
+            }
+        }
+    }
+}
+
+const loader = new ScriptLoader();
+
+rpc.exports = {
+    loadScripts: loader.load.bind(loader),
+};
 
 
 class Log {
