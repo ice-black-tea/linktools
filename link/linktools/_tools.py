@@ -192,8 +192,9 @@ class GeneralTool(object):
             args = [sys.executable, *executable_cmdline[1:], *args]
             return fn(*args, **kwargs)
         if executable_cmdline[0] in self._container.items:
-            tool = self._container.items[executable_cmdline[0]]
-            return tool.popen(*[*executable_cmdline[1:], *args], **kwargs)
+            args = [*executable_cmdline[1:], *args]
+            tool: GeneralTool = self._container.items[executable_cmdline[0]]
+            return tool._process(fn, *args, **kwargs)
         return fn(*[*executable_cmdline, *args], **kwargs)
 
     def popen(self, *args: [str], **kwargs: dict) -> subprocess.Popen:

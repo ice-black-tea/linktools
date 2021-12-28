@@ -32,9 +32,9 @@ import os
 import subprocess
 import time
 from collections import Iterable
-from typing import Union
+from typing import Union, Sized
 
-from filelock import Timeout, FileLock
+from filelock import FileLock
 from tqdm import tqdm
 
 __module__ = __name__  # used by Proxy class body
@@ -308,7 +308,7 @@ def popen(*args, **kwargs) -> subprocess.Popen:
                 kwargs["stderr"] = subprocess.PIPE
     if "cwd" not in kwargs:
         kwargs["cwd"] = os.getcwd()
-    if "shell" not in kwargs:
+    if "shell" in kwargs:
         kwargs["shell"] = False
     return subprocess.Popen(args, **kwargs)
 
@@ -383,13 +383,12 @@ def is_empty(obj: object) -> bool:
     """
     if obj is None:
         return True
-    if isinstance(obj, Iterable):
-        # noinspection PyTypeChecker
-        return obj is None or len(obj) == 0
+    if isinstance(obj, Sized):
+        return len(obj) == 0
     return False
 
 
-# noinspection PyShadowingBuiltins
+# noinspection PyShadowingBuiltins, PyUnresolvedReferences
 def get_item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
     """
     获取子项
@@ -402,16 +401,20 @@ def get_item(obj: object, *keys, type: type = None, default: type(object) = None
     for key in keys:
         if obj is None:
             return default
+
         try:
-            # noinspection PyUnresolvedReferences
             obj = obj[key]
             continue
         except:
             pass
+
         try:
-            obj = obj.__dict__[key]
+            obj = getattr(obj, key)
+            continue
         except:
-            return default
+            pass
+
+        return default
 
     if obj is None:
         return obj
@@ -421,10 +424,11 @@ def get_item(obj: object, *keys, type: type = None, default: type(object) = None
             obj = type(obj)
         except:
             return default
+
     return obj
 
 
-# noinspection PyShadowingBuiltins
+# noinspection PyShadowingBuiltins, PyUnresolvedReferences
 def pop_item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
     """
     获取并删除子项
@@ -438,24 +442,29 @@ def pop_item(obj: object, *keys, type: type = None, default: type(object) = None
     last_key = None
 
     for key in keys:
+
         if obj is None:
             return default
+
         last_obj = obj
         last_key = key
+
         try:
-            # noinspection PyUnresolvedReferences
             obj = obj[key]
             continue
         except:
             pass
+
         try:
-            obj = obj.__dict__[key]
+            obj = getattr(obj, key)
+            continue
         except:
-            return default
+            pass
+
+        return default
 
     if last_obj is not None and last_key is not None:
         try:
-            # noinspection PyUnresolvedReferences
             del last_obj[last_key]
         except:
             pass
@@ -468,6 +477,7 @@ def pop_item(obj: object, *keys, type: type = None, default: type(object) = None
             obj = type(obj)
         except:
             return default
+
     return obj
 
 
@@ -510,6 +520,13 @@ def gzip_compress(data):
     if type(data) == str:
         data = bytes(data, 'utf8')
     return gzip.compress(data)
+
+
+def ignore_error(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except:
+        return None
 
 
 def get_host_ip():
@@ -636,15 +653,15 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
 
     timeout_meter = TimeoutMeter(timeout)
 
+    # 下载之前先把目录创建好
+    dir_path = os.path.dirname(path)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
     lock_path = path + ".lock"
     lock = FileLock(lock_path)
 
     try:
-        # 下载之前先把目录创建好
-        dir_path = os.path.dirname(path)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-
         lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
 
         # 这时候文件存在，说明在上锁期间下载完了
@@ -657,7 +674,6 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
         if os.path.exists(download_path):
             offset = os.path.getsize(download_path)
 
-        from urllib.parse import urlparse
         with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=guess_file_name(url)) as t:
 
             headers = {
@@ -681,9 +697,6 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
 
         os.rename(download_path, path)
 
-    except Timeout as e:
-        raise TimeoutError(e)
-
     finally:
-        lock.release(True)
-        os.remove(lock.lock_file)
+        ignore_error(lock.release, True)
+        ignore_error(os.remove, lock.lock_file)
