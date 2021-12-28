@@ -457,7 +457,7 @@ export class JavaHelper {
         if (!(obj instanceof Object)) {
             return obj;
         }
-        return JSON.stringify(this.toJson(obj));
+        return JSON.stringify(obj);
     }
 
     toJson(obj: any): any {
