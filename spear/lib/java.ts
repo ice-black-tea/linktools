@@ -83,7 +83,7 @@ export class JavaHelper {
                 Reflect.set(Java.classFactory, "loader", originClassloader);
             }
         } else {
-            if (Java.androidVersion < "7") {
+            if (parseInt(Java.androidVersion) < 7) {
                 return Java.use(className);
             }
             var error = null;
