@@ -13,7 +13,7 @@ import os
 import threading
 import time
 import traceback
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, Dict, TypedDict
 
 import _frida
 import frida
@@ -50,7 +50,7 @@ class Reactor(object):
         with self._lock:
             return self._running
 
-    def run(self):
+    def run(self, *args, **kwargs):
         with self._lock:
             self._running = True
 
@@ -58,7 +58,7 @@ class Reactor(object):
 
         try:
             worker.start()
-            self._run_until_return(self)
+            self._run_until_return(*args, **kwargs)
         finally:
             self.stop()
             worker.join(60)
@@ -140,20 +140,9 @@ class FridaScript(utils.Proxy):  # proxy for frida.core.Session
         self.session: Optional[FridaSession] = None
 
 
-class FridaScriptFile(dict):
-
-    def __init__(self, filename, source):
-        super().__init__()
-        self["filename"] = filename
-        self["source"] = source
-
-    @property
-    def filename(self):
-        return self["filename"]
-
-    @property
-    def source(self):
-        return self["source"]
+class FridaScriptFile(TypedDict):
+    filename: str
+    source: str
 
 
 # noinspection PyUnresolvedReferences
@@ -198,8 +187,8 @@ class FridaApplication:
             self,
             device: Union[frida.core.Device, "FridaServer"],
             debug: str = False,
-            user_parameters: dict[str, any] = None,
-            user_scripts: [str] = None,
+            user_parameters: Dict[str, any] = None,
+            user_scripts: Tuple[str] = None,
             eval_code: str = None,
             share_script_url: str = None,
             share_script_trusted: bool = False,
@@ -251,9 +240,6 @@ class FridaApplication:
 
     def _init(self):
 
-        self._finished.clear()
-        self._stop_requested.clear()
-
         self.device.on("spawn-added", lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start())
         self.device.on("spawn-removed", lambda spawn: self._reactor.schedule(self.on_spawn_removed))
         self.device.on("child-added", lambda child: self._reactor.schedule(self.on_child_added(child)))
@@ -266,18 +252,20 @@ class FridaApplication:
         if self._enable_spawn_gating:
             self.device.enable_spawn_gating()
 
-    def run(self):
+    def run(self, timeout=None):
         try:
             self._init()
+            self._finished.clear()
+            self._stop_requested.clear()
             self._monitor_all()
-            self._reactor.run()
+            self._reactor.run(timeout)
         finally:
             self._demonitor_all()
             self._finished.set()
 
-    def _run(self, reactor):
+    def _run(self, timeout):
         try:
-            self._stop_requested.wait()
+            self._stop_requested.wait(timeout)
         finally:
             self._stop_requested.set()
 
@@ -316,7 +304,7 @@ class FridaApplication:
     def _load_script_file(cls, path) -> Union[FridaScriptFile, None]:
         logger.info(f"Load script file: {path}", tag="[✔]")
         with open(path, "rb") as f:
-            return FridaScriptFile(path, f.read().decode("utf-8"))
+            return FridaScriptFile(filename=path, source=f.read().decode("utf-8"))
 
     @cached_property
     def _persist_script_file(self) -> Union[FridaScriptFile, None]:
@@ -386,13 +374,13 @@ class FridaApplication:
 
         # 保持脚本log输出级别同步
         if logger.isEnabledFor(logging.DEBUG):
-            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.debug);"))
+            script_files.append(FridaScriptFile(filename="<anonymous>", source="Log.setLevel(Log.debug);"))
         elif logger.isEnabledFor(logging.INFO):
-            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.info);"))
+            script_files.append(FridaScriptFile(filename="<anonymous>", source="Log.setLevel(Log.info);"))
         elif logger.isEnabledFor(logging.WARNING):
-            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.warning);"))
+            script_files.append(FridaScriptFile(filename="<anonymous>", source="Log.setLevel(Log.warning);"))
         elif logger.isEnabledFor(logging.ERROR):
-            script_files.append(FridaScriptFile("<anonymous>", "Log.setLevel(Log.error);"))
+            script_files.append(FridaScriptFile(filename="<anonymous>", source="Log.setLevel(Log.error);"))
 
         if self._share_script_file is not None:
             script_files.append(self._share_script_file)
@@ -401,7 +389,7 @@ class FridaApplication:
             script_files.append(self._load_script_file(user_script))
 
         if self._eval_code is not None:
-            script_files.append(FridaScriptFile("<eval_code>", self._eval_code))
+            script_files.append(FridaScriptFile(filename="<eval_code>", source=self._eval_code))
 
         ######################################################################
         # 附加进程，执行注入

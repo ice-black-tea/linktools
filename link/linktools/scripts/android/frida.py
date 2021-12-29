@@ -134,7 +134,7 @@ def main():
             # 直接启动进程
             app.load_script(app.spawn(package), resume=True)
 
-        app.run()
+        app.run(10)
 
 
 if __name__ == '__main__':
