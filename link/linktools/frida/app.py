@@ -140,9 +140,20 @@ class FridaScript(utils.Proxy):  # proxy for frida.core.Session
         self.session: Optional[FridaSession] = None
 
 
-class FridaScriptFile(TypedDict):
-    filename: str
-    source: str
+class FridaScriptFile(dict):
+
+    def __init__(self, filename: str, source: str):
+        super().__init__()
+        self["filename"] = filename
+        self["source"] = source
+
+    @property
+    def filename(self):
+        return self["filename"]
+
+    @property
+    def source(self):
+        return self["source"]
 
 
 # noinspection PyUnresolvedReferences
