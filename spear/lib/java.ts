@@ -341,10 +341,12 @@ export class JavaHelper {
 
         return function (obj, args) {
             const result = this.apply(obj, args);
-            const event = {
-                method_simple_name: this.methodName,
-                method_name: javaHelperThis.toString(this),
-            };
+            const event = {};
+            for (const key in extras) {
+                event[key] = extras[key];
+            }
+            event["method_name"] = javaHelperThis.toString(this);
+            event["method_simple_name"] = this.methodName;
             if (threadOption === true) {
                 event["thread_id"] = Process.getCurrentThreadId();
                 event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
@@ -356,9 +358,6 @@ export class JavaHelper {
             }
             if (stackOption === true) {
                 event["stack"] = javaHelperThis.toJson(javaHelperThis.getStackTrace());
-            }
-            for (const key in extras) {
-                event[key] = extras[key];
             }
             send({ event: event });
             return result;
