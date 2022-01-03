@@ -31,7 +31,7 @@ import importlib
 import os
 import subprocess
 import time
-from collections import Iterable
+from collections.abc import Iterable
 from typing import Union, Sized
 
 from filelock import FileLock
@@ -574,8 +574,12 @@ class TimeoutMeter:
 
     def __init__(self, timeout: Union[float, None]):
         self._deadline = None
-        if timeout is not None and timeout >= 0:
-            self._deadline = time.time() + timeout
+        self._timeout = timeout
+        self.reset()
+
+    def reset(self) -> None:
+        if self._timeout is not None and self._timeout >= 0:
+            self._deadline = time.time() + self._timeout
 
     def get(self) -> Union[float, None]:
         timeout = None
