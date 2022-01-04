@@ -352,7 +352,7 @@ export class JavaHelper {
                 event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
             }
             if (argsOption === true) {
-                event["object"] = javaHelperThis.toJson(obj);
+                event["object"] = obj.$className;
                 event["args"] = javaHelperThis.toJson(Array.prototype.slice.call(args));
                 event["result"] = javaHelperThis.toJson(result);
             }
