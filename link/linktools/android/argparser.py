@@ -34,7 +34,7 @@ from linktools import utils, resource, logger
 from linktools.android.adb import Adb, AdbError, Device
 from linktools.argparser import ArgumentParser
 
-_ADB_SERIAL_CACHE_PATH = resource.get_data_path("adb_serial_cache.txt")
+_ADB_SERIAL_CACHE_PATH = resource.get_data_path("adb_serial_cache.txt", create_parent=True)
 
 
 class AdbArgumentParser(ArgumentParser):
