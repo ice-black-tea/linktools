@@ -26,18 +26,130 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import collections
 import functools
 import importlib
 import os
 import subprocess
+import threading
 import time
+import traceback
 from collections.abc import Iterable
-from typing import Union, Sized
+from typing import Union, Sized, Callable
 
 from filelock import FileLock
 from tqdm import tqdm
 
 __module__ = __name__  # used by Proxy class body
+
+
+class TimeoutMeter:
+
+    def __init__(self, timeout: Union[float, None]):
+        self._deadline = None
+        self._timeout = timeout
+        self.reset()
+
+    def reset(self) -> None:
+        if self._timeout is not None and self._timeout >= 0:
+            self._deadline = time.time() + self._timeout
+
+    def get(self) -> Union[float, None]:
+        timeout = None
+        if self._deadline is not None:
+            timeout = max(self._deadline - time.time(), 0)
+        return timeout
+
+    def check(self) -> "bool":
+        if self._deadline is not None:
+            if time.time() > self._deadline:
+                return False
+        return True
+
+
+class Reactor(object):
+    """
+    Code stolen from frida_tools.application.Reactor
+    """
+
+    def __init__(self, run_until_return, on_stop=None, on_error=None):
+        self._running = False
+        self._run_until_return = run_until_return
+        self._on_stop = on_stop
+        self._on_error = on_error
+        self._pending = collections.deque([])
+        self._lock = threading.Lock()
+        self._cond = threading.Condition(self._lock)
+
+    def is_running(self):
+        with self._lock:
+            return self._running
+
+    def run(self, *args, **kwargs):
+        with self._lock:
+            self._running = True
+
+        worker = threading.Thread(target=self._run)
+
+        try:
+            worker.start()
+            self._run_until_return(*args, **kwargs)
+        finally:
+            self.stop()
+            worker.join()
+
+    def _run(self):
+        running = True
+        while running:
+            now = time.time()
+            work = None
+            timeout = None
+            with self._lock:
+                for item in self._pending:
+                    (f, when) = item
+                    if now >= when:
+                        work = f
+                        self._pending.remove(item)
+                        break
+                if len(self._pending) > 0:
+                    timeout = max([min(map(lambda item: item[1], self._pending)) - now, 0])
+                previous_pending_length = len(self._pending)
+
+            if work is not None:
+                try:
+                    work()
+                except BaseException as e:
+                    if self._on_error is None:
+                        raise e
+                    self._on_error(e, traceback.format_exc())
+
+            with self._lock:
+                if self._running and len(self._pending) == previous_pending_length:
+                    self._cond.wait(timeout)
+                running = self._running
+
+        if self._on_stop is not None:
+            self._on_stop()
+
+    def stop(self):
+        self.schedule(self._stop)
+
+    def _stop(self):
+        with self._lock:
+            self._running = False
+
+    def schedule(self, fn: Callable[[], None], delay: float = None):
+        now = time.time()
+        if delay is not None:
+            when = now + delay
+        else:
+            when = now
+        with self._lock:
+            self._pending.append((functools.partial(self._work, fn), when))
+            self._cond.notify()
+
+    def _work(self, fn: Callable[[], None]):
+        fn()
 
 
 def _default_cls_attr(name, type_, cls_value):
@@ -570,37 +682,15 @@ def guess_file_name(url):
     return os.path.split(urlparse(url).path)[1]
 
 
-class TimeoutMeter:
-
-    def __init__(self, timeout: Union[float, None]):
-        self._deadline = None
-        self._timeout = timeout
-        self.reset()
-
-    def reset(self) -> None:
-        if self._timeout is not None and self._timeout >= 0:
-            self._deadline = time.time() + self._timeout
-
-    def get(self) -> Union[float, None]:
-        timeout = None
-        if self._deadline is not None:
-            timeout = max(self._deadline - time.time(), 0)
-        return timeout
-
-    def check(self) -> bool:
-        if self._deadline is not None:
-            if time.time() > self._deadline:
-                return False
-        return True
-
-
 def _download_with_requests(url, path, headers=None, timeout=None):
     import requests
 
+    bs = 1024 * 8
+    total = None
+    read = 0
+    yield total, read
+
     with requests.get(url, headers=headers, stream=True, timeout=timeout) as resp:
-        bs = 1024 * 8
-        total = None
-        read = 0
 
         if "Content-Length" in resp.headers:
             total = int(resp.headers.get("Content-Length"))
@@ -618,11 +708,12 @@ def _download_with_urllib(url, path, headers=None, timeout=None):
     import contextlib
     from urllib.request import urlopen, Request
 
-    with contextlib.closing(urlopen(url=Request(url, headers=headers), timeout=timeout)) as fp:
-        bs = 1024 * 8
-        total = None
-        read = 0
+    bs = 1024 * 8
+    total = None
+    read = 0
+    yield total, read
 
+    with contextlib.closing(urlopen(url=Request(url, headers=headers), timeout=timeout)) as fp:
         response_headers = fp.info()
         if "Content-Length" in response_headers:
             total = int(response_headers["Content-Length"])

@@ -26,13 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import json
-import os
 
 from linktools import utils, logger
 from linktools.android import AdbError, AdbArgumentParser, Device
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, FridaAndroidServer
+from linktools.frida import FridaApplication, FridaAndroidServer, FridaShareScript
 
 
 @entry_point(known_errors=[AdbError])
@@ -44,9 +42,9 @@ def main():
                         help='inject after spawn, default: false')
 
     parser.add_argument("-P", "--parameters", help="user script parameters", metavar=("KEY", "VALUE"),
-                        action='append', nargs=2, dest="user_parameters", default=None)
+                        action='append', nargs=2, dest="user_parameters", default=[])
     parser.add_argument("-l", "--load", help="load user script", metavar="SCRIPT",
-                        action='append', dest="user_scripts", default=None)
+                        action='append', dest="user_scripts", default=[])
     parser.add_argument("-e", "--eval", help="evaluate code", metavar="CODE",
                         action='store', dest="eval_code", default=None)
 
@@ -63,28 +61,20 @@ def main():
 
     device = Device(args.parse_adb_serial())
     package = args.package
-
-    user_parameters = {}
-    if args.user_parameters is not None:
-        for parameter in args.user_parameters:
-            user_parameters[parameter[0]] = parameter[1]
-
-    user_scripts = args.user_scripts
-    eval_code = args.eval_code
-
-    share_script_url = None
-    share_script_cached = False
-    if args.share_script_url is not None:
-        share_script_url = args.share_script_url
-        share_script_cached = False
-    elif args.cached_share_script_url is not None:
-        share_script_url = args.cached_share_script_url
-        share_script_cached = True
-
     if utils.is_empty(package):
         package = device.get_top_package_name()
 
-    class ReloadFridaApplication(FridaApplication):
+    user_parameters = {p[0]: p[1] for p in args.user_parameters}
+    user_scripts = args.user_scripts
+    eval_code = args.eval_code
+
+    share_script = None
+    if args.share_script_url is not None:
+        share_script = FridaShareScript(args.share_script_url, cached=False)
+    elif args.cached_share_script_url is not None:
+        share_script = FridaShareScript(args.cached_share_script_url, cached=True)
+
+    class Application(FridaApplication):
 
         def on_spawn_added(self, spawn):
             logger.debug(f"Spawn added: {spawn}", tag="[✔]")
@@ -100,16 +90,14 @@ def main():
 
     with FridaAndroidServer(device_id=device.id) as server:
 
-        app = ReloadFridaApplication(
+        app = Application(
             server,
             debug=args.debug,
             user_parameters=user_parameters,
             user_scripts=user_scripts,
             eval_code=eval_code,
-            share_script_url=share_script_url,
-            share_script_trusted=False,
-            share_script_cached=share_script_cached,
-            enable_spawn_gating=True
+            share_script=share_script,
+            enable_spawn_gating=True,
         )
 
         target_pids = set()
