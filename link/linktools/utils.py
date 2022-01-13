@@ -618,6 +618,11 @@ def get_array_item(obj: object, *keys, type: type = None, default: [type(object)
     return array
 
 
+def read_file(path, binary=True):
+    with open(path, 'rb' if binary else 'r') as f:
+        return f.read()
+
+
 def get_md5(data):
     import hashlib
     if type(data) == str:
