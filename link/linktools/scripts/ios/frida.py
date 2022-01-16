@@ -26,18 +26,19 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import tidevice
 
-from linktools import utils, logger
-from linktools.android import AdbError, AndroidArgumentParser
+from linktools import logger, utils
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, AndroidFridaServer, FridaShareScript
+from linktools.frida import FridaApplication, FridaShareScript, IOSFridaServer
+from linktools.ios.argparser import IOSArgumentParser
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(known_errors=[tidevice.MuxError])
 def main():
-    parser = AndroidArgumentParser(description='easy to use frida')
-    parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package (default: top-level package)')
+    parser = IOSArgumentParser(description='easy to use frida')
+    parser.add_argument('-b', '--bundle-id', action='store', default=None,
+                        help='target bundle id (default: frontmost application)')
     parser.add_argument('--spawn', action='store_true', default=False,
                         help='inject after spawn (default: false)')
 
@@ -59,7 +60,7 @@ def main():
 
     args = parser.parse_args()
     device = args.parse_device()
-    package = args.package
+    bundle_id = args.bundle_id
 
     user_parameters = {p[0]: p[1] for p in args.user_parameters}
     user_scripts = args.user_scripts
@@ -75,7 +76,7 @@ def main():
 
         def on_spawn_added(self, spawn):
             logger.debug(f"Spawn added: {spawn}", tag="[✔]")
-            if device.extract_package_name(spawn.identifier) == package:
+            if spawn.identifier == bundle_id:
                 self.load_script(spawn.pid, resume=True)
             else:
                 self.resume(spawn.pid)
@@ -85,9 +86,9 @@ def main():
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:
-                app.load_script(app.device.spawn(package), resume=True)
+                app.load_script(app.device.spawn(bundle_id), resume=True)
 
-    with AndroidFridaServer(device=device) as server:
+    with IOSFridaServer(device=device) as server:
 
         app = Application(
             server,
@@ -96,32 +97,32 @@ def main():
             user_scripts=user_scripts,
             eval_code=eval_code,
             share_script=share_script,
-            enable_spawn_gating=True,
+            enable_spawn_gating=True
         )
 
         target_pids = set()
 
-        if utils.is_empty(package):
-            package = app.get_frontmost_application().identifier
+        if utils.is_empty(bundle_id):
+            bundle_id = app.get_frontmost_application().identifier
 
         if not args.spawn:
             # 匹配所有app
             for target_app in app.enumerate_applications():
                 if target_app.pid not in target_pids:
-                    if target_app.pid > 0 and target_app.identifier == package:
+                    if target_app.pid > 0 and target_app.identifier == bundle_id:
                         app.load_script(target_app.pid)
                         target_pids.add(target_app.pid)
 
             # 匹配所有进程
             for target_process in app.enumerate_processes():
                 if target_process.pid > 0 and target_process.pid not in target_pids:
-                    if device.extract_package_name(target_process.name) == package:
+                    if target_process.name == bundle_id:
                         app.load_script(target_process.pid)
                         target_pids.add(target_process.pid)
 
         if len(target_pids) == 0:
             # 直接启动进程
-            app.load_script(app.spawn(package), resume=True)
+            app.load_script(app.spawn(bundle_id), resume=True)
 
         app.run()
 

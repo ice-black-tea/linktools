@@ -10,14 +10,14 @@
 import plistlib
 import re
 import zipfile
+from typing import Optional
 
 
-class IPAParseException(Exception):
+class IPAError(Exception):
     pass
 
 
 class IPA(object):
-
     _INFO_PLIST = "Info.plist"
 
     def __init__(self, filename: str):
@@ -27,20 +27,29 @@ class IPA(object):
         self._analysis()
 
     def _analysis(self):
-        plist_path = self._find_plist_path(self._INFO_PLIST)
+        plist_path = self.find_file(self._INFO_PLIST)
         if plist_path is None:
-            raise IPAParseException("missing Info.plist")
+            raise IPAError("missing Info.plist")
         plist_data = self.zip.read(plist_path)
         self._plist[self._INFO_PLIST] = plistlib.loads(plist_data)
 
-    def _find_plist_path(self, name):
+    def find_file(self, name) -> Optional[str]:
         name_list = self.zip.namelist()
-        pattern = re.compile(rf'Payload/[^/]*.app/{name}')
+        pattern = re.compile(rf'Payload/[^/]+\.app/{name}$')
         for path in name_list:
             m = pattern.match(path)
             if m is not None:
                 return m.group()
         return None
+
+    def get_files(self):
+        return self.zip.namelist()
+
+    def get_file(self, filename):
+        try:
+            return self.zip.read(filename)
+        except KeyError:
+            raise IPAError(f"file not found: {filename}")
 
     def get_info_plist(self):
         return self._plist[self._INFO_PLIST]
@@ -59,12 +68,3 @@ class IPA(object):
 
     def get_version_string(self):
         return self.get_info_plist().get("CFBundleShortVersionString")
-
-    def get_files(self):
-        return self.zip.namelist()
-
-    def get_file(self, filename):
-        try:
-            return self.zip.read(filename)
-        except KeyError:
-            raise IPAParseException(f"file not found: {filename}")

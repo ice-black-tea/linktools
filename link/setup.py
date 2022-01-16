@@ -63,6 +63,7 @@ if __name__ == '__main__':
     scripts = []
     extend_scripts(script_module="common", script_prefix="ct")
     extend_scripts(script_module="android", script_prefix="at")
+    extend_scripts(script_module="ios", script_prefix="it")
 
     setup(
         name=getattr(version, "__name__"),

@@ -7,4 +7,4 @@
 # Product   : PyCharm
 # Project   : link
 
-from .ipa import IPA, IPAParseException
+from .ipa import IPA, IPAError

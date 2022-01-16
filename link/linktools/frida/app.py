@@ -28,12 +28,15 @@ class FridaReactor(utils.Reactor):
         # self.ui_cancellable = frida.Cancellable()
         # self._ui_cancellable_fd = self.ui_cancellable.get_pollfd()
 
-    def cancel_io(self):
-        self.io_cancellable.cancel()
+    # def cancel_io(self):
+    #     self.io_cancellable.cancel()
 
     # def _run(self):
     #     super()._run()
     #     self.ui_cancellable.cancel()
+
+    # def __del__(self):
+    #     self._ui_cancellable_fd.release()
 
     def _work(self, fn):
         with self.io_cancellable:
@@ -41,9 +44,6 @@ class FridaReactor(utils.Reactor):
                 fn()
             except frida.OperationCancelledError:
                 pass
-
-    # def __del__(self):
-    #     self._ui_cancellable_fd.release()
 
 
 class FridaSession(utils.Proxy):  # proxy for frida.core.Session
@@ -108,10 +108,15 @@ class FridaEvalCode(FridaScriptFile):
 
 
 class FridaShareScript(FridaScriptFile):
-    _file_dir = resource.get_data_dir("frida", "share_script", create=True)
 
     def __init__(self, url: str, cached: bool = False, trusted: bool = False):
-        super().__init__(os.path.join(self._file_dir, utils.get_md5(url)))
+        super().__init__(resource.get_temp_path(
+            "frida",
+            "share_script",
+            utils.get_md5(url),
+            utils.guess_file_name(url),
+            create_parent=True
+        ))
         self._url = url
         self._cached = cached
         self._trusted = trusted
@@ -145,13 +150,19 @@ class FridaShareScript(FridaScriptFile):
                 logger.info(f"Load trusted shared script: {self._path}", tag="[✔]")
                 return source
 
+            line_count = 20
+            source_lines = source.splitlines(keepends=True)
+            source_summary = "".join(source_lines[:line_count])
+            if len(source_lines) > line_count:
+                source_summary += "... ..."
+
             logger.warning(
                 f"This is the first time you're running this particular snippet, "
                 f"or the snippet's source code has changed.{os.linesep}"
                 f"Url: {self._url}{os.linesep}"
                 f"Original md5: {cached_md5}{os.linesep}"
-                f"Current md5: {source_md5}{os.linesep}",
-                f"Source code: {os.linesep}{source[:200]}...",
+                f"Current md5: {source_md5}{os.linesep}{os.linesep}",
+                f"{source_summary}",
                 tag="[!]"
             )
             while True:
@@ -207,7 +218,6 @@ class FridaApplication:
     def __init__(
             self,
             device: Union[frida.core.Device, "FridaServer"],
-            reactor: utils.Reactor = None,
             user_parameters: Dict[str, any] = None,
             user_scripts: Collection[Union[str, FridaScriptFile]] = None,
             eval_code: Union[str, FridaEvalCode] = None,
@@ -230,7 +240,7 @@ class FridaApplication:
         self._debug = debug
         self._stop_requested = threading.Event()
         self._finished = threading.Event()
-        self._reactor = reactor or FridaReactor(
+        self._reactor = FridaReactor(
             run_until_return=self._run,
             on_stop=self._on_stop,
             on_error=self.on_error
@@ -252,29 +262,45 @@ class FridaApplication:
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
 
+        self._cb_spawn_added = lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start()
+        self._cb_spawn_removed = lambda spawn: self._reactor.schedule(self.on_spawn_removed)
+        self._cb_child_added = lambda child: self._reactor.schedule(lambda: self.on_child_added(child))
+        self._cb_child_removed = lambda child: self._reactor.schedule(lambda: self.on_child_removed(child))
+        self._cb_output = lambda pid, fd, data: self._reactor.schedule(lambda: self.on_output(pid, fd, data))
+        self._cb_lost = lambda: self._reactor.schedule(lambda: self.on_device_lost())
+
     def init(self):
 
         self._finished.clear()
         self._stop_requested.clear()
         self._monitor_all()
 
-        self.device.on("spawn-added", lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start())
-        self.device.on("spawn-removed", lambda spawn: self._reactor.schedule(self.on_spawn_removed))
-        self.device.on("child-added", lambda child: self._reactor.schedule(lambda: self.on_child_added(child)))
-        self.device.on("child-removed", lambda child: self._reactor.schedule(lambda: self.on_child_removed(child)))
-        self.device.on("output", lambda pid, fd, data: self._reactor.schedule(lambda: self.on_output(pid, fd, data)))
-        # self.device.on('process-crashed', xxx)
-        # self.device.on('uninjected', xxx)
-        # self.device.on('lost', xxx)
+        self.device.on("spawn-added", self._cb_spawn_added)
+        self.device.on("spawn-removed", self._cb_spawn_removed)
+        self.device.on("child-added", self._cb_child_added)
+        self.device.on("child-removed", self._cb_child_removed)
+        self.device.on("output", self._cb_output)
+        # self.device.on('process-crashed', self._cb_process_crashed)
+        # self.device.on('uninjected', self._cb_uninjected)
+        self.device.on("lost", self._cb_lost)
 
         if self._enable_spawn_gating:
             self.device.enable_spawn_gating()
 
     def deinit(self):
-        self._demonitor_all()
+        utils.ignore_error(self.device.off, "spawn-added", self._cb_spawn_added)
+        utils.ignore_error(self.device.off, "spawn-removed", self._cb_spawn_removed)
+        utils.ignore_error(self.device.off, "child-added", self._cb_child_added)
+        utils.ignore_error(self.device.off, "child-removed", self._cb_child_removed)
+        utils.ignore_error(self.device.off, "output", self._cb_output)
+        # utils.ignore_error(self.device.off, "process-crashed", self._cb_process_crashed)
+        # utils.ignore_error(self.device.off, "uninjected", self._cb_uninjected)
+        utils.ignore_error(self.device.off, "lost", self._cb_lost)
+
         self._finished.set()
 
     def run(self, timeout=None):
+        assert not self.is_running
         try:
             self.init()
             self._reactor.run(timeout)
@@ -287,8 +313,9 @@ class FridaApplication:
         finally:
             self._stop_requested.set()
 
+    @property
     def is_running(self):
-        return not self._finished.wait(0)
+        return self._reactor.is_running()
 
     def wait(self, timeout=None):
         return self._finished.wait(timeout)
@@ -317,6 +344,9 @@ class FridaApplication:
         :param pid: 进程id
         """
         self._reactor.schedule(lambda: self._detach_session(pid))
+
+    def _get_process(self, pid: int):
+        pass
 
     def _load_script_files(self):
 
@@ -347,9 +377,6 @@ class FridaApplication:
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")
 
         session = self._attach_session(pid)
-        if session is None:
-            logger.warning(f"Attach session failed, skip loading script", tag="[!]", fore=Fore.RED)
-            return
 
         # read the internal script as an entrance
         entry_code = self._internal_debug_script.source if self._debug else self._internal_script.source
@@ -378,22 +405,27 @@ class FridaApplication:
 
         logger.debug(f"Attempt to attach process: pid={pid}", tag="[✔]")
 
-        process = self.device.get_process(pid=pid)
-        session = FridaSession(self.device.attach(process.pid))
-        session.pid = process.pid
-        session.process_name = process.name
+        target_process = None
+        for process in self.enumerate_processes():
+            if process.pid == pid:
+                target_process = process
+        if target_process is None:
+            raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}'")
+
+        session = FridaSession(self.device.attach(target_process.pid))
+        session.pid = target_process.pid
+        session.process_name = target_process.name
 
         if self._enable_child_gating:
             logger.debug(f"Enable child gating: {pid}", tag="[✔]")
             session.enable_child_gating()
 
-        def on_session_detached(reason):
-            if pid in self._sessions:
-                del self._sessions[pid]
-            self._reactor.schedule(lambda: self.on_session_detached(session, reason))
+        def on_session_detached(reason, crash):
+            self._sessions.pop(pid, None)
+            self._reactor.schedule(lambda: self.on_session_detached(session, reason, crash))
 
         session.on("detached", on_session_detached)
-        self._sessions[process.pid] = session
+        self._sessions[target_process.pid] = session
         self._reactor.schedule(lambda: self.on_session_attached(session))
 
         return session
@@ -402,29 +434,20 @@ class FridaApplication:
         session = self._sessions.get(pid)
         if session is not None:
             logger.debug(f"Detach process: pid={pid}", tag="[✔]")
-            try:
-                session.detach()
-            except:
-                pass
+            utils.ignore_error(session.detach)
 
     def _unload_script(self, pid: int):
         session = self._sessions.get(pid)
         if session is not None and session.script is not None:
             logger.debug(f"Unload script: pid={pid}", tag="[✔]")
-            try:
-                session.script.unload()
-            except:
-                pass
+            utils.ignore_error(session.script.unload)
             session.script = None
 
     def _eternalize_script(self, pid: int):
         session = self._sessions.get(pid)
         if session is not None and session.script is not None:
             logger.debug(f"Eternalize script: pid={pid}", tag="[✔]")
-            try:
-                session.script.eternalize()
-            except:
-                pass
+            utils.ignore_error(session.script.eternalize)
             session.script = None
 
     def _monitor_all(self):
@@ -432,19 +455,19 @@ class FridaApplication:
         def monitor_file(file):
             logger.debug(f"Monitor file: {file.path}", tag="[✔]")
             monitor = frida.FileMonitor(file.path)
-            monitor.on("change", lambda changed_file, other_file, event_type: on_change_async(event_type, file))
+            monitor.on("change", lambda changed_file, other_file, event_type: on_change(event_type, file))
             monitor.enable()
             return monitor
 
-        def on_change_async(event_type, changed_file):
-            if event_type != "changes-done-hint":
+        def on_change(event_type, changed_file):
+            if event_type == "changes-done-hint":
                 logger.debug(f"Monitor event: {event_type}, file: {changed_file}", tag="[✔]")
                 self._last_change_id += 1
                 change_id = self._last_change_id
                 changed_file.clear()
-                self._reactor.schedule(lambda: on_change_sync(change_id, changed_file), delay=0.1)
+                self._reactor.schedule(lambda: on_change_schedule(change_id, changed_file), delay=0.1)
 
-        def on_change_sync(change_id, changed_file):
+        def on_change_schedule(change_id, changed_file):
             if change_id == self._last_change_id:
                 self.on_file_change(changed_file)
 
@@ -484,6 +507,10 @@ class FridaApplication:
 
     def on_output(self, pid: int, fd, data):
         logger.debug(f"Output: pid={pid}, fd={fd}, data={data}", tag="[✔]")
+
+    def on_device_lost(self):
+        logger.info("Device lost", tag="[!]")
+        self.stop()
 
     def on_file_change(self, file: FridaScriptFile):
         """
@@ -605,7 +632,7 @@ class FridaApplication:
                 if log is not None:
                     self.on_script_log(script, log)
 
-                # log单独解析
+                # event单独解析
                 event = payload.pop("event", None)
                 if event is not None:
                     self.on_script_event(script, event, data)
@@ -632,12 +659,11 @@ class FridaApplication:
         """
         logger.info(f"Session attached: {session.process_name} ({session.pid})", tag="[*]")
 
-    def on_session_detached(self, session: FridaSession, reason: str):
+    def on_session_detached(self, session: FridaSession, reason: str, crash: "_frida.Crash"):
         """
-        会话结束回调函数，默认处理当session全部失效时结束
+        会话结束回调函数，默认只打印log
         :param session: 结束的会话
         :param reason: 结束原因
+        :param crash: crash信息
         """
         logger.info(f"Session detached: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
-        if len(self._sessions) == 0:
-            self.stop()
