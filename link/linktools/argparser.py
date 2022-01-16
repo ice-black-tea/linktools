@@ -53,9 +53,12 @@ class VerboseAction(argparse.Action):
 
 class ArgumentParser(argparse.ArgumentParser):
 
-    def __init__(self, **kwargs):
-        if "conflict_handler" not in kwargs:
-            kwargs["conflict_handler"] = "resolve"
-        super().__init__(**kwargs)
+    def __init__(self,
+                 conflict_handler="resolve",
+                 **kwargs):
+        super().__init__(
+            conflict_handler=conflict_handler,
+            **kwargs
+        )
         self.add_argument("--version", action="version", version="%(prog)s " + __version__)
         self.add_argument("-v", "--verbose", action=VerboseAction, help="increase log verbosity")

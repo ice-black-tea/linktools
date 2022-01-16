@@ -28,18 +28,18 @@
 """
 
 from linktools import utils, logger
-from linktools.android import AdbError, AdbArgumentParser, Device
+from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, FridaAndroidServer, FridaShareScript
+from linktools.frida import FridaApplication, AndroidFridaServer, FridaShareScript
 
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='easy to use frida')
+    parser = AndroidArgumentParser(description='easy to use frida')
     parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package, default: top-level package')
+                        help='target package (default: top-level package)')
     parser.add_argument('--spawn', action='store_true', default=False,
-                        help='inject after spawn, default: false')
+                        help='inject after spawn (default: false)')
 
     parser.add_argument("-P", "--parameters", help="user script parameters", metavar=("KEY", "VALUE"),
                         action='append', nargs=2, dest="user_parameters", default=[])
@@ -59,7 +59,7 @@ def main():
 
     args = parser.parse_args()
 
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
     package = args.package
     if utils.is_empty(package):
         package = device.get_top_package_name()
@@ -83,12 +83,14 @@ def main():
             else:
                 self.resume(spawn.pid)
 
-        def on_session_detached(self, session, reason) -> None:
+        def on_session_detached(self, session, reason, crash) -> None:
             logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
-            if len(self._sessions) == 0:
+            if reason in ("connection-terminated", "device-lost"):
+                self.stop()
+            elif len(self._sessions) == 0:
                 app.load_script(app.device.spawn(package), resume=True)
 
-    with FridaAndroidServer(device_id=device.id) as server:
+    with AndroidFridaServer(device=device) as server:
 
         app = Application(
             server,
@@ -111,7 +113,7 @@ def main():
                         app.load_script(target_app.pid)
                         target_pids.add(target_app.pid)
 
-            # 匹配所以进程
+            # 匹配所有进程
             for target_process in app.enumerate_processes():
                 if target_process.pid > 0 and target_process.pid not in target_pids:
                     if device.extract_package_name(target_process.name) == package:

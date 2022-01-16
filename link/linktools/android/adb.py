@@ -77,17 +77,18 @@ class Adb(object):
         return tools.adb.popen(*args, **kwargs)
 
     @classmethod
-    def exec(cls, *args: [str], capture_output: bool = True, **kwargs) -> str:
+    def exec(cls, *args: [str], capture_output: bool = True, ignore_error: bool = False, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
         :param capture_output: 捕获输出，填False使用标准输出
+        :param ignore_error: 忽略错误，报错不会抛异常
         :return: 输出结果
         """
         process, out, err = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
-        if process.returncode != 0 and not utils.is_empty(err):
+        if not ignore_error and process.returncode != 0 and not utils.is_empty(err):
             err = err.decode(errors='ignore')
-            if utils.is_empty(err):
+            if not utils.is_empty(err):
                 raise AdbError(err)
         return out.decode(errors='ignore') if out is not None else ""
 

@@ -27,5 +27,5 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from .adb import Adb, Device, AdbError
-from .argparser import AdbArgumentParser
+from .argparser import AndroidArgumentParser
 from .struct import Package, Permission, Component, Activity, Service, Receiver, Provider, IntentFilter

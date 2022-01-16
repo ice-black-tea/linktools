@@ -31,13 +31,13 @@ import datetime
 import sys
 
 from linktools import utils, logger
-from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='show top-level app\'s basic information')
+    parser = AndroidArgumentParser(description='show top-level app\'s basic information')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-p', '--package', action='store_const', const=True, default=False,
@@ -54,7 +54,7 @@ def main():
                        help='capture screen and pull file')
 
     args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
 
     if args.package:
         logger.message(device.get_top_package_name())

@@ -26,7 +26,7 @@ from subprocess import PIPE, DEVNULL
 from urwid.old_str_util import is_wide_char
 
 from linktools import logger
-from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 __version__ = '2.1.0'
@@ -37,7 +37,7 @@ LOG_LEVELS_MAP = dict([(LOG_LEVELS[i], i) for i in range(len(LOG_LEVELS))])
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='Filter logcat by package name', conflict_handler='resolve')
+    parser = AndroidArgumentParser(description='Filter logcat by package name', conflict_handler='resolve')
     parser.add_argument('package', nargs='*', help='application package name(s)')
     parser.add_argument('-w', '--tag-width', metavar='N', dest='tag_width', type=int, default=23,
                         help='width of log tag')
@@ -58,7 +58,7 @@ def main():
     parser.add_argument('-a', '--all', dest='all', action='store_true', default=False, help='print all log messages')
 
     args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
     package = args.package
     min_level = LOG_LEVELS_MAP[args.min_level.upper()]
 

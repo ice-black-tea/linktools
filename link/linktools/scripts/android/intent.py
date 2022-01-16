@@ -31,13 +31,13 @@ import sys
 
 import linktools
 from linktools import utils
-from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='common intent action')
+    parser = AndroidArgumentParser(description='common intent action')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--setting', dest='package', action='store_true',
@@ -56,7 +56,7 @@ def main():
                        help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
     args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
 
     if "--setting" in sys.argv:
         device.shell("am", "start", "--user", "0",

@@ -26,16 +26,16 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='used for debugging android-tools.apk')
+    parser = AndroidArgumentParser(description='used for debugging android-tools.apk')
     parser.add_argument('agent_args', nargs='...', help="agent args")
     args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
     device.call_agent(*args.agent_args, capture_output=False)
 
 

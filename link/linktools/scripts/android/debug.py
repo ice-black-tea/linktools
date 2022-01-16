@@ -27,13 +27,13 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from linktools import utils
-from linktools.android import Device, AdbError, AdbArgumentParser
+from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='debugger')
+    parser = AndroidArgumentParser(description='debugger')
     parser.add_argument('package', action='store', default=None,
                         help='regular expression')
     parser.add_argument('activity', action='store', default=None,
@@ -42,7 +42,7 @@ def main():
                         help='fetch all apps')
 
     args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
 
     device.shell("am", "force-stop", args.package, capture_output=False)
     device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_output=False)

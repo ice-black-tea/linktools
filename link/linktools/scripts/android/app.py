@@ -27,11 +27,10 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-import colorama
 from colorama import Fore, Style, Back
 
 from linktools import utils, logger
-from linktools.android import Device, AdbError, AdbArgumentParser, Package, Permission, Component, Activity, Service, \
+from linktools.android import AdbError, AndroidArgumentParser, Package, Permission, Component, Activity, Service, \
     Receiver, Provider, IntentFilter
 from linktools.decorator import entry_point
 
@@ -227,7 +226,7 @@ class PackagePrinter:
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AdbArgumentParser(description='fetch application info')
+    parser = AndroidArgumentParser(description='fetch application info')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-a', '--all', action='store_true', default=False,
@@ -251,7 +250,7 @@ def main():
                         help='order by target field')
 
     args = parser.parse_args()
-    device = Device(args.parse_adb_serial())
+    device = args.parse_device()
 
     if args.top:
         packages = device.get_packages(device.get_top_package_name(), basic_info=args.basic_info)
