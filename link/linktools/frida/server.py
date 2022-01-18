@@ -147,7 +147,7 @@ class AndroidFridaServer(FridaServer):
     def _run_in_background(cls, device: adb.Device, path: str, port: int):
         try:
             device.sudo(path, "-l", f"0.0.0.0:{port}", stdin=subprocess.PIPE)
-        except KeyboardInterrupt as e:
+        except KeyboardInterrupt:
             pass
         except Exception as e:
             logger.error(e, tag="[!]")
@@ -186,12 +186,16 @@ class AndroidFridaServer(FridaServer):
 
     def _stop(self):
         try:
-            process_name_lc = f"*{self._remote_path.name}*".lower()
-            for process in [process for process in self.enumerate_processes() if
-                            fnmatch.fnmatchcase(process.name.lower(), process_name_lc)]:
-                self.kill(process.pid)
+            if self._process is not None:
+                self._process.terminate()
+                self._process.join(5)
         finally:
             self._process = None
+
+        process_name_lc = f"*{self._remote_path.name}*".lower()
+        for process in self.enumerate_processes():
+            if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
+                self.kill(process.pid)
 
 
 class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
