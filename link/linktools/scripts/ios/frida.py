@@ -103,7 +103,10 @@ def main():
         target_pids = set()
 
         if utils.is_empty(bundle_id):
-            bundle_id = app.get_frontmost_application().identifier
+            target_app = app.get_frontmost_application()
+            if target_app is None:
+                raise RuntimeError("unknown frontmost application")
+            bundle_id = target_app.identifier
 
         if not args.spawn:
             # 匹配所有app

@@ -29,13 +29,13 @@
 import abc
 import fnmatch
 import lzma
-import multiprocessing
 import os
 import shutil
 import subprocess
 import time
 from pathlib import Path, PosixPath
 
+import billiard
 import frida
 
 import linktools
@@ -123,7 +123,7 @@ class AndroidFridaServer(FridaServer):
         self._device = device
         self._local_port = local_port
         self._remote_port = remote_port
-        self._process: multiprocessing.Process = None
+        self._process = None
 
         # frida server文件相关参数
         self._download_url = self.config["url"]
@@ -155,7 +155,7 @@ class AndroidFridaServer(FridaServer):
     def _start(self):
         self._prepare()
         self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
-        self._process = multiprocessing.Process(
+        self._process = billiard.context.Process(
             target=self._run_in_background,
             args=(
                 self._device,
@@ -202,7 +202,7 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
         self._device = device
         self._local_port = local_port
         self._remote_port = remote_port
-        self._process: multiprocessing.Process = None
+        self._process = None
 
     @classmethod
     def _run_in_background(cls, device: "tidevice.Device", local_port: int, remote_port: int):
@@ -216,7 +216,7 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
             logger.error(e, tag="[!]")
 
     def _start(self):
-        self._process = multiprocessing.Process(
+        self._process = billiard.context.Process(
             target=self._run_in_background,
             args=(
                 self._device,
@@ -230,7 +230,7 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
     def _stop(self):
         try:
             if self._process is not None:
-                self._process.kill()
+                self._process.terminate()
                 self._process.join(5)
         finally:
             self._process = None

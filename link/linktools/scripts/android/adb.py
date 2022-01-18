@@ -60,9 +60,10 @@ def main():
     if len(adb_args) > 0 and not adb_args[0].startswith("-"):
         if adb_args[0] not in general_commands:
             device = args.parse_device()
-            return device.exec(*adb_args)
+            device.exec(*adb_args, capture_output=False)
+            return
 
-    return Adb.exec(*adb_args, capture_output=False)
+    Adb.exec(*adb_args, capture_output=False)
 
 
 if __name__ == '__main__':
