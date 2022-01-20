@@ -30,7 +30,7 @@ import tidevice
 
 from linktools import logger, utils
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, FridaShareScript, IOSFridaServer
+from linktools.frida import FridaApplication, FridaShareScript, FridaIOSServer
 from linktools.ios.argparser import IOSArgumentParser
 
 
@@ -88,7 +88,7 @@ def main():
             elif len(self._sessions) == 0:
                 app.load_script(app.device.spawn(bundle_id), resume=True)
 
-    with IOSFridaServer(device=device) as server:
+    with FridaIOSServer(device=device) as server:
 
         app = Application(
             server,

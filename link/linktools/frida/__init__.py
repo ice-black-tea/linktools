@@ -28,4 +28,4 @@
 """
 
 from linktools.frida.app import FridaApplication, FridaScriptFile, FridaShareScript, FridaEvalCode
-from linktools.frida.server import FridaServer, AndroidFridaServer, IOSFridaServer
+from linktools.frida.server import FridaServer, FridaAndroidServer, FridaIOSServer

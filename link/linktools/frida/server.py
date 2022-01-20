@@ -116,7 +116,7 @@ class FridaServer(utils.Proxy, metaclass=abc.ABCMeta):  # proxy for frida.core.D
         self.stop()
 
 
-class AndroidFridaServer(FridaServer):
+class FridaAndroidServer(FridaServer):
 
     def __init__(self, device: adb.Device, local_port: int = 47042, remote_port: int = 47042):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
@@ -187,8 +187,8 @@ class AndroidFridaServer(FridaServer):
     def _stop(self):
         try:
             if self._process is not None:
-                self._process.terminate()
-                self._process.join(5)
+                utils.ignore_error(self._process.terminate)
+                utils.ignore_error(self._process.join, 5)
         finally:
             self._process = None
 
@@ -198,7 +198,7 @@ class AndroidFridaServer(FridaServer):
                 self.kill(process.pid)
 
 
-class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
+class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
     __setattr__ = object.__setattr__
 
     def __init__(self, device: "tidevice.Device", local_port: int = 37042, remote_port: int = 27042):
@@ -214,6 +214,7 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
         try:
             _logger.setLevel(logger.level)
             relay(device, local_port, remote_port)
+            print(111111111111111111111111111111111111111111)
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -234,7 +235,7 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
     def _stop(self):
         try:
             if self._process is not None:
-                self._process.terminate()
-                self._process.join(5)
+                utils.ignore_error(self._process.terminate)
+                utils.ignore_error(self._process.join, 5)
         finally:
             self._process = None

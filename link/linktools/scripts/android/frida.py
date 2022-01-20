@@ -30,7 +30,7 @@
 from linktools import utils, logger
 from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, AndroidFridaServer, FridaShareScript
+from linktools.frida import FridaApplication, FridaAndroidServer, FridaShareScript
 
 
 @entry_point(known_errors=[AdbError])
@@ -87,7 +87,7 @@ def main():
             elif len(self._sessions) == 0:
                 app.load_script(app.device.spawn(package), resume=True)
 
-    with AndroidFridaServer(device=device) as server:
+    with FridaAndroidServer(device=device) as server:
 
         app = Application(
             server,

@@ -138,7 +138,7 @@ class Reactor(object):
         with self._lock:
             self._running = False
 
-    def schedule(self, fn: Callable[[], None], delay: float = None):
+    def schedule(self, fn: Callable[[], any], delay: float = None):
         now = time.time()
         if delay is not None:
             when = now + delay
@@ -148,7 +148,7 @@ class Reactor(object):
             self._pending.append((functools.partial(self._work, fn), when))
             self._cond.notify()
 
-    def _work(self, fn: Callable[[], None]):
+    def _work(self, fn: Callable[[], any]):
         fn()
 
 

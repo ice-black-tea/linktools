@@ -10,7 +10,7 @@
 import logging
 import os
 import threading
-from typing import Optional, Union, Dict, Collection
+from typing import Optional, Union, Dict, Collection, Callable
 
 import _frida
 import frida
@@ -28,8 +28,8 @@ class FridaReactor(utils.Reactor):
         # self.ui_cancellable = frida.Cancellable()
         # self._ui_cancellable_fd = self.ui_cancellable.get_pollfd()
 
-    # def cancel_io(self):
-    #     self.io_cancellable.cancel()
+    def cancel_io(self):
+        self.io_cancellable.cancel()
 
     # def _run(self):
     #     super()._run()
@@ -59,9 +59,17 @@ class FridaSession(utils.Proxy):  # proxy for frida.core.Session
 class FridaScript(utils.Proxy):  # proxy for frida.core.Session
     __setattr__ = object.__setattr__
 
-    def __init__(self, script: frida.core.Script):
-        super().__init__(lambda: script)
-        self.session: Optional[FridaSession] = None
+    def __init__(self, session: FridaSession, code: str):
+        super().__init__(lambda: session.create_script(code))
+        self.session: FridaSession = session
+
+    @property
+    def pid(self) -> int:
+        return self.session.pid
+
+    @property
+    def process_name(self) -> str:
+        return self.session.process_name
 
 
 class FridaScriptFile(object):
@@ -191,7 +199,10 @@ class FridaApplication:
         jscode = \"\"\"
             Java.perform(function () {
                 JavaHelper.hookMethods(
-                    "java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: false, printArgs: true})
+                    "java.util.HashMap", "put", JavaHelper.getHookImpl({
+                        printStack: false,
+                        printArgs: true,
+                    })
                 );
             });
         \"\"\"
@@ -227,9 +238,6 @@ class FridaApplication:
             eternalize: str = False,
             debug: str = False,
     ):
-        """
-
-        """
         self.device: frida.core.Device = device
         self.spawn = self.device.spawn
         self.resume = self.device.resume
@@ -237,18 +245,27 @@ class FridaApplication:
         self.enumerate_processes = self.device.enumerate_processes
         self.get_frontmost_application = self.device.get_frontmost_application
 
+        self._cb_spawn_added = lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start()
+        self._cb_spawn_removed = lambda spawn: self._reactor.schedule(self.on_spawn_removed)
+        self._cb_child_added = lambda child: self._reactor.schedule(lambda: self.on_child_added(child))
+        self._cb_child_removed = lambda child: self._reactor.schedule(lambda: self.on_child_removed(child))
+        self._cb_output = lambda pid, fd, data: self._reactor.schedule(lambda: self.on_output(pid, fd, data))
+        self._cb_lost = lambda: self._reactor.schedule(lambda: self.on_device_lost())
+
         self._debug = debug
+        self._last_error = None
         self._stop_requested = threading.Event()
         self._finished = threading.Event()
         self._reactor = FridaReactor(
             run_until_return=self._run,
             on_stop=self._on_stop,
-            on_error=self.on_error
+            on_error=self._on_error
         )
 
-        self._sessions = {}
+        self._lock = threading.RLock()
+        self._sessions: Dict[int, FridaSession] = {}
         self._last_change_id = 0
-        self._monitored_files = {}
+        self._monitored_files: Dict[str, frida.FileMonitor] = {}
 
         self._internal_script = FridaScriptFile(resource.get_persist_path("frida.min.js"))
         self._internal_debug_script = FridaScriptFile(resource.get_persist_path("frida.js"))
@@ -261,13 +278,6 @@ class FridaApplication:
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
-
-        self._cb_spawn_added = lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start()
-        self._cb_spawn_removed = lambda spawn: self._reactor.schedule(self.on_spawn_removed)
-        self._cb_child_added = lambda child: self._reactor.schedule(lambda: self.on_child_added(child))
-        self._cb_child_removed = lambda child: self._reactor.schedule(lambda: self.on_child_removed(child))
-        self._cb_output = lambda pid, fd, data: self._reactor.schedule(lambda: self.on_output(pid, fd, data))
-        self._cb_lost = lambda: self._reactor.schedule(lambda: self.on_device_lost())
 
     def init(self):
 
@@ -307,6 +317,30 @@ class FridaApplication:
         finally:
             self.deinit()
 
+    def run_in_background(self, timeout=None):
+
+        threading.Thread(
+            target=self.run,
+            kwargs=dict(timeout=timeout),
+        ).start()
+
+        class Stoppable:
+
+            def __init__(self, app):
+                self.app = app
+
+            def stop(self):
+                self.app.stop()
+                self.app.wait()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args, **kwargs):
+                self.stop()
+
+        return Stoppable(self)
+
     def _run(self, timeout):
         try:
             self._stop_requested.wait(timeout)
@@ -322,6 +356,19 @@ class FridaApplication:
 
     def stop(self):
         self._stop_requested.set()
+
+    @property
+    def sessions(self) -> Dict[int, FridaSession]:
+        with self._lock:
+            return {k: v for k, v in self._sessions.items() if not v.is_detached}
+
+    @property
+    def scripts(self) -> Dict[int, FridaScript]:
+        with self._lock:
+            return {k: v.script for k, v in self._sessions.items() if not v.is_detached}
+
+    def schedule(self, fn: Callable[[], any], delay: float = None):
+        self._reactor.schedule(fn, delay)
 
     def load_script(self, pid, resume=False):
         """
@@ -343,10 +390,9 @@ class FridaApplication:
         分离指定进程
         :param pid: 进程id
         """
-        self._reactor.schedule(lambda: self._detach_session(pid))
-
-    def _get_process(self, pid: int):
-        pass
+        session = self.sessions.get(pid)
+        if session is not None:
+            self._reactor.schedule(lambda: self._detach_session(session))
 
     def _load_script_files(self):
 
@@ -377,16 +423,17 @@ class FridaApplication:
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}", tag="[✔]")
 
         session = self._attach_session(pid)
+        self._unload_script(session)
 
         # read the internal script as an entrance
-        entry_code = self._internal_debug_script.source if self._debug else self._internal_script.source
-        script = FridaScript(session.create_script(entry_code))
-        script.session = session
+        entry_code = self._internal_debug_script.source \
+            if self._debug \
+            else self._internal_script.source
+        script = FridaScript(session, entry_code)
 
         script.on("message", lambda message, data: self.on_script_message(script, message, data))
         script.on("destroyed", lambda: self.on_script_destroyed(script))
 
-        self._unload_script(pid)
         session.script = script
 
         try:
@@ -399,9 +446,12 @@ class FridaApplication:
         self._reactor.schedule(lambda: self.on_script_loaded(script))
 
     def _attach_session(self, pid: int):
-        session = self._sessions.get(pid)
-        if session is not None:
-            return session
+        with self._lock:
+            session = self._sessions.get(pid)
+            if session is not None:
+                if not session.is_detached:
+                    return session
+                self._sessions.pop(pid)
 
         logger.debug(f"Attempt to attach process: pid={pid}", tag="[✔]")
 
@@ -421,32 +471,31 @@ class FridaApplication:
             session.enable_child_gating()
 
         def on_session_detached(reason, crash):
-            self._sessions.pop(pid, None)
+            with self._lock:
+                self._sessions.pop(pid, None)
             self._reactor.schedule(lambda: self.on_session_detached(session, reason, crash))
 
         session.on("detached", on_session_detached)
-        self._sessions[target_process.pid] = session
+        with self._lock:
+            self._sessions[target_process.pid] = session
         self._reactor.schedule(lambda: self.on_session_attached(session))
 
         return session
 
-    def _detach_session(self, pid: int):
-        session = self._sessions.get(pid)
+    def _detach_session(self, session: FridaSession):
         if session is not None:
-            logger.debug(f"Detach process: pid={pid}", tag="[✔]")
+            logger.debug(f"Detach process: pid={session.pid}", tag="[✔]")
             utils.ignore_error(session.detach)
 
-    def _unload_script(self, pid: int):
-        session = self._sessions.get(pid)
+    def _unload_script(self, session: FridaSession):
         if session is not None and session.script is not None:
-            logger.debug(f"Unload script: pid={pid}", tag="[✔]")
+            logger.debug(f"Unload script: pid={session.pid}", tag="[✔]")
             utils.ignore_error(session.script.unload)
             session.script = None
 
-    def _eternalize_script(self, pid: int):
-        session = self._sessions.get(pid)
+    def _eternalize_script(self, session: FridaSession):
         if session is not None and session.script is not None:
-            logger.debug(f"Eternalize script: pid={pid}", tag="[✔]")
+            logger.debug(f"Eternalize script: pid={session.pid}", tag="[✔]")
             utils.ignore_error(session.script.eternalize)
             session.script = None
 
@@ -488,9 +537,10 @@ class FridaApplication:
         process_script = self._unload_script
         if self._eternalize:
             process_script = self._eternalize_script
-        for session in [s for s in self._sessions.values()]:
-            process_script(session.pid)
-            self._detach_session(session.pid)
+
+        for session in self.sessions.values():
+            process_script(session)
+            self._detach_session(session)
 
         with frida.Cancellable():
             self._demonitor_all()
@@ -500,10 +550,18 @@ class FridaApplication:
     def on_stop(self):
         logger.debug("Application stopped", tag="[✔]")
 
+    def _on_error(self, exc, traceback):
+        self._last_error = exc
+        self.on_error(exc, traceback)
+
     def on_error(self, exc, traceback):
         logger.error(f"Unhandled exception: {exc.__class__.__name__}{os.linesep}{traceback}", tag="[!]", fore=Fore.RED)
         if isinstance(exc, (KeyboardInterrupt, frida.TransportError, frida.ServerNotRunningError)):
             self.stop()
+
+    def raise_on_error(self):
+        if self._last_error is not None:
+            raise self._last_error
 
     def on_output(self, pid: int, fd, data):
         logger.debug(f"Output: pid={pid}, fd={fd}, data={data}", tag="[✔]")
@@ -518,8 +576,8 @@ class FridaApplication:
         :param file: 脚本文件路径
         """
         logger.debug(f"File changed", tag="[✔]")
-        for session in self._sessions.values():
-            self._load_script(session.pid)
+        for session in self.sessions.values():
+            self.load_script(session.pid)
 
     def on_spawn_added(self, spawn: "_frida.Spawn"):
         """
