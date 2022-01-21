@@ -52,10 +52,9 @@ export class JavaHelper {
         return Java.use("java.util.Map");
     }
 
-    getApplicationContext(): Java.Wrapper {
+    get applicationContext(): Java.Wrapper {
         const activityThreadClass = Java.use('android.app.ActivityThread');
-        const contextClass = Java.use('android.content.Context');
-        return Java.cast(activityThreadClass.currentApplication().getApplicationContext(), contextClass);
+        return activityThreadClass.currentApplication().getApplicationContext();
     }
 
     /**
@@ -117,16 +116,16 @@ export class JavaHelper {
                     return this.holder.$className || this.holder.__name__;
                 },
             },
-            toJson: {
+            pretty2Json: {
                 configurable: true,
                 enumerable: true,
                 value: function () {
-                    var ret = this.returnType.className;
-                    var name = this.className + "." + this.methodName;
-                    var args = "";
+                    const ret = this.returnType.className;
+                    const name = this.className + "." + this.methodName;
+                    let args = "";
                     if (this.argumentTypes.length > 0) {
                         args = this.argumentTypes[0].className;
-                        for (var i = 1; i < this.argumentTypes.length; i++) {
+                        for (let i = 1; i < this.argumentTypes.length; i++) {
                             args = args + ", " + this.argumentTypes[i].className;
                         }
                     }
@@ -147,11 +146,11 @@ export class JavaHelper {
                 return impl.call(method, this, arguments);
             };
             this.$fixMethod(method);
-            Log.i("Hook method: " + this.toString(method));
+            Log.i("Hook method: " + this.pretty(method));
         } else {
             method.implementation = null;
             this.$fixMethod(method);
-            Log.i("Unhook method: " + this.toString(method));
+            Log.i("Unhook method: " + this.pretty(method));
         }
     }
 
@@ -345,7 +344,7 @@ export class JavaHelper {
             for (const key in extras) {
                 event[key] = extras[key];
             }
-            event["method_name"] = javaHelperThis.toString(this);
+            event["method_name"] = javaHelperThis.pretty(this);
             event["method_simple_name"] = this.methodName;
             if (threadOption === true) {
                 event["thread_id"] = Process.getCurrentThreadId();
@@ -353,11 +352,11 @@ export class JavaHelper {
             }
             if (argsOption === true) {
                 event["object"] = obj.$className;
-                event["args"] = javaHelperThis.toJson(Array.prototype.slice.call(args));
-                event["result"] = javaHelperThis.toJson(result);
+                event["args"] = javaHelperThis.pretty2Json(Array.prototype.slice.call(args));
+                event["result"] = javaHelperThis.pretty2Json(result);
             }
             if (stackOption === true) {
-                event["stack"] = javaHelperThis.toJson(javaHelperThis.getStackTrace());
+                event["stack"] = javaHelperThis.pretty2Json(javaHelperThis.getStackTrace());
             }
             send({ event: event });
             return result;
@@ -433,7 +432,7 @@ export class JavaHelper {
         }
         var body = "Stack: " + message;
         for (var i = 0; i < elements.length; i++) {
-            body += "\n    at " + this.toString(elements[i]);
+            body += "\n    at " + this.pretty(elements[i]);
         }
         return { "stack": body };
     }
@@ -455,22 +454,22 @@ export class JavaHelper {
      * @param obj java对象
      * @returns toString返回值
      */
-    toString(obj: any): string {
-        obj = this.toJson(obj);
+    pretty(obj: any): string {
+        obj = this.pretty2Json(obj);
         if (!(obj instanceof Object)) {
             return obj;
         }
         return JSON.stringify(obj);
     }
 
-    toJson(obj: any): any {
+    pretty2Json(obj: any): any {
         if (!(obj instanceof Object)) {
             return obj;
         }
         if (Array.isArray(obj)) {
             let result = [];
             for (let i = 0; i < obj.length; i++) {
-                result.push(this.toJson(obj[i]));
+                result.push(this.pretty2Json(obj[i]));
             }
             return result;
         }
@@ -478,27 +477,26 @@ export class JavaHelper {
             if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
                 let result = [];
                 for (let i = 0; i < obj.length; i++) {
-                    result.push(this.toJson(obj[i]));
+                    result.push(this.pretty2Json(obj[i]));
                 }
                 return result;
             } else if (obj.class.hasOwnProperty("toString")) {
                 return ignoreError(() => obj.toString(), void 0);
             }
         }
-        if (obj.hasOwnProperty("toJson")) {
-            return ignoreError(() => obj.toJson(), void 0);
+        if (obj.hasOwnProperty("pretty2Json")) {
+            return ignoreError(() => obj.pretty2Json(), void 0);
         }
         return obj;
     }
 
-
     private $makeArgsObject(args: any, ret: any, message: any) {
         var body = "Arguments: " + message;
         for (var i = 0; i < args.length; i++) {
-            body += "\n    Arguments[" + i + "]: " + this.toString(args[i]);
+            body += "\n    Arguments[" + i + "]: " + this.pretty(args[i]);
         }
         if (ret !== void 0) {
-            body += "\n    Return: " + this.toString(ret);
+            body += "\n    Return: " + this.pretty(ret);
         }
         return { "arguments": body };
     }

@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import collections
+import contextlib
 import functools
 import importlib
 import os
@@ -72,9 +73,8 @@ class Reactor(object):
     Code stolen from frida_tools.application.Reactor
     """
 
-    def __init__(self, run_until_return, on_stop=None, on_error=None):
+    def __init__(self, on_stop=None, on_error=None):
         self._running = False
-        self._run_until_return = run_until_return
         self._on_stop = on_stop
         self._on_error = on_error
         self._pending = collections.deque([])
@@ -85,7 +85,8 @@ class Reactor(object):
         with self._lock:
             return self._running
 
-    def run(self, *args, **kwargs):
+    @contextlib.contextmanager
+    def run(self):
         with self._lock:
             self._running = True
 
@@ -93,7 +94,7 @@ class Reactor(object):
 
         try:
             worker.start()
-            self._run_until_return(*args, **kwargs)
+            yield
         finally:
             self.stop()
             worker.join()
@@ -131,8 +132,8 @@ class Reactor(object):
         if self._on_stop is not None:
             self._on_stop()
 
-    def stop(self):
-        self.schedule(self._stop)
+    def stop(self, delay: float = None):
+        self.schedule(self._stop, delay)
 
     def _stop(self):
         with self._lock:

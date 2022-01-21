@@ -7,6 +7,7 @@
 # Product   : PyCharm
 # Project   : link
 
+import contextlib
 import logging
 import os
 import threading
@@ -254,10 +255,8 @@ class FridaApplication:
 
         self._debug = debug
         self._last_error = None
-        self._stop_requested = threading.Event()
         self._finished = threading.Event()
         self._reactor = FridaReactor(
-            run_until_return=self._run,
             on_stop=self._on_stop,
             on_error=self._on_error
         )
@@ -282,7 +281,6 @@ class FridaApplication:
     def init(self):
 
         self._finished.clear()
-        self._stop_requested.clear()
         self._monitor_all()
 
         self.device.on("spawn-added", self._cb_spawn_added)
@@ -298,6 +296,7 @@ class FridaApplication:
             self.device.enable_spawn_gating()
 
     def deinit(self):
+
         utils.ignore_error(self.device.off, "spawn-added", self._cb_spawn_added)
         utils.ignore_error(self.device.off, "spawn-removed", self._cb_spawn_removed)
         utils.ignore_error(self.device.off, "child-added", self._cb_child_added)
@@ -313,39 +312,22 @@ class FridaApplication:
         assert not self.is_running
         try:
             self.init()
-            self._reactor.run(timeout)
+            with self._reactor.run():
+                self._finished.wait(timeout)
         finally:
             self.deinit()
 
+    @contextlib.contextmanager
     def run_in_background(self, timeout=None):
-
-        threading.Thread(
-            target=self.run,
-            kwargs=dict(timeout=timeout),
-        ).start()
-
-        class Stoppable:
-
-            def __init__(self, app):
-                self.app = app
-
-            def stop(self):
-                self.app.stop()
-                self.app.wait()
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *args, **kwargs):
-                self.stop()
-
-        return Stoppable(self)
-
-    def _run(self, timeout):
+        assert not self.is_running
         try:
-            self._stop_requested.wait(timeout)
+            self.init()
+            with self._reactor.run():
+                if timeout is not None:
+                    self._reactor.stop(timeout)
+                yield
         finally:
-            self._stop_requested.set()
+            self.deinit()
 
     @property
     def is_running(self):
@@ -355,7 +337,7 @@ class FridaApplication:
         return self._finished.wait(timeout)
 
     def stop(self):
-        self._stop_requested.set()
+        self._reactor.stop()
 
     @property
     def sessions(self) -> Dict[int, FridaSession]:
