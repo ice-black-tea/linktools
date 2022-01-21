@@ -214,7 +214,6 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         try:
             _logger.setLevel(logger.level)
             relay(device, local_port, remote_port)
-            print(111111111111111111111111111111111111111111)
         except KeyboardInterrupt:
             pass
         except Exception as e:
