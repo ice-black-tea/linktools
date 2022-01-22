@@ -232,7 +232,7 @@ def main():
     group.add_argument('-a', '--all', action='store_true', default=False,
                        help='fetch all apps')
     group.add_argument('-t', '--top', action='store_true', default=False,
-                       help='fetch top-level app only')
+                       help='fetch current running app only')
     group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
                        help='fetch target apps only')
     group.add_argument('--system', action='store_true', default=False,
@@ -253,7 +253,7 @@ def main():
     device = args.parse_device()
 
     if args.top:
-        packages = device.get_packages(device.get_top_package_name(), basic_info=args.basic_info)
+        packages = device.get_packages(device.get_current_package(), basic_info=args.basic_info)
     elif not utils.is_empty(args.packages):
         packages = device.get_packages(*args.packages, basic_info=args.basic_info)
     elif args.system:

@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : frida.py 
+@file    : frida.py
 @time    : 2021/12/18
-@site    :  
-@software: PyCharm 
+@site    :
+@software: PyCharm
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -118,9 +118,9 @@ class FridaServer(utils.Proxy, metaclass=abc.ABCMeta):  # proxy for frida.core.D
 
 class FridaAndroidServer(FridaServer):
 
-    def __init__(self, device: adb.Device, local_port: int = 47042, remote_port: int = 47042):
+    def __init__(self, device: adb.Device = None, local_port: int = 47042, remote_port: int = 47042):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
-        self._device = device
+        self._device = device or adb.Device()
         self._local_port = local_port
         self._remote_port = remote_port
         self._process = None
@@ -146,7 +146,7 @@ class FridaAndroidServer(FridaServer):
     @classmethod
     def _run_in_background(cls, device: adb.Device, path: str, port: int):
         try:
-            device.sudo(path, "-l", f"0.0.0.0:{port}", stdin=subprocess.PIPE)
+            device.sudo(path, "-d", "fs-binaries", "-l", f"0.0.0.0:{port}", stdin=subprocess.PIPE)
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -203,7 +203,7 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
 
     def __init__(self, device: "tidevice.Device", local_port: int = 37042, remote_port: int = 27042):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
-        self._device = device
+        self._device = device or tidevice.Device()
         self._local_port = local_port
         self._remote_port = remote_port
         self._process = None

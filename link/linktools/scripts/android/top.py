@@ -37,19 +37,19 @@ from linktools.decorator import entry_point
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AndroidArgumentParser(description='show top-level app\'s basic information')
+    parser = AndroidArgumentParser(description='show current running app\'s basic information')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-p', '--package', action='store_const', const=True, default=False,
-                       help='show top-level package name')
+                       help='show current running package name')
     group.add_argument('-a', '--activity', action='store_const', const=True, default=False,
-                       help='show top-level activity name')
+                       help='show current running activity name')
     group.add_argument('--path', action='store_const', const=True, default=False,
-                       help='show top-level package path')
+                       help='show current running package path')
     group.add_argument('--kill', action='store_const', const=True, default=False,
-                       help='kill top-level package')
+                       help='kill current running package')
     group.add_argument('--apk', metavar='DEST', action='store', type=str, nargs='?', default=".",
-                       help='pull top-level apk file')
+                       help='pull current running apk file')
     group.add_argument('--screen', metavar='DEST', action='store', type=str, nargs='?', default=".",
                        help='capture screen and pull file')
 
@@ -57,19 +57,19 @@ def main():
     device = args.parse_device()
 
     if args.package:
-        logger.message(device.get_top_package_name())
+        logger.message(device.get_current_package())
     elif args.activity:
-        logger.message(device.get_top_activity_name())
+        logger.message(device.get_current_activity())
     elif args.path:
-        logger.message(device.get_apk_path(device.get_top_package_name()))
+        logger.message(device.get_apk_path(device.get_current_package()))
     elif args.kill:
-        device.shell("am", "force-stop", device.get_top_package_name(), capture_output=False)
+        device.shell("am", "force-stop", device.get_current_package(), capture_output=False)
     elif "--apk" in sys.argv:
-        package_name = device.get_top_package_name()
-        logger.message("get top-level package: {}".format(package_name))
+        package_name = device.get_current_package()
+        logger.message("get current running package: {}".format(package_name))
         package = utils.get_item(device.get_packages(package_name, basic_info=True), 0)
         if package is not None:
-            logger.message("get top-level package path: {}".format(package.sourceDir))
+            logger.message("get current running package path: {}".format(package.sourceDir))
             path = device.get_storage_path("{}_{}.apk".format(package.name, package.versionName))
             dest = args.apk if not utils.is_empty(args.apk) else "."
             device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
@@ -85,9 +85,9 @@ def main():
         device.pull(path, dest, capture_output=False)
         device.shell("rm", path)
     else:
-        package = device.get_top_package_name()
+        package = device.get_current_package()
         logger.message("package:  ", package)
-        logger.message("activity: ", device.get_top_activity_name())
+        logger.message("activity: ", device.get_current_activity())
         logger.message("path:     ", device.get_apk_path(package))
 
 

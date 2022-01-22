@@ -120,9 +120,9 @@ class Reactor(object):
                 try:
                     work()
                 except BaseException as e:
-                    if self._on_error is None:
-                        raise e
-                    self._on_error(e, traceback.format_exc())
+                    if self._on_error is not None:
+                        self._on_error(e, traceback.format_exc())
+                    raise e
 
             with self._lock:
                 if self._running and len(self._pending) == previous_pending_length:

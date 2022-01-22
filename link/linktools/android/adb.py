@@ -29,6 +29,7 @@
 import json
 import re
 import subprocess
+from typing import Optional
 
 import linktools
 from linktools import __name__ as module_name, utils, resource, tools, logger
@@ -48,6 +49,8 @@ class AdbError(Exception):
 
 class Adb(object):
 
+    _alive_status = ["bootloader", "device", "recovery", "sideload"]
+
     @classmethod
     def devices(cls, alive: bool = None) -> [str]:
         """
@@ -64,8 +67,7 @@ class Adb(object):
                 device = splits[0]
                 status = splits[1]
                 if alive is not None:
-                    is_device_alive = status in ["bootloader", "device", "recovery", "sideload"]
-                    if (alive and is_device_alive) or (not alive and not is_device_alive):
+                    if alive == (status in cls._alive_status):
                         devices.append(device)
                 else:
                     devices.append(device)
@@ -155,8 +157,6 @@ class Device(object):
         """
         执行命令
         :param args: 命令行参数
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: 打开的进程
         """
         args = ["-s", self.id, *args]
@@ -166,8 +166,6 @@ class Device(object):
         """
         执行命令
         :param args: 命令行参数
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, *args]
@@ -177,8 +175,6 @@ class Device(object):
         """
         执行shell
         :param args: shell命令
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, "shell", *args]
@@ -188,8 +184,6 @@ class Device(object):
         """
         安装apk
         :param file_path: apk文件路径
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, "install", file_path]
@@ -199,11 +193,9 @@ class Device(object):
         """
         卸载apk
         :param package_name: 包名
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
-        args = ["-s", self.id, "uninstall", self.extract_package_name(package_name)]
+        args = ["-s", self.id, "uninstall", self.extract_package(package_name)]
         return Adb.exec(*args, **kwargs)
 
     def push(self, src: str, dst: str, **kwargs) -> str:
@@ -211,8 +203,6 @@ class Device(object):
         推送文件到设备
         :param src: 源文件
         :param dst: 目标文件
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, "push", src, dst]
@@ -223,8 +213,6 @@ class Device(object):
         拉取设备的文件
         :param src: 源文件
         :param dst: 目标文件
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, "pull", src, dst]
@@ -235,19 +223,25 @@ class Device(object):
         端口转发
         :param local: 本地端口
         :param remote: 设备端口
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         args = ["-s", self.id, "forward", local, remote]
+        return Adb.exec(*args, **kwargs)
+
+    def reverse(self, remote, local, **kwargs) -> str:
+        """
+        端口转发
+        :param remote: 设备端口
+        :param local: 本地端口
+        :return: adb输出结果
+        """
+        args = ["-s", self.id, "reverse", local, remote]
         return Adb.exec(*args, **kwargs)
 
     def sudo(self, *args: [str], **kwargs) -> str:
         """
         以root权限执行shell
         :param args: shell命令
-        :param kwargs:
-            capture_output: 捕获输出，填False使用标准输出
         :return: adb输出结果
         """
         if self.uid != 0:
@@ -256,11 +250,10 @@ class Device(object):
             args = ["-s", self.id, "shell", *args]
         return Adb.exec(*args, **kwargs)
 
-    def call_agent(self, *args: [str], capture_output: bool = True, **kwargs) -> str:
+    def call_agent(self, *args: [str], **kwargs) -> str:
         """
         调用辅助apk功能
         :param args: 参数
-        :param capture_output: 捕获输出，填False使用标准输出
         :return: 输出结果
         """
         apk_name = self.config["name"]
@@ -272,6 +265,8 @@ class Device(object):
         apk_path = resource.get_persist_path(apk_name)
         target_dir = self.get_storage_path("apk", apk_md5)
         target_path = self.get_storage_path("apk", apk_md5, apk_name)
+
+        capture_output = kwargs.get("capture_output", True)
 
         # check apk path
         if not self.is_file_exist(target_path):
@@ -304,8 +299,7 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+        self._ignore_capture_output(kwargs)
 
         return self.shell("getprop", prop, **kwargs).rstrip()
 
@@ -325,7 +319,7 @@ class Device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        args = ["am", "kill", self.extract_package_name(package_name)]
+        args = ["am", "kill", self.extract_package(package_name)]
         return self.shell(*args, **kwargs).rstrip()
 
     def force_stop(self, package_name, **kwargs) -> str:
@@ -334,7 +328,7 @@ class Device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        args = ["am", "force-stop", self.extract_package_name(package_name)]
+        args = ["am", "force-stop", self.extract_package(package_name)]
         return self.shell(*args, **kwargs).rstrip()
 
     def is_file_exist(self, path, **kwargs) -> bool:
@@ -343,20 +337,18 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+        self._ignore_capture_output(kwargs)
 
         args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
         out = self.shell(*args, **kwargs)
         return utils.bool(utils.int(out, default=0), default=False)
 
-    def get_top_package_name(self, **kwargs) -> str:
+    def get_current_package(self, **kwargs) -> str:
         """
         获取顶层包名
         :return: 顶层包名
         """
-        if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+        self._ignore_capture_output(kwargs)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -371,13 +363,12 @@ class Device(object):
             return out
         raise AdbError("can not fetch top package")
 
-    def get_top_activity_name(self, **kwargs) -> str:
+    def get_current_activity(self, **kwargs) -> str:
         """
         获取顶层activity名
         :return: 顶层activity名
         """
-        if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+        self._ignore_capture_output(kwargs)
 
         args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
         result = self.shell(*args, **kwargs)
@@ -391,8 +382,7 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+        self._ignore_capture_output(kwargs)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -403,6 +393,13 @@ class Device(object):
         obj = self.get_packages(package, basic_info=True, timeout=timeout_meter.get(), **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
+    def get_package(self, package_name, **kwargs) -> Optional[Package]:
+        self._ignore_capture_output(kwargs)
+
+        args = ["package", "--packages", package_name]
+        objs = json.loads(self.call_agent(*args, **kwargs))
+        return Package(objs[0]) if len(objs) > 0 else None
+
     def get_packages(self, *package_names, system=False, non_system=False, basic_info=False, **kwargs) -> [Package]:
         """
         获取包信息
@@ -412,8 +409,7 @@ class Device(object):
         :param basic_info: 只获取基本信息
         :return: 包信息
         """
-        if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+        self._ignore_capture_output(kwargs)
 
         result = []
         dex_args = ["package"]
@@ -440,7 +436,7 @@ class Device(object):
         return "/sdcard/%s/%s" % (module_name, "/".join(paths))
 
     @classmethod
-    def extract_package_name(cls, package_name) -> str:
+    def extract_package(cls, package_name) -> str:
         """
         获取可识别的包名
         :param package_name: 包名
@@ -450,3 +446,7 @@ class Device(object):
         if match is not None:
             return match.group(0)
         return package_name
+
+    def _ignore_capture_output(self, kwargs):
+        if kwargs.pop("capture_output", True) is False:
+            logger.warning("invalid argument capture_output=False, ignored!")

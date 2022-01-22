@@ -95,17 +95,17 @@ usage: at-top [-h] [-v] [-s SERIAL]
                      [--package | --activity | --path | --apk [path] |
                      --screen [path]]
 
-show top-level app's basic information
+show current running app's basic information
 
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
   -s SERIAL, --serial SERIAL
                         use device with given serial
-  --package             show top-level package name
-  --activity            show top-level activity name
-  --path                show top-level package path
-  --apk [path]          pull top-level apk file
+  --package             show current running package name
+  --activity            show current running activity name
+  --path                show current running package path
+  --apk [path]          pull current running apk file
   --screen [path]       capture screen and pull file
 ```
 
@@ -129,7 +129,7 @@ optional arguments:
   --setting-dev         start development setting activity
   --setting-dev2        start development setting activity
   --setting-app [PACKAGE]
-                        start application setting activity [default top-level
+                        start application setting activity [default current running
                         package]
   --setting-cert PATH   start cert installer activity and install cert (need
                         '/data/local/tmp' write permission)
@@ -154,7 +154,7 @@ optional arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial
   -a, --all             fetch all apps
-  -t, --top             fetch top-level app only
+  -t, --top             fetch current running app only
   -p pkg [pkg ...], --packages pkg [pkg ...]
                         fetch target apps
   -o field [field ...], --order-by field [field ...]
@@ -183,7 +183,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
   -p PACKAGE, --package PACKAGE
-                        target package [default top-level package]
+                        target package [default current running package]
   --spawn               inject after spawn [default false]
   --regular             regular match package name
   -l SCRIPT, --load SCRIPT

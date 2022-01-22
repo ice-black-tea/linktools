@@ -78,23 +78,26 @@ class IOSArgumentParser(ArgumentParser):
                 return devices[0].udid
 
             logger.message("more than one device/emulator")
+
+            offset = 1
             for i in range(len(devices)):
                 try:
                     name = Device(devices[0].udid, usbmux).name
                 except Exception:
                     name = ""
-                logger.message(f"%d: %-20s [%s]" % (i + 1, devices[i].udid, name))
+                logger.message(f"%d: %-20s [%s]" % (i + offset, devices[i].udid, name))
+
             while True:
                 offset = 1
-                data = input("enter device index %d~%d (default 1): " % (1, len(devices)))
+                data = input(
+                    "enter device index %d~%d (default %d): " %
+                    (offset, len(devices) + offset - 1, offset)
+                )
                 if utils.is_empty(data):
-                    index = 1 - offset
-                    break
-                index = utils.cast(int, data, -1) - offset
+                    return devices[0].udid
+                index = utils.cast(int, data, offset - 1) - offset
                 if 0 <= index < len(devices):
-                    break
-            if 0 <= index < len(devices):
-                return devices[index].udid
+                    return devices[index].udid
 
         class UdidAction(argparse.Action):
 

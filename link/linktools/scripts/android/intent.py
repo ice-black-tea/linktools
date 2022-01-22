@@ -47,7 +47,7 @@ def main():
     group.add_argument('--setting-dev2', dest='package', action='store_true',
                        help='start development setting activity')
     group.add_argument('--setting-app', dest='package', action='store', nargs='?', default="",
-                       help='start application setting activity [default top-level package]')
+                       help='start application setting activity [default current running package]')
     group.add_argument('--setting-cert', dest='path', action='store', default="",
                        help='install cert (need \'/data/local/tmp\' write permission)')
     group.add_argument('--install', dest='path', action='store', default="",
@@ -72,7 +72,7 @@ def main():
                      "com.android.settings/com.android.settings.DevelopmentSettings",
                      capture_output=False)
     elif "--setting-app" in sys.argv:
-        package = args.package if not utils.is_empty(args.package) else device.get_top_package_name()
+        package = args.package if not utils.is_empty(args.package) else device.get_current_package()
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,
