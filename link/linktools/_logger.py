@@ -32,7 +32,7 @@ import logging
 import colorama
 
 from . import utils
-from .version import __name__ as name
+from .version import __name__ as module_name
 
 MESSAGE = 0x00001000
 
@@ -46,15 +46,16 @@ def _get_logger():
         k = ctypes.windll.kernel32
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
     colorama.init(autoreset=False)
+    return get_logger(module_name)
 
+
+def get_logger(name: str = None):
     manager = logging.Manager(logging.getLogger())
     manager.setLoggerClass(Logger)
     return manager.getLogger(name)
 
 
 class Logger(logging.Logger):
-
-    _init_colorama = False
 
     def debug(self, *args, **kwargs):
         super().debug(None, *args, **kwargs,

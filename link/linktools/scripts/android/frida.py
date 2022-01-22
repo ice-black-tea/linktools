@@ -37,7 +37,7 @@ from linktools.frida import FridaApplication, FridaAndroidServer, FridaShareScri
 def main():
     parser = AndroidArgumentParser(description='easy to use frida')
     parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package (default: top-level package)')
+                        help='target package (default: current running package)')
     parser.add_argument('--spawn', action='store_true', default=False,
                         help='inject after spawn (default: false)')
 
@@ -75,7 +75,7 @@ def main():
 
         def on_spawn_added(self, spawn):
             logger.debug(f"Spawn added: {spawn}", tag="[✔]")
-            if device.extract_package_name(spawn.identifier) == package:
+            if device.extract_package(spawn.identifier) == package:
                 self.load_script(spawn.pid, resume=True)
             else:
                 self.resume(spawn.pid)
@@ -118,7 +118,7 @@ def main():
             # 匹配所有进程
             for target_process in app.enumerate_processes():
                 if target_process.pid > 0 and target_process.pid not in target_pids:
-                    if device.extract_package_name(target_process.name) == package:
+                    if device.extract_package(target_process.name) == package:
                         app.load_script(target_process.pid)
                         target_pids.add(target_process.pid)
 

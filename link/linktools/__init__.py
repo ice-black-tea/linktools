@@ -30,7 +30,7 @@
 from .version import __name__, __version__, __author__, __email__, __url__
 
 from . import utils
-from ._logger import logger
+from ._logger import logger, get_logger
 from ._resource import Resource
 from ._config import Config, _create_default_config
 from ._tools import GeneralTools, _create_default_tools
