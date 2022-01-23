@@ -195,6 +195,9 @@ class FridaApplication:
         # utils.ignore_error(self.device.off, "uninjected", self._cb_uninjected)
         utils.ignore_error(self.device.off, "lost", self._cb_lost)
 
+        with frida.Cancellable():
+            self._demonitor_all()
+
         self._finished.set()
 
     @property
@@ -217,12 +220,12 @@ class FridaApplication:
         self._stop_request.set()
 
     @contextlib.contextmanager
-    def run_in_background(self):
+    def run_in_block(self):
         assert not self.is_running
         try:
             self._init()
             with self._reactor.run():
-                yield
+                yield self
         finally:
             self._deinit()
 
@@ -383,7 +386,7 @@ class FridaApplication:
                 self._last_change_id += 1
                 change_id = self._last_change_id
                 changed_file.clear()
-                self._reactor.schedule(lambda: on_change_schedule(change_id, changed_file), delay=0.1)
+                self._reactor.schedule(lambda: on_change_schedule(change_id, changed_file), delay=0.5)
 
         def on_change_schedule(change_id, changed_file):
             if change_id == self._last_change_id:
@@ -410,9 +413,6 @@ class FridaApplication:
         for session in self.sessions.values():
             process_script(session)
             self._detach_session(session)
-
-        with frida.Cancellable():
-            self._demonitor_all()
 
         self.on_stop()
 
