@@ -40,11 +40,7 @@ from .struct import Package
 class AdbError(Exception):
 
     def __init__(self, message: str):
-        self.message = message.rstrip("\r\n")
-        super().__init__(self, self.message)
-
-    def __str__(self):
-        return self.message
+        super().__init__(message.rstrip("\r\n"))
 
 
 class Adb(object):
@@ -62,10 +58,9 @@ class Adb(object):
         result = cls.exec("devices", capture_output=True)
         lines = result.splitlines()
         for i in range(1, len(lines)):
-            splits = lines[i].split()
+            splits = lines[i].split(maxsplit=1)
             if len(splits) >= 2:
-                device = splits[0]
-                status = splits[1]
+                device, status = splits
                 if alive is not None:
                     if alive == (status in cls._alive_status):
                         devices.append(device)

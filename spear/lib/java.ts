@@ -163,13 +163,13 @@ export class JavaHelper {
                     return target[p];
                 },
                 apply: function (target, thisArg: any, argArray: any[]) {
-                    const obj = argArray.shift();
-                    const args = argArray.shift();
+                    const obj = argArray[0];
+                    const args = argArray[1];
                     return target.apply(obj, args);
                 }
             });
             method.implementation = function () {
-                return impl.call(origMethod, this, arguments);
+                return impl.call(origMethod, this, Array.prototype.slice.call(arguments));
             };
             Log.i("Hook method: " + method);
         } else {
@@ -359,7 +359,7 @@ export class JavaHelper {
                 event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
             }
             if (argsOption === true) {
-                event["args"] = pretty2Json(Array.prototype.slice.call(args));
+                event["args"] = pretty2Json(args);
                 event["result"] = pretty2Json(result);
             }
             if (stackOption === true) {
@@ -446,13 +446,9 @@ export class JavaHelper {
 
     /**
      * 打印当前栈
-     * @param message 回显的信息
      */
-    printStack(message: any = void 0): void {
+    printStack(): void {
         var elements = this.getStackTrace();
-        if (message == void 0) {
-            message = elements[0];
-        }
         Log.i(this.$makeStackObject(elements));
     }
 

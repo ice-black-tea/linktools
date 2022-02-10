@@ -64,8 +64,8 @@ export class ObjCHelper {
                         return target[p];
                     },
                     apply: function (target, thisArg: any, argArray: any[]) {
-                        const obj = argArray.shift();
-                        const args = argArray.shift();
+                        const obj = argArray[0];
+                        const args = argArray[1];
                         return origImpl.apply(null, [].concat(obj, sel, args));
                     }
                 });
@@ -161,7 +161,7 @@ export class ObjCHelper {
                 const stack = [];
                 const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
                 for (let i = 0; i < elements.length; i++) {
-                    stack.push(DebugSymbol.fromAddress(elements[i]));
+                    stack.push(DebugSymbol.fromAddress(elements[i]).toString());
                 }
                 event["stack"] = stack;
             }
