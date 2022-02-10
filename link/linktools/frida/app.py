@@ -168,6 +168,7 @@ class FridaApplication:
         self._eternalize = eternalize
 
     def _init(self):
+        logger.debug(f"FridaApplication init", tag="[✔]")
 
         self._finished.clear()
         self._monitor_all()
@@ -185,6 +186,7 @@ class FridaApplication:
             self.device.enable_spawn_gating()
 
     def _deinit(self):
+        logger.debug(f"FridaApplication deinit", tag="[✔]")
 
         utils.ignore_error(self.device.off, "spawn-added", self._cb_spawn_added)
         utils.ignore_error(self.device.off, "spawn-removed", self._cb_spawn_removed)

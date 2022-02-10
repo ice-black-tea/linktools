@@ -35,6 +35,7 @@ import subprocess
 import threading
 import time
 import traceback
+import warnings
 from collections.abc import Iterable
 from typing import Union, Sized, Callable
 
@@ -97,7 +98,9 @@ class Reactor(object):
             yield
         finally:
             self.stop()
-            worker.join()
+            worker.join(10)
+            if worker.is_alive():
+                warnings.warn("Worker did not finish normally")
 
     def _run(self):
         running = True
@@ -119,10 +122,13 @@ class Reactor(object):
             if work is not None:
                 try:
                     work()
+                except (KeyboardInterrupt, EOFError) as e:
+                    if self._on_error is not None:
+                        self._on_error(e, traceback.format_exc())
+                    self.stop()
                 except BaseException as e:
                     if self._on_error is not None:
                         self._on_error(e, traceback.format_exc())
-                    raise e
 
             with self._lock:
                 if self._running and len(self._pending) == previous_pending_length:

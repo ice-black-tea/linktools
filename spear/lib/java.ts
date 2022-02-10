@@ -1,4 +1,6 @@
 /**
+ *  https://github.com/frida/frida-java-bridge/blob/main/lib/class-factory.js
+ * 
  *  frida class
  *  └┬─ $classWrapper
  *   │  └─ className
@@ -55,6 +57,15 @@ export class JavaHelper {
     get applicationContext(): Java.Wrapper {
         const activityThreadClass = Java.use('android.app.ActivityThread');
         return activityThreadClass.currentApplication().getApplicationContext();
+    }
+
+    isArray(obj: any): boolean {
+        if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
+            if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -116,10 +127,10 @@ export class JavaHelper {
                     return this.holder.$className || this.holder.__name__;
                 },
             },
-            pretty2Json: {
+            name: {
                 configurable: true,
                 enumerable: true,
-                value: function () {
+                get() {
                     const ret = this.returnType.className;
                     const name = this.className + "." + this.methodName;
                     let args = "";
@@ -131,6 +142,11 @@ export class JavaHelper {
                     }
                     return ret + " " + name + "(" + args + ")";
                 }
+            },
+            toString: {
+                value: function () {
+                    return this.name;
+                }
             }
         });
     }
@@ -138,19 +154,27 @@ export class JavaHelper {
     /**
      * hook指定方法对象
      * @param method 方法对象
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     private $hookMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>, impl: (obj: Java.Wrapper<T>, args: any[]) => any = null): void {
         if (impl != null) {
+            const origMethod: Java.Method<T> = new Proxy(method, {
+                get: function (target, p: string | symbol, receiver: any) {
+                    return target[p];
+                },
+                apply: function (target, thisArg: any, argArray: any[]) {
+                    const obj = argArray.shift();
+                    const args = argArray.shift();
+                    return target.apply(obj, args);
+                }
+            });
             method.implementation = function () {
-                return impl.call(method, this, arguments);
+                return impl.call(origMethod, this, arguments);
             };
-            this.$fixMethod(method);
-            Log.i("Hook method: " + this.pretty(method));
+            Log.i("Hook method: " + method);
         } else {
             method.implementation = null;
-            this.$fixMethod(method);
-            Log.i("Unhook method: " + this.pretty(method));
+            Log.i("Unhook method: " + method);
         }
     }
 
@@ -159,7 +183,7 @@ export class JavaHelper {
      * @param clazz java类名/类对象
      * @param method java方法名/方法对象
      * @param signature java方法签名，为null表示不设置签名
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookMethod<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
@@ -167,13 +191,13 @@ export class JavaHelper {
         signatures: (string | Java.Wrapper<T>)[],
         impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
     ): void {
-        var traget_method: any = method;
-        if (typeof (traget_method) === "string") {
+        var tragetMethod: any = method;
+        if (typeof (tragetMethod) === "string") {
             var targetClass: any = clazz;
             if (typeof (targetClass) === "string") {
                 targetClass = this.findClass(targetClass);
             }
-            traget_method = targetClass[traget_method];
+            tragetMethod = targetClass[tragetMethod];
             if (signatures != null) {
                 var targetSignatures: any[] = signatures;
                 for (var i in targetSignatures) {
@@ -181,17 +205,18 @@ export class JavaHelper {
                         targetSignatures[i] = this.getClassName(targetSignatures[i]);
                     }
                 }
-                traget_method = traget_method.overload.apply(traget_method, targetSignatures);
+                tragetMethod = tragetMethod.overload.apply(tragetMethod, targetSignatures);
             }
         }
-        this.$hookMethod(traget_method, impl);
+        this.$fixMethod(tragetMethod);
+        this.$hookMethod(tragetMethod, impl);
     }
 
     /**
      * hook指定方法名的所有重载
      * @param clazz java类名/类对象
      * @param method java方法名
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookMethods<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
@@ -204,10 +229,12 @@ export class JavaHelper {
         }
         var methods: Java.Method<T>[] = targetClass[methodName].overloads;
         for (var i = 0; i < methods.length; i++) {
+            const targetMethod = methods[i];
             /* 过滤一些不存在的方法（拿不到返回值） */
-            if (methods[i].returnType !== void 0 &&
-                methods[i].returnType.className !== void 0) {
-                this.$hookMethod(methods[i], impl);
+            if (targetMethod.returnType !== void 0 &&
+                targetMethod.returnType.className !== void 0) {
+                this.$fixMethod(targetMethod);
+                this.$hookMethod(targetMethod, impl);
             }
         }
     }
@@ -215,7 +242,7 @@ export class JavaHelper {
     /**
      * hook指定类的所有构造方法
      * @param clazz java类名/类对象
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookAllConstructors<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
@@ -231,7 +258,7 @@ export class JavaHelper {
     /**
      * hook指定类的所有成员方法
      * @param clazz java类名/类对象
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookAllMethods<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
@@ -260,7 +287,7 @@ export class JavaHelper {
     /**
      * hook指定类的所有方法（构造、成员方法）
      * @param clazz java类名/类对象
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookClass<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
@@ -289,31 +316,6 @@ export class JavaHelper {
     }
 
     /**
-     * 获取hook实现，调用原方法并展示栈和返回值
-     * @param options hook选项，如：{printStack: true, printArgs: true}
-     * @returns hook实现
-     */
-    getHookImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
-        const javaHelperThis = this;
-        const stackOption = options["printStack"] || false;
-        const argsOption = options["printArgs"] || false;
-        return function (obj, args) {
-            let message = {};
-            const ret = this.apply(obj, args);
-            if (stackOption !== false) {
-                message = Object.assign(message, javaHelperThis.$makeStackObject(this));
-            }
-            if (argsOption !== false) {
-                message = Object.assign(message, javaHelperThis.$makeArgsObject(args, ret, this));
-            }
-            if (Object.keys(message).length !== 0) {
-                Log.i(message);
-            }
-            return ret;
-        };
-    }
-
-    /**
      * 获取hook实现，调用原方法并发送调用事件
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
@@ -321,6 +323,7 @@ export class JavaHelper {
     getEventImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
         const javaHelperThis = this;
 
+        let methodOption = true;
         let threadOption = false;
         let stackOption = false;
         let argsOption = false;
@@ -328,6 +331,8 @@ export class JavaHelper {
 
         for (const key in options) {
             if (key == "thread") {
+                methodOption = options[key];
+            } else if (key == "thread") {
                 threadOption = options[key];
             } else if (key == "stack") {
                 stackOption = options[key];
@@ -339,24 +344,26 @@ export class JavaHelper {
         }
 
         return function (obj, args) {
-            const result = this.apply(obj, args);
+            const result = this(obj, args);
             const event = {};
             for (const key in extras) {
                 event[key] = extras[key];
             }
-            event["method_name"] = javaHelperThis.pretty(this);
-            event["method_simple_name"] = this.methodName;
+            if (methodOption == true) {
+                event["class_name"] = obj.$className;
+                event["method_name"] = this.name;
+                event["method_simple_name"] = this.methodName;
+            }
             if (threadOption === true) {
                 event["thread_id"] = Process.getCurrentThreadId();
                 event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
             }
             if (argsOption === true) {
-                event["object"] = obj.$className;
-                event["args"] = javaHelperThis.pretty2Json(Array.prototype.slice.call(args));
-                event["result"] = javaHelperThis.pretty2Json(result);
+                event["args"] = pretty2Json(Array.prototype.slice.call(args));
+                event["result"] = pretty2Json(result);
             }
             if (stackOption === true) {
-                event["stack"] = javaHelperThis.pretty2Json(javaHelperThis.getStackTrace());
+                event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
             }
             send({ event: event });
             return result;
@@ -426,13 +433,13 @@ export class JavaHelper {
         return result;
     }
 
-    private $makeStackObject<T extends Java.Members<T> = {}>(message: string, elements: Java.Wrapper<T>[] = void 0) {
+    private $makeStackObject<T extends Java.Members<T> = {}>(elements: Java.Wrapper<T>[] = void 0) {
         if (elements === void 0) {
             elements = this.getStackTrace()
         }
-        var body = "Stack: " + message;
+        var body = "Stack: ";
         for (var i = 0; i < elements.length; i++) {
-            body += "\n    at " + this.pretty(elements[i]);
+            body += "\n    at " + pretty2String(elements[i]);
         }
         return { "stack": body };
     }
@@ -446,57 +453,16 @@ export class JavaHelper {
         if (message == void 0) {
             message = elements[0];
         }
-        Log.i(this.$makeStackObject(message, elements));
+        Log.i(this.$makeStackObject(elements));
     }
 
-    /**
-     * 调用java对象的toString方法
-     * @param obj java对象
-     * @returns toString返回值
-     */
-    pretty(obj: any): string {
-        obj = this.pretty2Json(obj);
-        if (!(obj instanceof Object)) {
-            return obj;
-        }
-        return JSON.stringify(obj);
-    }
-
-    pretty2Json(obj: any): any {
-        if (!(obj instanceof Object)) {
-            return obj;
-        }
-        if (Array.isArray(obj)) {
-            let result = [];
-            for (let i = 0; i < obj.length; i++) {
-                result.push(this.pretty2Json(obj[i]));
-            }
-            return result;
-        }
-        if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
-            if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
-                let result = [];
-                for (let i = 0; i < obj.length; i++) {
-                    result.push(this.pretty2Json(obj[i]));
-                }
-                return result;
-            } else if (obj.class.hasOwnProperty("toString")) {
-                return ignoreError(() => obj.toString(), void 0);
-            }
-        }
-        if (obj.hasOwnProperty("pretty2Json")) {
-            return ignoreError(() => obj.pretty2Json(), void 0);
-        }
-        return obj;
-    }
-
-    private $makeArgsObject(args: any, ret: any, message: any) {
-        var body = "Arguments: " + message;
+    private $makeArgsObject(args: any, ret: any) {
+        var body = "Arguments: ";
         for (var i = 0; i < args.length; i++) {
-            body += "\n    Arguments[" + i + "]: " + this.pretty(args[i]);
+            body += "\n    Arguments[" + i + "]: " + pretty2String(args[i]);
         }
         if (ret !== void 0) {
-            body += "\n    Return: " + this.pretty(ret);
+            body += "\n    Return: " + pretty2String(ret);
         }
         return { "arguments": body };
     }
@@ -507,11 +473,8 @@ export class JavaHelper {
      * @param ret java方法返回值
      * @param message 回显的信息
      */
-    printArguments(args: any, ret: any, message: any = void 0) {
-        if (message === void 0) {
-            message = this.getStackTrace()[0];
-        }
-        Log.i(this.$makeArgsObject(args, ret, message));
+    printArguments(args: any, ret: any) {
+        Log.i(this.$makeArgsObject(args, ret));
     }
 
 }

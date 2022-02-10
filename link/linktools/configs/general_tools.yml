@@ -18,7 +18,7 @@ GENERAL_TOOL_APKTOOL:
   version: 2.6.0
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
   target_path: apktool-{version}.jar
-  executable: false,
+  executable: false
   executable_cmdline: [java, -jar, "{absolute_path}"]
 
 GENERAL_TOOL_DEX2JAR:
@@ -193,5 +193,9 @@ GENERAL_TOOL_APPCRAWLER:
   version: 2.7.4
   download_url: https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar
   target_path: appcrawler-{version}-hogwarts.jar
-  executable: false,
+  executable: false
   executable_cmdline: [java, -jar, "{absolute_path}"]
+
+GENERAL_TOOL_TIDEVICE:
+  cmdline: tidevice
+  target_path: fake_path

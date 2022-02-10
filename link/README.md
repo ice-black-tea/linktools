@@ -306,13 +306,6 @@ $ python3 android.py
 /**
  * 获取java类的类对象
  * :param className:    java类名
- * :return:             类对象
- */
-function findClass(className) {}
-
-/**
- * 获取java类的类对象
- * :param className:    java类名
  * :param classloader:  java类所在的classLoader，若不填则遍历所有classloader
  * :return:             类对象
  */
@@ -323,7 +316,7 @@ function findClass(className, classloader) {}
  * :param clazz:        java类名/类对象
  * :param method:       java方法名/方法对象
  * :param signatures:   java方法签名，为null表示不设置签名
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
  */
 function hookMethod(clazz, method, signatures, impl) {}
 
@@ -331,14 +324,28 @@ function hookMethod(clazz, method, signatures, impl) {}
  * hook指定方法名的所有重载
  * :param clazz:        java类名/类对象
  * :param method:       java方法名
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
  */
 function hookMethods(clazz, methodName, impl) {}
 
 /**
+ * hook指定类的所有构造方法
+ * @param clazz java类名/类对象
+ * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
+ */
+function hookAllConstructors(clazz, impl) {}
+
+/**
+ * hook指定类的所有成员方法
+ * @param clazz java类名/类对象
+ * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
+ */
+function hookAllMethods(clazz, impl) {}
+
+/**
  * hook指定类的所有方法
  * :param clazz:        java类名/类对象
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this.apply(obj, args); }
+ * :param impl:         hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
  */
 function hookClass(clazz, impl) {}
 
@@ -351,11 +358,11 @@ function hookClass(clazz, impl) {}
 function callMethod(obj, args) {}
 
 /**
- * 获取hook实现，调用愿方法并展示栈和返回值
- * :param options:      hook选项，如：{printStack: true, printArgs: true}
+ * 获取hook实现，调用原方法并展示栈和返回值
+ * :param options:      hook选项，如：{stack: true, args: true, thread: true}
  * :return:             hook实现
  */
-function getHookImpl(options) {}
+function getEventImpl(options) {}
 
 /**
  * 获取当前java栈
@@ -367,17 +374,15 @@ function getStackTrace() {}
 
 /**
  * 打印当前栈
- * :param message:      回显的信息
  */
-function printStack(message) {}
+function printStack() {}
 
 /**
  * 打印当前参数和返回值
  * :param args:         参数
  * :param ret:          返回值
- * :param message:      回显的信息
  */
-function printArguments(args, ret, message) {}
+function printArguments(args, ret) {}
 ```
 
 hook native方法
