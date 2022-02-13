@@ -158,10 +158,7 @@ export class JavaHelper {
      */
     private $hookMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>, impl: (obj: Java.Wrapper<T>, args: any[]) => any = null): void {
         if (impl != null) {
-            const origMethod: Java.Method<T> = new Proxy(method, {
-                get: function (target, p: string | symbol, receiver: any) {
-                    return target[p];
-                },
+            const proxy: Java.Method<T> = new Proxy(method, {
                 apply: function (target, thisArg: any, argArray: any[]) {
                     const obj = argArray[0];
                     const args = argArray[1];
@@ -169,7 +166,7 @@ export class JavaHelper {
                 }
             });
             method.implementation = function () {
-                return impl.call(origMethod, this, Array.prototype.slice.call(arguments));
+                return impl.call(proxy, this, Array.prototype.slice.call(arguments));
             };
             Log.i("Hook method: " + method);
         } else {
@@ -323,49 +320,46 @@ export class JavaHelper {
     getEventImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
         const javaHelperThis = this;
 
-        let methodOption = true;
-        let threadOption = false;
-        let stackOption = false;
-        let argsOption = false;
-        const extras = {};
-
-        for (const key in options) {
-            if (key == "thread") {
-                methodOption = options[key];
-            } else if (key == "thread") {
-                threadOption = options[key];
-            } else if (key == "stack") {
-                stackOption = options[key];
-            } else if (key == "args") {
-                argsOption = options[key];
-            } else {
-                extras[key] = options[key];
+        const opts = new function() {
+            this.method = true;
+            this.thread = false;
+            this.stack = false;
+            this.args = false;
+            this.extras = {};
+            for (const key in options) {
+                if (key in this) {
+                    this[key] = options[key];
+                } else {
+                    this.extras[key] = options[key];
+                }
             }
-        }
+        };
 
         return function (obj, args) {
             const result = this(obj, args);
             const event = {};
-            for (const key in extras) {
-                event[key] = extras[key];
+            for (const key in opts.extras) {
+                event[key] = opts.extras[key];
             }
-            if (methodOption == true) {
+            if (opts.method) {
                 event["class_name"] = obj.$className;
                 event["method_name"] = this.name;
                 event["method_simple_name"] = this.methodName;
             }
-            if (threadOption === true) {
+            if (opts.thread) {
                 event["thread_id"] = Process.getCurrentThreadId();
                 event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
             }
-            if (argsOption === true) {
+            if (opts.args) {
                 event["args"] = pretty2Json(args);
                 event["result"] = pretty2Json(result);
             }
-            if (stackOption === true) {
+            if (opts.stack) {
                 event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
             }
-            send({ event: event });
+            send({
+                event: event
+            });
             return result;
         };
     }

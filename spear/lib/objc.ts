@@ -11,6 +11,7 @@ export class ObjCHelper {
      * @param method 方法对象
      */
     private $fixMethod(clazz: ObjC.Object, method: ObjC.ObjectMethod): void {
+        const implementation = method["origImplementation"] || method.implementation;
         const className = clazz.toString();
         const methodName = ObjC.selectorAsString(method.selector);
         const isClassMethod = ObjC.classes.NSThread.hasOwnProperty(methodName);
@@ -36,6 +37,13 @@ export class ObjCHelper {
                     return (isClassMethod ? "+" : "-") + "[" + className + " " + methodName + "]";
                 }
             },
+            origImplementation: {
+                configurable: true,
+                enumerable: true,
+                get() {
+                    return implementation;
+                }
+            },
             toString: {
                 value: function () {
                     return this.name;
@@ -51,29 +59,29 @@ export class ObjCHelper {
      */
     private $hookMethod(method: ObjC.ObjectMethod, impl: (obj: any, args: any[]) => any = null): void {
         if (impl != null) {
-            const origImpl: any = method.implementation;
             method.implementation = ObjC.implement(method, function () {
                 const self = this;
                 const args = Array.prototype.slice.call(arguments);
                 const obj = args.shift();
                 const sel = args.shift();
-                const origMethod: ObjC.ObjectMethod = new Proxy(method, {
+                const proxy: ObjC.ObjectMethod = new Proxy(method, {
                     get: function (target, p: string | symbol, receiver: any) {
-                        if (p == "context")
-                            return self.context;
+                        if (p in self) {
+                            return self[p];
+                        }
                         return target[p];
                     },
                     apply: function (target, thisArg: any, argArray: any[]) {
                         const obj = argArray[0];
                         const args = argArray[1];
-                        return origImpl.apply(null, [].concat(obj, sel, args));
+                        return target["origImplementation"].apply(null, [].concat(obj, sel, args));
                     }
                 });
-                return impl.call(origMethod, obj, args);
+                return impl.call(proxy, obj, args);
             });
             Log.i("Hook method: " + method);
         } else {
-            method.implementation = null;
+            method.implementation = method["origImplementation"];
             Log.i("Unhook method: " + pretty2String(method));
         }
     }
@@ -102,7 +110,7 @@ export class ObjCHelper {
         if (targetMethod === void 0) {
             throw Error("cannot find method \"" + method + "\" in class \"" + targetClass + "\"");
         }
-        this.$fixMethod(targetClass, targetMethod)
+        this.$fixMethod(targetClass, targetMethod);
         this.$hookMethod(targetMethod, impl);
     }
 
@@ -111,53 +119,75 @@ export class ObjCHelper {
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
      */
-    getEventImpl(options: any): (obj: any, args: any[]) => any {
-        const objCHelperThis = this;
-
-        let methodOption = true;
-        let threadOption = false;
-        let stackOption = false;
-        let argsOption = false;
-        const extras = {};
-
-        for (const key in options) {
-            if (key == "thread") {
-                methodOption = options[key];
-            } else if (key == "thread") {
-                threadOption = options[key];
-            } else if (key == "stack") {
-                stackOption = options[key];
-            } else if (key == "args") {
-                argsOption = options[key];
-            } else {
-                extras[key] = options[key];
+    hookMethods(
+        clazz: string | ObjC.Object,
+        name: string,
+        impl: (obj: ObjC.Object, args: any[]) => any = null
+    ): void {
+        var targetClass: any = clazz;
+        if (typeof (targetClass) === "string") {
+            targetClass = ObjC.classes[targetClass];
+        }
+        if (targetClass === void 0) {
+            throw Error("cannot find class \"" + clazz + "\"");
+        }
+        const length = targetClass.$methods.length;
+        for (let i = 0; i < length; i++) {
+            const method = targetClass.$methods[i];
+            if (method.indexOf(name) >= 0) {
+                this.$fixMethod(targetClass, targetClass[method]);
+                this.$hookMethod(targetClass[method], impl);
             }
         }
+    }
+
+    /**
+     * 获取hook实现，调用原方法并发送调用事件
+     * @param options hook选项，如：{stack: true, args: true, thread: true}
+     * @returns hook实现
+     */
+    getEventImpl(options: any): (obj: any, args: any[]) => any {
+        const self = this;
+
+        const opts = new function () {
+            this.method = true;
+            this.thread = false;
+            this.stack = false;
+            this.args = false;
+            this.extras = {};
+            for (const key in options) {
+                if (key in this) {
+                    this[key] = options[key];
+                } else {
+                    this.extras[key] = options[key];
+                }
+            }
+        };
 
         return function (obj, args) {
             const result = this(obj, args);
             const event = {};
-            for (const key in extras) {
-                event[key] = extras[key];
+            for (const key in opts.extras) {
+                event[key] = opts.extras[key];
             }
-            if (methodOption == true) {
+            if (opts.method) {
                 event["class_name"] = new ObjC.Object(obj).$className
                 event["method_name"] = this.name;
                 event["method_simple_name"] = this.methodName;
             }
-            if (threadOption === true) {
-                const thread = ObjC.classes.NSThread.currentThread();
-                event["thread_name"] = thread.name().toString()
+            if (opts.thread) {
+                event["thread_id"] = Process.getCurrentThreadId();
+                event["thread_name"] = ObjC.classes.NSThread.currentThread().name().toString()
             }
-            if (argsOption === true) {
+            if (opts.args) {
                 const objectArgs = []
                 for (let i = 0; i < args.length; i++) {
-                    objectArgs.push(objCHelperThis.convert2ObjcObject(args[i]));
+                    objectArgs.push(self.convert2ObjcObject(args[i]));
                 }
                 event["args"] = pretty2Json(objectArgs);
-                event["result"] = pretty2Json(objCHelperThis.convert2ObjcObject(result));
+                event["result"] = pretty2Json(self.convert2ObjcObject(result));
             }
-            if (stackOption === true) {
+            if (opts.stack) {
                 const stack = [];
                 const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
                 for (let i = 0; i < elements.length; i++) {
@@ -165,7 +195,9 @@ export class ObjCHelper {
                 }
                 event["stack"] = stack;
             }
-            send({ event: event });
+            send({
+                event: event
+            });
             return result;
         };
     }

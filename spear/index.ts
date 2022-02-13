@@ -90,21 +90,27 @@ rpc.exports = {
 // global variables
 ////////////////////////////////////////////////////////////////////////
 
+import { CHelper } from "./lib/c"
 import { JavaHelper } from "./lib/java";
 import { AndroidHelper } from "./lib/android";
 import { ObjCHelper } from "./lib/objc";
 
+
 const log = new Log();
+const cHelper = new CHelper();
 const javaHelper = new JavaHelper();
 const androidHelper = new AndroidHelper();
 const objCHelper = new ObjCHelper();
 
+
 declare global {
     const Log: Log;
+    const CHelper: CHelper;
     const JavaHelper: JavaHelper;
     const AndroidHelper: AndroidHelper;
     const ObjCHelper: ObjCHelper;
     const parameters: Parameters;
+    function memoize(): Function;
     function ignoreError<T>(fn: () => T, defautValue: T): T;
     function pretty2String(obj: any): any;
     function pretty2Json(obj: any): any;
@@ -115,6 +121,10 @@ Object.defineProperties(globalThis, {
     Log: {
         enumerable: true,
         value: log
+    },
+    CHelper: {
+        enumerable: true,
+        value: cHelper
     },
     JavaHelper: {
         enumerable: true,
@@ -143,10 +153,7 @@ Object.defineProperties(globalThis, {
         enumerable: false,
         value: function (obj: any): string {
             obj = pretty2Json(obj);
-            if (!(obj instanceof Object)) {
-                return obj;
-            }
-            return JSON.stringify(obj);
+            return obj instanceof Object ? JSON.stringify(obj) : obj;
         }
     },
     pretty2Json: {
