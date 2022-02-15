@@ -7,12 +7,13 @@
 # Product   : PyCharm
 # Project   : link
 import os
+import sys
 
 from linktools import utils, ArgumentParser, tools
 from linktools.decorator import entry_point
 
 
-@entry_point()
+@entry_point(known_errors=(NotImplementedError,))
 def main():
 
     if tools.system in ["darwin", "linux"]:
@@ -26,11 +27,10 @@ def main():
     else:
         raise NotImplementedError(f"unsupported system {tools.system}")
 
-    parser = ArgumentParser(description=f'exec {bash_path}')
-    parser.add_argument('cmd', nargs='...')
+    if not os.path.exists(bash_path):
+        raise NotImplementedError(f"file {bash_path} does not exist")
 
-    args = parser.parse_args()
-    process, _, _ = utils.exec(bash_path, *args.cmd)
+    process, _, _ = utils.exec(bash_path, *sys.argv[1:])
     exit(process.returncode)
 
 

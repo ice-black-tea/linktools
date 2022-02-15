@@ -203,33 +203,37 @@ class FridaApplication:
         self._finished.set()
 
     @property
-    def is_running(self):
+    def is_running(self) -> bool:
         return self._reactor.is_running()
 
     def run(self, timeout=None):
         assert not self.is_running
         try:
             self._init()
-            with self._reactor.run():
+            with self._reactor:
                 self._stop_request.wait(timeout)
         finally:
             self._deinit()
 
-    def wait(self, timeout=None):
+    def wait(self, timeout=None) -> bool:
         return self._finished.wait(timeout)
 
     def stop(self):
         self._stop_request.set()
 
-    @contextlib.contextmanager
-    def run_in_block(self):
+    def run_in_block(self) -> "FridaApplication":
         assert not self.is_running
-        try:
-            self._init()
-            with self._reactor.run():
-                yield self
-        finally:
-            self._deinit()
+        return self
+
+    def __enter__(self):
+        self._init()
+        self._reactor.run()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._reactor.stop()
+        self._reactor.wait()
+        self._deinit()
 
     @property
     def sessions(self) -> Dict[int, FridaSession]:

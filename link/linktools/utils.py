@@ -81,26 +81,17 @@ class Reactor(object):
         self._pending = collections.deque([])
         self._lock = threading.Lock()
         self._cond = threading.Condition(self._lock)
+        self._worker = None
 
     def is_running(self):
         with self._lock:
             return self._running
 
-    @contextlib.contextmanager
     def run(self):
         with self._lock:
             self._running = True
-
-        worker = threading.Thread(target=self._run)
-
-        try:
-            worker.start()
-            yield
-        finally:
-            self.stop()
-            worker.join(10)
-            if worker.is_alive():
-                warnings.warn("Worker did not finish normally")
+        self._worker = threading.Thread(target=self._run)
+        self._worker.start()
 
     def _run(self):
         running = True
@@ -157,6 +148,19 @@ class Reactor(object):
 
     def _work(self, fn: Callable[[], any]):
         fn()
+
+    def wait(self, timeout=10):
+        assert self._worker
+        self._worker.join(timeout)
+        if self._worker.is_alive():
+            warnings.warn("Worker did not finish normally")
+
+    def __enter__(self):
+        self.run()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+        self.wait()
 
 
 def _default_cls_attr(name, type_, cls_value):
@@ -694,6 +698,10 @@ def guess_file_name(url):
     return os.path.split(urlparse(url).path)[1]
 
 
+class DownloadError(Exception):
+    pass
+
+
 def _download_with_requests(url, path, headers=None, timeout=None):
     import requests
 
@@ -789,7 +797,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
             }
 
             try:
-                importlib.import_module("requests")
+                import requests
                 download_fn = _download_with_requests
             except ModuleNotFoundError:
                 download_fn = _download_with_urllib
@@ -799,8 +807,11 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
                     t.total = offset + total
                 t.update(offset + read - t.n)
 
-        if os.path.getsize(download_path) <= 0:
-            raise RuntimeError(f"download error: {url}")
+            if t.total is not None and t.total != t.n:
+                raise DownloadError(f"download size {t.total} bytes was expected, got {t.n} bytes")
+
+        if os.path.getsize(download_path) == 0:
+            raise DownloadError(f"download error: {url}")
 
         os.rename(download_path, path)
 
