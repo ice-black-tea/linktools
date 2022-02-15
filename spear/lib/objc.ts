@@ -131,12 +131,13 @@ export class ObjCHelper {
         if (targetClass === void 0) {
             throw Error("cannot find class \"" + clazz + "\"");
         }
-        const length = targetClass.$methods.length;
+        const length = targetClass.$ownMethods.length;
         for (let i = 0; i < length; i++) {
-            const method = targetClass.$methods[i];
+            const method = targetClass.$ownMethods[i];
             if (method.indexOf(name) >= 0) {
-                this.$fixMethod(targetClass, targetClass[method]);
-                this.$hookMethod(targetClass[method], impl);
+                const targetMethod = targetClass[method];
+                this.$fixMethod(targetClass, targetMethod);
+                this.$hookMethod(targetMethod, impl);
             }
         }
     }
