@@ -145,7 +145,7 @@ GENERAL_TOOL_AAPT:
       - else: ~
 
 GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
-  version: 1.3.0
+  version: 1.3.2
   download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
   unpack_path: jadx-{version}
   target_path:
