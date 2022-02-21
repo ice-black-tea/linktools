@@ -27,9 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import collections
-import contextlib
 import functools
-import importlib
 import os
 import subprocess
 import threading
@@ -442,11 +440,23 @@ def exec(*args, **kwargs) -> (subprocess.Popen, str, str):
     :param args: 参数
     :return: 子进程
     """
+
     input = kwargs.pop("input", None)
     timeout = kwargs.pop("timeout", None)
+    daemon = kwargs.pop("daemon", None)
+
     process = popen(*args, **kwargs)
-    out, err = process.communicate(input=input, timeout=timeout)
-    return process, out, err
+    if daemon:
+        out, err = None, None
+        try:
+            out, err = process.communicate(input=input, timeout=.1)
+        except subprocess.TimeoutExpired:
+            pass
+        return process, out, err
+
+    else:
+        out, err = process.communicate(input=input, timeout=timeout)
+        return process, out, err
 
 
 # noinspection PyShadowingBuiltins

@@ -33,7 +33,8 @@ import os
 import shutil
 import subprocess
 import time
-from pathlib import Path, PosixPath
+from pathlib import PosixPath
+from typing import Dict
 
 import billiard
 import frida
@@ -41,7 +42,6 @@ import frida
 import linktools
 from linktools import resource, logger, utils
 from linktools.android import adb
-from linktools.decorator import cached_property
 
 try:
     import tidevice
@@ -125,20 +125,36 @@ class FridaAndroidServer(FridaServer):
         self._remote_port = remote_port
         self._process = None
 
-        # frida server文件相关参数
-        self._download_url = self.config["url"]
-        # local: {storage_path}/data/frida/frida-server-xxx
-        self._local_path = Path(resource.get_data_path("frida", self.config["name"], create_parent=True))
-        # android: {storage_path}/frida/frida-server-xxx
-        self._remote_temp_path = PosixPath(self._device.get_storage_path()) / "frida" / self.config["name"]
-        # android: /data/local/tmp/fs-xxx
-        self._remote_path = PosixPath("/data/local/tmp") / "fs-{abi}-{version}".format(**self.config)
+        self._config = self._get_config(frida.__version__, device.abi)
+        self._download_url = self._config["url"]
+        self._local_path = resource.get_data_path("frida", self._config["name"], create_parent=True)  # 本机路径
+        self._remote_path = PosixPath("/data/local/tmp") / "fs-{abi}-{version}".format(**self._config)  # 手机的路径
 
-    @cached_property
-    def config(self) -> dict:
+    @classmethod
+    def setup(cls, abis=("arm", "arm64", "x86_64", "x86")):
+        for abi in abis:
+            config = cls._get_config(frida.__version__, abi)
+            cls._download(
+                config["url"],
+                resource.get_data_path("frida", config["name"], create_parent=True)
+            )
+
+    @classmethod
+    def _download(cls, url: str, path: str):
+        if os.path.exists(path):
+            return
+        logger.info("Download frida server ...", tag="[*]")
+        temp_path = resource.get_temp_path("frida-server-" + utils.get_md5(path))
+        utils.download(url, temp_path)
+        with lzma.open(temp_path, "rb") as read, open(path, "wb") as write:
+            shutil.copyfileobj(read, write)
+        os.remove(temp_path)
+
+    @classmethod
+    def _get_config(cls, version, abi) -> Dict[str, str]:
         config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
-        config["version"] = frida.__version__
-        config["abi"] = self._device.abi
+        config["version"] = version
+        config["abi"] = abi
         config["url"] = config["url"].format(**config)
         config["name"] = config["name"].format(**config)
         return config
@@ -147,7 +163,7 @@ class FridaAndroidServer(FridaServer):
     def _run_in_background(cls, device: adb.Device, path: str, port: int):
         try:
             device.sudo(path, "-d", "fs-binaries", "-l", f"0.0.0.0:{port}", stdin=subprocess.PIPE)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, EOFError):
             pass
         except Exception as e:
             logger.error(e, tag="[!]")
@@ -167,29 +183,22 @@ class FridaAndroidServer(FridaServer):
         self._process.start()
 
     def _prepare(self):
-
-        if self._device.is_file_exist(self._remote_path.as_posix()):
-            return
-
-        if not os.path.exists(self._local_path):
-            logger.info("Download frida server ...", tag="[*]")
-            tmp_file = resource.get_temp_path(self._local_path.name + ".tmp")
-            utils.download(self._download_url, tmp_file)
-            with lzma.open(tmp_file, "rb") as read, open(self._local_path, "wb") as write:
-                shutil.copyfileobj(read, write)
-            os.remove(tmp_file)
-
-        logger.info(f"Push frida server to {self._remote_path}", tag="[*]")
-        self._device.push(str(self._local_path), self._remote_temp_path.as_posix(), capture_output=False)
-        self._device.sudo("mv", self._remote_temp_path.as_posix(), self._remote_path.as_posix(), capture_output=False)
-        self._device.sudo("chmod", "755", self._remote_path)
+        if not self._device.is_file_exist(self._remote_path.as_posix()):
+            # 先下载
+            self._download(self._download_url, self._local_path)
+            # 再推送
+            logger.info(f"Push frida server to {self._remote_path}", tag="[*]")
+            temp_path = self._device.get_storage_path("frida", self._remote_path.name)
+            self._device.push(str(self._local_path), temp_path, capture_output=False)
+            self._device.sudo("mv", temp_path, self._remote_path.as_posix(), capture_output=False)
+            self._device.sudo("chmod", "755", self._remote_path)
 
     def _stop(self):
-        try:
-            if self._process is not None:
-                utils.ignore_error(self._process.terminate)
-                utils.ignore_error(self._process.join, 5)
-        finally:
+        self._device.forward("--remove", f"tcp:{self._local_port}", ignore_error=True)
+
+        if self._process is not None:
+            utils.ignore_error(self._process.terminate)
+            utils.ignore_error(self._process.join, 5)
             self._process = None
 
         process_name_lc = f"*{self._remote_path.name}*".lower()
@@ -201,7 +210,7 @@ class FridaAndroidServer(FridaServer):
 class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
     __setattr__ = object.__setattr__
 
-    def __init__(self, device: "tidevice.Device", local_port: int = 37042, remote_port: int = 27042):
+    def __init__(self, device: "tidevice.Device" = None, local_port: int = 37042, remote_port: int = 27042):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
         self._device = device or tidevice.Device()
         self._local_port = local_port
@@ -214,7 +223,7 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         try:
             _logger.setLevel(logger.level)
             relay(device, local_port, remote_port)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, EOFError):
             pass
         except Exception as e:
             logger.error(e, tag="[!]")
@@ -232,9 +241,7 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         self._process.start()
 
     def _stop(self):
-        try:
-            if self._process is not None:
-                utils.ignore_error(self._process.terminate)
-                utils.ignore_error(self._process.join, 5)
-        finally:
+        if self._process is not None:
+            utils.ignore_error(self._process.terminate)
+            utils.ignore_error(self._process.join, 5)
             self._process = None

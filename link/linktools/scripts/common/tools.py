@@ -72,16 +72,13 @@ def main():
         logger.message(f"clear tool files success")
 
     elif args.daemon:
-        process = tools[tool_name].popen(
+        tools[tool_name].exec(
             *tool_args,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            daemon=True,
         )
-        try:
-            process.communicate(timeout=0)
-        except subprocess.TimeoutExpired as e:
-            pass
 
     else:
         process, _, _ = tools[tool_name].exec(*tool_args)

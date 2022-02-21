@@ -29,10 +29,11 @@
 import json
 import re
 import subprocess
+import warnings
 from typing import Optional
 
 import linktools
-from linktools import __name__ as module_name, utils, resource, tools, logger
+from linktools import __name__ as module_name, utils, resource, tools
 from linktools.decorator import cached_property
 from .struct import Package
 
@@ -444,4 +445,4 @@ class Device(object):
 
     def _ignore_capture_output(self, kwargs):
         if kwargs.pop("capture_output", True) is False:
-            logger.warning("invalid argument capture_output=False, ignored!")
+            warnings.warn("invalid argument capture_output=False, ignored!")
