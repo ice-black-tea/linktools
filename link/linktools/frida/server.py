@@ -245,3 +245,7 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
             utils.ignore_error(self._process.terminate)
             utils.ignore_error(self._process.join, 5)
             self._process = None
+
+
+if __name__ == '__main__':
+    FridaAndroidServer.setup()
