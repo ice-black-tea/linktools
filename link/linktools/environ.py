@@ -65,10 +65,14 @@ def _create_default_tools():
 def _create_default_config():
     config = Config()
 
-    # 初始化路径相关参数
-    config["SETTING_STORAGE_PATH"] = os.path.join(str(pathlib.Path.home()), f".{module_name}")
-    config["SETTING_DATA_PATH"] = None  # default {SETTING_STORAGE_PATH}/data
-    config["SETTING_TEMP_PATH"] = None  # default {SETTING_STORAGE_PATH}/temp
+    # 初始化全局存储路径配置，优先级低于data、temp路径
+    config["SETTING_STORAGE_PATH"] = \
+        os.environ.get("SETTING_STORAGE_PATH") or \
+        os.path.join(str(pathlib.Path.home()), f".{module_name}")
+
+    # 初始化data、temp路径配置
+    config["SETTING_DATA_PATH"] = os.environ.get("SETTING_DATA_PATH")  # default {SETTING_STORAGE_PATH}/data
+    config["SETTING_TEMP_PATH"] = os.environ.get("SETTING_TEMP_PATH")  # default {SETTING_STORAGE_PATH}/temp
 
     # 初始化下载相关参数
     config["SETTING_DOWNLOAD_USER_AGENT"] = \
