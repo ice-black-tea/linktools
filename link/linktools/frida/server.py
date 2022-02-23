@@ -131,12 +131,18 @@ class FridaAndroidServer(FridaServer):
             self._temp_path = resource.get_temp_path(
                 "download",
                 utils.get_md5(self._download_url),
-                utils.guess_file_name(self._download_url)
+                utils.guess_file_name(self._download_url),
+                create_parent=True
             )
 
             self.local_name = config["name"].format(**config)
+            self.local_path = resource.get_data_path(
+                "frida",
+                self.local_name,
+                create_parent=True
+            )
+
             self.remote_name = "fs-{abi}-{version}".format(**config)
-            self.local_path = resource.get_data_path("frida", self.local_name)
             self.remote_path = (PosixPath("/data/local/tmp") / self.remote_name).as_posix()
 
         def prepare(self):
