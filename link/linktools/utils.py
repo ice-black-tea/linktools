@@ -812,8 +812,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
-    lock_path = path + ".lock"
-    lock = FileLock(lock_path)
+    lock = FileLock(path + ".lock")
 
     try:
         lock.acquire(timeout=timeout_meter.get(), poll_interval=1)

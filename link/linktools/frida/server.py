@@ -47,6 +47,7 @@ try:
 except ModuleNotFoundError as e:
     tidevice = utils.lazy_raise(e)
 
+
 class FridaServer(utils.Proxy, metaclass=abc.ABCMeta):  # proxy for frida.core.Device
     __setattr__ = object.__setattr__
 
@@ -125,31 +126,22 @@ class FridaAndroidServer(FridaServer):
             config = {k: v for k, v in linktools.config["ANDROID_TOOL_FRIDA_SERVER"].items()}
             config.setdefault("version", version)
             config.setdefault("abi", abi)
-            self._server_name = config["name"].format(**config)
+
             self._download_url = config["url"].format(**config)
-            self._local_path = resource.get_temp_path("frida", self._server_name, create_parent=True)
-            self._remote_path = PosixPath("/data/local/tmp") / "fs-{abi}-{version}".format(**config)  # 手机的路径
+            self._temp_path = resource.get_temp_path("frida", "download", utils.get_md5(self._download_url))
 
-        @property
-        def local_path(self) -> str:
-            return str(self._local_path)
-
-        @property
-        def remote_path(self) -> str:
-            return self._remote_path.as_posix()
-
-        @property
-        def remote_name(self) -> str:
-            return self._remote_path.name
+            self.local_name = config["name"].format(**config)
+            self.remote_name = "fs-{abi}-{version}".format(**config)
+            self.local_path = resource.get_temp_path("frida", self.local_name)
+            self.remote_path = (PosixPath("/data/local/tmp") / self.remote_name).as_posix()
 
         def prepare(self):
             if not os.path.exists(self.local_path):
                 logger.info("Download frida server ...", tag="[*]")
-                temp_path = resource.get_temp_path("frida", "download", utils.get_md5(self.local_path))
-                utils.download(self._download_url, temp_path)
-                with lzma.open(temp_path, "rb") as read, open(self.local_path, "wb") as write:
+                utils.download(self._download_url, self._temp_path)
+                with lzma.open(self._temp_path, "rb") as read, open(self.local_path, "wb") as write:
                     shutil.copyfileobj(read, write)
-                os.remove(temp_path)
+                os.remove(self._temp_path)
 
     def __init__(self, device: adb.Device = None, local_port: int = 47042, remote_port: int = 47042):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
@@ -193,7 +185,7 @@ class FridaAndroidServer(FridaServer):
             self._environ.prepare()
             logger.info(f"Push frida server to {self._environ.remote_path}", tag="[*]")
             temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
-            self._device.push(str(self._environ.local_path), temp_path, capture_output=False)
+            self._device.push(self._environ.local_path, temp_path, capture_output=False)
             self._device.sudo("mv", temp_path, self._environ.remote_path, capture_output=False)
             self._device.sudo("chmod", "755", self._environ.remote_path)
 

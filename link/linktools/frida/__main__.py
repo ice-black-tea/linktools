@@ -6,4 +6,4 @@
 
 from .server import FridaAndroidServer
 
-FridaAndroidServer.setup()
+FridaAndroidServer.setup(abis=["arm", "arm64"])
