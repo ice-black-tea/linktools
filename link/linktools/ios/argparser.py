@@ -35,7 +35,7 @@ from tidevice import Usbmux, Device, MuxError
 from linktools import utils, resource, logger
 from linktools.argparser import ArgumentParser
 
-_DEVICE_CACHE_PATH = resource.get_data_path("ios_udid_cache.txt", create_parent=True)
+_DEVICE_CACHE_PATH = resource.get_temp_path("ios_udid_cache.txt", create_parent=True)
 
 
 class IOSArgumentParser(ArgumentParser):
@@ -43,7 +43,7 @@ class IOSArgumentParser(ArgumentParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        class _Context:
+        class Context:
 
             def __init__(self):
                 self._usbmux: Usbmux = None
@@ -55,6 +55,8 @@ class IOSArgumentParser(ArgumentParser):
             @usbmux.setter
             def usbmux(self, value: Usbmux):
                 self._usbmux = value
+
+        context = Context()
 
         def parse_handler(fn):
             @functools.wraps(fn)
@@ -143,8 +145,6 @@ class IOSArgumentParser(ArgumentParser):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 context.usbmux = Usbmux(str(values))
-
-        context = _Context()
 
         group = self.add_argument_group(title="tidevice optional arguments")
         exclusive_group = group.add_mutually_exclusive_group()
