@@ -33,33 +33,12 @@ import subprocess
 import sys
 import time
 import typing
-from urllib.parse import quote
+import warnings
 
-from . import utils, logger
+from . import utils
 from .decorator import cached_property
 
-
-def _create_default_tools():
-    tools = GeneralTools()
-
-    # set environment variable
-    index = 0
-    dir_names = os.environ["PATH"].split(os.pathsep)
-    for tool in tools:
-        # dirname(executable[0]) -> environ["PATH"]
-        if tool.executable:
-            dir_name = tool.dirname
-            if len(dir_name) > 0 and dir_name not in dir_names:
-                # insert to head
-                dir_names.insert(index, tool.dirname)
-                index += 1
-    # add all paths to environment variables
-    os.environ["PATH"] = os.pathsep.join(dir_names)
-
-    return tools
-
-
-_general_tool_default_config = {
+_default_config = {
     "name": "",
     "cmdline": "",
     "download_url": "",
@@ -76,20 +55,20 @@ class GeneralTool(object):
 
     def __init__(self, container, name: str, config: dict):
         self._container = container
-        self._raw_config = _general_tool_default_config.copy()
+        self._raw_config = _default_config.copy()
         self._raw_config.update(container.config)
         self._raw_config.update(name=name)
         self._raw_config.update(config)
 
-        self._verifiers = [
+        self._verifiers = (
             self._get_verifier("system"),
             self._get_verifier("processor"),
             self._get_verifier("architecture")
-        ]
+        )
 
     @cached_property
     def config(self) -> dict:
-        from . import resource
+        from .environ import resource
 
         config = {k: v for k, v in self._raw_config.items()}
 
@@ -155,14 +134,24 @@ class GeneralTool(object):
         return os.path.dirname(self.absolute_path)
 
     def prepare(self, force_download=False) -> None:
+        from .environ import logger, resource
+
         # remove tool files first
         if force_download:
             self.clear()
 
-        # download tool files
-        if not self.exists:
-            from . import resource
-            file = resource.get_temp_path(quote(self.download_url, safe=''))
+        if self.exists:
+            pass
+        elif not self.download_url:
+            warnings.warn("download url is empty, skipped.")
+        else:
+            # download tool files
+            file = resource.get_temp_path(
+                "tools",
+                utils.get_md5(self.download_url),
+                utils.guess_file_name(self.download_url),
+                create_parent=True
+            )
             logger.info("download: {}".format(self.download_url))
             utils.download(self.download_url, file)
             if not os.path.exists(self.root_path):
@@ -204,7 +193,7 @@ class GeneralTool(object):
         return self._process(utils.exec, *args, **kwargs)
 
     def __getattr__(self, item):
-        return self.config[item]
+        return self.config.get(item)
 
     @classmethod
     def _get_verifier(cls, item: str):
@@ -261,20 +250,15 @@ class GeneralTools(object):
 
     def __init__(self, **kwargs):
         self.config = kwargs
-        if "system" not in kwargs or self.config["system"] is None:
-            self.config["system"] = platform.system().lower()
-        if "processor" not in kwargs or self.config["processor"] is None:
-            self.config["processor"] = platform.processor().lower()
-        if "architecture" not in kwargs or self.config["architecture"] is None:
-            self.config["architecture"] = platform.architecture()[0].lower()
+        self.config.setdefault("system", platform.system().lower())
+        self.config.setdefault("processor", platform.processor().lower())
+        self.config.setdefault("architecture", platform.architecture()[0].lower())
 
     @cached_property
     def items(self) -> typing.Mapping[str, GeneralTool]:
         from . import config
         items = {}
-        configs = config.get_namespace("GENERAL_TOOL_")
-        for key in configs:
-            value = configs[key]
+        for key, value in config.get_namespace("GENERAL_TOOL_").items():
             if isinstance(value, dict):
                 name = value.get("name") or key
                 items[name] = GeneralTool(self, name, value)

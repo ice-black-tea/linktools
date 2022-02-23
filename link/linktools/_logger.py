@@ -31,22 +31,9 @@ import logging
 
 import colorama
 
-from . import utils
-from .version import __name__ as module_name
-
 MESSAGE = 0x00001000
 
 logging.addLevelName(MESSAGE, "message")
-
-
-def _get_logger():
-    import platform
-    import ctypes
-    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
-        k = ctypes.windll.kernel32
-        k.SetConsoleMode(k.GetStdHandle(-11), 7)
-    colorama.init(autoreset=False)
-    return get_logger(module_name)
 
 
 def get_logger(name: str = None):
@@ -151,6 +138,3 @@ class Logger(logging.Logger):
             msg = msg + colorama.Style.RESET_ALL
 
         return msg, kwargs
-
-
-logger: Logger = utils.lazy_load(_get_logger)

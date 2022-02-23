@@ -29,8 +29,8 @@
 import argparse
 import logging
 
-from linktools import logger
-from linktools.version import __version__
+from .environ import logger
+from .version import __version__
 
 
 class VerboseAction(argparse.Action):

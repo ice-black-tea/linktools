@@ -29,13 +29,14 @@
 import collections
 import functools
 import os
+import re
 import subprocess
 import threading
 import time
 import traceback
 import warnings
 from collections.abc import Iterable
-from typing import Union, Sized, Callable
+from typing import Union, Sized, Callable, Tuple
 
 from filelock import FileLock
 from tqdm import tqdm
@@ -411,7 +412,32 @@ class Proxy(object):
 
 
 def lazy_load(fn, *args, **kwargs):
+    """
+    延迟加载
+    :param fn: 延迟加载的方法
+    :return: proxy
+    """
     return Proxy(functools.partial(fn, *args, **kwargs))
+
+
+def lazy_raise(e):
+    """
+    延迟抛出异常
+    :param e: exception
+    :return: proxy
+    """
+
+    def raise_error():
+        raise e
+
+    return lazy_load(raise_error)
+
+
+def ignore_error(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except:
+        return None
 
 
 def popen(*args, **kwargs) -> subprocess.Popen:
@@ -660,13 +686,6 @@ def gzip_compress(data):
     return gzip.compress(data)
 
 
-def ignore_error(fn, *args, **kwargs):
-    try:
-        return fn(*args, **kwargs)
-    except:
-        return None
-
-
 def get_host_ip():
     import socket
     s = None
@@ -716,22 +735,27 @@ def _download_with_requests(url, path, headers=None, timeout=None):
     import requests
 
     bs = 1024 * 8
+    name = None
     total = None
     read = 0
-    yield total, read
+    yield name, total, read
 
     with requests.get(url, headers=headers, stream=True, timeout=timeout) as resp:
 
         if "Content-Length" in resp.headers:
             total = int(resp.headers.get("Content-Length"))
-        yield total, read
+        if "Content-Disposition" in resp.headers:
+            groups = re.findall("filename=(.+)", resp.headers.get("Content-Disposition"))
+            if len(groups) > 0:
+                name = groups[0]
+        yield name, total, read
 
         with open(path, 'ab') as tfp:
             for chunk in resp.iter_content(bs):
                 if chunk:
                     read += len(chunk)
                     tfp.write(chunk)
-                    yield total, read
+                    yield name, total, read
 
 
 def _download_with_urllib(url, path, headers=None, timeout=None):
@@ -739,15 +763,20 @@ def _download_with_urllib(url, path, headers=None, timeout=None):
     from urllib.request import urlopen, Request
 
     bs = 1024 * 8
+    name = None
     total = None
     read = 0
-    yield total, read
+    yield name, total, read
 
     with contextlib.closing(urlopen(url=Request(url, headers=headers), timeout=timeout)) as fp:
         response_headers = fp.info()
         if "Content-Length" in response_headers:
             total = int(response_headers["Content-Length"])
-        yield total, read
+        if "Content-Disposition" in response_headers:
+            groups = re.findall("filename=(.+)", response_headers["Content-Disposition"])
+            if len(groups) > 0:
+                name = groups[0]
+        yield name, total, read
 
         with open(path, 'ab') as tfp:
             read = 0
@@ -757,10 +786,10 @@ def _download_with_urllib(url, path, headers=None, timeout=None):
                     break
                 read += len(chunk)
                 tfp.write(chunk)
-                yield total, read
+                yield name, total, read
 
 
-def download(url: str, path: str, user_agent=None, timeout=None) -> None:
+def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, str]:
     """
     从指定url下载文件
     :param url: 下载链接
@@ -774,7 +803,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
 
     # 如果文件存在，就不下载了
     if os.path.exists(path) and os.path.getsize(path) > 0:
-        return
+        return path, os.path.split(path)[1]
 
     timeout_meter = TimeoutMeter(timeout)
 
@@ -791,13 +820,13 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
 
         # 这时候文件存在，说明在上锁期间下载完了
         if os.path.exists(path) and os.path.getsize(path) > 0:
-            return
+            return path, os.path.split(path)[1]
 
         offset = 0
-        download_path = path + ".download"
+        temp_path = path + ".download"
         # 如果文件存在，则继续上一次下载
-        if os.path.exists(download_path):
-            offset = os.path.getsize(download_path)
+        if os.path.exists(temp_path):
+            offset = os.path.getsize(temp_path)
 
         with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=guess_file_name(url)) as t:
 
@@ -812,18 +841,28 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> None:
             except ModuleNotFoundError:
                 download_fn = _download_with_urllib
 
-            for total, read in download_fn(url, download_path, headers=headers, timeout=timeout_meter.get()):
+            for name, total, read in download_fn(url, temp_path, headers=headers, timeout=timeout_meter.get()):
                 if total is not None:
                     t.total = offset + total
+                if name is not None:
+                    t.desc = name
                 t.update(offset + read - t.n)
 
             if t.total is not None and t.total != t.n:
                 raise DownloadError(f"download size {t.total} bytes was expected, got {t.n} bytes")
 
-        if os.path.getsize(download_path) == 0:
-            raise DownloadError(f"download error: {url}")
+            if os.path.getsize(temp_path) == 0:
+                raise DownloadError(f"download error: {url}")
 
-        os.rename(download_path, path)
+            os.rename(temp_path, path)
+
+            return path, t.desc
+
+    except DownloadError as e:
+        raise e
+
+    except Exception as e:
+        raise DownloadError(e)
 
     finally:
         ignore_error(lock.release, True)

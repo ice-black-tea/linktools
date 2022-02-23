@@ -27,49 +27,9 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import errno
-import json
 import os
-import pathlib
 from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
-
-import yaml
-
-from . import version
-
-
-def _create_default_config():
-    config = Config()
-
-    # 初始化路径相关参数
-    config["SETTING_STORAGE_PATH"] = os.path.join(str(pathlib.Path.home()), f".{version.__name__}")
-    config["SETTING_DATA_PATH"] = None  # default {SETTING_STORAGE_PATH}/data
-    config["SETTING_TEMP_PATH"] = None  # default {SETTING_STORAGE_PATH}/temp
-
-    # 初始化下载相关参数
-    config["SETTING_DOWNLOAD_USER_AGENT"] = \
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) " \
-        "AppleWebKit/537.36 (KHTML, like Gecko) " \
-        "Chrome/75.0.3770.100 " \
-        "Safari/537.36"
-
-    # 导入configs文件夹中所有配置文件
-    config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
-    for name in os.listdir(config_path):
-        path = os.path.join(config_path, name)
-        if os.path.isdir(path):
-            continue
-        elif path.endswith(".py"):
-            config.from_pyfile(path)
-        elif path.endswith(".json"):
-            config.from_file(path, load=json.load)
-        elif path.endswith(".yml"):
-            config.from_file(path, load=yaml.safe_load)
-
-    # 导入环境变量LINKTOOLS_SETTING中的配置文件
-    config.from_envvar("LINKTOOLS_SETTING", silent=True)
-
-    return config
 
 
 class Config(dict):

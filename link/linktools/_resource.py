@@ -56,7 +56,7 @@ class Resource(object):
     def _data_path(self):
         from . import config
         path = config["SETTING_DATA_PATH"]
-        if path is None or len(path) == 0:
+        if not path:
             path = os.path.join(config["SETTING_STORAGE_PATH"], "data")
         return path
 
@@ -64,7 +64,7 @@ class Resource(object):
     def _temp_path(self):
         from . import config
         path = config["SETTING_TEMP_PATH"]
-        if path is None or len(path) == 0:
+        if not path:
             path = os.path.join(config["SETTING_STORAGE_PATH"], "temp")
         return path
 

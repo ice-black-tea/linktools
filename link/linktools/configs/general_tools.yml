@@ -22,15 +22,16 @@ GENERAL_TOOL_APKTOOL:
   executable_cmdline: [java, -jar, "{absolute_path}"]
 
 GENERAL_TOOL_DEX2JAR:
-  version: 2.1
-  download_url: https://github.com/pxb1988/dex2jar/files/1867564/dex-tools-2.1-SNAPSHOT.zip
+  version: 2.2-SNAPSHOT
+  version_suffix: -2021-10-31
+  download_url: https://github.com/pxb1988/dex2jar/releases/download/v{version}{version_suffix}/dex-tools-{version}{version_suffix}.zip
   unpack_path: dex2jar-{version}
   target_path:
     case:
       - when: {system: [darwin, linux]}
-        then: dex-tools-{version}-SNAPSHOT/d2j-dex2jar.sh
+        then: dex-tools-{version}/d2j-dex2jar.sh
       - when: {system: windows}
-        then: dex-tools-{version}-SNAPSHOT/d2j-dex2jar.bat
+        then: dex-tools-{version}/d2j-dex2jar.bat
       - else: ~
 
 GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
@@ -58,14 +59,15 @@ GENERAL_TOOL_FASTBOOT:
 
 GENERAL_TOOL_JAVA8: &GENERAL_TOOL_JAVA8
   version: 1.8.0_121
+  version_name: 8u121
   download_url:
     case:
       - when: {system: darwin}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-8u121-macosx-x64.tar.gz  # 修改版本时需要调整
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-macosx-x64.tar.gz  # 修改版本时需要调整
       - when: {system: linux}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-8u121-linux-x64.tar.gz  # 修改版本时需要调整
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-linux-x64.tar.gz  # 修改版本时需要调整
       - when: {system: windows}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-8u121-windows-x64.tar.gz  # 修改版本时需要调整
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-windows-x64.tar.gz  # 修改版本时需要调整
       - else: ~
   unpack_path: java-{version}
   target_path:
@@ -145,7 +147,7 @@ GENERAL_TOOL_AAPT:
       - else: ~
 
 GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
-  version: 1.3.2
+  version: 1.3.3
   download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
   unpack_path: jadx-{version}
   target_path:
@@ -199,3 +201,5 @@ GENERAL_TOOL_APPCRAWLER:
 GENERAL_TOOL_TIDEVICE:
   cmdline: tidevice
   target_path: fake_path
+  executable: false
+  executable_cmdline: [python, -m, tidevice]
