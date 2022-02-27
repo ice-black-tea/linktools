@@ -30,10 +30,9 @@ import argparse
 import functools
 import os
 
-from tidevice import Usbmux, Device, MuxError
-
 from linktools import utils, resource, logger
 from linktools.argparser import ArgumentParser
+from linktools.ios.device import Device, Usbmux, MuxError
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("ios_udid_cache.txt", create_parent=True)
 
@@ -43,21 +42,6 @@ class IOSArgumentParser(ArgumentParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        class Context:
-
-            def __init__(self):
-                self._usbmux: Usbmux = None
-
-            @property
-            def usbmux(self):
-                return self._usbmux or Usbmux()
-
-            @usbmux.setter
-            def usbmux(self, value: Usbmux):
-                self._usbmux = value
-
-        context = Context()
-
         def parse_handler(fn):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
@@ -65,13 +49,13 @@ class IOSArgumentParser(ArgumentParser):
                 if udid is not None:
                     with open(_DEVICE_CACHE_PATH, "wt+") as fd:
                         fd.write(udid)
-                return Device(udid, context.usbmux)
+                return Device(udid)
 
             return wrapper
 
         @parse_handler
         def parse_device():
-            usbmux = context.usbmux
+            usbmux = Usbmux.get_default()
             devices = usbmux.device_list()
             if len(devices) == 0:
                 raise MuxError("error: no devices/emulators found")
@@ -116,7 +100,7 @@ class IOSArgumentParser(ArgumentParser):
                 @parse_handler
                 def wrapper():
                     index = int(values)
-                    usbmux = context.usbmux
+                    usbmux = Usbmux.get_default()
                     devices = usbmux.device_list()
                     if utils.is_empty(devices):
                         raise MuxError("error: no devices/emulators found")
@@ -144,15 +128,15 @@ class IOSArgumentParser(ArgumentParser):
         class UsbmuxdAction(argparse.Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
-                context.usbmux = Usbmux(str(values))
+                Usbmux.set_default(Usbmux(str(values)))
 
-        group = self.add_argument_group(title="tidevice optional arguments")
-        exclusive_group = group.add_mutually_exclusive_group()
-        exclusive_group.add_argument("-u", "--udid", metavar="UDID", dest="parse_device", action=UdidAction,
-                                     help="specify unique device identifier", default=parse_device)
-        exclusive_group.add_argument("-i", "--index", metavar="INDEX", dest="parse_device", action=IndexAction,
-                                     help="use device with given index")
-        exclusive_group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
-                                     help="use last device")
-        group.add_argument("--socket", metavar="SOCKET", dest="parse_usbmux", action=UsbmuxdAction,
+        group = self.add_argument_group(title="device optional arguments")
+        _group = group.add_mutually_exclusive_group()
+        _group.add_argument("-u", "--udid", metavar="UDID", dest="parse_device", action=UdidAction,
+                            help="specify unique device identifier", default=parse_device)
+        _group.add_argument("-i", "--index", metavar="INDEX", dest="parse_device", action=IndexAction,
+                            help="use device with given index")
+        _group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
+                            help="use last device")
+        group.add_argument("--socket", metavar="SOCKET", action=UsbmuxdAction,
                            help="usbmuxd listen address, host:port or local-path")

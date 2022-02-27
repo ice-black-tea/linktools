@@ -57,7 +57,7 @@ def main():
         return process.returncode
 
     # 如果第一个不是"-"开头的参数，并且参数需要添加设备，就额外添加"-s serial"参数
-    if len(adb_args) > 0 and not adb_args[0].startswith("-"):
+    if not adb_args[0].startswith("-"):
         if adb_args[0] not in general_commands:
             device = args.parse_device()
             device.exec(*adb_args, capture_output=False)

@@ -4,6 +4,3 @@
 # Datetime  : 2022/2/21 下午5:36
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 
-from linktools import tools
-
-tools["tidevice"].prepare()

@@ -30,7 +30,7 @@ import json
 import re
 import subprocess
 import warnings
-from typing import Optional
+from typing import Optional, Any
 
 import linktools
 from linktools import __name__ as module_name, utils, resource, tools
@@ -45,7 +45,6 @@ class AdbError(Exception):
 
 
 class Adb(object):
-
     _alive_status = ["bootloader", "device", "recovery", "sideload"]
 
     @classmethod
@@ -56,7 +55,7 @@ class Adb(object):
         :return: 设备号数组
         """
         devices = []
-        result = cls.exec("devices", capture_output=True)
+        result = cls.exec("devices")
         lines = result.splitlines()
         for i in range(1, len(lines)):
             splits = lines[i].split(maxsplit=1)
@@ -79,9 +78,9 @@ class Adb(object):
         """
         执行命令
         :param args: 命令
-        :param capture_output: 捕获输出，填False使用标准输出
+        :param capture_output: 捕获输出。对于需要返回结果的功能设置为True
         :param ignore_error: 忽略错误，报错不会抛异常
-        :return: 输出结果
+        :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
         process, out, err = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
         if not ignore_error and process.returncode != 0 and not utils.is_empty(err):
@@ -176,6 +175,18 @@ class Device(object):
         args = ["-s", self.id, "shell", *args]
         return Adb.exec(*args, **kwargs)
 
+    def sudo(self, *args: [str], **kwargs) -> str:
+        """
+        以root权限执行shell
+        :param args: shell命令
+        :return: adb输出结果
+        """
+        if self.uid != 0:
+            args = ["-s", self.id, "shell", "su", "-c", *args]
+        else:
+            args = ["-s", self.id, "shell", *args]
+        return Adb.exec(*args, **kwargs)
+
     def install(self, file_path: str, **kwargs) -> str:
         """
         安装apk
@@ -234,18 +245,6 @@ class Device(object):
         args = ["-s", self.id, "reverse", local, remote]
         return Adb.exec(*args, **kwargs)
 
-    def sudo(self, *args: [str], **kwargs) -> str:
-        """
-        以root权限执行shell
-        :param args: shell命令
-        :return: adb输出结果
-        """
-        if self.uid != 0:
-            args = ["-s", self.id, "shell", "su", "-c", *args]
-        else:
-            args = ["-s", self.id, "shell", *args]
-        return Adb.exec(*args, **kwargs)
-
     def call_agent(self, *args: [str], **kwargs) -> str:
         """
         调用辅助apk功能
@@ -262,7 +261,7 @@ class Device(object):
         target_dir = self.get_storage_path("apk", apk_md5)
         target_path = self.get_storage_path("apk", apk_md5, apk_name)
 
-        capture_output = kwargs.get("capture_output", True)
+        capture_output = kwargs.setdefault("capture_output", True)
 
         # check apk path
         if not self.is_file_exist(target_path):
@@ -274,9 +273,11 @@ class Device(object):
         if capture_output:
             args = ["--add-flag", *args]
         # call apk
-        result = self.shell("CLASSPATH=%s" % target_path,
-                            "app_process", "/", main_class, *args,
-                            capture_output=capture_output, **kwargs)
+        result = self.shell(
+            "CLASSPATH=%s" % target_path,
+            "app_process", "/", main_class, *args,
+            **kwargs
+        )
         # parse flag if necessary
         if capture_output:
             begin = result.find(flag_begin)
@@ -295,7 +296,8 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         return self.shell("getprop", prop, **kwargs).rstrip()
 
@@ -333,7 +335,8 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
         out = self.shell(*args, **kwargs)
@@ -344,7 +347,8 @@ class Device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -364,7 +368,8 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
         result = self.shell(*args, **kwargs)
@@ -378,7 +383,8 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -390,7 +396,8 @@ class Device(object):
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     def get_package(self, package_name, **kwargs) -> Optional[Package]:
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         args = ["package", "--packages", package_name]
         objs = json.loads(self.call_agent(*args, **kwargs))
@@ -405,7 +412,8 @@ class Device(object):
         :param basic_info: 只获取基本信息
         :return: 包信息
         """
-        self._ignore_capture_output(kwargs)
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
 
         result = []
         dex_args = ["package"]
@@ -443,6 +451,9 @@ class Device(object):
             return match.group(0)
         return package_name
 
-    def _ignore_capture_output(self, kwargs):
-        if kwargs.pop("capture_output", True) is False:
-            warnings.warn("invalid argument capture_output=False, ignored!")
+    @classmethod
+    def _ignore_invalid_argument(cls, kwargs: dict, key: str, value: Any):
+        if key in kwargs:
+            if kwargs[key] == value:
+                kwargs.pop(key)
+                warnings.warn(f"invalid argument {key}={value}, ignored!", stacklevel=2)

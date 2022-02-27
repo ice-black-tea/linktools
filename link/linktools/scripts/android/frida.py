@@ -29,8 +29,9 @@
 
 from linktools import utils, logger
 from linktools.android import AdbError, AndroidArgumentParser
+from linktools.android.frida import FridaAndroidServer
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, FridaAndroidServer, FridaShareScript
+from linktools.frida import FridaApplication, FridaShareScript
 
 
 @entry_point(known_errors=[AdbError])

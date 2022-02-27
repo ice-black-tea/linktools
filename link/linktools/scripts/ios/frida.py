@@ -26,15 +26,15 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import tidevice
 
 from linktools import logger, utils
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, FridaShareScript, FridaIOSServer
-from linktools.ios.argparser import IOSArgumentParser
+from linktools.frida import FridaApplication, FridaShareScript
+from linktools.ios import IOSArgumentParser, MuxError
+from linktools.ios.frida import FridaIOSServer
 
 
-@entry_point(known_errors=[tidevice.MuxError])
+@entry_point(known_errors=[MuxError])
 def main():
     parser = IOSArgumentParser(description='easy to use frida')
     parser.add_argument('-b', '--bundle-id', action='store', default=None,

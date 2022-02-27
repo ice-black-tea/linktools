@@ -460,7 +460,7 @@ def popen(*args, **kwargs) -> subprocess.Popen:
     return subprocess.Popen(args, **kwargs)
 
 
-def exec(*args, **kwargs) -> (subprocess.Popen, str, str):
+def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
     """
     执行命令
     :param args: 参数

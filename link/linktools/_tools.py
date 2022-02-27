@@ -186,10 +186,10 @@ class GeneralTool(object):
             return tool._process(fn, *args, **kwargs)
         return fn(*[*executable_cmdline, *args], **kwargs)
 
-    def popen(self, *args: [str], **kwargs: dict) -> subprocess.Popen:
+    def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
         return self._process(utils.popen, *args, **kwargs)
 
-    def exec(self, *args: [str], **kwargs: dict) -> (subprocess.Popen, str, str):
+    def exec(self, *args: [str], **kwargs) -> (subprocess.Popen, str, str):
         return self._process(utils.exec, *args, **kwargs)
 
     def __getattr__(self, item):
