@@ -169,17 +169,17 @@ GENERAL_TOOL_JADX_GUI:
         then: bin/jadx-gui.bat
       - else: ~
 
-GENERAL_TOOL_CHROMEDRIVER:
-  cmdline: chromedriver
-  version: 87.0.4280.88
+GENERAL_TOOL_CHROMEDRIVER80: &GENERAL_TOOL_CHROMEDRIVER80
+  version: 80.0.3987.106
+  base_url: http://chromedriver.storage.googleapis.com
   download_url:
     case:
       - when: {system: darwin}
-        then: http://chromedriver.storage.googleapis.com/{version}/chromedriver_mac64.zip
+        then: "{base_url}/{version}/chromedriver_mac64.zip"
       - when: {system: linux}
-        then: http://chromedriver.storage.googleapis.com/{version}/chromedriver_linux64.zip
+        then: "{base_url}/{version}/chromedriver_linux64.zip"
       - when: {system: windows}
-        then: http://chromedriver.storage.googleapis.com/{version}/chromedriver_win32.zip
+        then: "{base_url}/{version}/chromedriver_win32.zip"
       - else: ~
   unpack_path: chromedriver-{version}
   target_path:
@@ -189,6 +189,10 @@ GENERAL_TOOL_CHROMEDRIVER:
       - when: {system: windows}
         then: chromedriver.exe
       - else: ~
+
+GENERAL_TOOL_CHROMEDRIVER:
+  <<: *GENERAL_TOOL_CHROMEDRIVER80
+  cmdline: chromedriver
 
 GENERAL_TOOL_APPCRAWLER:
   cmdline: appcrawler

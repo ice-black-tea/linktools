@@ -35,14 +35,65 @@ import colorama
 import yaml
 
 from . import utils
-from ._config import Config
-from ._logger import Logger, get_logger
-from ._resource import Resource
-from ._tools import GeneralTools
 from .version import __name__ as module_name
 
 
+def _create_default_resource():
+    from ._resource import Resource
+
+    return Resource(
+        os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "resource")
+        )
+    )
+
+
+def _create_default_config():
+    from ._config import Config
+
+    config = Config()
+
+    # 初始化全局存储路径配置，优先级低于data、temp路径
+    config["SETTING_STORAGE_PATH"] = \
+        os.environ.get("SETTING_STORAGE_PATH") or \
+        os.path.join(str(pathlib.Path.home()), f".{module_name}")
+
+    # 初始化data、temp路径配置
+    config["SETTING_DATA_PATH"] = os.environ.get("SETTING_DATA_PATH")  # default {SETTING_STORAGE_PATH}/data
+    config["SETTING_TEMP_PATH"] = os.environ.get("SETTING_TEMP_PATH")  # default {SETTING_STORAGE_PATH}/temp
+
+    # 初始化下载相关参数
+    config["SETTING_DOWNLOAD_USER_AGENT"] = \
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " \
+        "AppleWebKit/537.36 (KHTML, like Gecko) " \
+        "Chrome/98.0.4758.109 " \
+        "Safari/537.36"
+
+    # 导入configs文件夹中所有配置文件
+    config.from_file(resource.get_path("tools.yml"), load=yaml.safe_load)
+    config.from_file(resource.get_path("android-tools.json"), load=json.load)
+
+    # 导入环境变量LINKTOOLS_SETTING中的配置文件
+    config.from_envvar("LINKTOOLS_SETTING", silent=True)
+
+    return config
+
+
+def _create_default_logger():
+    from ._logger import get_logger
+
+    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
+        import ctypes
+        k = ctypes.windll.kernel32
+        k.SetConsoleMode(k.GetStdHandle(-11), 7)
+    colorama.init(autoreset=False)
+
+    return get_logger(module_name)
+
+
 def _create_default_tools():
+    from ._tools import GeneralTools
+
     tools = GeneralTools()
 
     # set environment variable
@@ -62,54 +113,7 @@ def _create_default_tools():
     return tools
 
 
-def _create_default_config():
-    config = Config()
-
-    # 初始化全局存储路径配置，优先级低于data、temp路径
-    config["SETTING_STORAGE_PATH"] = \
-        os.environ.get("SETTING_STORAGE_PATH") or \
-        os.path.join(str(pathlib.Path.home()), f".{module_name}")
-
-    # 初始化data、temp路径配置
-    config["SETTING_DATA_PATH"] = os.environ.get("SETTING_DATA_PATH")  # default {SETTING_STORAGE_PATH}/data
-    config["SETTING_TEMP_PATH"] = os.environ.get("SETTING_TEMP_PATH")  # default {SETTING_STORAGE_PATH}/temp
-
-    # 初始化下载相关参数
-    config["SETTING_DOWNLOAD_USER_AGENT"] = \
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) " \
-        "AppleWebKit/537.36 (KHTML, like Gecko) " \
-        "Chrome/75.0.3770.100 " \
-        "Safari/537.36"
-
-    # 导入configs文件夹中所有配置文件
-    config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "configs"))
-    for name in os.listdir(config_path):
-        path = os.path.join(config_path, name)
-        if os.path.isdir(path):
-            continue
-        elif path.endswith(".py"):
-            config.from_pyfile(path)
-        elif path.endswith(".json"):
-            config.from_file(path, load=json.load)
-        elif path.endswith(".yml"):
-            config.from_file(path, load=yaml.safe_load)
-
-    # 导入环境变量LINKTOOLS_SETTING中的配置文件
-    config.from_envvar("LINKTOOLS_SETTING", silent=True)
-
-    return config
-
-
-def _create_default_logger():
-    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
-        import ctypes
-        k = ctypes.windll.kernel32
-        k.SetConsoleMode(k.GetStdHandle(-11), 7)
-    colorama.init(autoreset=False)
-    return get_logger(module_name)
-
-
-resource: Resource = Resource()
-config: Config = utils.lazy_load(_create_default_config)
-logger: Logger = utils.lazy_load(_create_default_logger)
-tools: GeneralTools = utils.lazy_load(_create_default_tools)
+resource = utils.lazy_load(_create_default_resource)
+config = utils.lazy_load(_create_default_config)
+logger = utils.lazy_load(_create_default_logger)
+tools = utils.lazy_load(_create_default_tools)

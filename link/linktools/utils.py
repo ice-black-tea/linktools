@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
 import collections
 import functools
 import os
@@ -36,12 +37,10 @@ import time
 import traceback
 import warnings
 from collections.abc import Iterable
-from typing import Union, Sized, Callable, Tuple
+from typing import Union, Sized, Callable, Tuple, TypeVar, Optional, Type, Any, List, Dict
 
 from filelock import FileLock
 from tqdm import tqdm
-
-__module__ = __name__  # used by Proxy class body
 
 
 class TimeoutMeter:
@@ -82,7 +81,7 @@ class Reactor(object):
         self._cond = threading.Condition(self._lock)
         self._worker = None
 
-    def is_running(self):
+    def is_running(self) -> "bool":
         with self._lock:
             return self._running
 
@@ -180,6 +179,9 @@ def _default_cls_attr(name, type_, cls_value):
     return type(name, (type_,), {
         '__new__': __new__, '__get__': __get__,
     })
+
+
+__module__ = __name__  # used by Proxy class body
 
 
 class Proxy(object):
@@ -411,7 +413,10 @@ class Proxy(object):
         return self._get_current_object().__reduce__()
 
 
-def lazy_load(fn, *args, **kwargs):
+T = TypeVar('T')
+
+
+def lazy_load(fn: Callable[..., T], *args, **kwargs) -> T:
     """
     延迟加载
     :param fn: 延迟加载的方法
@@ -420,7 +425,7 @@ def lazy_load(fn, *args, **kwargs):
     return Proxy(functools.partial(fn, *args, **kwargs))
 
 
-def lazy_raise(e):
+def lazy_raise(e: Exception) -> T:
     """
     延迟抛出异常
     :param e: exception
@@ -433,7 +438,7 @@ def lazy_raise(e):
     return lazy_load(raise_error)
 
 
-def ignore_error(fn, *args, **kwargs):
+def ignore_error(fn: Callable[..., T], *args, **kwargs) -> Optional[T]:
     try:
         return fn(*args, **kwargs)
     except:
@@ -457,6 +462,11 @@ def popen(*args, **kwargs) -> subprocess.Popen:
         kwargs["cwd"] = os.getcwd()
     if "shell" in kwargs:
         kwargs["shell"] = False
+    if "append_env" in kwargs:
+        env = os.environ.copy()
+        env.update(kwargs.pop("env", {}))
+        env.update(kwargs.pop("append_env"))
+        kwargs["env"] = env
     return subprocess.Popen(args, **kwargs)
 
 
@@ -510,7 +520,7 @@ def int(obj: object, default: int = 0) -> int:
     return cast(type(0), obj, default=default)
 
 
-def bool(obj: object, default: bool = False) -> bool:
+def bool(obj: object, default: bool = False) -> "bool":
     """
     转为bool
     :param obj: 需要转换的值
@@ -520,7 +530,7 @@ def bool(obj: object, default: bool = False) -> bool:
     return cast(type(True), obj, default=default)
 
 
-def is_contain(obj: object, key: object) -> bool:
+def is_contain(obj: object, key: object) -> "bool":
     """
     是否包含内容
     :param obj: 对象
@@ -534,7 +544,7 @@ def is_contain(obj: object, key: object) -> bool:
     return False
 
 
-def is_empty(obj: object) -> bool:
+def is_empty(obj: object) -> "bool":
     """
     对象是否为空
     :param obj: 对象
@@ -547,8 +557,8 @@ def is_empty(obj: object) -> bool:
     return False
 
 
-# noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
+# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
+def get_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> Optional[T]:
     """
     获取子项
     :param obj: 对象
@@ -587,8 +597,8 @@ def get_item(obj: object, *keys, type: type = None, default: type(object) = None
     return obj
 
 
-# noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def pop_item(obj: object, *keys, type: type = None, default: type(object) = None) -> type(object):
+# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
+def pop_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> Optional[T]:
     """
     获取并删除子项
     :param obj: 对象
@@ -640,8 +650,8 @@ def pop_item(obj: object, *keys, type: type = None, default: type(object) = None
     return obj
 
 
-# noinspection PyShadowingBuiltins
-def get_array_item(obj: object, *keys, type: type = None, default: [type(object)] = None) -> [type(object)]:
+# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
+def get_array_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] = None) -> List[T]:
     """
     获取子项（列表）
     :param obj: 对象
@@ -665,12 +675,12 @@ def get_array_item(obj: object, *keys, type: type = None, default: [type(object)
     return array
 
 
-def read_file(path, binary=True):
+def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
     with open(path, 'rb' if binary else 'r') as f:
         return f.read()
 
 
-def get_md5(data):
+def get_md5(data: Union[str, bytes]) -> str:
     import hashlib
     if type(data) == str:
         data = bytes(data, 'utf8')
@@ -679,14 +689,14 @@ def get_md5(data):
     return m.hexdigest()
 
 
-def gzip_compress(data):
+def gzip_compress(data: Union[str, bytes]) -> bytes:
     import gzip
     if type(data) == str:
         data = bytes(data, 'utf8')
     return gzip.compress(data)
 
 
-def get_host_ip():
+def get_host_ip() -> Optional[str]:
     import socket
     s = None
     try:
@@ -699,22 +709,22 @@ def get_host_ip():
         s.close()
 
 
-def make_uuid():
+def make_uuid() -> str:
     import uuid
     import random
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(uuid.uuid1()) + str(random.random())))
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")
 
 
-def make_url(url, path, **kwargs):
+def make_url(url: str, path: str, **kwargs: Any) -> str:
     from urllib import parse
     result = url.rstrip("/") + "/" + path.lstrip("/")
     if len(kwargs) > 0:
-        query_string = "&".join([f"{parse.quote(key)}={parse.quote(kwargs[key])}" for key in kwargs])
+        query_string = "&".join([f"{parse.quote(k)}={parse.quote(str(v))}" for k, v in kwargs.items()])
         result = result + "?" + query_string
     return result
 
 
-def cookie_to_dict(cookie):
+def cookie_to_dict(cookie: str) -> Dict[str, str]:
     cookies = {}
     for item in cookie.split(';'):
         key_value = item.split('=', 1)
@@ -722,7 +732,7 @@ def cookie_to_dict(cookie):
     return cookies
 
 
-def guess_file_name(url):
+def guess_file_name(url: str) -> str:
     from urllib.parse import urlparse
     return os.path.split(urlparse(url).path)[1]
 
@@ -799,7 +809,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
     """
 
     # 这个import放在这里，避免递归import
-    from linktools import config
+    from .environ import config
 
     # 如果文件存在，就不下载了
     if os.path.exists(path) and os.path.getsize(path) > 0:
