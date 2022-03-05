@@ -26,6 +26,9 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+__all__ = ("AdbError", "Adb", "Device")
+
 import json
 import re
 import subprocess
@@ -257,7 +260,7 @@ class Device(object):
         flag_begin = self.config["flag_begin"]
         flag_end = self.config["flag_end"]
 
-        apk_path = resource.get_persist_path(apk_name)
+        apk_path = resource.get_path(apk_name)
         target_dir = self.get_storage_path("apk", apk_md5)
         target_path = self.get_storage_path("apk", apk_md5, apk_name)
 

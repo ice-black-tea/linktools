@@ -26,120 +26,185 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+__all__ = ("GeneralTool", "GeneralTools")
+
 import os
 import platform
 import shutil
 import subprocess
 import sys
-import time
-import typing
 import warnings
+from typing import Dict, Union, Mapping, Iterator
 
 from . import utils
 from .decorator import cached_property
+from .environ import logger, resource, config
 
-_default_config = {
-    "name": "",
-    "cmdline": "",
-    "download_url": "",
-    "unpack_path": "",
-    "target_path": "",
-    "root_path": "",
-    "absolute_path": "",
-    "executable": int(time.time()),  # True or False (default: True)
-    "executable_cmdline": [],
-}
+_config_namespace = "GENERAL_TOOL_"
 
 
-class GeneralTool(object):
+class Parser(object):
 
-    def __init__(self, container, name: str, config: dict):
-        self._container = container
-        self._raw_config = _default_config.copy()
-        self._raw_config.update(container.config)
-        self._raw_config.update(name=name)
-        self._raw_config.update(config)
+    def __init__(self, *items):
+        self._verifies = tuple(self._get_verify(item) for item in items)
 
-        self._verifiers = (
-            self._get_verifier("system"),
-            self._get_verifier("processor"),
-            self._get_verifier("architecture")
+    def parse(self, cfg: Dict):
+        result = {}
+        for key in cfg:
+            result[key] = self._extend_field(cfg, key)
+        return result
+
+    def _extend_field(self, cfg, key: str, default=None):
+        value = utils.get_item(cfg, key, default=default)
+        if isinstance(value, dict) and "case" in value:
+            case_block = value.get("case")  # ==> find "case"
+            # traverse all blocks
+            for cond_block in case_block:
+                # if it is a when block
+                when_block = utils.get_item(cond_block, "when")
+                if when_block is not None:  # ==> find "case" => "when"
+                    # verify that it matches
+                    is_verified = True
+                    for verify in self._verifies:
+                        if not verify(cfg, when_block):
+                            is_verified = False
+                            break
+                    # if any one of the verification fails, skip
+                    if not is_verified:
+                        continue
+                    # all items are verified
+                    return utils.get_item(cond_block, "then", default=default)  # ==> find "case" "when" "then"
+                # if it is a else block
+                else_block = utils.get_item(cond_block, "else")
+                if else_block is not None:  # ==> find "case" => "else"
+                    return else_block
+            # use default value
+            return default  # ==> not found "else"
+
+        # use config value
+        return value  # ==> not found "case"
+
+    @classmethod
+    def _get_verify(cls, item: str):
+        def verify(config, when_block):
+            when_scope = utils.get_item(when_block, item)
+            if when_scope is not None:
+                value = config[item]
+                if isinstance(when_scope, str):
+                    if value != when_scope:
+                        return False
+                elif isinstance(when_scope, (tuple, list, set)):
+                    if value not in when_scope:
+                        return False
+            return True
+
+        return verify
+
+
+class Var(object):
+
+    def __init__(self, name=None, default=None):
+        self.name = name
+        self.default = default
+
+
+class Meta(type):
+
+    def __new__(mcs, name, bases, attrs):
+        # initialize __parser__
+        attrs["__parser__"] = Parser(
+            "system",
+            "processor",
+            "architecture",
         )
+        # initialize __default__
+        attrs["__default__"] = {}
+        for key in list(attrs.keys()):
+            if isinstance(attrs[key], Var):
+                var = attrs[key]
+                var_name = var.name or key
+                attrs["__default__"][var_name] = var.default
+                attrs[key] = property(mcs.make_fget(var_name))
+        return type.__new__(mcs, name, bases, attrs)
+
+    @classmethod
+    def make_fget(mcs, key):
+        return lambda self: self.config.get(key)
+
+
+class GeneralTool(metaclass=Meta):
+    __default__: Dict
+    __parser__: Parser
+
+    name: str = Var(default="")
+    version: str = Var(default="")
+    download_url: str = Var(default="")
+    root_path: str = Var(default="")
+    unpack_path: str = Var(default="")
+    absolute_path: str = Var(default="")
+    executable: bool = Var(default=True)
+    executable_cmdline: tuple = Var(default=[])
+
+    exists: bool = property(lambda self: os.path.exists(self.absolute_path))
+    dirname: bool = property(lambda self: os.path.dirname(self.absolute_path))
+
+    def __init__(self, container, cfg: Union[dict, str], **kwargs):
+        self.__container = container
+        self.__config = cfg
+
+        self._raw_config = self.__default__.copy()
+        self._raw_config.update(container.config)
+        self._raw_config.update(cfg)
+        self._raw_config.update(kwargs)
 
     @cached_property
     def config(self) -> dict:
-        from .environ import resource
-
-        config = {k: v for k, v in self._raw_config.items()}
+        cfg = self.__parser__.parse(self._raw_config)
 
         # download url
-        download_url = self._get_raw_item("download_url", type=str) or ""
-        config["download_url"] = download_url.format(
-            tools=self._container,
-            **config
-        )
+        download_url = utils.get_item(cfg, "download_url", type=str) or ""
+        cfg["download_url"] = download_url.format(tools=self.__container, **cfg)
 
         # unpack path
-        unpack_path = self._get_raw_item("unpack_path", type=str) or ""
-        config["unpack_path"] = unpack_path.format(
-            tools=self._container,
-            **config
-        )
+        unpack_path = utils.get_item(cfg, "unpack_path", type=str) or ""
+        cfg["unpack_path"] = unpack_path.format(tools=self.__container, **cfg)
 
         # root path: tools/{unpack_path}/
         paths = ["tools"]
-        if not utils.is_empty(config["unpack_path"]):
-            paths.append(config["unpack_path"])
-        config["root_path"] = resource.get_data_dir(
-            *paths
-        )
+        if not utils.is_empty(cfg["unpack_path"]):
+            paths.append(cfg["unpack_path"])
+        cfg["root_path"] = resource.get_data_dir(*paths)
 
         # file path: tools/{unpack_path}/{target_path}
-        target_path = self._get_raw_item("target_path", type=str) or ""
-        config["target_path"] = target_path.format(
-            tools=self._container,
-            **config
-        )
-        config["absolute_path"] = os.path.join(
-            config["root_path"],
-            config["target_path"]
-        )
+        target_path = utils.get_item(cfg, "target_path", type=str) or ""
+        cfg["target_path"] = target_path.format(tools=self.__container, **cfg)
+        cfg["absolute_path"] = os.path.join(cfg["root_path"], cfg["target_path"])
 
         # is it executable
-        config["executable"] = self._get_raw_item("executable", type=bool)
+        cfg["executable"] = utils.get_item(cfg, "executable", type=bool)
 
         # set executable cmdline
-        cmdline = (self._get_raw_item("cmdline", type=str) or "")
+        cmdline = (utils.get_item(cfg, "cmdline", type=str) or "")
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
         if not utils.is_empty(cmdline):
-            config["absolute_path"] = cmdline
-            config["executable_cmdline"] = [cmdline]
+            cfg["absolute_path"] = cmdline
+            cfg["executable_cmdline"] = [cmdline]
         else:
-            executable_cmdline = (self._get_raw_item("executable_cmdline") or [config["absolute_path"]])
+            executable_cmdline = (utils.get_item(cfg, "executable_cmdline") or [cfg["absolute_path"]])
             if isinstance(executable_cmdline, str):
                 executable_cmdline = [executable_cmdline]
             for i in range(len(executable_cmdline)):
-                executable_cmdline[i] = str(executable_cmdline[i]).format(tools=self._container, **config)
-            config["executable_cmdline"] = executable_cmdline
+                executable_cmdline[i] = str(executable_cmdline[i]).format(tools=self.__container, **cfg)
+            cfg["executable_cmdline"] = executable_cmdline
 
-        return config
+        return cfg
 
-    @property
-    def exists(self) -> bool:
-        return os.path.exists(self.absolute_path)
+    def copy(self, **kwargs):
+        return GeneralTool(self.__container, self.__config, **kwargs)
 
-    @property
-    def dirname(self) -> str:
-        return os.path.dirname(self.absolute_path)
-
-    def prepare(self, force_download=False) -> None:
-        from .environ import logger, resource
-
-        # remove tool files first
-        if force_download:
-            self.clear()
-
+    def prepare(self) -> None:
         if self.exists:
             pass
         elif not self.download_url:
@@ -175,15 +240,20 @@ class GeneralTool(object):
                 os.remove(self.absolute_path)
 
     def _process(self, fn, *args, **kwargs):
-        self.prepare(force_download=False)
+        self.prepare()
+
+        # python
         executable_cmdline = self.executable_cmdline
         if executable_cmdline[0] == "python":
             args = [sys.executable, *executable_cmdline[1:], *args]
             return fn(*args, **kwargs)
-        if executable_cmdline[0] in self._container.items:
+
+        # java or other
+        if executable_cmdline[0] in self.__container.items:
             args = [*executable_cmdline[1:], *args]
-            tool: GeneralTool = self._container.items[executable_cmdline[0]]
+            tool: GeneralTool = self.__container.items[executable_cmdline[0]]
             return tool._process(fn, *args, **kwargs)
+
         return fn(*[*executable_cmdline, *args], **kwargs)
 
     def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
@@ -192,61 +262,14 @@ class GeneralTool(object):
     def exec(self, *args: [str], **kwargs) -> (subprocess.Popen, str, str):
         return self._process(utils.exec, *args, **kwargs)
 
-    def __getattr__(self, item):
-        return self.config.get(item)
-
-    @classmethod
-    def _get_verifier(cls, item: str):
-        def verify(self, when_block):
-            when_scope = utils.get_item(when_block, item)
-            if when_scope is not None:
-                value = self._container.config[item]
-                if isinstance(when_scope, str):
-                    if value != when_scope:
-                        return False
-                elif isinstance(when_scope, (tuple, list, set)):
-                    if value not in when_scope:
-                        return False
-            return True
-
-        return verify
-
-    def _get_raw_item(self, key: str, type=None, default=None):
-        value = utils.get_item(self._raw_config, key, default=default)
-        if isinstance(value, dict) and "case" in value:
-            case_block = value.get("case")
-
-            # traverse all blocks
-            for cond_block in case_block:
-
-                # if it is a when block
-                when_block = utils.get_item(cond_block, "when")
-                if when_block is not None:
-                    # check if the system matches
-                    is_verified = True
-                    for verify in self._verifiers:
-                        if not verify(self, when_block):
-                            is_verified = False
-                            break
-                    # if any one of the verification fails, skip
-                    if not is_verified:
-                        continue
-                    # all items are verified
-                    return utils.get_item(cond_block, "then", type=type, default=default)
-
-                # if it is a else block
-                else_block = utils.get_item(cond_block, "else")
-                if else_block is not None:
-                    return utils.get_item(else_block, type=type, default=default)
-
-            # use default value
-            return utils.get_item(default, type=type, default=default)
-
-        # use config value
-        return utils.get_item(value, type=type, default=default)
+    def __repr__(self):
+        return f"<GeneralTool {self.name}>"
 
 
 class GeneralTools(object):
+    system = property(lambda self: self.config["system"])
+    processor = property(lambda self: self.config["processor"])
+    architecture = property(lambda self: self.config["architecture"])
 
     def __init__(self, **kwargs):
         self.config = kwargs
@@ -255,32 +278,21 @@ class GeneralTools(object):
         self.config.setdefault("architecture", platform.architecture()[0].lower())
 
     @cached_property
-    def items(self) -> typing.Mapping[str, GeneralTool]:
-        from . import config
+    def items(self) -> Mapping[str, GeneralTool]:
         items = {}
-        for key, value in config.get_namespace("GENERAL_TOOL_").items():
-            if isinstance(value, dict):
-                name = value.get("name") or key
-                items[name] = GeneralTool(self, name, value)
+        for key, value in config.get_namespace(_config_namespace).items():
+            if not isinstance(value, dict):
+                warnings.warn(f"dict was expected, got {type(value)}, ignored.")
+                continue
+            name = value.setdefault("name", key)
+            items[name] = GeneralTool(self, value)
         return items
 
-    @property
-    def system(self):
-        return self.config["system"]
-
-    @property
-    def processor(self):
-        return self.config["processor"]
-
-    @property
-    def architecture(self):
-        return self.config["architecture"]
-
-    def __iter__(self) -> typing.Iterator[GeneralTool]:
+    def __iter__(self) -> Iterator[GeneralTool]:
         return iter(self.items.values())
 
-    def __getitem__(self, item) -> typing.Union[GeneralTool, None]:
+    def __getitem__(self, item) -> Union[GeneralTool, None]:
         return self.items[item] if item in self.items else None
 
-    def __getattr__(self, item) -> typing.Union[GeneralTool, None]:
+    def __getattr__(self, item) -> Union[GeneralTool, None]:
         return self.items[item] if item in self.items else None

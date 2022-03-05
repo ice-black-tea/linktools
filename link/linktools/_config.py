@@ -26,6 +26,9 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+__all__ = ("Config",)
+
 import errno
 import os
 from types import ModuleType
@@ -33,7 +36,6 @@ from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
 
 class Config(dict):
-
     """
     Code stolen from flask.Config
     """

@@ -7,7 +7,8 @@
 # Product   : PyCharm
 # Project   : link
 
-import contextlib
+__all__ = ("FridaApplication",)
+
 import json
 import logging
 import os
@@ -155,8 +156,8 @@ class FridaApplication:
         self._last_change_id = 0
         self._monitored_files: Dict[str, frida.FileMonitor] = {}
 
-        self._internal_script = FridaScriptFile(resource.get_persist_path("frida.min.js"))
-        self._internal_debug_script = FridaScriptFile(resource.get_persist_path("frida.js"))
+        self._internal_script = FridaScriptFile(resource.get_path("frida.min.js"))
+        self._internal_debug_script = FridaScriptFile(resource.get_path("frida.js"))
 
         self._user_parameters = user_parameters or {}
         self._user_scripts = [FridaScriptFile(o) if isinstance(o, str) else o for o in (user_scripts or tuple())]

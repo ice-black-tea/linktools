@@ -26,29 +26,14 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+__all__ = ("ArgumentParser",)
+
 import argparse
 import logging
 
 from .environ import logger
 from .version import __version__
-
-
-class VerboseAction(argparse.Action):
-
-    def __init__(self,
-                 option_strings,
-                 dest=argparse.SUPPRESS,
-                 default=argparse.SUPPRESS,
-                 help=None):
-        super(VerboseAction, self).__init__(
-            option_strings=option_strings,
-            dest=dest,
-            default=default,
-            nargs=0,
-            help=help)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        logger.setLevel(logging.DEBUG)
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -60,5 +45,23 @@ class ArgumentParser(argparse.ArgumentParser):
             conflict_handler=conflict_handler,
             **kwargs
         )
+
+        class VerboseAction(argparse.Action):
+
+            def __init__(self,
+                         option_strings,
+                         dest=argparse.SUPPRESS,
+                         default=argparse.SUPPRESS,
+                         help=None):
+                super(VerboseAction, self).__init__(
+                    option_strings=option_strings,
+                    dest=dest,
+                    default=default,
+                    nargs=0,
+                    help=help)
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                logger.setLevel(logging.DEBUG)
+
         self.add_argument("--version", action="version", version="%(prog)s " + __version__)
         self.add_argument("-v", "--verbose", action=VerboseAction, help="increase log verbosity")

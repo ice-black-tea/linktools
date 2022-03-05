@@ -27,7 +27,10 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
+__all__ = ("get_logger", "Logger")
+
 import logging
+import os
 
 import colorama
 
@@ -127,7 +130,6 @@ class Logger(logging.Logger):
             msg = msg + str(arg)
 
         if indent + len(tag) > 0:
-            import os
             msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
 
         if fore is not None and fore != colorama.Fore.RESET:

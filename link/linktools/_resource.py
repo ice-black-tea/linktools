@@ -26,15 +26,22 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+
+__all__ = ("Resource",)
+
 import os
 
 from .decorator import cached_property
+from .environ import config
 
 
 class Resource(object):
 
-    def get_persist_path(self, *paths: [str]):
-        return self._get_path(self._resource_path, *paths, create=False, create_parent=False)
+    def __init__(self, root_path: str):
+        self._root_path = root_path
+
+    def get_path(self, *paths: [str]):
+        return self._get_path(self._root_path, *paths, create=False, create_parent=False)
 
     def get_data_path(self, *paths: [str], create_parent: bool = False):
         return self._get_path(self._data_path, *paths, create=False, create_parent=create_parent)
@@ -49,12 +56,7 @@ class Resource(object):
         return self._get_path(self._temp_path, *paths, create=create, create_parent=False)
 
     @cached_property
-    def _resource_path(self):
-        return os.path.abspath(os.path.join(os.path.dirname(__file__), "resource"))
-
-    @cached_property
     def _data_path(self):
-        from . import config
         path = config["SETTING_DATA_PATH"]
         if not path:
             path = os.path.join(config["SETTING_STORAGE_PATH"], "data")
@@ -62,7 +64,6 @@ class Resource(object):
 
     @cached_property
     def _temp_path(self):
-        from . import config
         path = config["SETTING_TEMP_PATH"]
         if not path:
             path = os.path.join(config["SETTING_STORAGE_PATH"], "temp")
