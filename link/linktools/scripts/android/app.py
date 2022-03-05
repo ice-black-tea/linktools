@@ -103,25 +103,25 @@ class PackagePrinter:
 
     def print_package(self, indent: int = 0):
         self.stream.print("Package [%s]" % self.package, indent=indent, level=self.stream.title)
-        self.stream.print("name=%s" % self.package.appName, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("userId=%s" % self.package.userId, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("name=%s" % self.package.app_name, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("userId=%s" % self.package.user_id, indent=indent + 4, level=self.stream.normal)
         self.stream.print("gids=%s" % self.package.gids, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("sourceDir=%s" % self.package.sourceDir, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("versionCode=%s" % self.package.versionCode, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("versionName=%s" % self.package.versionName, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("sourceDir=%s" % self.package.source_dir, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("versionCode=%s" % self.package.version_code, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("versionName=%s" % self.package.version_name, indent=indent + 4, level=self.stream.normal)
         self.stream.print("enabled=%s" % self.package.enabled, indent=indent + 4, level=self.stream.normal)
         self.stream.print("system=%s" % self.package.system, indent=indent + 4, level=self.stream.normal)
         self.stream.print("debuggable=%s" % self.package.debuggable, indent=indent + 4,
                           level=self.stream.dangerous if self.package.debuggable else self.stream.normal)
-        self.stream.print("allowBackup=%s" % self.package.allowBackup, indent=indent + 4,
-                          level=self.stream.dangerous if self.package.allowBackup else self.stream.normal)
+        self.stream.print("allowBackup=%s" % self.package.allow_backup, indent=indent + 4,
+                          level=self.stream.dangerous if self.package.allow_backup else self.stream.normal)
         self.stream.print_line()
 
     def print_requested_permissions(self, indent: int = 4):
-        if not utils.is_empty(self.package.requestedPermissions):
+        if not utils.is_empty(self.package.requested_permissions):
             stream = self.stream.create(max_level=PrintLevel.normal)
             self.stream.print("RequestedPermissions:", indent=indent, level=self.stream.title)
-            for permission in self.package.requestedPermissions:
+            for permission in self.package.requested_permissions:
                 self._print_permission(stream, permission, indent=indent + 4, identity="RequestedPermission")
             self.stream.print_line()
 
@@ -186,18 +186,18 @@ class PackagePrinter:
             PackagePrinter._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
         elif isinstance(component, Provider):
             stream.print("Authority [%s]" % component.authority, indent=indent + 4, level=level)
-            PackagePrinter._print_permission(stream, component.readPermission, indent=indent + 4,
+            PackagePrinter._print_permission(stream, component.read_permission, indent=indent + 4,
                                              identity="ReadPermission")
-            PackagePrinter._print_permission(stream, component.writePermission, indent=indent + 4,
+            PackagePrinter._print_permission(stream, component.write_permission, indent=indent + 4,
                                              identity="writePermission")
-            for pattern in component.uriPermissionPatterns:
+            for pattern in component.uri_permission_patterns:
                 stream.print("UriPermissionPattern [%s]" % pattern, indent=indent + 4, level=level)
-            for permission in component.pathPermissions:
+            for permission in component.path_permissions:
                 stream.print("PathPermission [%s]" % permission, indent=indent + 4,
                              level=stream.dangerous if permission.is_dangerous() else stream.normal)
-                PackagePrinter._print_permission(stream, permission.readPermission, indent=indent + 8,
+                PackagePrinter._print_permission(stream, permission.read_permission, indent=indent + 8,
                                                  identity="ReadPermission")
-                PackagePrinter._print_permission(stream, permission.writePermission, indent=indent + 8,
+                PackagePrinter._print_permission(stream, permission.write_permission, indent=indent + 8,
                                                  identity="writePermission")
 
         if not utils.is_empty(component.intents):
@@ -212,15 +212,15 @@ class PackagePrinter:
             stream.print("Action [%s]" % action, indent=indent + 4, level=level)
         for category in intent.categories:
             stream.print("Category [%s]" % category, indent=indent + 4, level=level)
-        for scheme in intent.dataSchemes:
+        for scheme in intent.data_schemes:
             stream.print("Scheme [%s]" % scheme, indent=indent + 4, level=level)
-        for scheme in intent.dataSchemeSpecificParts:
+        for scheme in intent.data_scheme_specific_parts:
             stream.print("Scheme [%s]" % scheme, indent=indent + 4, level=level)
-        for authority in intent.dataAuthorities:
+        for authority in intent.data_authorities:
             stream.print("Authority [%s]" % authority, indent=indent + 4, level=level)
-        for path in intent.dataPaths:
+        for path in intent.data_paths:
             stream.print("Path [%s]" % path, indent=indent + 4, level=level)
-        for type in intent.dataTypes:
+        for type in intent.data_types:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 

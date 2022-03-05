@@ -69,11 +69,11 @@ def main():
         logger.message("get current running package: {}".format(package_name))
         package = utils.get_item(device.get_packages(package_name, basic_info=True), 0)
         if package is not None:
-            logger.message("get current running package path: {}".format(package.sourceDir))
-            path = device.get_storage_path("{}_{}.apk".format(package.name, package.versionName))
+            logger.message("get current running package path: {}".format(package.source_dir))
+            path = device.get_storage_path("{}_{}.apk".format(package.name, package.version_name))
             dest = args.apk if not utils.is_empty(args.apk) else "."
             device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
-            device.shell("cp", package.sourceDir, path, capture_output=False)
+            device.shell("cp", package.source_dir, path, capture_output=False)
             device.pull(path, dest, capture_output=False)
             device.shell("rm", path)
     elif "--screen" in sys.argv:

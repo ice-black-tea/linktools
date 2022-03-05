@@ -43,11 +43,11 @@ class PathPermission(PatternMatcher):
 
     def __init__(self, obj: dict):
         super().__init__(obj)
-        self.readPermission = utils.get_item(obj, "readPermission", type=Permission, default={})
-        self.writePermission = utils.get_item(obj, "writePermission", type=Permission, default={})
+        self.read_permission = utils.get_item(obj, "readPermission", type=Permission, default=Permission.default())
+        self.write_permission = utils.get_item(obj, "writePermission", type=Permission, default=Permission.default())
 
     def is_dangerous(self):
-        return self.readPermission.is_dangerous() or self.writePermission.is_dangerous()
+        return self.read_permission.is_dangerous() or self.write_permission.is_dangerous()
 
 
 class AuthorityEntry:
@@ -65,22 +65,18 @@ class IntentFilter:
     def __init__(self, obj: dict):
         self.actions = utils.get_array_item(obj, "actions", type=str, default=[])
         self.categories = utils.get_array_item(obj, "categories", type=str, default=[])
-        self.dataSchemes = utils.get_array_item(obj, "dataSchemes", type=str, default=[])
-        self.dataSchemeSpecificParts = utils.get_array_item(obj, "dataSchemeSpecificParts", type=PatternMatcher, default=[])
-        self.dataAuthorities = utils.get_array_item(obj, "dataAuthorities", type=AuthorityEntry, default=[])
-        self.dataPaths = utils.get_array_item(obj, "dataPaths", type=PatternMatcher, default=[])
-        self.dataTypes = utils.get_array_item(obj, "dataTypes", type=str, default=[])
+        self.data_schemes = utils.get_array_item(obj, "dataSchemes", type=str, default=[])
+        self.data_scheme_specific_parts = utils.get_array_item(obj, "dataSchemeSpecificParts", type=PatternMatcher, default=[])
+        self.data_authorities = utils.get_array_item(obj, "dataAuthorities", type=AuthorityEntry, default=[])
+        self.data_paths = utils.get_array_item(obj, "dataPaths", type=PatternMatcher, default=[])
+        self.data_types = utils.get_array_item(obj, "dataTypes", type=str, default=[])
 
 
 class Permission:
 
-    _default = None
-
     @staticmethod
-    def default():
-        if Permission._default is None:
-            Permission._default = Permission({"name": "", "protection": "normal"})
-        return Permission._default
+    def default() -> "Permission":
+        return Permission({"name": "", "protection": "normal"})
 
     def __init__(self, obj: dict):
         self.name = utils.get_item(obj, "name", type=str, default="")
@@ -146,18 +142,18 @@ class Provider(Component):
     def __init__(self, obj: dict):
         super().__init__(obj)
         self.authority = utils.get_item(obj, "authority", type=str, default="")
-        self.readPermission = utils.get_item(obj, "readPermission", type=Permission, default=Permission.default())
-        self.writePermission = utils.get_item(obj, "writePermission", type=Permission, default=Permission.default())
-        self.uriPermissionPatterns = utils.get_array_item(obj, "uriPermissionPatterns", type=PatternMatcher, default=[])
-        self.pathPermissions = utils.get_array_item(obj, "pathPermissions", type=PathPermission, default=[])
+        self.read_permission = utils.get_item(obj, "readPermission", type=Permission, default=Permission.default())
+        self.write_permission = utils.get_item(obj, "writePermission", type=Permission, default=Permission.default())
+        self.uri_permission_patterns = utils.get_array_item(obj, "uriPermissionPatterns", type=PatternMatcher, default=[])
+        self.path_permissions = utils.get_array_item(obj, "pathPermissions", type=PathPermission, default=[])
 
     def is_dangerous(self):
         if not self.exported:
             return False
-        if self.readPermission.is_dangerous() or self.writePermission.is_dangerous():
+        if self.read_permission.is_dangerous() or self.write_permission.is_dangerous():
             return True
-        for pathPermission in self.pathPermissions:
-            if pathPermission.is_dangerous():
+        for path_permission in self.path_permissions:
+            if path_permission.is_dangerous():
                 return True
         return False
 
@@ -166,18 +162,18 @@ class Package:
 
     def __init__(self, obj: dict):
         self.name = utils.get_item(obj, "name", type=str, default="")
-        self.appName = utils.get_item(obj, "appName", type=str, default="")
-        self.userId = utils.get_item(obj, "userId", type=int, default="")
+        self.app_name = utils.get_item(obj, "appName", type=str, default="")
+        self.user_id = utils.get_item(obj, "userId", type=int, default="")
         self.gids = utils.get_item(obj, "gids", type=str, default=[])
-        self.sourceDir = utils.get_item(obj, "sourceDir", type=str, default="")
-        self.versionCode = utils.get_item(obj, "versionCode", type=str, default="")
-        self.versionName = utils.get_item(obj, "versionName", type=str, default="")
+        self.source_dir = utils.get_item(obj, "sourceDir", type=str, default="")
+        self.version_code = utils.get_item(obj, "versionCode", type=str, default="")
+        self.version_name = utils.get_item(obj, "versionName", type=str, default="")
         self.enabled = utils.get_item(obj, "enabled", type=bool, default=False)
         self.system = utils.get_item(obj, "system", type=bool, default=False)
         self.debuggable = utils.get_item(obj, "debuggable", type=bool, default=False)
-        self.allowBackup = utils.get_item(obj, "allowBackup", type=bool, default=False)
+        self.allow_backup = utils.get_item(obj, "allowBackup", type=bool, default=False)
 
-        self.requestedPermissions = utils.get_array_item(obj, "requestedPermissions", type=Permission, default=[])
+        self.requested_permissions = utils.get_array_item(obj, "requestedPermissions", type=Permission, default=[])
         self.permissions = utils.get_array_item(obj, "permissions", type=Permission, default=[])
         self.activities = utils.get_array_item(obj, "activities", type=Activity, default=[])
         self.services = utils.get_array_item(obj, "services", type=Service, default=[])
@@ -185,12 +181,12 @@ class Package:
         self.providers = utils.get_array_item(obj, "providers", type=Provider, default=[])
 
     def is_dangerous(self):
-        return self.debuggable or self.allowBackup or \
-            self.has_dangerous_permission() or \
-            self.has_dangerous_activity() or \
-            self.has_dangerous_service() or \
-            self.has_dangerous_receiver() or \
-            self.has_dangerous_provider()
+        return self.debuggable or self.allow_backup or \
+               self.has_dangerous_permission() or \
+               self.has_dangerous_activity() or \
+               self.has_dangerous_service() or \
+               self.has_dangerous_receiver() or \
+               self.has_dangerous_provider()
 
     def has_dangerous_permission(self):
         for permission in self.permissions:
