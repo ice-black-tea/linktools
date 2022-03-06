@@ -38,7 +38,7 @@ SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 #### 2.1.1 ct-grep
 
 <details>
-<summary>正则匹配文件内容 (含解析zip、elf等格式）</summary>
+<summary>类似linux中的grep，正则匹配文件内容 ，额外添加解析zip、elf等格等功能</summary>
 
 ```bash
 $ ct-grep -h
@@ -63,7 +63,7 @@ optional arguments:
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
-[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)
+声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)查看
 
 ```bash
 $ ct-tools -h
@@ -143,7 +143,7 @@ adb optional arguments:
 #### 2.2.2 at-pidcat
 
 <details>
-<summary>集成了<https://github.com/JakeWharton/pidcat>，并且修复了中文字符宽度问题</summary>
+<summary>集成了https://github.com/JakeWharton/pidcat，并且修复了中文字符宽度问题</summary>
 
 ```bash
 $ at-pidcat -h                                                                                                                                                                       474ms  日  3/ 6 22:30:47 2022
@@ -565,7 +565,7 @@ adb optional arguments:
 
 ### 2.3 ios相关功能（脚本前缀为it-）
 
-#### 2.3.1 at-frida
+#### 2.3.1 it-frida
 
 <details>
 <summary>该功能旨在方便使用frida，内置了常用功能</summary>
