@@ -35,9 +35,10 @@ SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 
 ### 2.1 通用功能（脚本前缀为ct-）
 
-#### 2.1.1 ct-grep
+#### ct-grep
 
-正则匹配文件内容 (含解析zip、elf等格式）
+<details>
+<summary>正则匹配文件内容 (含解析zip、elf等格式）</summary>
 
 ```bash
 $ ct-grep -h
@@ -55,9 +56,35 @@ optional arguments:
   -i, --ignore-case  ignore case
 ```
 
+</details>
+
+#### 2.1.1 ct-grep
+
+<details>
+<summary>正则匹配文件内容 (含解析zip、elf等格式）</summary>
+
+```bash
+$ ct-grep -h
+usage: ct-grep [-h] [-v] [-i] pattern [file [file ...]]
+
+match files with regular expressions
+
+positional arguments:
+  pattern            regular expression
+  file               target files path
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -v, --version      show program's version number and exit
+  -i, --ignore-case  ignore case
+```
+
+</details>
+
 #### 2.1.2 ct-tools
 
-读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)，下载使用对应工具
+<details>
+<summary>读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)，下载使用对应工具</summary>
 
 ```bash
 $ ct-tools -h
@@ -74,6 +101,7 @@ optional arguments:
   -d, --daemon          run tools as a daemon
 ```
 
+</details>
 
 ### 2.2 android相关功能（脚本前缀为at-）
 
