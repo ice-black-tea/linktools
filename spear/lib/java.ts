@@ -144,6 +144,7 @@ export class JavaHelper {
                 }
             },
             toString: {
+                configurable: true,
                 value: function () {
                     return this.name;
                 }
@@ -320,7 +321,7 @@ export class JavaHelper {
     getEventImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
         const javaHelperThis = this;
 
-        const opts = new function() {
+        const opts = new function () {
             this.method = true;
             this.thread = false;
             this.stack = false;

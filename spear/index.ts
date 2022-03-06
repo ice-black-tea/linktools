@@ -64,6 +64,7 @@ class ScriptLoader {
     load(scripts: Script[], parameters: Parameters) {
         Object.defineProperties(globalThis, {
             parameters: {
+                configurable: true,
                 enumerable: true,
                 value: parameters
             }
@@ -73,7 +74,8 @@ class ScriptLoader {
             try {
                 (1, eval)(script.source);
             } catch (e) {
-                throw new Error(`Unable to load ${script.filename}: ${e.stack}`);
+                let message = e.hasOwnProperty("stack") ? e.stack : e;
+                throw new Error(`Unable to load ${script.filename}: ${message}`);
             }
         }
     }

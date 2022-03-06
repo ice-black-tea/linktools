@@ -3,14 +3,14 @@ Java.perform(function () {
     /*
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
     JavaHelper.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
-        return this.apply(obj, args);
+        return this(obj, args);
     });
 
     // [*] Hook method: java.lang.Integer Integer.valueOf(int)
     // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String)
     // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String, int)
     JavaHelper.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
-        return this.apply(obj, args);
+        return this(obj, args);
     });
 
     // [*] Hook method: void Integer.Integer(int)
@@ -20,7 +20,7 @@ Java.perform(function () {
     // [*] Hook method: long Integer.longValue()
     // [*] Hook method: short Integer.shortValue()
     JavaHelper.hookClass("java.lang.Integer", function(obj, args) {
-        return this.apply(obj, args);
+        return this(obj, args);
     });
 
     // hook HashMap.get, print stack and args

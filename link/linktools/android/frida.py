@@ -97,7 +97,7 @@ class FridaAndroidServer(FridaServer):
     class Environ:
 
         def __init__(self, abi, version=frida.__version__):
-            config = {k: v for k, v in linktools.config["ANDROID_TOOL_FRIDA_SERVER"].items()}
+            config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
             config.setdefault("version", version)
             config.setdefault("abi", abi)
 

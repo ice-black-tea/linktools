@@ -9,22 +9,46 @@ export class AndroidHelper {
         );
 
         Java.perform(function () {
-            JavaHelper.hookMethods("android.webkit.WebView", "loadUrl", function (obj, args) {
-                Log.d("setWebContentsDebuggingEnabled: " + obj);
-                obj.setWebContentsDebuggingEnabled(true);
-                return this.apply(obj, args);
+            let WebView = Java.use("android.webkit.WebView");
+            Java.scheduleOnMainThread(
+                () => ignoreError(
+                    () => WebView.setWebContentsDebuggingEnabled(true),
+                    void 0
+                )
+            );
+            JavaHelper.hookMethods(WebView, "setWebContentsDebuggingEnabled", function (obj, args) {
+                Log.d("android.webkit.WebView.setWebContentsDebuggingEnabled: " + args[0]);
+                args[0] = true;
+                return this(obj, args);
             });
-        });
+            JavaHelper.hookMethods(WebView, "loadUrl", function (obj, args) {
+                Log.d("android.webkit.WebView.loadUrl: " + args[0]);
+                WebView.setWebContentsDebuggingEnabled(true);
+                return this(obj, args);
+            });
 
-        try {
-            JavaHelper.hookMethods("com.uc.webview.export.WebView", "loadUrl", function (obj, args) {
-                Log.d("setWebContentsDebuggingEnabled: " + obj);
-                obj.setWebContentsDebuggingEnabled(true);
-                return this.apply(obj, args);
-            });
-        } catch (err) {
-            Log.d('Hook com.uc.webview.export.WebView.loadUrl error: ' + err, '[-]');
-        }
+            try {
+                let UCWebView = Java.use("com.uc.webview.export.WebView");
+                Java.scheduleOnMainThread(
+                    () => ignoreError(
+                        () => UCWebView.setWebContentsDebuggingEnabled(true),
+                        void 0
+                    )
+                );
+                JavaHelper.hookMethods(UCWebView, "setWebContentsDebuggingEnabled", function (obj, args) {
+                    Log.d("com.uc.webview.export.WebView.setWebContentsDebuggingEnabled: " + args[0]);
+                    args[0] = true;
+                    return this(obj, args);
+                });
+                JavaHelper.hookMethods(UCWebView, "loadUrl", function (obj, args) {
+                    Log.d("com.uc.webview.export.WebView.loadUrl: " + args[0]);
+                    UCWebView.setWebContentsDebuggingEnabled(true);
+                    return this(obj, args);
+                });
+            } catch (err) {
+                Log.d('Hook com.uc.webview.export.WebView.setWebContentsDebuggingEnabled error: ' + err, '[-]');
+            }
+        });
     }
 
 
@@ -108,7 +132,7 @@ export class AndroidHelper {
                 JavaHelper.hookMethod("javax.net.ssl.SSLContext", "init", ['[Ljavax.net.ssl.KeyManager;', '[Ljavax.net.ssl.TrustManager;', 'java.security.SecureRandom'], function (obj, args) {
                     Log.d('Bypassing Trustmanager (Android < 7) pinner');
                     args[1] = TrustManagers;
-                    return this.apply(obj, args);
+                    return this(obj, args);
                 });
             } catch (err) {
                 Log.d('TrustManager (Android < 7) pinner not found', '[-]');
@@ -484,7 +508,7 @@ export class AndroidHelper {
                 JavaHelper.hookMethod("org.chromium.net.impl.CronetEngineBuilderImpl", "enablePublicKeyPinningBypassForLocalTrustAnchors", ['boolean'], function (obj, args) {
                     Log.i("[+] Disabling Public Key pinning for local trust anchors in Chromium Cronet");
                     args[0] = true;
-                    return this.apply(obj, args);
+                    return this(obj, args);
                 });
             } catch (err) {
                 Log.d('Chromium Cronet pinner not found: ' + err, '[-]')
@@ -535,7 +559,7 @@ export class AndroidHelper {
                         }
                     });
 
-                    return this.apply(obj, args);
+                    return this(obj, args);
                 });
             } catch (err) {
                 Log.d("SSLPeerUnverifiedException not found: " + err, '[-]');

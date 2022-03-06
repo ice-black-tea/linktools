@@ -3,7 +3,3 @@
 
 # Datetime  : 2022/2/21 上午11:48
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
-
-from .server import FridaAndroidServer
-
-FridaAndroidServer.setup(abis=["arm", "arm64"])
