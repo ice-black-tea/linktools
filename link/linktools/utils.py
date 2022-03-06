@@ -750,7 +750,7 @@ def _download_with_requests(url, path, headers=None, timeout=None):
     read = 0
     yield name, total, read
 
-    with requests.get(url, headers=headers, stream=True, timeout=timeout) as resp:
+    with requests.get(url, headers=headers, stream=True, timeout=timeout) as resp, open(path, 'ab') as tfp:
 
         if "Content-Length" in resp.headers:
             total = int(resp.headers.get("Content-Length"))
@@ -760,12 +760,11 @@ def _download_with_requests(url, path, headers=None, timeout=None):
                 name = groups[0]
         yield name, total, read
 
-        with open(path, 'ab') as tfp:
-            for chunk in resp.iter_content(bs):
-                if chunk:
-                    read += len(chunk)
-                    tfp.write(chunk)
-                    yield name, total, read
+        for chunk in resp.iter_content(bs):
+            if chunk:
+                read += len(chunk)
+                tfp.write(chunk)
+                yield name, total, read
 
 
 def _download_with_urllib(url, path, headers=None, timeout=None):
@@ -778,7 +777,8 @@ def _download_with_urllib(url, path, headers=None, timeout=None):
     read = 0
     yield name, total, read
 
-    with contextlib.closing(urlopen(url=Request(url, headers=headers), timeout=timeout)) as fp:
+    url = Request(url, headers=headers)
+    with contextlib.closing(urlopen(url=url, timeout=timeout)) as fp, open(path, "ab") as tfp:
         response_headers = fp.info()
         if "Content-Length" in response_headers:
             total = int(response_headers["Content-Length"])
@@ -788,15 +788,14 @@ def _download_with_urllib(url, path, headers=None, timeout=None):
                 name = groups[0]
         yield name, total, read
 
-        with open(path, 'ab') as tfp:
-            read = 0
-            while True:
-                chunk = fp.read(bs)
-                if not chunk:
-                    break
-                read += len(chunk)
-                tfp.write(chunk)
-                yield name, total, read
+        read = 0
+        while True:
+            chunk = fp.read(bs)
+            if not chunk:
+                break
+            read += len(chunk)
+            tfp.write(chunk)
+            yield name, total, read
 
 
 def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, str]:
@@ -817,12 +816,13 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
 
     timeout_meter = TimeoutMeter(timeout)
 
-    # 下载之前先把目录创建好
     dir_path = os.path.dirname(path)
+    temp_path = path + ".download"
+    lock = FileLock(path + ".lock")
+
+    # 下载之前先把目录创建好，否则文件锁会失败
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
-
-    lock = FileLock(path + ".lock")
 
     try:
         lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
@@ -832,7 +832,6 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
             return path, os.path.split(path)[1]
 
         offset = 0
-        temp_path = path + ".download"
         # 如果文件存在，则继续上一次下载
         if os.path.exists(temp_path):
             offset = os.path.getsize(temp_path)
@@ -841,7 +840,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
 
             headers = {
                 "User-Agent": user_agent or config["SETTING_DOWNLOAD_USER_AGENT"],
-                "Range": f"bytes={offset}-"
+                "Range": f"bytes={offset}-",
             }
 
             try:
@@ -857,7 +856,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
                     t.desc = name
                 t.update(offset + read - t.n)
 
-            if t.total is not None and t.total != t.n:
+            if t.total is not None and t.total > t.n:
                 raise DownloadError(f"download size {t.total} bytes was expected, got {t.n} bytes")
 
             if os.path.getsize(temp_path) == 0:
