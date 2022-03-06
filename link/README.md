@@ -35,29 +35,6 @@ SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 
 ### 2.1 通用功能（脚本前缀为ct-）
 
-#### ct-grep
-
-<details>
-<summary>正则匹配文件内容 (含解析zip、elf等格式）</summary>
-
-```bash
-$ ct-grep -h
-usage: ct-grep [-h] [-v] [-i] pattern [file [file ...]]
-
-match files with regular expressions
-
-positional arguments:
-  pattern            regular expression
-  file               target files path
-
-optional arguments:
-  -h, --help         show this help message and exit
-  -v, --version      show program's version number and exit
-  -i, --ignore-case  ignore case
-```
-
-</details>
-
 #### 2.1.1 ct-grep
 
 <details>
@@ -84,7 +61,9 @@ optional arguments:
 #### 2.1.2 ct-tools
 
 <details>
-<summary>读取[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)，下载使用对应工具</summary>
+<summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
+
+[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)
 
 ```bash
 $ ct-tools -h
@@ -103,19 +82,116 @@ optional arguments:
 
 </details>
 
+#### 2.1.3 ct-shell
+
+<details>
+<summary>已初始化常用工具环境变量的bash（mac/linux）、cmd（windows）</summary>
+
+```bash
+$ ct-shell -c env                                                                                                                                                                557ms  日  3/ 6 22:40:58 2022
+HOME=/Users/huji
+HOMEBREW_NO_AUTO_UPDATE=true
+LANG=zh_CN.UTF-8
+PATH=xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx
+PWD=/Users/huji/Desktop
+SECURITYSESSIONID=186a6
+SHELL=/usr/local/bin/fish
+SHLVL=2
+USER=huji
+```
+
+</details>
+
 ### 2.2 android相关功能（脚本前缀为at-）
 
 #### 2.2.1 at-adb
 
-若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机
+<details>
+<summary>若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机</summary>
+
+```bash
+$ at-adb -h                                                                                                                                                                         4509ms  日  3/ 6 22:08:23 2022
+usage: at-adb [-h] [--version] [-v]
+              [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
+              ...
+
+adb wrapper
+
+positional arguments:
+  adb_args              adb args
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
+
+adb optional arguments:
+  -s SERIAL, --serial SERIAL
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  -e, --emulator        use TCP/IP device (adb -e option)
+  -i INDEX, --index INDEX
+                        use device with given index
+  -c IP[:PORT], --connect IP[:PORT]
+                        use device with TCP/IP
+  -l, --last            use last device
+
+```
+
+</details>
 
 #### 2.2.2 at-pidcat
 
-集成了<https://github.com/JakeWharton/pidcat>，并且修复了中文字符宽度问题
+<details>
+<summary>集成了<https://github.com/JakeWharton/pidcat>，并且修复了中文字符宽度问题</summary>
+
+```bash
+$ at-pidcat -h                                                                                                                                                                       474ms  日  3/ 6 22:30:47 2022
+usage: at-pidcat [-h] [--verbose]
+                 [-s SERIAL | -d | -e | --index INDEX | --connect IP[:PORT] |
+                 --last] [-w N] [-l {V,D,I,W,E,F,v,d,i,w,e,f}] [--color-gc]
+                 [--always-display-tags] [--top] [-c] [-t TAG]
+                 [-i IGNORED_TAG] [-v] [-a]
+                 [package [package ...]]
+
+Filter logcat by package name
+
+positional arguments:
+  package               application package name(s)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --verbose             increase log verbosity
+  -w N, --tag-width N   width of log tag
+  -l {V,D,I,W,E,F,v,d,i,w,e,f}, --min-level {V,D,I,W,E,F,v,d,i,w,e,f}
+                        minimum level to be displayed
+  --color-gc            color garbage collection
+  --always-display-tags
+                        always display the tag name
+  --top, --current      filter logcat by current running app
+  -c, --clear           clear the entire log before running
+  -t TAG, --tag TAG     filter output by specified tag(s)
+  -i IGNORED_TAG, --ignore-tag IGNORED_TAG
+                        filter output by ignoring specified tag(s)
+  -v, --version         print the version number and exit
+  -a, --all             print all log messages
+
+adb optional arguments:
+  -s SERIAL, --serial SERIAL
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  -e, --emulator        use TCP/IP device (adb -e option)
+  --index INDEX         use device with given index
+  --connect IP[:PORT]   use device with TCP/IP
+  --last                use last device
+```
+
+</details>
 
 #### 2.2.3 at-top
 
-显示顶层应用信息、获取顶层应用apk、截屏等
+<details>
+<summary>显示顶层应用信息、获取顶层应用apk、截屏等</summary>
 
 ```bash
 $ at-top -h
@@ -137,9 +213,12 @@ optional arguments:
   --screen [path]       capture screen and pull file
 ```
 
+</details>
+
 #### 2.2.4 at-inetnt
 
-打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能
+<details>
+<summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
 
 ```bash
 $ at-inetnt -h
@@ -165,9 +244,12 @@ optional arguments:
                         such as https://antiy.cn)
 ```
 
+</details>
+
 #### 2.2.5 at-app
 
-通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确
+<details>
+<summary>通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确</summary>
 
 ```bash
 $ at-app -h
@@ -193,9 +275,14 @@ optional arguments:
 
 ![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/images/apps.png)
 
+</details>
+
 #### 2.2.6 at-frida
 
-该功能旨在方便使用frida，可根据应用名注入js文件或js代码到指定进程。提供了以下特性：
+<details>
+<summary>该功能旨在方便使用frida，可自动下载server，并内置了常用功能</summary>
+
+提供了以下特性：
 1. 可以支持根据设备和本地安装的frida版本，自动下载并推送frida server到设备，启动frida server自动化完成
 2. 监听了spawn进程变化情况，可以同时hook主进程和各个子进程
 3. 监听js文件变化，实时加载
@@ -289,13 +376,13 @@ $ at-frida -l android.js
 # -*- coding: utf-8 -*-
 
 from linktools.frida import FridaApplication
-from linktools.frida.server import FridaAndroidServer
+from linktools.android.frida import FridaAndroidServer
 
 
 jscode = """
 Java.perform(function () {
     JavaHelper.hookMethods(
-        "java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: false, printArgs: true})
+        "java.util.HashMap", "put", JavaHelper.getEventImpl({stack: false, args: true})
     );
 });
 """
@@ -438,6 +525,84 @@ var logtag = Memory.allocUtf8String("ABCDEFG");
 CallStack(callStack, logtag, 10);
 ```
 
+</details>
+
 #### 2.2.7 at-agent
 
-测试android-tools.apk时使用
+<details>
+<summary>测试android-tools.apk时使用</summary>
+
+```bash
+$ at-agent -h                                                                                                                                                                        432ms  日  3/ 6 22:30:50 2022
+usage: at-agent [-h] [--version] [-v]
+                [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
+                ...
+
+used for debugging android-tools.apk
+
+positional arguments:
+  agent_args            agent args
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
+
+adb optional arguments:
+  -s SERIAL, --serial SERIAL
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  -e, --emulator        use TCP/IP device (adb -e option)
+  -i INDEX, --index INDEX
+                        use device with given index
+  -c IP[:PORT], --connect IP[:PORT]
+                        use device with TCP/IP
+  -l, --last            use last device
+
+```
+
+</details>
+
+### 2.3 ios相关功能（脚本前缀为it-）
+
+#### 2.3.1 at-frida
+
+<details>
+<summary>该功能旨在方便使用frida，内置了常用功能</summary>
+
+```bash
+$ it-frida -h                                                                                                                                                                        577ms  日  3/ 6 22:41:02 2022
+usage: it-frida [-h] [--version] [-v] [-u UDID | -i INDEX | --last]
+                [--socket SOCKET] [-b BUNDLE_ID] [--spawn] [-P KEY VALUE]
+                [-l SCRIPT] [-e CODE] [-c URL | -cc URL] [-d]
+
+easy to use frida
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
+  -b BUNDLE_ID, --bundle-id BUNDLE_ID
+                        target bundle id (default: frontmost application)
+  --spawn               inject after spawn (default: false)
+  -P KEY VALUE, --parameters KEY VALUE
+                        user script parameters
+  -l SCRIPT, --load SCRIPT
+                        load user script
+  -e CODE, --eval CODE  evaluate code
+  -c URL, --codeshare URL
+                        load share script url
+  -cc URL, --codeshare-cached URL
+                        load share script url, use cache first
+  -d, --debug           debug mode
+
+device optional arguments:
+  -u UDID, --udid UDID  specify unique device identifier
+  -i INDEX, --index INDEX
+                        use device with given index
+  --last                use last device
+  --socket SOCKET       usbmuxd listen address, host:port or local-path
+```
+
+
+</details>
