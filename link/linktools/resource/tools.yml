@@ -21,7 +21,7 @@ GENERAL_TOOL_APKTOOL:
   executable: false
   executable_cmdline: [java, -jar, "{absolute_path}"]
 
-GENERAL_TOOL_DEX2JAR:
+GENERAL_TOOL_DEX2JAR: &GENERAL_TOOL_DEX2JAR
   version: 2.2-SNAPSHOT
   version_suffix: -2021-10-31
   download_url: https://github.com/pxb1988/dex2jar/releases/download/v{version}{version_suffix}/dex-tools-{version}{version_suffix}.zip
@@ -32,6 +32,16 @@ GENERAL_TOOL_DEX2JAR:
         then: dex-tools-{version}/d2j-dex2jar.sh
       - when: {system: windows}
         then: dex-tools-{version}/d2j-dex2jar.bat
+      - else: ~
+
+GENERAL_TOOL_JAR2DEX:
+  <<: *GENERAL_TOOL_DEX2JAR
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: dex-tools-{version}/d2j-jar2dex.sh
+      - when: {system: windows}
+        then: dex-tools-{version}/d2j-jar2dex.bat
       - else: ~
 
 GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
