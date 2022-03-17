@@ -12,21 +12,22 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 
 ```bash
 # 也可以直接使用github上的最新版本："linktools @ git+https://github.com/ice-black-tea/Zelda.git#egg=linktools&subdirectory=link"
-python3 -m pip install -U "linktools[frida,magic]" # 如果用不到frida可以不加frida
+python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
+```
+
+额外的依赖包以及响应功能如下：
+```
+linktools[requests]：下载时使用requests包，并且支持socks5代理
+linktools[tidevice]：通过淘宝的tidevice管理ios设备
+linktools[frida]：集成frida hook框架，支持android、ios hook
+linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
 ```
 
 ### 1.3 配置环境变量（可选）
 
-添加“LINKTOOLS_SETTING”环境变量，值为python文件的绝对路径，如：
-
-```bash
-LINKTOOLS_SETTING="/Users/admin/.linktools/setting.cfg"
-```
-
-然后在setting.cfg中添加配置，如：
+下载的工具和其他缓存会默认存储在“~/.linktools/”目录下，可通过配置以下修改默认存储位置
 
 ```python
-# 下载的工具和其他缓存会默认存储在“~/.linktools/”目录下，可通过以下配置修改
 SETTING_DATA_PATH = "/Users/admin/.linktools/data"
 SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 ```
@@ -63,7 +64,7 @@ optional arguments:
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
-声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/general_tools.yml)查看
+声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/link/linktools/resource/tools.yml)查看
 
 ```bash
 $ ct-tools -h
@@ -558,7 +559,6 @@ adb optional arguments:
   -c IP[:PORT], --connect IP[:PORT]
                         use device with TCP/IP
   -l, --last            use last device
-
 ```
 
 </details>
@@ -603,6 +603,5 @@ device optional arguments:
   --last                use last device
   --socket SOCKET       usbmuxd listen address, host:port or local-path
 ```
-
 
 </details>
