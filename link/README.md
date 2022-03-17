@@ -15,7 +15,7 @@ python & pip (3.5及以上): <https://www.python.org/downloads/>
 python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
 ```
 
-额外的依赖包以及响应功能如下：
+额外的依赖包以及相应功能如下：
 ```
 linktools[requests]：下载时使用requests包，并且支持socks5代理
 linktools[tidevice]：通过淘宝的tidevice管理ios设备
@@ -144,7 +144,9 @@ adb optional arguments:
 #### 2.2.2 at-pidcat
 
 <details>
-<summary>集成了https://github.com/JakeWharton/pidcat，并且修复了中文字符宽度问题</summary>
+<summary>集成了pidcat，并且修复了中文字符宽度问题</summary>
+
+pidcat原项目链接：https://github.com/JakeWharton/pidcat
 
 ```bash
 $ at-pidcat -h                                                                                                                                                                       474ms  日  3/ 6 22:30:47 2022
