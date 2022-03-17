@@ -43,9 +43,9 @@ SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 
 ```bash
 $ ct-grep -h
-usage: ct-grep [-h] [-v] [-i] pattern [file [file ...]]
+usage: ct-grep [-h] [--version] [-v] [-i] pattern [file ...]
 
-match files with regular expressions
+match files with regular expression
 
 positional arguments:
   pattern            regular expression
@@ -53,7 +53,8 @@ positional arguments:
 
 optional arguments:
   -h, --help         show this help message and exit
-  -v, --version      show program's version number and exit
+  --version          show program's version number and exit
+  -v, --verbose      increase log verbosity
   -i, --ignore-case  ignore case
 ```
 
@@ -68,17 +69,21 @@ optional arguments:
 
 ```bash
 $ ct-tools -h
-usage: ct-tools [-h] [-v] [-d] ...
+usage: ct-tools [-h] [--version] [-v] [-c | --download | --clear | -d] ...
 
 tools wrapper
 
 positional arguments:
-  {aapt,adb,apktool,baksmali,chromedriver,compact_dex_converter,dex2jar,fastboot,jadx,jadx-gui,java,mipay_extract,smali,vdex_extractor}
+  {aapt,adb,apktool,appcrawler,baksmali,chromedriver,chromedriver80,compact_dex_converter,dex2jar,fastboot,jadx,jadx-gui,jar2dex,java,java8,mipay_extract,smali,tidevice,vdex_extractor}
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -d, --daemon          run tools as a daemon
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
+  -c, --config          show the config of tool
+  --download            download tool files
+  --clear               clear tool files
+  -d, --daemon          execute tools as a daemon
 ```
 
 </details>
@@ -89,7 +94,7 @@ optional arguments:
 <summary>已初始化常用工具环境变量的bash（mac/linux）、cmd（windows）</summary>
 
 ```bash
-$ ct-shell -c env                                                                                                                                                                557ms  日  3/ 6 22:40:58 2022
+$ ct-shell -c env
 HOME=/Users/huji
 HOMEBREW_NO_AUTO_UPDATE=true
 LANG=zh_CN.UTF-8
@@ -111,7 +116,7 @@ USER=huji
 <summary>若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机</summary>
 
 ```bash
-$ at-adb -h                                                                                                                                                                         4509ms  日  3/ 6 22:08:23 2022
+$ at-adb -h
 usage: at-adb [-h] [--version] [-v]
               [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
               ...
@@ -144,18 +149,13 @@ adb optional arguments:
 #### 2.2.2 at-pidcat
 
 <details>
-<summary>集成了pidcat，并且修复了中文字符宽度问题</summary>
-
-pidcat原项目链接：https://github.com/JakeWharton/pidcat
+<summary>集成了pidcat，并且修复了中文字符宽度问题，原项目链接：https://github.com/JakeWharton/pidcat</summary>
 
 ```bash
-$ at-pidcat -h                                                                                                                                                                       474ms  日  3/ 6 22:30:47 2022
-usage: at-pidcat [-h] [--verbose]
-                 [-s SERIAL | -d | -e | --index INDEX | --connect IP[:PORT] |
-                 --last] [-w N] [-l {V,D,I,W,E,F,v,d,i,w,e,f}] [--color-gc]
-                 [--always-display-tags] [--top] [-c] [-t TAG]
-                 [-i IGNORED_TAG] [-v] [-a]
-                 [package [package ...]]
+$ at-pidcat -h
+usage: at-pidcat [-h] [--verbose] [-s SERIAL | -d | -e | --index INDEX | --connect IP[:PORT] | --last] [-w N] [-l {V,D,I,W,E,F,v,d,i,w,e,f}] [--color-gc]
+                 [--always-display-tags] [--top] [-c] [-t TAG] [-i IGNORED_TAG] [-v] [-a]
+                 [package ...]
 
 Filter logcat by package name
 
@@ -198,22 +198,31 @@ adb optional arguments:
 
 ```bash
 $ at-top -h
-usage: at-top [-h] [-v] [-s SERIAL]
-                     [--package | --activity | --path | --apk [path] |
-                     --screen [path]]
+usage: at-top [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l] [-p | -a | --path | --kill | --apk [DEST] | --screen [DEST]]
 
 show current running app's basic information
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s SERIAL, --serial SERIAL
-                        use device with given serial
-  --package             show current running package name
-  --activity            show current running activity name
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
+  -p, --package         show current running package name
+  -a, --activity        show current running activity name
   --path                show current running package path
-  --apk [path]          pull current running apk file
-  --screen [path]       capture screen and pull file
+  --kill                kill current running package
+  --apk [DEST]          pull current running apk file
+  --screen [DEST]       capture screen and pull file
+
+adb optional arguments:
+  -s SERIAL, --serial SERIAL
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  -e, --emulator        use TCP/IP device (adb -e option)
+  -i INDEX, --index INDEX
+                        use device with given index
+  -c IP[:PORT], --connect IP[:PORT]
+                        use device with TCP/IP
+  -l, --last            use last device
 ```
 
 </details>
@@ -224,27 +233,35 @@ optional arguments:
 <summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
 
 ```bash
-$ at-inetnt -h
-usage: at-inetnt [-h] [-v] [-s SERIAL]
-                    (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --browser URL)
+$ at-intent -h
+usage: at-intent [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
+                 (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --install PATH | --browser URL)
 
 common intent action
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s SERIAL, --serial SERIAL
-                        use device with given serial
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
   --setting             start setting activity
   --setting-dev         start development setting activity
   --setting-dev2        start development setting activity
   --setting-app [PACKAGE]
-                        start application setting activity [default current running
-                        package]
-  --setting-cert PATH   start cert installer activity and install cert (need
-                        '/data/local/tmp' write permission)
-  --browser URL         start browser activity and jump to url (need scheme,
-                        such as https://antiy.cn)
+                        start application setting activity (default: current running package)
+  --setting-cert PATH   install cert (need '/data/local/tmp' write permission)
+  --install PATH        install apk file (need '/data/local/tmp' write permission)
+  --browser URL         start browser activity and jump to url (need scheme, such as https://antiy.cn)
+
+adb optional arguments:
+  -s SERIAL, --serial SERIAL
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  -e, --emulator        use TCP/IP device (adb -e option)
+  -i INDEX, --index INDEX
+                        use device with given index
+  -c IP[:PORT], --connect IP[:PORT]
+                        use device with TCP/IP
+  -l, --last            use last device
 ```
 
 </details>
@@ -256,22 +273,36 @@ optional arguments:
 
 ```bash
 $ at-app -h
-usage: at-app [-h] [-v] [-s SERIAL] (-a | -t | -p pkg [pkg ...])
-                 [-o field [field ...]]
+usage: at-app [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l] (-a | -t | -p pkg [pkg ...] | --system | --non-system) [-b] [-dang]
+              [-o field [field ...]]
 
 fetch application info
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s SERIAL, --serial SERIAL
-                        use device with given serial
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
   -a, --all             fetch all apps
   -t, --top             fetch current running app only
   -p pkg [pkg ...], --packages pkg [pkg ...]
-                        fetch target apps
+                        fetch target apps only
+  --system              fetch system apps only
+  --non-system          fetch non-system apps only
+  -b, --basic-info      display basic info only
+  -dang, --dangerous    display dangerous permissions and components only
   -o field [field ...], --order-by field [field ...]
                         order by target field
+
+adb optional arguments:
+  -s SERIAL, --serial SERIAL
+                        use device with given serial (adb -s option)
+  -d, --device          use USB device (adb -d option)
+  -e, --emulator        use TCP/IP device (adb -e option)
+  -i INDEX, --index INDEX
+                        use device with given index
+  -c IP[:PORT], --connect IP[:PORT]
+                        use device with TCP/IP
+  -l, --last            use last device
 ```
 
 **输出效果**
@@ -293,30 +324,37 @@ optional arguments:
 
 ```bash
 $ at-frida -h
-usage: at-frida [-h] [-v] [-s serial | -d | --emulator | -i index | -c ip[:port] | --last] [-p PACKAGE] [--spawn] [--regular] [-l SCRIPT] [-e CODE]
+usage: at-frida [-h] [--version] [-v] [-s SERIAL | --device | --emulator | -i INDEX | --connect IP[:PORT] | --last] [-p PACKAGE] [--spawn] [-P KEY VALUE] [-l SCRIPT]
+                [-e CODE] [-c URL | -cc URL] [-d]
 
 easy to use frida
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
+  --version             show program's version number and exit
+  -v, --verbose         increase log verbosity
   -p PACKAGE, --package PACKAGE
-                        target package [default current running package]
-  --spawn               inject after spawn [default false]
-  --regular             regular match package name
+                        target package (default: current running package)
+  --spawn               inject after spawn (default: false)
+  -P KEY VALUE, --parameters KEY VALUE
+                        user script parameters
   -l SCRIPT, --load SCRIPT
-                        load SCRIPT
-  -e CODE, --eval CODE  evaluate CODE
+                        load user script
+  -e CODE, --eval CODE  evaluate code
+  -c URL, --codeshare URL
+                        load share script url
+  -cc URL, --codeshare-cached URL
+                        load share script url, use cache first
+  -d, --debug           debug mode
 
 adb optional arguments:
-  -s serial, --serial serial
+  -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
+  --device              use USB device (adb -d option)
   --emulator            use TCP/IP device (adb -e option)
-  -i index, --index index
+  -i INDEX, --index INDEX
                         use device with given index
-  -c ip[:port], --connect ip[:port]
-                        use device with TCP/IP
+  --connect IP[:PORT]   use device with TCP/IP
   --last                use last device
 ```
 
@@ -536,10 +574,8 @@ CallStack(callStack, logtag, 10);
 <summary>测试android-tools.apk时使用</summary>
 
 ```bash
-$ at-agent -h                                                                                                                                                                        432ms  日  3/ 6 22:30:50 2022
-usage: at-agent [-h] [--version] [-v]
-                [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
-                ...
+$ at-agent -h
+usage: at-agent [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l] ...
 
 used for debugging android-tools.apk
 
@@ -573,10 +609,9 @@ adb optional arguments:
 <summary>该功能旨在方便使用frida，内置了常用功能</summary>
 
 ```bash
-$ it-frida -h                                                                                                                                                                        577ms  日  3/ 6 22:41:02 2022
-usage: it-frida [-h] [--version] [-v] [-u UDID | -i INDEX | --last]
-                [--socket SOCKET] [-b BUNDLE_ID] [--spawn] [-P KEY VALUE]
-                [-l SCRIPT] [-e CODE] [-c URL | -cc URL] [-d]
+$ it-frida -h
+usage: it-frida [-h] [--version] [-v] [-u UDID | -i INDEX | --last] [--socket SOCKET] [-b BUNDLE_ID] [--spawn] [-P KEY VALUE] [-l SCRIPT] [-e CODE] [-c URL | -cc URL]
+                [-d]
 
 easy to use frida
 
