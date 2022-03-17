@@ -30,7 +30,7 @@ import os
 import sys
 
 import linktools
-from linktools import utils
+from linktools import utils, resource
 from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
@@ -47,11 +47,11 @@ def main():
     group.add_argument('--setting-dev2', dest='package', action='store_true',
                        help='start development setting activity')
     group.add_argument('--setting-app', dest='package', action='store', nargs='?', default="",
-                       help='start application setting activity [default current running package]')
+                       help='start application setting activity (default: current running package)')
     group.add_argument('--setting-cert', dest='path', action='store', default="",
                        help='install cert (need \'/data/local/tmp\' write permission)')
     group.add_argument('--install', dest='path', action='store', default="",
-                       help='install apk file')
+                       help='install apk file (need \'/data/local/tmp\' write permission)')
     group.add_argument('--browser', dest='url', action='store', default="",
                        help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
@@ -87,12 +87,24 @@ def main():
                      "-d", "file://%s" % path,
                      capture_output=False)
     elif "--install" in sys.argv:
-        path = device.get_storage_path(os.path.basename(args.path))
-        device.push(args.path, path, capture_output=False)
-        device.shell("am", "start", "--user", "0",
-                     "-a", "android.intent.action.VIEW",
-                     "-t", "application/vnd.android.package-archive",
-                     "-d", "file://%s" % path,
+        apk_path = args.path
+        if args.path.startswith("http://") or args.path.startswith("https://"):
+            url = args.path
+            apk_path = resource.get_temp_path(
+                "download",
+                utils.get_md5(url),
+                utils.guess_file_name(url)
+            )
+            utils.download(url, apk_path)
+        path = "/data/local/tmp/%s/apk/%s.apk" % (linktools.__name__, os.path.basename(apk_path))
+        device.push(apk_path, path, capture_output=False)
+        # device.shell("am", "start", "--user", "0",
+        #              "-a", "android.intent.action.VIEW",
+        #              "-t", "application/vnd.android.package-archive",
+        #              "-d", "file://%s" % path,
+        #              capture_output=False)
+        device.shell("pm", "install", "--user", "0",
+                     "-r", "-t", "-d", "-f", path,
                      capture_output=False)
     elif "--browser" in sys.argv:
         device.shell("am", "start", "--user", "0",
