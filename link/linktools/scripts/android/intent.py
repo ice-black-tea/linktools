@@ -28,6 +28,7 @@
 """
 import os
 import sys
+import time
 
 import linktools
 from linktools import utils, resource
@@ -96,7 +97,7 @@ def main():
                 utils.guess_file_name(url)
             )
             utils.download(url, apk_path)
-        path = "/data/local/tmp/%s/apk/%s.apk" % (linktools.__name__, os.path.basename(apk_path))
+        path = "/data/local/tmp/%s/apk/%s.apk" % (linktools.__name__, int(time.time()))
         device.push(apk_path, path, capture_output=False)
         # device.shell("am", "start", "--user", "0",
         #              "-a", "android.intent.action.VIEW",
@@ -106,6 +107,7 @@ def main():
         device.shell("pm", "install", "--user", "0",
                      "-r", "-t", "-d", "-f", path,
                      capture_output=False)
+        device.shell("rm", path, capture_output=False)
     elif "--browser" in sys.argv:
         device.shell("am", "start", "--user", "0",
                      "-a", "android.intent.action.VIEW",
