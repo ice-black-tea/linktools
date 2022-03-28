@@ -1,12 +1,12 @@
 # Link Tools
 
-## 1. 开始使用
+## 开始使用
 
-### 1.1 依赖项
+### 依赖项
 
 python & pip (3.5及以上): <https://www.python.org/downloads/>
 
-### 1.2 安装
+### 安装
 
 直接安装
 
@@ -23,7 +23,7 @@ linktools[frida]：集成frida hook框架，支持android、ios hook
 linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
 ```
 
-### 1.3 配置环境变量（可选）
+### 配置环境变量（可选）
 
 下载的工具和其他缓存会默认存储在“~/.linktools/”目录下，可通过配置以下修改默认存储位置
 
@@ -32,11 +32,11 @@ SETTING_DATA_PATH = "/Users/admin/.linktools/data"
 SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 ```
 
-## 2. 相关功能
+## 相关功能
 
-### 2.1 通用功能（脚本前缀为ct-）
+### 通用功能（脚本前缀为ct-）
 
-#### 2.1.1 ct-grep
+#### 🍎 ct-grep
 
 <details>
 <summary>类似linux中的grep，正则匹配文件内容 ，额外添加解析zip、elf等格等功能</summary>
@@ -60,7 +60,7 @@ optional arguments:
 
 </details>
 
-#### 2.1.2 ct-tools
+#### 🍎 ct-tools
 
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
@@ -88,7 +88,7 @@ optional arguments:
 
 </details>
 
-#### 2.1.3 ct-shell
+#### 🍎 ct-shell
 
 <details>
 <summary>已初始化常用工具环境变量的bash（mac/linux）、cmd（windows）</summary>
@@ -108,9 +108,9 @@ USER=huji
 
 </details>
 
-### 2.2 android相关功能（脚本前缀为at-）
+### android相关功能（脚本前缀为at-）
 
-#### 2.2.1 at-adb
+#### 🍎 at-adb
 
 <details>
 <summary>若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机</summary>
@@ -146,7 +146,7 @@ adb optional arguments:
 
 </details>
 
-#### 2.2.2 at-pidcat
+#### 🍎 at-pidcat
 
 <details>
 <summary>集成了pidcat，并且修复了中文字符宽度问题，原项目链接：https://github.com/JakeWharton/pidcat</summary>
@@ -191,7 +191,7 @@ adb optional arguments:
 
 </details>
 
-#### 2.2.3 at-top
+#### 🍎 at-top
 
 <details>
 <summary>显示顶层应用信息、获取顶层应用apk、截屏等</summary>
@@ -227,7 +227,7 @@ adb optional arguments:
 
 </details>
 
-#### 2.2.4 at-inetnt
+#### 🍎 at-inetnt
 
 <details>
 <summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
@@ -266,7 +266,7 @@ adb optional arguments:
 
 </details>
 
-#### 2.2.5 at-app
+#### 🍎 at-app
 
 <details>
 <summary>通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确</summary>
@@ -311,7 +311,7 @@ adb optional arguments:
 
 </details>
 
-#### 2.2.6 at-frida
+#### 🍎 at-frida
 
 <details>
 <summary>该功能旨在方便使用frida，可自动下载server，并内置了常用功能</summary>
@@ -568,7 +568,7 @@ CallStack(callStack, logtag, 10);
 
 </details>
 
-#### 2.2.7 at-agent
+#### 🍎 at-agent
 
 <details>
 <summary>测试android-tools.apk时使用</summary>
@@ -601,9 +601,9 @@ adb optional arguments:
 
 </details>
 
-### 2.3 ios相关功能（脚本前缀为it-）
+### ios相关功能（脚本前缀为it-）
 
-#### 2.3.1 it-frida
+#### 🍎 it-frida
 
 <details>
 <summary>该功能旨在方便使用frida，内置了常用功能</summary>
