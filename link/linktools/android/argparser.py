@@ -32,7 +32,7 @@ import os
 
 from linktools import utils, resource, logger
 from linktools.android.adb import Adb, AdbError, Device
-from linktools.argparser import ArgumentParser
+from linktools._argparser import ArgumentParser
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("android_serial_cache.txt", create_parent=True)
 

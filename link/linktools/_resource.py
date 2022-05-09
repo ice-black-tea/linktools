@@ -32,7 +32,7 @@ __all__ = ("Resource",)
 import os
 
 from .decorator import cached_property
-from .environ import config
+from ._environ import config
 
 
 class Resource(object):

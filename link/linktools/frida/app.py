@@ -121,8 +121,6 @@ class FridaApplication:
             device: Union[frida.core.Device, "FridaServer"],
             user_parameters: Dict[str, any] = None,
             user_scripts: Collection[Union[str, FridaScriptFile]] = None,
-            eval_code: Union[str, FridaEvalCode] = None,
-            share_script: Union[str, FridaShareScript] = None,
             enable_spawn_gating: bool = False,
             enable_child_gating: bool = False,
             eternalize: str = False,
@@ -161,8 +159,6 @@ class FridaApplication:
 
         self._user_parameters = user_parameters or {}
         self._user_scripts = [FridaScriptFile(o) if isinstance(o, str) else o for o in (user_scripts or tuple())]
-        self._eval_code = FridaEvalCode(eval_code) if isinstance(eval_code, str) else eval_code
-        self._share_script = FridaShareScript(share_script) if isinstance(share_script, str) else share_script
 
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
@@ -287,14 +283,8 @@ class FridaApplication:
         elif logger.isEnabledFor(logging.ERROR):
             script_files.append(FridaEvalCode("Log.setLevel(Log.error);"))
 
-        if self._share_script is not None:
-            script_files.append(self._share_script)
-
         for user_script in self._user_scripts:
             script_files.append(user_script)
-
-        if self._eval_code is not None:
-            script_files.append(self._eval_code)
 
         return [{"filename": o.path, "source": o.source} for o in script_files]
 
@@ -320,7 +310,7 @@ class FridaApplication:
             script.exports.load_scripts(self._load_script_files(), self._user_parameters)
         finally:
             if resume:
-                self.device.resume(pid)
+                utils.ignore_error(self.device.resume, pid)
 
         self._reactor.schedule(lambda: self.on_script_loaded(script))
 
@@ -399,7 +389,10 @@ class FridaApplication:
             if change_id == self._last_change_id:
                 self.on_file_change(changed_file)
 
-        script_files = [*self._user_scripts]
+        script_files = []
+        for script_file in self._user_scripts:
+            if script_file.reload_on_update:
+                script_files.append(script_file)
         if self._debug:
             script_files.append(self._internal_debug_script)
 

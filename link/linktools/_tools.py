@@ -39,7 +39,7 @@ from typing import Dict, Union, Mapping, Iterator
 
 from . import utils
 from .decorator import cached_property
-from .environ import logger, resource, config
+from ._environ import logger, resource, config
 
 _config_namespace = "GENERAL_TOOL_"
 

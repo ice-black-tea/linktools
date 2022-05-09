@@ -56,6 +56,10 @@ class FridaScriptFile(object):
                     self._source = self._load()
         return self._source
 
+    @property
+    def reload_on_update(self) -> bool:
+        return True
+
     def clear(self) -> None:
         with self._lock:
             self._source = self.__missing__
@@ -75,6 +79,10 @@ class FridaEvalCode(FridaScriptFile):
         super().__init__(ident)
         self._code = code
 
+    @property
+    def reload_on_update(self) -> bool:
+        return False
+
     def _load(self):
         return self._code
 
@@ -92,6 +100,10 @@ class FridaShareScript(FridaScriptFile):
         self._url = url
         self._cached = cached
         self._trusted = trusted
+
+    @property
+    def reload_on_update(self) -> bool:
+        return False
 
     def _load(self):
 

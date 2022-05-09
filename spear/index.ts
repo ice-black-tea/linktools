@@ -114,6 +114,7 @@ declare global {
     const parameters: Parameters;
     function memoize(): Function;
     function ignoreError<T>(fn: () => T, defautValue: T): T;
+    function parseBoolean(value: string | boolean, defaultValue: boolean);
     function pretty2String(obj: any): any;
     function pretty2Json(obj: any): any;
 }
@@ -149,6 +150,23 @@ Object.defineProperties(globalThis, {
                 log.d("Catch ignored error. " + e);
                 return defautValue;
             }
+        }
+    },
+    parseBoolean: {
+        enumerable: false,
+        value: function (value: string | boolean, defaultValue: boolean = undefined) {
+            if (typeof (value) === "boolean") {
+                return value;
+            }
+            if (typeof (value) === "string") {
+                const lower = value.toLowerCase();
+                if (lower === "true") {
+                    return true;
+                } else if (lower === "false") {
+                    return false;
+                }
+            }
+            return defaultValue;
         }
     },
     pretty2String: {

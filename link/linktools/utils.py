@@ -808,7 +808,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
     """
 
     # 这个import放在这里，避免递归import
-    from .environ import config
+    from ._environ import config
 
     # 如果文件存在，就不下载了
     if os.path.exists(path) and os.path.getsize(path) > 0:

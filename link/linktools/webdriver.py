@@ -12,7 +12,7 @@ __all__ = ("get_chrome_driver",)
 import json
 
 from . import utils
-from .environ import tools, resource
+from ._environ import tools, resource
 
 
 class NotFoundVersion(Exception):

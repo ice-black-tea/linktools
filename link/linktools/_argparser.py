@@ -32,7 +32,7 @@ __all__ = ("ArgumentParser",)
 import argparse
 import logging
 
-from .environ import logger
+from ._environ import logger
 from .version import __version__
 
 

@@ -29,7 +29,7 @@
 
 from linktools import logger, utils
 from linktools.decorator import entry_point
-from linktools.frida import FridaApplication, FridaShareScript
+from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.ios import IOSArgumentParser, MuxError
 from linktools.ios.frida import FridaIOSServer
 
@@ -45,15 +45,13 @@ def main():
     parser.add_argument("-P", "--parameters", help="user script parameters", metavar=("KEY", "VALUE"),
                         action='append', nargs=2, dest="user_parameters", default=[])
     parser.add_argument("-l", "--load", help="load user script", metavar="SCRIPT",
-                        action='append', dest="user_scripts", default=[])
+                        action='append', dest="user_scripts", type=lambda o: FridaScriptFile(o), default=[])
     parser.add_argument("-e", "--eval", help="evaluate code", metavar="CODE",
-                        action='store', dest="eval_code", default=None)
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-c", "--codeshare", help="load share script url", metavar="URL",
-                       action='store', dest="share_script_url", default=None)
-    group.add_argument("-cc", "--codeshare-cached", help="load share script url, use cache first", metavar="URL",
-                       action='store', dest="cached_share_script_url", default=None)
+                        action='append', dest="user_scripts", type=lambda o: FridaEvalCode(o))
+    parser.add_argument("-c", "--codeshare", help="load share script url", metavar="URL",
+                        action='append', dest="user_scripts", type=lambda o: FridaShareScript(o, cached=False))
+    parser.add_argument("-cc", "--codeshare-cached", help="load share script url, use cache first", metavar="URL",
+                        action='append', dest="user_scripts", type=lambda o: FridaShareScript(o, cached=True))
 
     parser.add_argument("-d", "--debug", action='store_true', default=False,
                         help="debug mode")
@@ -64,13 +62,6 @@ def main():
 
     user_parameters = {p[0]: p[1] for p in args.user_parameters}
     user_scripts = args.user_scripts
-    eval_code = args.eval_code
-
-    share_script = None
-    if args.share_script_url is not None:
-        share_script = FridaShareScript(args.share_script_url, cached=False)
-    elif args.cached_share_script_url is not None:
-        share_script = FridaShareScript(args.cached_share_script_url, cached=True)
 
     class Application(FridaApplication):
 
@@ -95,8 +86,6 @@ def main():
             debug=args.debug,
             user_parameters=user_parameters,
             user_scripts=user_scripts,
-            eval_code=eval_code,
-            share_script=share_script,
             enable_spawn_gating=True
         )
 
