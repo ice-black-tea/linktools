@@ -36,24 +36,28 @@ from linktools.ios.frida import FridaIOSServer
 
 @entry_point(known_errors=[MuxError])
 def main():
-    parser = IOSArgumentParser(description='easy to use frida')
-    parser.add_argument('-b', '--bundle-id', action='store', default=None,
-                        help='target bundle id (default: frontmost application)')
-    parser.add_argument('--spawn', action='store_true', default=False,
-                        help='inject after spawn (default: false)')
+    parser = IOSArgumentParser(description="easy to use frida")
+    parser.add_argument("-b", "--bundle-id", action="store", default=None,
+                        help="target bundle id (default: frontmost application)")
+    parser.add_argument("--spawn", action="store_true", default=False,
+                        help="inject after spawn (default: false)")
 
-    parser.add_argument("-P", "--parameters", help="user script parameters", metavar=("KEY", "VALUE"),
-                        action='append', nargs=2, dest="user_parameters", default=[])
-    parser.add_argument("-l", "--load", help="load user script", metavar="SCRIPT",
-                        action='append', dest="user_scripts", type=lambda o: FridaScriptFile(o), default=[])
-    parser.add_argument("-e", "--eval", help="evaluate code", metavar="CODE",
-                        action='append', dest="user_scripts", type=lambda o: FridaEvalCode(o))
-    parser.add_argument("-c", "--codeshare", help="load share script url", metavar="URL",
-                        action='append', dest="user_scripts", type=lambda o: FridaShareScript(o, cached=False))
-    parser.add_argument("-cc", "--codeshare-cached", help="load share script url, use cache first", metavar="URL",
-                        action='append', dest="user_scripts", type=lambda o: FridaShareScript(o, cached=True))
+    parser.add_argument("-P", "--parameters", metavar=("KEY", "VALUE"),
+                        action="append", nargs=2, dest="user_parameters", default=[],
+                        help="user script parameters")
 
-    parser.add_argument("-d", "--debug", action='store_true', default=False,
+    parser.add_argument("-l", "--load", metavar="SCRIPT",
+                        action="append", dest="user_scripts", default=[],
+                        type=lambda o: FridaScriptFile(o),
+                        help="load user script")
+    parser.add_argument("-e", "--eval", metavar="CODE", action="append", dest="user_scripts",
+                        type=lambda o: FridaEvalCode(o),
+                        help="evaluate code")
+    parser.add_argument("-c", "--codeshare", metavar="URL", action="append", dest="user_scripts",
+                        type=lambda o: FridaShareScript(o, cached=False),
+                        help="load share script url")
+
+    parser.add_argument("-d", "--debug", action="store_true", default=False,
                         help="debug mode")
 
     args = parser.parse_args()
@@ -89,31 +93,33 @@ def main():
             enable_spawn_gating=True
         )
 
-        target_pids = set()
-
+        # 如果没有填包名，则找到顶层应用
         if utils.is_empty(bundle_id):
             target_app = app.get_frontmost_application()
             if target_app is None:
                 raise RuntimeError("unknown frontmost application")
             bundle_id = target_app.identifier
 
+        target_pids = set()
+
+        # 匹配正在运行的进程
         if not args.spawn:
             # 匹配所有app
             for target_app in app.enumerate_applications():
-                if target_app.pid not in target_pids:
-                    if target_app.pid > 0 and target_app.identifier == bundle_id:
-                        app.load_script(target_app.pid)
-                        target_pids.add(target_app.pid)
+                if target_app.pid > 0 and target_app.identifier == bundle_id:
+                    target_pids.add(target_app.pid)
 
             # 匹配所有进程
             for target_process in app.enumerate_processes():
-                if target_process.pid > 0 and target_process.pid not in target_pids:
-                    if target_process.name == bundle_id:
-                        app.load_script(target_process.pid)
-                        target_pids.add(target_process.pid)
+                if target_process.pid > 0 and target_process.name == bundle_id:
+                    target_pids.add(target_process.pid)
 
-        if len(target_pids) == 0:
-            # 直接启动进程
+        if len(target_pids) > 0:
+            # 进程存在，直接注入
+            for pid in target_pids:
+                app.load_script(pid)
+        else:
+            # 进程不存在，打开进程后注入
             app.load_script(app.spawn(bundle_id), resume=True)
 
         app.run()

@@ -460,3 +460,52 @@ class Device(object):
             if kwargs[key] == value:
                 kwargs.pop(key)
                 warnings.warn(f"invalid argument {key}={value}, ignored!", stacklevel=2)
+
+    class Redirect:
+
+        def __init__(self, device: "Device", address: str, port: int):
+            self.device = device
+            self.target_address = address
+            self.target_port = port
+            self.remote_port = None
+
+        def start(self):
+            if not self.target_address:
+                # 如果没有指定目标地址，则通过reverse端口访问
+                self.remote_port = self.device.exec("reverse", f"tcp:0", f"tcp:{self.target_port}").strip()
+                destination = f"127.0.0.1:{self.remote_port}"
+            else:
+                # 指定了目标地址那就直接用目标地址
+                destination = f"{self.target_address}:{self.target_port}"
+            # 排除localhost
+            self.device.sudo(
+                "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-o", "lo", "-j", "RETURN"
+            )
+            # 转发流量
+            self.device.sudo(
+                "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-j", "DNAT", "--to-destination", destination
+            )
+
+        def stop(self):
+            # 清空iptables -t nat配置
+            utils.ignore_error(self.device.sudo, "iptables", "-t", "nat", "-F")
+            # 如果占用reverse端口，则释放端口
+            if self.remote_port:
+                utils.ignore_error(self.device.exec, "reverse", "--remove", f"tcp:{self.remote_port}")
+
+        def __enter__(self):
+            self.stop()
+            self.start()
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.stop()
+
+    def redirect(self, address: str = None, port: int = 8080):
+        """
+        将手机流量重定向到本地指定端口
+        :param address: 本地监听地址，不填默认本机
+        :param port: 本地监听端口
+        :return: 重定向对象
+        """
+        return self.Redirect(self, address, port)

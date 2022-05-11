@@ -35,6 +35,6 @@ from ._logger import get_logger
 from ._resource import Resource
 from ._config import Config
 from ._tools import GeneralTools
-from ._argparser import ArgumentParser
+from ._argparser import ArgumentParser, range_type
 
 from ._environ import resource, config, tools, logger

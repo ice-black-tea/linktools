@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools import utils, logger
+from linktools import utils, logger, range_type
 from linktools.android import AdbError, AndroidArgumentParser
 from linktools.android.frida import FridaAndroidServer
 from linktools.decorator import entry_point
@@ -36,24 +36,36 @@ from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile,
 
 @entry_point(known_errors=[AdbError])
 def main():
-    parser = AndroidArgumentParser(description='easy to use frida')
-    parser.add_argument('-p', '--package', action='store', default=None,
-                        help='target package (default: current running package)')
-    parser.add_argument('--spawn', action='store_true', default=False,
-                        help='inject after spawn (default: false)')
 
-    parser.add_argument("-P", "--parameters", help="user script parameters", metavar=("KEY", "VALUE"),
-                        action='append', nargs=2, dest="user_parameters", default=[])
-    parser.add_argument("-l", "--load", help="load user script", metavar="SCRIPT",
-                        action='append', dest="user_scripts", type=lambda o: FridaScriptFile(o), default=[])
-    parser.add_argument("-e", "--eval", help="evaluate code", metavar="CODE",
-                        action='append', dest="user_scripts", type=lambda o: FridaEvalCode(o))
-    parser.add_argument("-c", "--codeshare", help="load share script url", metavar="URL",
-                        action='append', dest="user_scripts", type=lambda o: FridaShareScript(o, cached=False))
-    parser.add_argument("-cc", "--codeshare-cached", help="load share script url, use cache first", metavar="URL",
-                        action='append', dest="user_scripts", type=lambda o: FridaShareScript(o, cached=True))
+    parser = AndroidArgumentParser(description="easy to use frida")
+    parser.add_argument("-p", "--package", action="store", default=None,
+                        help="target package (default: current running package)")
+    parser.add_argument("--spawn", action="store_true", default=False,
+                        help="inject after spawn (default: false)")
 
-    parser.add_argument("-d", "--debug", action='store_true', default=False,
+    parser.add_argument("-P", "--parameters", metavar=("KEY", "VALUE"),
+                        action="append", nargs=2, dest="user_parameters", default=[],
+                        help="user script parameters")
+
+    parser.add_argument("-l", "--load", metavar="SCRIPT",
+                        action="append", dest="user_scripts", default=[],
+                        type=lambda o: FridaScriptFile(o),
+                        help="load user script")
+    parser.add_argument("-e", "--eval", metavar="CODE", action="append", dest="user_scripts",
+                        type=lambda o: FridaEvalCode(o),
+                        help="evaluate code")
+    parser.add_argument("-c", "--codeshare", metavar="URL", action="append", dest="user_scripts",
+                        type=lambda o: FridaShareScript(o, cached=False),
+                        help="load share script url")
+
+    parser.add_argument("--redirect-address", metavar="ADDRESS", action="store", dest="redirect_address",
+                        type=str,
+                        help="redirect traffic to target address (default: localhost)")
+    parser.add_argument("--redirect-port", metavar="port", action="store", dest="redirect_port",
+                        type=range_type(1, 65536),
+                        help="redirect traffic to target port (default: 8080)")
+
+    parser.add_argument("-d", "--debug", action="store_true", default=False,
                         help="debug mode")
 
     args = parser.parse_args()
@@ -89,34 +101,41 @@ def main():
             enable_spawn_gating=True,
         )
 
-        target_pids = set()
-
+        # 如果没有填包名，则找到顶层应用
         if utils.is_empty(package):
             target_app = app.get_frontmost_application()
             if target_app is None:
-                raise RuntimeError("unknown frontmost application")
+                raise AdbError("unknown frontmost application")
             package = target_app.identifier
 
+        target_pids = set()
+
+        # 匹配正在运行的进程
         if not args.spawn:
             # 匹配所有app
             for target_app in app.enumerate_applications():
-                if target_app.pid not in target_pids:
-                    if target_app.pid > 0 and target_app.identifier == package:
-                        app.load_script(target_app.pid)
-                        target_pids.add(target_app.pid)
+                if target_app.pid > 0 and target_app.identifier == package:
+                    target_pids.add(target_app.pid)
 
             # 匹配所有进程
             for target_process in app.enumerate_processes():
-                if target_process.pid > 0 and target_process.pid not in target_pids:
-                    if device.extract_package(target_process.name) == package:
-                        app.load_script(target_process.pid)
-                        target_pids.add(target_process.pid)
+                if target_process.pid > 0 and device.extract_package(target_process.name) == package:
+                    target_pids.add(target_process.pid)
 
-        if len(target_pids) == 0:
-            # 直接启动进程
+        if len(target_pids) > 0:
+            # 进程存在，直接注入
+            for pid in target_pids:
+                app.load_script(pid)
+        else:
+            # 进程不存在，打开进程后注入
             app.load_script(app.spawn(package), resume=True)
 
-        app.run()
+        if args.redirect_address or args.redirect_port:
+            # 如果需要重定向到本地端口
+            with device.redirect(args.redirect_address, args.redirect_port or 8080):
+                app.run()
+        else:
+            app.run()
 
 
 if __name__ == '__main__':

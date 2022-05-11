@@ -27,13 +27,24 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("ArgumentParser",)
+__all__ = ("ArgumentParser", "range_type")
 
 import argparse
 import logging
 
 from ._environ import logger
 from .version import __version__
+
+
+def range_type(min, max):
+
+    def wrapper(o):
+        value = int(o)
+        if min <= value <= max:
+            return value
+        raise argparse.ArgumentTypeError("value not in range %s-%s" % (min, max))
+
+    return wrapper
 
 
 class ArgumentParser(argparse.ArgumentParser):
