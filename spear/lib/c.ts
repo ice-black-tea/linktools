@@ -8,42 +8,43 @@ export class CHelper {
 
     $funcCaches = {};
 
-    get dlopen() {
-        return this.getExportFunction("dlopen", "pointer", ["pointer", "int"]);
+    get dlopen(): NativeFunction<NativePointer, [NativePointerValue, number]> {
+        return this.getExportFunction(null, "dlopen", "pointer", ["pointer", "int"]);
     }
 
     getExportFunction<RetType extends NativeFunctionReturnType, ArgTypes extends NativeFunctionArgumentType[] | []>(
-        name: string,
-        ret: RetType,
-        args: ArgTypes
+        moduleName: string | null,
+        exportName: string,
+        retType: RetType,
+        argTypes: ArgTypes
     ): NativeFunction<GetNativeFunctionReturnValue<RetType>, ResolveVariadic<Extract<GetNativeFunctionArgumentValue<ArgTypes>, unknown[]>>> {
-        const key = name + "|" + ret.toString() + "|" + args.toString();
+        const key = (moduleName || "") + "|" + exportName;
         if (key in this.$funcCaches) {
             return this.$funcCaches[key];
         }
-        var ptr = Module.findExportByName(null, name);
+        var ptr = Module.findExportByName(moduleName, exportName);
         if (ptr === null) {
-            throw Error("cannot find " + name);
+            throw Error("cannot find " + exportName);
         }
-        this.$funcCaches[key] = new NativeFunction(ptr, ret, args);
+        this.$funcCaches[key] = new NativeFunction(ptr, retType, argTypes);
         return this.$funcCaches[key];
     }
 
     /**
      * hook指定函数名
-     * @param name 函数名
+     * @param exportName 函数名
      * @param callbacks hook回调
      * @returns InvocationListener，可用于取消hook
      */
-    hookFunctionWithCallbacks(name: string, callbacks: InvocationListenerCallbacks): InvocationListener {
-        const funcPtr = Module.findExportByName(null, name);
+    hookFunctionWithCallbacks(moduleName: string | null, exportName: string, callbacks: InvocationListenerCallbacks): InvocationListener {
+        const funcPtr = Module.findExportByName(moduleName, exportName);
         if (funcPtr === null) {
-            throw Error("cannot find " + name);
+            throw Error("cannot find " + exportName);
         }
         const proxyHandler = {
             get: function (target, p: string | symbol, receiver: any) {
                 switch (p) {
-                    case "name": return name;
+                    case "name": return exportName;
                 };
                 return target[p];
             },
@@ -62,45 +63,46 @@ export class CHelper {
             }
         }
         const result = Interceptor.attach(funcPtr, cb);
-        Log.i("Hook function: " + name + " (" + funcPtr + ")");
+        Log.i("Hook function: " + exportName + " (" + funcPtr + ")");
         return result;
     }
 
     /**
      * hook指定函数名
-     * @param name 函数名
-     * @param ret 返回值类型
-     * @param args 参数类型
-     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
+     * @param exportName 函数名
+     * @param retType 返回值类型
+     * @param argTypes 参数类型
+     * @param impl hook实现，如调用原函数： function(args) { return this(args); }
      * @returns InvocationListener，可用于取消hook
      */
     hookFunction<RetType extends NativeFunctionReturnType, ArgTypes extends NativeFunctionArgumentType[] | []>(
-        name: string,
-        ret: RetType,
-        args: ArgTypes,
+        moduleName: string | null,
+        exportName: string,
+        retType: RetType,
+        argTypes: ArgTypes,
         impl: (args: any[]) => any
-    ): InvocationListener {
-        const func = this.getExportFunction(name, ret, args);
+    ): void {
+        const _argTypes: any = argTypes;
+        const func = this.getExportFunction(moduleName, exportName, retType, _argTypes);
         if (func === null) {
-            throw Error("cannot find " + name);
+            throw Error("cannot find " + exportName);
         }
-        const result = Interceptor.attach(func, function ($args) {
+        
+        Interceptor.replace(func, new NativeCallback(function () {
             const self: any = this;
             const targetArgs = [];
-            for (let i = 0; i < args.length; i++) {
-                targetArgs[i] = $args[i];
+            for (let i = 0; i < argTypes.length; i++) {
+                targetArgs[i] = arguments[i];
             }
             const proxy = new Proxy(func, {
                 get: function (target, p: string | symbol, receiver: any) {
                     switch (p) {
-                        case "name": return name;
-                        case "argumentTypes": return args;
-                        case "returnType": return ret;
+                        case "name": return exportName;
+                        case "argumentTypes": return argTypes;
+                        case "returnType": return retType;
+                        case "context": return self.context;
+                        default: target[p];
                     };
-                    if (p in self) {
-                        return self[p];
-                    }
-                    return target[p];
                 },
                 apply: function (target, thisArg: any, argArray: any[]) {
                     const f: any = target;
@@ -108,9 +110,9 @@ export class CHelper {
                 }
             });
             return impl.call(proxy, targetArgs);
-        });
-        Log.i("Hook function: " + name + " (" + func + ")");
-        return result;
+        }, retType, _argTypes));
+
+        Log.i("Hook function: " + exportName + " (" + func + ")");
     }
 
     /**
@@ -118,9 +120,7 @@ export class CHelper {
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
      */
-    getEventImpl(options: any, probe: boolean = false): InvocationListenerCallbacks | ((args: any[]) => any) {
-        const self = this;
-
+    getEventImpl(options: any): any /*InvocationListenerCallbacks | ((args: any[]) => any)*/ {
         const opts = new function () {
             this.method = true;
             this.thread = false;

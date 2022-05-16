@@ -1,6 +1,5 @@
 // https://github.com/frida/frida-objc-bridge/blob/main/index.js
 
-
 /**
  *  用于方便调用frida的ObjC方法
  */

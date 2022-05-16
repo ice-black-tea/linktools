@@ -96,6 +96,7 @@ import { CHelper } from "./lib/c"
 import { JavaHelper } from "./lib/java";
 import { AndroidHelper } from "./lib/android";
 import { ObjCHelper } from "./lib/objc";
+import { IOSHelper } from "./lib/ios";
 
 
 const log = new Log();
@@ -103,6 +104,7 @@ const cHelper = new CHelper();
 const javaHelper = new JavaHelper();
 const androidHelper = new AndroidHelper();
 const objCHelper = new ObjCHelper();
+const iosHelper = new IOSHelper();
 
 
 declare global {
@@ -111,9 +113,12 @@ declare global {
     const JavaHelper: JavaHelper;
     const AndroidHelper: AndroidHelper;
     const ObjCHelper: ObjCHelper;
+    const IOSHelper: IOSHelper;
     const parameters: Parameters;
     function memoize(): Function;
+    function ignoreError<T>(fn: () => T): T;
     function ignoreError<T>(fn: () => T, defautValue: T): T;
+    function parseBoolean(value: string | boolean);
     function parseBoolean(value: string | boolean, defaultValue: boolean);
     function pretty2String(obj: any): any;
     function pretty2Json(obj: any): any;
@@ -140,6 +145,10 @@ Object.defineProperties(globalThis, {
     ObjCHelper: {
         enumerable: true,
         value: objCHelper
+    },
+    IOSHelper: {
+        enumerable: true,
+        value: iosHelper
     },
     ignoreError: {
         enumerable: false,
@@ -189,7 +198,7 @@ Object.defineProperties(globalThis, {
                 }
                 return result;
             }
-            return ignoreError(() => obj.toString(), void 0);
+            return ignoreError(() => obj.toString());
         }
     }
 });
