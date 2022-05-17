@@ -160,7 +160,7 @@ export class JavaHelper {
      */
     private $hookMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>, impl: (obj: Java.Wrapper<T>, args: any[]) => any = null): void {
         if (impl != null) {
-            const proxy: Java.Method<T> = new Proxy(method, {
+            const proxy = new Proxy(method, {
                 apply: function (target, thisArg: any, argArray: any[]) {
                     const obj = argArray[0];
                     const args = argArray[1];

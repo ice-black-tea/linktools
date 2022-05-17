@@ -424,9 +424,13 @@ class FridaApplication:
         self.on_error(exc, traceback)
 
     def on_error(self, exc, traceback):
-        logger.error(f"Unhandled exception: {exc.__class__.__name__}{os.linesep}{traceback}", tag="[!]", fore=Fore.RED)
         if isinstance(exc, (KeyboardInterrupt, frida.TransportError, frida.ServerNotRunningError)):
+            logger.error(f"{exc}", tag="[!]", fore=Fore.RED)
             self.stop()
+        elif isinstance(exc, (frida.core.RPCException,)):
+            logger.error(f"{exc}", tag="[!]", fore=Fore.RED)
+        else:
+            logger.error(f"{traceback}", tag="[!]", fore=Fore.RED)
 
     def raise_on_error(self):
         if self._last_error is not None:

@@ -45,8 +45,8 @@ export class CHelper {
             get: function (target, p: string | symbol, receiver: any) {
                 switch (p) {
                     case "name": return exportName;
+                    default: return target[p];
                 };
-                return target[p];
             },
         }
         const cb = {};
@@ -82,12 +82,12 @@ export class CHelper {
         argTypes: ArgTypes,
         impl: (args: any[]) => any
     ): void {
-        const _argTypes: any = argTypes;
-        const func = this.getExportFunction(moduleName, exportName, retType, _argTypes);
+        const func = this.getExportFunction(moduleName, exportName, retType, argTypes);
         if (func === null) {
             throw Error("cannot find " + exportName);
         }
-        
+
+        const callbackArgTypes: any = argTypes;
         Interceptor.replace(func, new NativeCallback(function () {
             const self: any = this;
             const targetArgs = [];
@@ -110,7 +110,7 @@ export class CHelper {
                 }
             });
             return impl.call(proxy, targetArgs);
-        }, retType, _argTypes));
+        }, retType, callbackArgTypes));
 
         Log.i("Hook function: " + exportName + " (" + func + ")");
     }

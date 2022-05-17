@@ -9,6 +9,13 @@ export class IOSHelper {
             '======================================================'
         );
 
+        try {
+            Module.ensureInitialized("libboringssl.dylib");
+        } catch(err) {
+            Log.d("libboringssl.dylib module not loaded. Trying to manually load it.")
+            Module.load("libboringssl.dylib");  
+        }
+
         const customVerifyCallback = new NativeCallback(function (ssl, out_alert) {
             Log.d(`custom SSL context verify callback, returning SSL_VERIFY_NONE`);
             return 0;
