@@ -38,10 +38,13 @@ import warnings
 from typing import Dict, Union, Mapping, Iterator
 
 from . import utils
+from ._environ import resource, config
+from ._logger import get_logger
 from .decorator import cached_property
-from ._environ import logger, resource, config
 
-_config_namespace = "GENERAL_TOOL_"
+CONFIG_NAMESPACE = "GENERAL_TOOL_"
+
+logger = get_logger("utils")
 
 
 class Parser(object):
@@ -208,7 +211,7 @@ class GeneralTool(metaclass=Meta):
         if self.exists:
             pass
         elif not self.download_url:
-            warnings.warn("download url is empty, skipped.")
+            logger.warning("Download url is empty, skipped.")
         else:
             # download tool files
             file = resource.get_temp_path(
@@ -217,7 +220,7 @@ class GeneralTool(metaclass=Meta):
                 utils.guess_file_name(self.download_url),
                 create_parent=True
             )
-            logger.info("download: {}".format(self.download_url))
+            logger.info("Download tool: {}".format(self.download_url))
             utils.download(self.download_url, file)
             if not os.path.exists(self.root_path):
                 os.makedirs(self.root_path)
@@ -229,7 +232,7 @@ class GeneralTool(metaclass=Meta):
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
-            logger.debug(f"chmod 755 {self.absolute_path}")
+            logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
@@ -280,7 +283,7 @@ class GeneralTools(object):
     @cached_property
     def items(self) -> Mapping[str, GeneralTool]:
         items = {}
-        for key, value in config.get_namespace(_config_namespace).items():
+        for key, value in config.get_namespace(CONFIG_NAMESPACE).items():
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue

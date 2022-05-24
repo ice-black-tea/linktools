@@ -26,20 +26,30 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import functools
 import threading
 
 
-def entry_point(known_errors=()):
+def entry_point(logger_tag: bool = False, known_errors: [Exception] = ()):
     from linktools import logger
 
+    if logger_tag:
+        logger.set_debug_options(tag="[D]")
+        logger.set_info_options(tag="[I]")
+        logger.set_warning_options(tag="[W]")
+        logger.set_error_options(tag="[E]")
+
     def decorator(fn):
+        @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             try:
                 return fn(*args, **kwargs)
             except (KeyboardInterrupt, EOFError, *known_errors) as e:
-                logger.error(e)
+                error_message = f"{e}".strip() or f"{e.__class__.__name__}"
+                logger.info(f"Exit: {error_message}")
             except Exception:
                 logger.error(traceback_error=True)
+
         return wrapper
 
     return decorator
@@ -56,14 +66,15 @@ def singleton(cls):
     return wrapper
 
 
-def try_except(errors=(Exception, ), default=None):
-
+def try_except(errors=(Exception,), default=None):
     def decorator(fn):
+        @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             try:
                 return fn(*args, **kwargs)
             except errors:
                 return default
+
         return wrapper
 
     return decorator
@@ -74,12 +85,14 @@ def synchronized(lock=None):
         lock = threading.Lock()
 
     def decorator(fn):
+        @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             lock.acquire()
             try:
                 return fn(*args, **kwargs)
             finally:
                 lock.release()
+
         return wrapper
 
     return decorator

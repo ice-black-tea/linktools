@@ -14,15 +14,16 @@ import lzma
 import os
 import shutil
 import subprocess
-from pathlib import PosixPath
 
 import billiard
 import frida
 
 import linktools
-from linktools import resource, utils, logger
+from linktools import resource, utils, get_logger
 from linktools.android import adb
 from linktools.frida import FridaServer
+
+logger = get_logger("android.frida")
 
 
 class FridaAndroidServer(FridaServer):
@@ -51,13 +52,13 @@ class FridaAndroidServer(FridaServer):
         except (KeyboardInterrupt, EOFError):
             pass
         except Exception as e:
-            logger.error(e, tag="[!]")
+            logger.error(e)
 
     def _start(self):
         # 先下载frida server，然后把server推送到设备上
         if not self._device.is_file_exist(self._environ.remote_path):
             self._environ.prepare()
-            logger.info(f"Push frida server to {self._environ.remote_path}", tag="[*]")
+            logger.info(f"Push frida server to remote: {self._environ.remote_path}")
             temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
             self._device.push(self._environ.local_path, temp_path, capture_output=False)
             self._device.sudo("mv", temp_path, self._environ.remote_path, capture_output=False)
@@ -117,11 +118,11 @@ class FridaAndroidServer(FridaServer):
             )
 
             self.remote_name = "fs-{abi}-{version}".format(**config)
-            self.remote_path = (PosixPath("/data/local/tmp") / self.remote_name).as_posix()
+            self.remote_path = adb.Device.get_data_path(self.remote_name)
 
         def prepare(self):
             if not os.path.exists(self.local_path):
-                logger.info("Download frida server ...", tag="[*]")
+                logger.info("Download frida server ...")
                 utils.download(self._download_url, self._temp_path)
                 with lzma.open(self._temp_path, "rb") as read, open(self.local_path, "wb") as write:
                     shutil.copyfileobj(read, write)

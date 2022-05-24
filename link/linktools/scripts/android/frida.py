@@ -34,7 +34,7 @@ from linktools.decorator import entry_point
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(logger_tag=True, known_errors=[AdbError])
 def main():
 
     parser = AndroidArgumentParser(description="easy to use frida")
@@ -78,14 +78,14 @@ def main():
     class Application(FridaApplication):
 
         def on_spawn_added(self, spawn):
-            logger.debug(f"Spawn added: {spawn}", tag="[✔]")
+            logger.debug(f"Spawn added: {spawn}")
             if device.extract_package(spawn.identifier) == package:
                 self.load_script(spawn.pid, resume=True)
             else:
                 self.resume(spawn.pid)
 
         def on_session_detached(self, session, reason, crash) -> None:
-            logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
+            logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}")
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:
@@ -105,7 +105,8 @@ def main():
         if utils.is_empty(package):
             target_app = app.get_frontmost_application()
             if target_app is None:
-                raise AdbError("unknown frontmost application")
+                logger.error("Unknown frontmost application")
+                return
             package = target_app.identifier
 
         target_pids = set()

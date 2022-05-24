@@ -42,6 +42,10 @@ from typing import Union, Sized, Callable, Tuple, TypeVar, Optional, Type, Any, 
 from filelock import FileLock
 from tqdm import tqdm
 
+from ._logger import get_logger
+
+logger = get_logger("utils")
+
 
 class TimeoutMeter:
 
@@ -438,7 +442,7 @@ def lazy_raise(e: Exception) -> T:
     return lazy_load(raise_error)
 
 
-def ignore_error(fn: Callable[..., T], *args, **kwargs) -> Optional[T]:
+def ignore_error(fn: Callable[..., T], *args, **kwargs) -> T:
     try:
         return fn(*args, **kwargs)
     except:
@@ -460,13 +464,14 @@ def popen(*args, **kwargs) -> subprocess.Popen:
                 kwargs["stderr"] = subprocess.PIPE
     if "cwd" not in kwargs:
         kwargs["cwd"] = os.getcwd()
-    if "shell" in kwargs:
+    if "shell" not in kwargs:
         kwargs["shell"] = False
     if "append_env" in kwargs:
         env = os.environ.copy()
         env.update(kwargs.pop("env", {}))
         env.update(kwargs.pop("append_env"))
         kwargs["env"] = env
+    logger.debug(f"Exec cmdline: {' '.join(args)}")
     return subprocess.Popen(args, **kwargs)
 
 
@@ -496,7 +501,7 @@ def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, by
 
 
 # noinspection PyShadowingBuiltins
-def cast(type: type, obj: object, default: type(object) = None) -> type(object):
+def cast(type: type, obj: object, default=None):
     """
     类型转换
     :param type: 目标类型
@@ -812,6 +817,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
 
     # 如果文件存在，就不下载了
     if os.path.exists(path) and os.path.getsize(path) > 0:
+        logger.debug(f"{path} downloaded, skip")
         return path, os.path.split(path)[1]
 
     timeout_meter = TimeoutMeter(timeout)
@@ -819,9 +825,11 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
     dir_path = os.path.dirname(path)
     temp_path = path + ".download"
     lock = FileLock(path + ".lock")
+    logger.debug(f"Download file to temp path {path}")
 
     # 下载之前先把目录创建好，否则文件锁会失败
     if not os.path.exists(dir_path):
+        logger.debug(f"Directory does not exist, create {dir_path}")
         os.makedirs(dir_path)
 
     try:
@@ -829,12 +837,15 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
 
         # 这时候文件存在，说明在上锁期间下载完了
         if os.path.exists(path) and os.path.getsize(path) > 0:
+            logger.debug(f"{path} downloaded, skip")
             return path, os.path.split(path)[1]
 
         offset = 0
         # 如果文件存在，则继续上一次下载
         if os.path.exists(temp_path):
-            offset = os.path.getsize(temp_path)
+            size = os.path.getsize(temp_path)
+            logger.debug(f"{size} bytes downloaded, continue")
+            offset = size
 
         with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=guess_file_name(url)) as t:
 
@@ -862,6 +873,7 @@ def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, s
             if os.path.getsize(temp_path) == 0:
                 raise DownloadError(f"download error: {url}")
 
+            logger.debug(f"Rename {temp_path} to {path}")
             os.rename(temp_path, path)
 
             return path, t.desc

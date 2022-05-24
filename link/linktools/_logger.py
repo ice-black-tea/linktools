@@ -34,62 +34,65 @@ import os
 
 import colorama
 
-MESSAGE = 0x00001000
-
-logging.addLevelName(MESSAGE, "message")
-
-
-def get_logger(name: str = None):
-    manager = logging.Manager(logging.getLogger())
-    manager.setLoggerClass(Logger)
-    return manager.getLogger(name)
+from .version import __name__ as module_name
 
 
 class Logger(logging.Logger):
+    __options = {
+        logging.DEBUG: {
+            "fore": colorama.Fore.GREEN,
+            "back": None,
+            "style": None
+        },
+        logging.INFO: {
+            "fore": None,
+            "back": None,
+            "style": None
+        },
+        logging.WARNING: {
+            "fore": colorama.Fore.MAGENTA,
+            "back": None,
+            "style": None
+        },
+        logging.ERROR: {
+            "fore": colorama.Fore.RED,
+            "back": None,
+            "style": None
+        },
+    }
+
+    @classmethod
+    def set_debug_options(cls, **kwargs):
+        cls.__options.get(logging.DEBUG).update(kwargs)
+
+    @classmethod
+    def set_info_options(cls, **kwargs):
+        cls.__options.get(logging.INFO).update(kwargs)
+
+    @classmethod
+    def set_warning_options(cls, **kwargs):
+        cls.__options.get(logging.WARNING).update(kwargs)
+
+    @classmethod
+    def set_error_options(cls, **kwargs):
+        cls.__options.get(logging.ERROR).update(kwargs)
 
     def debug(self, *args, **kwargs):
-        super().debug(None, *args, **kwargs,
-                      options={
-                          "fore": colorama.Fore.GREEN,
-                          "back": None,
-                          "style": None
-                      })
+        super().debug(None, *args, **kwargs)
 
     def info(self, *args, **kwargs):
-        super().info(None, *args, **kwargs,
-                     options={
-                         "fore": None,
-                         "back": None,
-                         "style": None
-                     })
+        super().info(None, *args, **kwargs)
 
     def warning(self, *args, **kwargs):
-        super().warning(None, *args, **kwargs,
-                        options={
-                            "fore": colorama.Fore.MAGENTA,
-                            "back": None,
-                            "style": None
-                        })
+        super().warning(None, *args, **kwargs)
 
     def error(self, *args, **kwargs):
-        super().error(None, *args, **kwargs,
-                      options={
-                          "fore": colorama.Fore.RED,
-                          "back": None,
-                          "style": None
-                      })
-
-    def message(self, *args, **kwargs):
-        super().log(MESSAGE, None, *args, **kwargs,
-                    options={
-                        "fore": None,
-                        "back": None,
-                        "style": None
-                    })
+        super().error(None, *args, **kwargs)
 
     # noinspection PyTypeChecker, PyProtectedMember
     def _log(self, level, msg, args, **kwargs):
-        msg, kwargs = self._compatible_args(args, **kwargs)
+        options = self.__options.get(level)
+        msg, kwargs = self._compatible_args(args, **kwargs, options=options)
         return super()._log(level, msg, None, **kwargs)
 
     @classmethod
@@ -140,3 +143,12 @@ class Logger(logging.Logger):
             msg = msg + colorama.Style.RESET_ALL
 
         return msg, kwargs
+
+
+manager = logging.Manager(logging.getLogger())
+manager.setLoggerClass(Logger)
+
+
+def get_logger(name: str = None) -> "Logger":
+    name = f"{module_name}.{name}" if name else module_name
+    return manager.getLogger(name)

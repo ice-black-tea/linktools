@@ -88,7 +88,7 @@ def _create_default_logger():
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
     colorama.init(autoreset=False)
 
-    return get_logger(module_name)
+    return get_logger()
 
 
 def _create_default_tools():

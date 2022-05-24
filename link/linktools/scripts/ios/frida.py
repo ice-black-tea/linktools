@@ -34,7 +34,7 @@ from linktools.ios import IOSArgumentParser, MuxError
 from linktools.ios.frida import FridaIOSServer
 
 
-@entry_point(known_errors=[MuxError])
+@entry_point(logger_tag=True, known_errors=[MuxError])
 def main():
     parser = IOSArgumentParser(description="easy to use frida")
     parser.add_argument("-b", "--bundle-id", action="store", default=None,
@@ -70,14 +70,14 @@ def main():
     class Application(FridaApplication):
 
         def on_spawn_added(self, spawn):
-            logger.debug(f"Spawn added: {spawn}", tag="[✔]")
+            logger.debug(f"Spawn added: {spawn}")
             if spawn.identifier == bundle_id:
                 self.load_script(spawn.pid, resume=True)
             else:
                 self.resume(spawn.pid)
 
         def on_session_detached(self, session, reason, crash) -> None:
-            logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}", tag="[*]")
+            logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}")
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:
@@ -97,7 +97,8 @@ def main():
         if utils.is_empty(bundle_id):
             target_app = app.get_frontmost_application()
             if target_app is None:
-                raise RuntimeError("unknown frontmost application")
+                logger.error("Unknown frontmost application")
+                return
             bundle_id = target_app.identifier
 
         target_pids = set()

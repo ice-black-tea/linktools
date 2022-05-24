@@ -9,9 +9,11 @@
 import billiard
 import frida
 
-from linktools import logger, utils
+from linktools import get_logger, utils
 from linktools.frida import FridaServer
 from linktools.ios import Device
+
+logger = get_logger("ios.frida")
 
 
 class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
@@ -33,7 +35,7 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         except (KeyboardInterrupt, EOFError):
             pass
         except Exception as e:
-            logger.error(e, tag="[!]")
+            logger.error(e)
 
     def _start(self):
         self._process = billiard.context.Process(

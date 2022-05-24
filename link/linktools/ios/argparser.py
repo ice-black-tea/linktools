@@ -63,7 +63,7 @@ class IOSArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0].udid
 
-            logger.message("more than one device/emulator")
+            logger.info("more than one device/emulator")
 
             offset = 1
             for i in range(len(devices)):
@@ -71,7 +71,7 @@ class IOSArgumentParser(ArgumentParser):
                     name = Device(devices[0].udid, usbmux).name
                 except Exception:
                     name = ""
-                logger.message(f"%d: %-20s [%s]" % (i + offset, devices[i].udid, name))
+                logger.info(f"%d: %-20s [%s]" % (i + offset, devices[i].udid, name))
 
             while True:
                 offset = 1

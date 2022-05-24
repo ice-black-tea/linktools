@@ -36,9 +36,11 @@ import warnings
 from typing import Optional, Any
 
 import linktools
-from linktools import __name__ as module_name, utils, resource, tools
+from linktools import __name__ as module_name, utils, resource, tools, get_logger
 from linktools.decorator import cached_property
 from .struct import Package
+
+logger = get_logger("android.adb")
 
 
 class AdbError(Exception):
@@ -434,13 +436,38 @@ class Device(object):
         return result
 
     @classmethod
+    def _get_safe_path(cls, path: str) -> str:
+        temp = path
+        while True:
+            result = temp.replace("../", "..")
+            if temp == result:
+                return result
+            temp = result
+
+    @classmethod
     def get_storage_path(cls, *paths: [str]) -> str:
         """
         存储文件路径
         :param paths: 文件名
         :return: 路径
         """
-        return "/sdcard/%s/%s" % (module_name, "/".join(paths))
+        return "/sdcard/%s/%s" % (
+            module_name,
+            "/".join([cls._get_safe_path(o) for o in paths])
+        )
+
+    @classmethod
+    def get_data_path(cls, *paths: [str]) -> str:
+        """
+        /data/local/tmp路径
+        :param paths: 文件名
+        :return: 路径
+        """
+        ""
+        return "/data/local/tmp/%s/%s" % (
+            module_name,
+            "/".join([cls._get_safe_path(o) for o in paths])
+        )
 
     @classmethod
     def extract_package(cls, package_name) -> str:
@@ -474,9 +501,11 @@ class Device(object):
                 # 如果没有指定目标地址，则通过reverse端口访问
                 self.remote_port = self.device.exec("reverse", f"tcp:0", f"tcp:{self.target_port}").strip()
                 destination = f"127.0.0.1:{self.remote_port}"
+                logger.debug(f"Not found redirect address, use {destination} instead")
             else:
                 # 指定了目标地址那就直接用目标地址
                 destination = f"{self.target_address}:{self.target_port}"
+                logger.debug(f"Found redirect address {destination}")
             # 排除localhost
             self.device.sudo(
                 "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-o", "lo", "-j", "RETURN"

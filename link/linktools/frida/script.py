@@ -33,7 +33,9 @@ from typing import Union, Optional
 
 from filelock import FileLock
 
-from linktools import resource, utils, logger
+from linktools import resource, utils, get_logger
+
+logger = get_logger("frida.app")
 
 
 class FridaScriptFile(object):
@@ -66,7 +68,7 @@ class FridaScriptFile(object):
 
     def _load(self) -> Optional[str]:
         with open(self._path, "rb") as f:
-            logger.info(f"Load script: {self._path}", tag="[✔]")
+            logger.info(f"Load script: {self._path}")
             return f.read().decode("utf-8")
 
     def __repr__(self):
@@ -111,16 +113,16 @@ class FridaShareScript(FridaScriptFile):
 
             if not self._cached or not os.path.exists(self._path):
                 if os.path.exists(self._path):
-                    logger.debug(f"Remove shared script cache: {self._path}", tag="[*]")
+                    logger.debug(f"Remove shared script cache: {self._path}")
                     os.remove(self._path)
-                logger.info(f"Download shared script: {self._url}", tag="[*]")
+                logger.info(f"Download shared script: {self._url}")
                 utils.download(self._url, self._path)
 
             with open(self._path, "rb") as f:
                 source = f.read().decode("utf-8")
 
             if self._trusted:
-                logger.info(f"Load trusted shared script: {self._path}", tag="[✔]")
+                logger.info(f"Load trusted shared script: {self._path}")
                 return source
 
             cached_md5 = ""
@@ -131,7 +133,7 @@ class FridaShareScript(FridaScriptFile):
 
             source_md5 = utils.get_md5(source)
             if cached_md5 == source_md5:
-                logger.info(f"Load trusted shared script: {self._path}", tag="[✔]")
+                logger.info(f"Load trusted shared script: {self._path}")
                 return source
 
             line_count = 20
@@ -147,15 +149,14 @@ class FridaShareScript(FridaScriptFile):
                 f"Original md5: {cached_md5}{os.linesep}"
                 f"Current md5: {source_md5}{os.linesep}{os.linesep}",
                 f"{source_summary}",
-                tag="[!]"
             )
             while True:
                 response = input(">>> Are you sure you'd like to trust it? [y/N]: ")
                 if response.lower() in ('n', 'no') or response == '':
-                    logger.info(f"Ignore untrusted shared script: {self._path}", tag="[✔]")
+                    logger.info(f"Ignore untrusted shared script: {self._path}")
                     return None
                 if response.lower() in ('y', 'yes'):
                     with open(cached_md5_path, "wt") as fd:
                         fd.write(source_md5)
-                    logger.info(f"Load trusted shared script: {self._path}", tag="[✔]")
+                    logger.info(f"Load trusted shared script: {self._path}")
                     return source

@@ -58,18 +58,18 @@ def main():
     tool_args = args.tool[1:]
 
     if args.config:
-        logger.message(
+        logger.info(
             json.dumps(tools[tool_name].config, indent=2, ensure_ascii=False)
         )
 
     elif args.download:
         if not tools[tool_name].exists:
             tools[tool_name].prepare()
-        logger.message(f"download tool files success: {tools[tool_name].absolute_path}")
+        logger.info(f"download tool files success: {tools[tool_name].absolute_path}")
 
     elif args.clear:
         tools[tool_name].clear()
-        logger.message(f"clear tool files success")
+        logger.info(f"clear tool files success")
 
     elif args.daemon:
         tools[tool_name].exec(

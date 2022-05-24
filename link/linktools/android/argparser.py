@@ -63,7 +63,7 @@ class AndroidArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0]
 
-            logger.message("more than one device/emulator")
+            logger.info("more than one device/emulator")
 
             offset = 1
             for i in range(len(devices)):
@@ -71,7 +71,7 @@ class AndroidArgumentParser(ArgumentParser):
                     name = Device(devices[i]).get_prop("ro.product.name", timeout=1)
                 except Exception:
                     name = ""
-                logger.message("%d: %-20s [%s]" % (i + offset, devices[i], name))
+                logger.info("%d: %-20s [%s]" % (i + offset, devices[i], name))
 
             while True:
                 data = input(

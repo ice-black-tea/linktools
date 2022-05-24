@@ -32,5 +32,5 @@ import logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(message)s',
-    # format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s'
+    # format='%(asctime)s - %(name)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s'
 )

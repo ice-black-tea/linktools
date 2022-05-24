@@ -122,9 +122,9 @@ class GrepMatcher:
             for i in range(0, len(lines)):
                 out = self.match_content(lines[i].rstrip())
                 if not utils.is_empty(out):
-                    logger.message(Fore.CYAN, filename,
-                                   Fore.RESET, ":", Fore.GREEN, i + 1,
-                                   Fore.RESET, ": ", out)
+                    logger.info(Fore.CYAN, filename,
+                                Fore.RESET, ":", Fore.GREEN, i + 1,
+                                Fore.RESET, ": ", out)
 
     @GrepHandler.match(
         "application/zip",
@@ -151,18 +151,18 @@ class GrepMatcher:
         for symbol in file.imported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
-                logger.message(Fore.CYAN, filename,
-                               Fore.RESET, ":", Fore.GREEN, "import_symbols",
-                               Fore.RESET, ": ", out,
-                               Fore.RESET, " match")
+                logger.info(Fore.CYAN, filename,
+                            Fore.RESET, ":", Fore.GREEN, "import_symbols",
+                            Fore.RESET, ": ", out,
+                            Fore.RESET, " match")
 
         for symbol in file.exported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
-                logger.message(Fore.CYAN, filename,
-                               Fore.RESET, ":", Fore.GREEN, "export_symbols",
-                               Fore.RESET, ": ", out,
-                               Fore.RESET, " match")
+                logger.info(Fore.CYAN, filename,
+                            Fore.RESET, ":", Fore.GREEN, "export_symbols",
+                            Fore.RESET, ": ", out,
+                            Fore.RESET, " match")
 
         self.on_binary(filename, mimetype=mimetype)
 
@@ -171,9 +171,9 @@ class GrepMatcher:
         with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
-                    logger.message(Fore.CYAN, filename,
-                                   Fore.RESET, ": ", Fore.RED, mimetype,
-                                   Fore.RESET, " match")
+                    logger.info(Fore.CYAN, filename,
+                                Fore.RESET, ": ", Fore.RED, mimetype,
+                                Fore.RESET, " match")
                     return
 
     def match_content(self, content):
