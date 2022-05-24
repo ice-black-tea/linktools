@@ -20,27 +20,27 @@ class Log {
         this.d("Set log level: " + level);
     }
 
-    d(data: any, tag: string = null) {
+    d(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.debug) {
-            send({ log: { level: "debug", tag: tag, message: data } });
+            send({ log: { level: "debug", message: message } }, data);
         }
     }
 
-    i(data: any, tag: string = null) {
+    i(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.info) {
-            send({ log: { level: "info", tag: tag, message: data } });
+            send({ log: { level: "info", message: message } }, data);
         }
     }
 
-    w(data: any, tag: string = null) {
+    w(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.warning) {
-            send({ log: { level: "warning", tag: tag, message: data } });
+            send({ log: { level: "warning", message: message } }, data);
         }
     }
 
-    e(data: any, tag: string = null) {
+    e(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.error) {
-            send({ log: { level: "error", tag: tag, message: data } });
+            send({ log: { level: "error", message: message } }, data);
         }
     }
 }
