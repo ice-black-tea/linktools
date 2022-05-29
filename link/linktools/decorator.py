@@ -28,6 +28,7 @@
 """
 import functools
 import threading
+import traceback
 
 
 def entry_point(logger_tag: bool = False, known_errors: [Exception] = ()):
@@ -45,10 +46,11 @@ def entry_point(logger_tag: bool = False, known_errors: [Exception] = ()):
             try:
                 return fn(*args, **kwargs)
             except (KeyboardInterrupt, EOFError, *known_errors) as e:
-                error_message = f"{e}".strip() or f"{e.__class__.__name__}"
-                logger.info(f"Exit: {error_message}")
+                etype = e.__class__.__name__
+                error = f"{e}".strip()
+                logger.error(f"{etype}: {error}" if error else etype)
             except Exception:
-                logger.error(traceback_error=True)
+                logger.error(traceback.format_exc())
 
         return wrapper
 

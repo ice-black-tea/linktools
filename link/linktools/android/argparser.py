@@ -58,7 +58,7 @@ class AndroidArgumentParser(ArgumentParser):
             devices = Adb.devices(alive=True)
 
             if len(devices) == 0:
-                raise AdbError("error: no devices/emulators found")
+                raise AdbError("no devices/emulators found")
 
             if len(devices) == 1:
                 return devices[0]
@@ -119,9 +119,9 @@ class AndroidArgumentParser(ArgumentParser):
                     index = int(values)
                     devices = Adb.devices(alive=True)
                     if utils.is_empty(devices):
-                        raise AdbError("error: no devices/emulators found")
+                        raise AdbError("no devices/emulators found")
                     if not 0 < index <= len(devices):
-                        raise AdbError("error: index %d out of range %d~%d" % (index, 1, len(devices)))
+                        raise AdbError("index %d out of range %d~%d" % (index, 1, len(devices)))
                     index = index - 1
                     return devices[index]
 
@@ -153,7 +153,7 @@ class AndroidArgumentParser(ArgumentParser):
                             result = fd.read().strip()
                             if len(result) > 0:
                                 return result
-                    raise AdbError("error: no device used last time")
+                    raise AdbError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
 

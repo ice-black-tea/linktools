@@ -464,8 +464,7 @@ class Device(object):
         :return: 路径
         """
         ""
-        return "/data/local/tmp/%s/%s" % (
-            module_name,
+        return "/data/local/tmp/%s" % (
             "/".join([cls._get_safe_path(o) for o in paths])
         )
 

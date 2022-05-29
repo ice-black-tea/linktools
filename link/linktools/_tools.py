@@ -37,7 +37,7 @@ import sys
 import warnings
 from typing import Dict, Union, Mapping, Iterator
 
-from . import utils
+from . import utils, urlutils
 from ._environ import resource, config
 from ._logger import get_logger
 from .decorator import cached_property
@@ -214,21 +214,15 @@ class GeneralTool(metaclass=Meta):
             logger.warning("Download url is empty, skipped.")
         else:
             # download tool files
-            file = resource.get_temp_path(
-                "tools",
-                utils.get_md5(self.download_url),
-                utils.guess_file_name(self.download_url),
-                create_parent=True
-            )
             logger.info("Download tool: {}".format(self.download_url))
-            utils.download(self.download_url, file)
-            if not os.path.exists(self.root_path):
-                os.makedirs(self.root_path)
+            url_file = urlutils.UrlFile(self.download_url)
+            temp_dir = resource.get_temp_path("tools", "cache")
+            temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
-                shutil.unpack_archive(file, self.root_path)
-                os.remove(file)
+                shutil.unpack_archive(temp_path, self.root_path)
+                os.remove(temp_path)
             else:
-                os.rename(file, self.absolute_path)
+                os.rename(temp_path, self.absolute_path)
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):

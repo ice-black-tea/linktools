@@ -30,17 +30,13 @@
 import collections
 import functools
 import os
-import re
 import subprocess
 import threading
 import time
 import traceback
 import warnings
 from collections.abc import Iterable
-from typing import Union, Sized, Callable, Tuple, TypeVar, Optional, Type, Any, List, Dict
-
-from filelock import FileLock
-from tqdm import tqdm
+from typing import Union, Sized, Callable, TypeVar, Optional, Type, Any, List
 
 from ._logger import get_logger
 
@@ -694,6 +690,15 @@ def get_md5(data: Union[str, bytes]) -> str:
     return m.hexdigest()
 
 
+def get_sha1(data: Union[str, bytes]) -> str:
+    import hashlib
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    s1 = hashlib.sha1()
+    s1.update(data)
+    return s1.hexdigest()
+
+
 def gzip_compress(data: Union[str, bytes]) -> bytes:
     import gzip
     if type(data) == str:
@@ -718,172 +723,3 @@ def make_uuid() -> str:
     import uuid
     import random
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")
-
-
-def make_url(url: str, path: str, **kwargs: Any) -> str:
-    from urllib import parse
-    result = url.rstrip("/") + "/" + path.lstrip("/")
-    if len(kwargs) > 0:
-        query_string = "&".join([f"{parse.quote(k)}={parse.quote(str(v))}" for k, v in kwargs.items()])
-        result = result + "?" + query_string
-    return result
-
-
-def cookie_to_dict(cookie: str) -> Dict[str, str]:
-    cookies = {}
-    for item in cookie.split(';'):
-        key_value = item.split('=', 1)
-        cookies[key_value[0].strip()] = key_value[1].strip() if len(key_value) > 1 else ''
-    return cookies
-
-
-def guess_file_name(url: str) -> str:
-    from urllib.parse import urlparse
-    return os.path.split(urlparse(url).path)[1]
-
-
-class DownloadError(Exception):
-    pass
-
-
-def _download_with_requests(url, path, headers=None, timeout=None):
-    import requests
-
-    bs = 1024 * 8
-    name = None
-    total = None
-    read = 0
-    yield name, total, read
-
-    with requests.get(url, headers=headers, stream=True, timeout=timeout) as resp, open(path, 'ab') as tfp:
-
-        if "Content-Length" in resp.headers:
-            total = int(resp.headers.get("Content-Length"))
-        if "Content-Disposition" in resp.headers:
-            groups = re.findall("filename=(.+)", resp.headers.get("Content-Disposition"))
-            if len(groups) > 0:
-                name = groups[0]
-        yield name, total, read
-
-        for chunk in resp.iter_content(bs):
-            if chunk:
-                read += len(chunk)
-                tfp.write(chunk)
-                yield name, total, read
-
-
-def _download_with_urllib(url, path, headers=None, timeout=None):
-    import contextlib
-    from urllib.request import urlopen, Request
-
-    bs = 1024 * 8
-    name = None
-    total = None
-    read = 0
-    yield name, total, read
-
-    url = Request(url, headers=headers)
-    with contextlib.closing(urlopen(url=url, timeout=timeout)) as fp, open(path, "ab") as tfp:
-        response_headers = fp.info()
-        if "Content-Length" in response_headers:
-            total = int(response_headers["Content-Length"])
-        if "Content-Disposition" in response_headers:
-            groups = re.findall("filename=(.+)", response_headers["Content-Disposition"])
-            if len(groups) > 0:
-                name = groups[0]
-        yield name, total, read
-
-        read = 0
-        while True:
-            chunk = fp.read(bs)
-            if not chunk:
-                break
-            read += len(chunk)
-            tfp.write(chunk)
-            yield name, total, read
-
-
-def download(url: str, path: str, user_agent=None, timeout=None) -> Tuple[str, str]:
-    """
-    从指定url下载文件
-    :param url: 下载链接
-    :param path: 保存路径
-    :param user_agent: 下载请求头ua
-    :param timeout: 超时时间
-    """
-
-    # 这个import放在这里，避免递归import
-    from ._environ import config
-
-    # 如果文件存在，就不下载了
-    if os.path.exists(path) and os.path.getsize(path) > 0:
-        logger.debug(f"{path} downloaded, skip")
-        return path, os.path.split(path)[1]
-
-    timeout_meter = TimeoutMeter(timeout)
-
-    dir_path = os.path.dirname(path)
-    temp_path = path + ".download"
-    lock = FileLock(path + ".lock")
-    logger.debug(f"Download file to temp path {path}")
-
-    # 下载之前先把目录创建好，否则文件锁会失败
-    if not os.path.exists(dir_path):
-        logger.debug(f"Directory does not exist, create {dir_path}")
-        os.makedirs(dir_path)
-
-    try:
-        lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
-
-        # 这时候文件存在，说明在上锁期间下载完了
-        if os.path.exists(path) and os.path.getsize(path) > 0:
-            logger.debug(f"{path} downloaded, skip")
-            return path, os.path.split(path)[1]
-
-        offset = 0
-        # 如果文件存在，则继续上一次下载
-        if os.path.exists(temp_path):
-            size = os.path.getsize(temp_path)
-            logger.debug(f"{size} bytes downloaded, continue")
-            offset = size
-
-        with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=guess_file_name(url)) as t:
-
-            headers = {
-                "User-Agent": user_agent or config["SETTING_DOWNLOAD_USER_AGENT"],
-                "Range": f"bytes={offset}-",
-            }
-
-            try:
-                import requests
-                download_fn = _download_with_requests
-            except ModuleNotFoundError:
-                download_fn = _download_with_urllib
-
-            for name, total, read in download_fn(url, temp_path, headers=headers, timeout=timeout_meter.get()):
-                if total is not None:
-                    t.total = offset + total
-                if name is not None:
-                    t.desc = name
-                t.update(offset + read - t.n)
-
-            if t.total is not None and t.total > t.n:
-                raise DownloadError(f"download size {t.total} bytes was expected, got {t.n} bytes")
-
-            if os.path.getsize(temp_path) == 0:
-                raise DownloadError(f"download error: {url}")
-
-            logger.debug(f"Rename {temp_path} to {path}")
-            os.rename(temp_path, path)
-
-            return path, t.desc
-
-    except DownloadError as e:
-        raise e
-
-    except Exception as e:
-        raise DownloadError(e)
-
-    finally:
-        ignore_error(lock.release, True)
-        ignore_error(os.remove, lock.lock_file)

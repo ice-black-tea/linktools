@@ -58,7 +58,7 @@ class IOSArgumentParser(ArgumentParser):
             usbmux = Usbmux.get_default()
             devices = usbmux.device_list()
             if len(devices) == 0:
-                raise MuxError("error: no devices/emulators found")
+                raise MuxError("no devices/emulators found")
 
             if len(devices) == 1:
                 return devices[0].udid
@@ -103,9 +103,9 @@ class IOSArgumentParser(ArgumentParser):
                     usbmux = Usbmux.get_default()
                     devices = usbmux.device_list()
                     if utils.is_empty(devices):
-                        raise MuxError("error: no devices/emulators found")
+                        raise MuxError("no devices/emulators found")
                     if not 0 < index <= len(devices):
-                        raise MuxError("error: index %d out of range %d~%d" % (index, 1, len(devices)))
+                        raise MuxError("index %d out of range %d~%d" % (index, 1, len(devices)))
                     index = index - 1
                     return devices[index].udid
 
@@ -121,7 +121,7 @@ class IOSArgumentParser(ArgumentParser):
                             result = fd.read().strip()
                             if len(result) > 0:
                                 return result
-                    raise MuxError("error: no device used last time")
+                    raise MuxError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
 

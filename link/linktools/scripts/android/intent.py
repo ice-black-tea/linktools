@@ -30,7 +30,7 @@ import os
 import sys
 import time
 
-from linktools import utils, resource, logger
+from linktools import utils, logger, urlutils
 from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
@@ -90,14 +90,10 @@ def main():
         apk_path = args.path
 
         if args.path.startswith("http://") or args.path.startswith("https://"):
-            url = args.path
-            apk_path = resource.get_temp_path(
-                "download",
-                utils.get_md5(url),
-                utils.guess_file_name(url)
-            )
-            logger.info(f"Download file to local: {apk_path}")
-            utils.download(url, apk_path)
+            logger.info(f"Download file: {args.path}")
+            file = urlutils.UrlFile(args.path)
+            apk_path = file.save()
+            logger.info(f"Save file to local: {apk_path}")
 
         path = device.get_data_path("apk", f"{int(time.time())}.apk")
         try:

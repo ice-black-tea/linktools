@@ -19,7 +19,7 @@ import frida
 from colorama import Fore
 
 from linktools import utils, resource, get_logger
-from linktools.frida.script import FridaScriptFile, FridaEvalCode
+from linktools.frida.script import FridaUserScript, FridaEvalCode, FridaScriptFile
 
 logger = get_logger("frida.app")
 
@@ -121,7 +121,7 @@ class FridaApplication:
             self,
             device: Union[frida.core.Device, "FridaServer"],
             user_parameters: Dict[str, any] = None,
-            user_scripts: Collection[Union[str, FridaScriptFile]] = None,
+            user_scripts: Collection[Union[str, FridaUserScript]] = None,
             enable_spawn_gating: bool = False,
             enable_child_gating: bool = False,
             eternalize: str = False,
@@ -287,7 +287,7 @@ class FridaApplication:
         for user_script in self._user_scripts:
             script_files.append(user_script)
 
-        return [{"filename": o.path, "source": o.source} for o in script_files]
+        return [{"filename": o.ident, "source": o.source} for o in script_files]
 
     def _load_script(self, pid: int, resume: bool = False):
         logger.debug(f"Attempt to load script: pid={pid}, resume={resume}")
@@ -371,7 +371,7 @@ class FridaApplication:
 
     def _monitor_all(self):
 
-        def monitor_file(file):
+        def monitor_file(file: FridaScriptFile):
             logger.debug(f"Monitor file: {file.path}")
             monitor = frida.FileMonitor(file.path)
             monitor.on("change", lambda changed_file, other_file, event_type: on_change(event_type, file))
@@ -391,9 +391,9 @@ class FridaApplication:
                 self.on_file_change(changed_file)
 
         script_files = []
-        for script_file in self._user_scripts:
-            if script_file.reload_on_update:
-                script_files.append(script_file)
+        for user_script in self._user_scripts:
+            if isinstance(user_script, FridaScriptFile):
+                script_files.append(user_script)
         if self._debug:
             script_files.append(self._internal_debug_script)
 

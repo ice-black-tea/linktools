@@ -71,13 +71,18 @@ class Resource(object):
 
     @classmethod
     def _get_path(cls, root_path: str, *paths: [str], create: bool = False, create_parent: bool = False):
-        path = os.path.join(root_path, *paths)
+        target_path = parent_path = os.path.abspath(root_path)
+        for path in paths:
+            target_path = os.path.abspath(os.path.join(parent_path, path))
+            if target_path == parent_path or parent_path != os.path.commonpath([parent_path, target_path]):
+                raise Exception(f"Unsafe path \"{path}\"")
+            parent_path = target_path
         dir_path = None
         if create:
-            dir_path = path
+            dir_path = target_path
         elif create_parent:
-            dir_path = os.path.dirname(path)
+            dir_path = os.path.dirname(target_path)
         if dir_path is not None:
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
-        return path
+        return target_path

@@ -26,29 +26,22 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import abc
 import os
 import threading
 from typing import Union, Optional
 
-from filelock import FileLock
-
-from linktools import resource, utils, get_logger
+from linktools import utils, get_logger, urlutils
 
 logger = get_logger("frida.app")
 
 
-class FridaScriptFile(object):
+class FridaUserScript(metaclass=abc.ABCMeta):
     __missing__ = object()
 
-    def __init__(self, file_path: str):
-        self._path = file_path
+    def __init__(self):
         self._source: Union[str, object] = self.__missing__
         self._lock = threading.RLock()
-
-    @property
-    def path(self) -> str:
-        return self._path
 
     @property
     def source(self) -> Optional[str]:
@@ -58,13 +51,33 @@ class FridaScriptFile(object):
                     self._source = self._load()
         return self._source
 
-    @property
-    def reload_on_update(self) -> bool:
-        return True
-
     def clear(self) -> None:
         with self._lock:
             self._source = self.__missing__
+
+    @property
+    @abc.abstractmethod
+    def ident(self):
+        pass
+
+    @abc.abstractmethod
+    def _load(self) -> Optional[str]:
+        pass
+
+
+class FridaScriptFile(FridaUserScript):
+
+    def __init__(self, file_path: str):
+        super().__init__()
+        self._path = file_path
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def ident(self):
+        return self._path
 
     def _load(self) -> Optional[str]:
         with open(self._path, "rb") as f:
@@ -75,65 +88,59 @@ class FridaScriptFile(object):
         return self.path
 
 
-class FridaEvalCode(FridaScriptFile):
+class FridaEvalCode(FridaUserScript):
 
-    def __init__(self, code, ident="<anonymous>"):
-        super().__init__(ident)
+    def __init__(self, code):
+        super().__init__()
         self._code = code
 
     @property
-    def reload_on_update(self) -> bool:
-        return False
+    def ident(self):
+        return "<anonymous>"
 
     def _load(self):
         return self._code
 
 
-class FridaShareScript(FridaScriptFile):
+class FridaShareScript(FridaUserScript):
 
     def __init__(self, url: str, cached: bool = False, trusted: bool = False):
-        super().__init__(resource.get_temp_path(
-            "frida",
-            "share_script",
-            utils.get_md5(url),
-            utils.guess_file_name(url),
-            create_parent=True
-        ))
+        super().__init__()
         self._url = url
         self._cached = cached
         self._trusted = trusted
+        self._file = urlutils.UrlFile(self._url)
 
     @property
-    def reload_on_update(self) -> bool:
-        return False
+    def ident(self):
+        return self._url
 
     def _load(self):
 
-        with FileLock(self._path + ".share.lock"):  # 文件锁，避免多进程同时操作
+        with self._file:  # 文件锁，避免多进程同时操作
 
-            if not self._cached or not os.path.exists(self._path):
-                if os.path.exists(self._path):
-                    logger.debug(f"Remove shared script cache: {self._path}")
-                    os.remove(self._path)
-                logger.info(f"Download shared script: {self._url}")
-                utils.download(self._url, self._path)
+            if not self._cached:
+                self._file.clear()
 
-            with open(self._path, "rb") as f:
+            logger.info(f"Download shared script: {self._url}")
+            target_path = self._file.save()
+
+            with open(target_path, "rb") as f:
                 source = f.read().decode("utf-8")
 
             if self._trusted:
-                logger.info(f"Load trusted shared script: {self._path}")
+                logger.info(f"Load trusted shared script: {self._url}")
                 return source
 
             cached_md5 = ""
-            cached_md5_path = self._path + ".md5"
+            cached_md5_path = target_path + ".md5"
             if os.path.exists(cached_md5_path):
                 with open(cached_md5_path, "rt") as fd:
                     cached_md5 = fd.read()
 
             source_md5 = utils.get_md5(source)
             if cached_md5 == source_md5:
-                logger.info(f"Load trusted shared script: {self._path}")
+                logger.info(f"Load trusted shared script: {self._url}")
                 return source
 
             line_count = 20
@@ -153,10 +160,10 @@ class FridaShareScript(FridaScriptFile):
             while True:
                 response = input(">>> Are you sure you'd like to trust it? [y/N]: ")
                 if response.lower() in ('n', 'no') or response == '':
-                    logger.info(f"Ignore untrusted shared script: {self._path}")
+                    logger.info(f"Ignore untrusted shared script: {self._url}")
                     return None
                 if response.lower() in ('y', 'yes'):
                     with open(cached_md5_path, "wt") as fd:
                         fd.write(source_md5)
-                    logger.info(f"Load trusted shared script: {self._path}")
+                    logger.info(f"Load trusted shared script: {self._url}")
                     return source

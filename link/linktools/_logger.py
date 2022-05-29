@@ -96,13 +96,7 @@ class Logger(logging.Logger):
         return super()._log(level, msg, None, **kwargs)
 
     @classmethod
-    def _compatible_args(cls, args, traceback_error=False, stack=False, options=None, **kwargs):
-        if traceback_error:
-            if "exc_info" not in kwargs:
-                kwargs["exc_info"] = True
-        if stack:
-            if "stack_info" not in kwargs:
-                kwargs["stack_info"] = True
+    def _compatible_args(cls, args, options=None, **kwargs):
 
         def get_option(item, default=None):
             if item in kwargs:

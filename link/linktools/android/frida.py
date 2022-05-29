@@ -19,7 +19,7 @@ import billiard
 import frida
 
 import linktools
-from linktools import resource, utils, get_logger
+from linktools import resource, utils, get_logger, urlutils
 from linktools.android import adb
 from linktools.frida import FridaServer
 
@@ -103,27 +103,18 @@ class FridaAndroidServer(FridaServer):
             config.setdefault("abi", abi)
 
             self._download_url = config["url"].format(**config)
-            self._temp_path = resource.get_temp_path(
-                "download",
-                utils.get_md5(self._download_url),
-                utils.guess_file_name(self._download_url),
-                create_parent=True
-            )
-
             self.local_name = config["name"].format(**config)
-            self.local_path = resource.get_data_path(
-                "frida",
-                self.local_name,
-                create_parent=True
-            )
-
+            self.local_path = resource.get_data_path("frida", self.local_name, create_parent=True)
             self.remote_name = "fs-{abi}-{version}".format(**config)
             self.remote_path = adb.Device.get_data_path(self.remote_name)
 
         def prepare(self):
-            if not os.path.exists(self.local_path):
-                logger.info("Download frida server ...")
-                utils.download(self._download_url, self._temp_path)
-                with lzma.open(self._temp_path, "rb") as read, open(self.local_path, "wb") as write:
+            if os.path.exists(self.local_path):
+                return
+            logger.info("Download frida server ...")
+            with urlutils.UrlFile(self._download_url) as file:
+                if os.path.exists(self.local_path):
+                    return
+                with lzma.open(file.save(), "rb") as read, open(self.local_path, "wb") as write:
                     shutil.copyfileobj(read, write)
-                os.remove(self._temp_path)
+                file.clear()
