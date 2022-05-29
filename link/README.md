@@ -36,7 +36,7 @@ SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
 
 ### 通用功能（脚本前缀为ct-）
 
-#### 🍎 ct-grep
+#### 🙋 ct-grep
 
 <details>
 <summary>类似linux中的grep，正则匹配文件内容 ，额外添加解析zip、elf等格等功能</summary>
@@ -60,7 +60,7 @@ optional arguments:
 
 </details>
 
-#### 🍎 ct-tools
+#### 🙋 ct-tools
 
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
@@ -88,7 +88,7 @@ optional arguments:
 
 </details>
 
-#### 🍎 ct-shell
+#### 🙋 ct-shell
 
 <details>
 <summary>已初始化常用工具环境变量的bash（mac/linux）、cmd（windows）</summary>
@@ -110,7 +110,7 @@ USER=huji
 
 ### android相关功能（脚本前缀为at-）
 
-#### 🍎 at-adb
+#### 🙋 at-adb
 
 <details>
 <summary>若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机</summary>
@@ -146,7 +146,7 @@ adb optional arguments:
 
 </details>
 
-#### 🍎 at-pidcat
+#### 🙋 at-pidcat
 
 <details>
 <summary>集成了pidcat，并且修复了中文字符宽度问题，原项目链接：https://github.com/JakeWharton/pidcat</summary>
@@ -191,7 +191,7 @@ adb optional arguments:
 
 </details>
 
-#### 🍎 at-top
+#### 🙋 at-top
 
 <details>
 <summary>显示顶层应用信息、获取顶层应用apk、截屏等</summary>
@@ -227,7 +227,7 @@ adb optional arguments:
 
 </details>
 
-#### 🍎 at-inetnt
+#### 🙋 at-inetnt
 
 <details>
 <summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
@@ -266,7 +266,7 @@ adb optional arguments:
 
 </details>
 
-#### 🍎 at-app
+#### 🙋 at-app
 
 <details>
 <summary>通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确</summary>
@@ -311,7 +311,7 @@ adb optional arguments:
 
 </details>
 
-#### 🍎 at-frida
+#### 🙋 at-frida
 
 <details>
 <summary>该功能旨在方便使用frida，可自动下载server，并内置了常用功能</summary>
@@ -343,8 +343,6 @@ optional arguments:
   -e CODE, --eval CODE  evaluate code
   -c URL, --codeshare URL
                         load share script url
-  -cc URL, --codeshare-cached URL
-                        load share script url, use cache first
   -d, --debug           debug mode
 
 adb optional arguments:
@@ -568,7 +566,7 @@ CallStack(callStack, logtag, 10);
 
 </details>
 
-#### 🍎 at-agent
+#### 🙋 at-agent
 
 <details>
 <summary>测试android-tools.apk时使用</summary>
@@ -603,7 +601,7 @@ adb optional arguments:
 
 ### ios相关功能（脚本前缀为it-）
 
-#### 🍎 it-frida
+#### 🙋 it-frida
 
 <details>
 <summary>该功能旨在方便使用frida，内置了常用功能</summary>
@@ -629,8 +627,6 @@ optional arguments:
   -e CODE, --eval CODE  evaluate code
   -c URL, --codeshare URL
                         load share script url
-  -cc URL, --codeshare-cached URL
-                        load share script url, use cache first
   -d, --debug           debug mode
 
 device optional arguments:
