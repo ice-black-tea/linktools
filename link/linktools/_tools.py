@@ -42,8 +42,6 @@ from ._environ import resource, config
 from ._logger import get_logger
 from .decorator import cached_property
 
-CONFIG_NAMESPACE = "GENERAL_TOOL_"
-
 logger = get_logger("utils")
 
 
@@ -230,11 +228,15 @@ class GeneralTool(metaclass=Meta):
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
-        if self.exists:
-            if not utils.is_empty(self.unpack_path):
-                shutil.rmtree(self.root_path, ignore_errors=True)
-            elif self.absolute_path.startswith(self.root_path):
-                os.remove(self.absolute_path)
+        if not self.exists:
+            logger.debug(f"{self} does not exist, skip")
+            return
+        if not utils.is_empty(self.unpack_path):
+            logger.debug(f"Delete {self.root_path}")
+            shutil.rmtree(self.root_path, ignore_errors=True)
+        elif self.absolute_path.startswith(self.root_path):
+            logger.debug(f"Delete {self.absolute_path}")
+            os.remove(self.absolute_path)
 
     def _process(self, fn, *args, **kwargs):
         self.prepare()
@@ -277,7 +279,7 @@ class GeneralTools(object):
     @cached_property
     def items(self) -> Mapping[str, GeneralTool]:
         items = {}
-        for key, value in config.get_namespace(CONFIG_NAMESPACE).items():
+        for key, value in config.get_namespace("GENERAL_TOOL_").items():
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue

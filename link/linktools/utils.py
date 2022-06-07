@@ -27,6 +27,14 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
+__all__ = (
+    "TimeoutMeter", "Reactor",
+    "Proxy", "lazy_load", "lazy_raise", "ignore_error",
+    "read_file", "popen", "exec",
+    "int", "bool", "is_contain", "is_empty", "get_item", "pop_item", "get_array_item",
+    "get_md5", "get_sha1", "make_uuid", "gzip_compress", "get_host_ip"
+)
+
 import collections
 import functools
 import os
@@ -445,6 +453,11 @@ def ignore_error(fn: Callable[..., T], *args, **kwargs) -> T:
         return None
 
 
+def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
+    with open(path, 'rb' if binary else 'r') as f:
+        return f.read()
+
+
 def popen(*args, **kwargs) -> subprocess.Popen:
     """
     打开进程
@@ -676,11 +689,6 @@ def get_array_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] 
     return array
 
 
-def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
-    with open(path, 'rb' if binary else 'r') as f:
-        return f.read()
-
-
 def get_md5(data: Union[str, bytes]) -> str:
     import hashlib
     if type(data) == str:
@@ -697,6 +705,12 @@ def get_sha1(data: Union[str, bytes]) -> str:
     s1 = hashlib.sha1()
     s1.update(data)
     return s1.hexdigest()
+
+
+def make_uuid() -> str:
+    import uuid
+    import random
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")
 
 
 def gzip_compress(data: Union[str, bytes]) -> bytes:
@@ -717,9 +731,3 @@ def get_host_ip() -> Optional[str]:
         return None
     finally:
         s.close()
-
-
-def make_uuid() -> str:
-    import uuid
-    import random
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")

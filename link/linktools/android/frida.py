@@ -36,13 +36,13 @@ class FridaAndroidServer(FridaServer):
         self._device = device or adb.Device()
         self._local_port = local_port
         self._remote_port = remote_port
-        self._environ = self.Environ(device.abi)
+        self._environ = self.Environ(device.abi, frida.__version__)
         self._process = None
 
     @classmethod
-    def setup(cls, abis=("arm", "arm64", "x86_64", "x86")):
+    def setup(cls, abis=("arm", "arm64", "x86_64", "x86"), version=frida.__version__):
         for abi in abis:
-            env = cls.Environ(abi)
+            env = cls.Environ(abi, version)
             env.prepare()
 
     @classmethod
@@ -97,7 +97,7 @@ class FridaAndroidServer(FridaServer):
 
     class Environ:
 
-        def __init__(self, abi, version=frida.__version__):
+        def __init__(self, abi, version):
             config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
             config.setdefault("version", version)
             config.setdefault("abi", abi)

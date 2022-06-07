@@ -36,6 +36,7 @@ import json
 import os
 import re
 import shelve
+import shutil
 from typing import Dict, Any
 
 from filelock import FileLock
@@ -44,7 +45,7 @@ from tqdm import tqdm
 from . import utils
 from ._environ import resource, config, tools
 from ._logger import get_logger
-from .decorator import locked_cached_property
+from .decorator import cached_property
 
 logger = get_logger("urlutils")
 
@@ -86,25 +87,28 @@ class UrlFile:
 
     def __init__(self, url: str):
         self._url = url
-        self._root_path = resource.get_temp_path("download", "{}_{}_{}".format(
+        self._ident = "{}_{}_{}".format(
             utils.get_md5(url),
             utils.get_sha1(url),
             guess_file_name(url)[-100:]
-        ))
-        self._lock_path = os.path.join(self._root_path, "lock")
+        )
+        self._root_path = resource.get_temp_path("download", self._ident)
         self._file_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")
 
-    @locked_cached_property
+    @cached_property
     def lock(self) -> FileLock:
         """
         获取文件锁
         :return: 文件锁
         """
-        if not os.path.exists(self._root_path):
-            logger.debug(f"Directory does not exist, create {self._root_path}")
-            os.makedirs(self._root_path)
-        return FileLock(self._lock_path)
+        return FileLock(
+            resource.get_temp_path(
+                "file_lock",
+                "download",
+                self._ident,
+                create_parent=True)
+        )
 
     def save(self,
              save_dir: str = None, save_name: str = None,
@@ -128,6 +132,9 @@ class UrlFile:
         try:
             lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
 
+            if not os.path.exists(self._root_path):
+                os.makedirs(self._root_path)
+
             with shelve.open(self._context_path) as context:
 
                 if os.path.exists(self._file_path) and context.get(KEY_FILE_DOWNLOADED, False):
@@ -147,7 +154,7 @@ class UrlFile:
                 if save_dir:
                     # 如果指定了路径，先创建路径
                     if not os.path.exists(save_dir):
-                        logger.debug(f"Directory does not exist, create {save_dir}")
+                        logger.debug(f"{save_dir} does not exist, create")
                         os.makedirs(save_dir)
 
                     # 然后把文件保存到指定路径下
@@ -175,11 +182,16 @@ class UrlFile:
         """
         lock = lock or self.lock
         with lock.acquire(timeout):
-            logger.debug(f"Clear download path: {self._root_path}")
+            if not os.path.exists(self._root_path):
+                logger.debug(f"{self._root_path} does not exist, skip")
+                return
+            logger.debug(f"Clear {self._root_path}")
             if os.path.exists(self._file_path):
                 os.remove(self._file_path)
             if os.path.exists(self._context_path):
                 os.remove(self._context_path)
+            if not os.listdir(self._root_path):
+                shutil.rmtree(self._root_path, ignore_errors=True)
 
     def __enter__(self):
         self.lock.acquire()

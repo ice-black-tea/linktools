@@ -74,7 +74,7 @@ class Resource(object):
         target_path = parent_path = os.path.abspath(root_path)
         for path in paths:
             target_path = os.path.abspath(os.path.join(parent_path, path))
-            if target_path == parent_path or parent_path != os.path.commonpath([parent_path, target_path]):
+            if target_path == parent_path or not cls.is_child_path(parent_path, target_path):
                 raise Exception(f"Unsafe path \"{path}\"")
             parent_path = target_path
         dir_path = None
@@ -86,3 +86,7 @@ class Resource(object):
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
         return target_path
+
+    @classmethod
+    def is_child_path(cls, parent, child):
+        return parent == os.path.commonpath([parent, child])

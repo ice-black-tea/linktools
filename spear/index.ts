@@ -115,7 +115,6 @@ declare global {
     const ObjCHelper: ObjCHelper;
     const IOSHelper: IOSHelper;
     const parameters: Parameters;
-    function memoize(): Function;
     function ignoreError<T>(fn: () => T): T;
     function ignoreError<T>(fn: () => T, defautValue: T): T;
     function parseBoolean(value: string | boolean);

@@ -109,7 +109,6 @@ class FridaShareScript(FridaUserScript):
         self._url = url
         self._cached = cached
         self._trusted = trusted
-        self._file = urlutils.UrlFile(self._url)
 
     @property
     def ident(self):
@@ -117,13 +116,13 @@ class FridaShareScript(FridaUserScript):
 
     def _load(self):
 
-        with self._file:  # 文件锁，避免多进程同时操作
+        with urlutils.UrlFile(self._url) as file:  # 文件锁，避免多进程同时操作
 
             if not self._cached:
-                self._file.clear()
+                file.clear()
 
             logger.info(f"Download shared script: {self._url}")
-            target_path = self._file.save()
+            target_path = file.save()
 
             with open(target_path, "rb") as f:
                 source = f.read().decode("utf-8")
