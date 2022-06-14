@@ -87,11 +87,7 @@ class UrlFile:
 
     def __init__(self, url: str):
         self._url = url
-        self._ident = "{}_{}_{}".format(
-            utils.get_md5(url),
-            utils.get_sha1(url),
-            guess_file_name(url)[-100:]
-        )
+        self._ident = f"{utils.get_md5(url)}_{guess_file_name(url)[-100:]}"
         self._root_path = resource.get_temp_path("download", self._ident)
         self._file_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")

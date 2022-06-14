@@ -143,6 +143,7 @@ manager = logging.Manager(logging.getLogger())
 manager.setLoggerClass(Logger)
 
 
-def get_logger(name: str = None) -> "Logger":
-    name = f"{module_name}.{name}" if name else module_name
+def get_logger(name: str = None, prefix=module_name) -> "Logger":
+    if prefix:
+        name = f"{prefix}.{name}" if name else prefix
     return manager.getLogger(name)

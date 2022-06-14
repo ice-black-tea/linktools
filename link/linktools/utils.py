@@ -32,7 +32,7 @@ __all__ = (
     "Proxy", "lazy_load", "lazy_raise", "ignore_error",
     "read_file", "popen", "exec",
     "int", "bool", "is_contain", "is_empty", "get_item", "pop_item", "get_array_item",
-    "get_md5", "get_sha1", "make_uuid", "gzip_compress", "get_host_ip"
+    "get_md5", "get_sha1", "get_sha256", "make_uuid", "gzip_compress", "get_host_ip"
 )
 
 import collections
@@ -43,7 +43,6 @@ import threading
 import time
 import traceback
 import warnings
-from collections.abc import Iterable
 from typing import Union, Sized, Callable, TypeVar, Optional, Type, Any, List
 
 from ._logger import get_logger
@@ -553,7 +552,7 @@ def is_contain(obj: object, key: object) -> "bool":
     """
     if object is None:
         return False
-    if isinstance(obj, Iterable):
+    if isinstance(obj, collections.abc.Iterable):
         return key in obj
     return False
 
@@ -675,7 +674,7 @@ def get_array_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] 
     :return: 子项
     """
     objs = get_item(obj, *keys, default=None)
-    if objs is None or not isinstance(objs, Iterable):
+    if objs is None or not isinstance(objs, collections.abc.Iterable):
         return default
     array = []
     for obj in objs:
@@ -703,6 +702,15 @@ def get_sha1(data: Union[str, bytes]) -> str:
     if type(data) == str:
         data = bytes(data, 'utf8')
     s1 = hashlib.sha1()
+    s1.update(data)
+    return s1.hexdigest()
+
+
+def get_sha256(data: Union[str, bytes]) -> str:
+    import hashlib
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    s1 = hashlib.sha256()
     s1.update(data)
     return s1.hexdigest()
 
