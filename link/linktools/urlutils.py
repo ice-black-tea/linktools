@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("make_url", "cookie_to_dict", "guess_file_name",
+__all__ = ("make_url", "cookie_to_dict", "guess_file_name", "user_agent",
            "DownloadError", "UrlFile",
            "NotFoundVersion", "get_chrome_driver",)
 
@@ -37,7 +37,8 @@ import os
 import re
 import shelve
 import shutil
-from typing import Dict, Any
+from typing import Dict, Union, List, Tuple
+from urllib import parse
 
 from filelock import FileLock
 from tqdm import tqdm
@@ -56,13 +57,44 @@ KEY_FILE_DOWNLOADED = "file_downloaded"
 KEY_USER_AGENT = "user_agent"
 KEY_HEADERS = "headers"
 
+USER_AGENT = None
+DATA_TYPE = Union[str, int, float]
 
-def make_url(url: str, path: str, **kwargs: Any) -> str:
-    from urllib import parse
+
+def user_agent(style=None) -> str:
+    try:
+        from .reference.fake_useragent import UserAgent, VERSION
+
+        global USER_AGENT
+        if (not USER_AGENT) and style:
+            USER_AGENT = UserAgent(
+                path=resource.get_temp_path(
+                    "fake_useragent",
+                    f"{VERSION}.json",
+                    create_parent=True
+                )
+            )
+
+        if style:
+            return USER_AGENT[style]
+
+    except Exception as e:
+        logger.debug(f"fetch user agent error: {e}")
+
+    return config["SETTING_DOWNLOAD_USER_AGENT"]
+
+
+def make_url(url: str, path: str, **kwargs: Union[DATA_TYPE, List[DATA_TYPE], Tuple[DATA_TYPE]]) -> str:
     result = url.rstrip("/") + "/" + path.lstrip("/")
     if len(kwargs) > 0:
-        query_string = "&".join([f"{parse.quote(k)}={parse.quote(str(v))}" for k, v in kwargs.items()])
-        result = result + "?" + query_string
+        queries = []
+        for key, value in kwargs.items():
+            if isinstance(value, (list, tuple)):
+                for v in value:
+                    queries.append((key, v))
+            else:
+                queries.append((key, value))
+        result = result + "?" + "&".join([f"{parse.quote(k)}={parse.quote(str(v))}" for k, v in queries])
     return result
 
 
@@ -98,6 +130,7 @@ class UrlFile:
         获取文件锁
         :return: 文件锁
         """
+        # noinspection PyTypeChecker
         return FileLock(
             resource.get_temp_path(
                 "file_lock",
@@ -140,8 +173,10 @@ class UrlFile:
                     # 初始化环境信息
                     context[KEY_URL] = self._url
                     context[KEY_FILE_DOWNLOADED] = False
-                    context[KEY_FILE_NAME] = save_name or guess_file_name(self._url)
-                    context[KEY_USER_AGENT] = kwargs.get(KEY_USER_AGENT) or config["SETTING_DOWNLOAD_USER_AGENT"]
+                    if KEY_FILE_NAME not in context:
+                        context[KEY_FILE_NAME] = save_name or guess_file_name(self._url)
+                    if KEY_USER_AGENT not in context:
+                        context[KEY_USER_AGENT] = kwargs.get(KEY_USER_AGENT) or user_agent("chrome")
                     # 正式下载开始
                     self._download(context, timeout_meter)
                     # 下载完成后，把状态位标记成True
@@ -159,7 +194,7 @@ class UrlFile:
                     os.rename(self._file_path, target_path)
 
                     # 把文件移动到指定目录之后，就可以清理缓存文件了
-                    self.clear(lock, timeout_meter.get())
+                    self.clear(timeout=timeout_meter.get())
 
         except DownloadError as e:
             raise e
