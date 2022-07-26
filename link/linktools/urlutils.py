@@ -50,24 +50,19 @@ from .decorator import cached_property
 
 logger = get_logger("urlutils")
 
-KEY_URL = "url"
-KEY_FILE_SIZE = "file_size"
-KEY_FILE_NAME = "file_name"
-KEY_FILE_DOWNLOADED = "file_downloaded"
-KEY_USER_AGENT = "user_agent"
-KEY_HEADERS = "headers"
+DataType = Union[str, int, float]
+QueryType = Union[DataType, List[DataType], Tuple[DataType]]
 
-USER_AGENT = None
-DATA_TYPE = Union[str, int, float]
+_user_agent = None
 
 
 def user_agent(style=None) -> str:
     try:
         from .reference.fake_useragent import UserAgent, VERSION
 
-        global USER_AGENT
-        if (not USER_AGENT) and style:
-            USER_AGENT = UserAgent(
+        global _user_agent
+        if (not _user_agent) and style:
+            _user_agent = UserAgent(
                 path=resource.get_temp_path(
                     "fake_useragent",
                     f"{VERSION}.json",
@@ -76,7 +71,9 @@ def user_agent(style=None) -> str:
             )
 
         if style:
-            return USER_AGENT[style]
+            return _user_agent[style]
+
+        return _user_agent.random
 
     except Exception as e:
         logger.debug(f"fetch user agent error: {e}")
@@ -84,7 +81,7 @@ def user_agent(style=None) -> str:
     return config["SETTING_DOWNLOAD_USER_AGENT"]
 
 
-def make_url(url: str, path: str, **kwargs: Union[DATA_TYPE, List[DATA_TYPE], Tuple[DATA_TYPE]]) -> str:
+def make_url(url: str, path: str, **kwargs: QueryType) -> str:
     result = url.rstrip("/") + "/" + path.lstrip("/")
     if len(kwargs) > 0:
         queries = []
@@ -107,12 +104,44 @@ def cookie_to_dict(cookie: str) -> Dict[str, str]:
 
 
 def guess_file_name(url: str) -> str:
-    from urllib.parse import urlparse
-    return os.path.split(urlparse(url).path)[1]
+    return os.path.split(parse.urlparse(url).path)[1]
 
 
 class DownloadError(Exception):
     pass
+
+
+# noinspection PyProtectedMember,SpellCheckingInspection
+class _ContextVar(property):
+
+    def __init__(self, key, default=None):
+        def fget(o: "_Context"):
+            return o._db.get(key, default)
+
+        def fset(o: "_Context", v):
+            o._db[key] = v
+
+        super().__init__(fget=fget, fset=fset)
+
+
+class _Context:
+    url = _ContextVar("url")
+    user_agent = _ContextVar("user_agent")
+    headers = _ContextVar("headers")
+    file_path = _ContextVar("file_path")
+    file_size = _ContextVar("file_size")
+    file_name = _ContextVar("file_name")
+    completed = _ContextVar("completed", False)
+
+    def __init__(self, path: str):
+        self._db = shelve.open(path)
+
+    def __enter__(self):
+        self._db.__enter__()
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self._db.__exit__(*args, **kwargs)
 
 
 class UrlFile:
@@ -125,38 +154,24 @@ class UrlFile:
         self._context_path = os.path.join(self._root_path, "context")
 
     @cached_property
-    def lock(self) -> FileLock:
-        """
-        获取文件锁
-        :return: 文件锁
-        """
+    def _lock(self) -> FileLock:
         # noinspection PyTypeChecker
         return FileLock(
-            resource.get_temp_path(
-                "file_lock",
-                "download",
-                self._ident,
-                create_parent=True)
+            resource.get_temp_path("download", "lock", self._ident, create_parent=True)
         )
 
-    def save(self,
-             save_dir: str = None, save_name: str = None,
-             lock: FileLock = None, timeout: int = None,
-             **kwargs) -> str:
+    def save(self, save_dir: str = None, save_name: str = None, timeout: int = None, **kwargs) -> str:
         """
         从指定url下载文件
         :param save_dir: 文件路径，如果为空，则保存到temp目录
         :param save_name: 文件名，如果为空，则默认为下载的文件名
         :param timeout: 超时时间
-        :param lock: 文件锁
         :return: 文件路径
         """
 
+        lock = self._lock
         target_path = self._file_path
         timeout_meter = utils.TimeoutMeter(timeout)
-
-        if not lock:
-            lock = self.lock
 
         try:
             lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
@@ -164,23 +179,28 @@ class UrlFile:
             if not os.path.exists(self._root_path):
                 os.makedirs(self._root_path)
 
-            with shelve.open(self._context_path) as context:
+            with _Context(self._context_path) as context:
 
-                if os.path.exists(self._file_path) and context.get(KEY_FILE_DOWNLOADED, False):
+                if os.path.exists(self._file_path) and context.completed:
                     # 下载完成了，那就不用再下载了
                     logger.debug(f"{self._file_path} downloaded, skip")
+
                 else:
                     # 初始化环境信息
-                    context[KEY_URL] = self._url
-                    context[KEY_FILE_DOWNLOADED] = False
-                    if KEY_FILE_NAME not in context:
-                        context[KEY_FILE_NAME] = save_name or guess_file_name(self._url)
-                    if KEY_USER_AGENT not in context:
-                        context[KEY_USER_AGENT] = kwargs.get(KEY_USER_AGENT) or user_agent("chrome")
-                    # 正式下载开始
+                    context.url = self._url
+                    context.file_path = self._file_path
+                    context.file_size = None
+
+                    if not context.file_name:
+                        context.file_name = save_name or guess_file_name(self._url)
+                    if not context.user_agent or True:
+                        context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
+                        print(context.user_agent)
+
+                    # 开始下载
+                    context.completed = False
                     self._download(context, timeout_meter)
-                    # 下载完成后，把状态位标记成True
-                    context[KEY_FILE_DOWNLOADED] = True
+                    context.completed = True
 
                 if save_dir:
                     # 如果指定了路径，先创建路径
@@ -189,7 +209,7 @@ class UrlFile:
                         os.makedirs(save_dir)
 
                     # 然后把文件保存到指定路径下
-                    target_path = os.path.join(save_dir, save_name or context[KEY_FILE_NAME])
+                    target_path = os.path.join(save_dir, save_name or context.file_name)
                     logger.debug(f"Rename {self._file_path} to {target_path}")
                     os.rename(self._file_path, target_path)
 
@@ -207,11 +227,11 @@ class UrlFile:
 
         return target_path
 
-    def clear(self, lock: FileLock = None, timeout: int = None):
+    def clear(self, timeout: int = None):
         """
         清空缓存文件
         """
-        lock = lock or self.lock
+        lock = self._lock
         with lock.acquire(timeout):
             if not os.path.exists(self._root_path):
                 logger.debug(f"{self._root_path} does not exist, skip")
@@ -225,103 +245,95 @@ class UrlFile:
                 shutil.rmtree(self._root_path, ignore_errors=True)
 
     def __enter__(self):
-        self.lock.acquire()
+        self._lock.acquire()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.lock.release()
+    def __exit__(self, *args, **kwargs):
+        self._lock.release()
 
-    def _download(self, context, timeout_meter):
-        logger.debug(f"Download file to temp path {self._file_path}")
+    @classmethod
+    def _download(cls, context: _Context, timeout_meter: utils.TimeoutMeter):
+        logger.debug(f"Download file to temp path {context.file_path}")
 
-        offset = 0
+        initial = 0
         # 如果文件存在，则继续上一次下载
-        if os.path.exists(self._file_path):
-            size = os.path.getsize(self._file_path)
+        if os.path.exists(context.file_path):
+            size = os.path.getsize(context.file_path)
             logger.debug(f"{size} bytes downloaded, continue")
-            offset = size
+            initial = size
 
-        context[KEY_HEADERS] = {
-            "User-Agent": context[KEY_USER_AGENT],
-            "Range": f"bytes={offset}-",
+        context.headers = {
+            "User-Agent": context.user_agent,
+            "Range": f"bytes={initial}-",
         }
 
-        with tqdm(unit='B', initial=offset, unit_scale=True, miniters=1, desc=context[KEY_FILE_NAME]) as t:
+        with tqdm(unit='B', initial=initial, unit_scale=True, miniters=1, desc=context.file_name) as t:
 
             try:
                 import requests
-                download_fn = self._download_with_requests
+                download_fn = cls._download_with_requests
             except ModuleNotFoundError:
-                download_fn = self._download_with_urllib
+                download_fn = cls._download_with_urllib
 
-            for name, total, read in download_fn(context, timeout_meter.get()):
-                if total is not None:
-                    t.total = offset + total
-                if name is not None:
-                    t.desc = name
-                t.update(offset + read - t.n)
+            with open(context.file_path, 'ab') as fp:
+                offset = 0
+                for data in download_fn(context, timeout_meter.get()):
+                    offset += len(data)
+                    fp.write(data)
+                    if context.file_size is not None:
+                        t.total = initial + context.file_size
+                    t.desc = context.file_name
+                    t.update(initial + offset - t.n)
 
             if t.total is not None and t.total > t.n:
                 raise DownloadError(f"download size {t.total} bytes was expected, got {t.n} bytes")
 
-            if os.path.getsize(self._file_path) == 0:
-                raise DownloadError(f"download {self._url} error")
+            if os.path.getsize(context.file_path) == 0:
+                raise DownloadError(f"download {context.url} error")
 
-    def _download_with_requests(self, context, timeout):
+    @classmethod
+    def _download_with_requests(cls, context: _Context, timeout: float):
         import requests
 
         bs = 1024 * 8
-        name = None
-        total = None
-        read = 0
-        yield name, total, read
 
-        with requests.get(self._url, headers=context[KEY_HEADERS], stream=True, timeout=timeout) as resp:
+        with requests.get(context.url, headers=context.headers, stream=True, timeout=timeout) as resp:
+
+            resp.raise_for_status()
 
             if "Content-Length" in resp.headers:
-                context[KEY_FILE_SIZE] = total = int(resp.headers.get("Content-Length"))
+                context.file_size = int(resp.headers.get("Content-Length"))
             if "Content-Disposition" in resp.headers:
                 groups = re.findall("filename=(.+)", resp.headers.get("Content-Disposition"))
                 if len(groups) > 0:
-                    context[KEY_FILE_NAME] = name = groups[0]
+                    context.file_name = groups[0]
 
-            with open(self._file_path, 'ab') as tfp:
-                yield name, total, read
-                for chunk in resp.iter_content(bs):
-                    if chunk:
-                        read += len(chunk)
-                        tfp.write(chunk)
-                        yield name, total, read
+            for chunk in resp.iter_content(bs):
+                if chunk:
+                    yield chunk
 
-    def _download_with_urllib(self, context, timeout):
+    @classmethod
+    def _download_with_urllib(cls, context: _Context, timeout: float):
         from urllib.request import urlopen, Request
 
         bs = 1024 * 8
-        name = None
-        total = None
-        read = 0
-        yield name, total, read
 
-        url = Request(self._url, headers=context[KEY_HEADERS])
+        url = Request(context.url, headers=context.headers)
         with contextlib.closing(urlopen(url=url, timeout=timeout)) as fp:
 
-            response_headers = fp.info()
-            if "Content-Length" in response_headers:
-                context[KEY_FILE_SIZE] = total = int(response_headers["Content-Length"])
-            if "Content-Disposition" in response_headers:
-                groups = re.findall("filename=(.+)", response_headers["Content-Disposition"])
+            headers = fp.info()
+            if "Content-Length" in headers:
+                context.file_size = int(headers["Content-Length"])
+            if "Content-Disposition" in headers:
+                groups = re.findall("filename=(.+)", headers["Content-Disposition"])
                 if len(groups) > 0:
-                    context[KEY_FILE_SIZE] = name = groups[0]
+                    context.file_size = groups[0]
 
-            with open(self._file_path, "ab") as tfp:
-                yield name, total, read
-                while True:
-                    chunk = fp.read(bs)
-                    if not chunk:
-                        break
-                    read += len(chunk)
-                    tfp.write(chunk)
-                    yield name, total, read
+            while True:
+                chunk = fp.read(bs)
+                if not chunk:
+                    break
+                yield chunk
 
 
 class NotFoundVersion(Exception):

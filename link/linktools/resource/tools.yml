@@ -179,6 +179,14 @@ GENERAL_TOOL_JADX_GUI:
         then: bin/jadx-gui.bat
       - else: ~
 
+GENERAL_TOOL_UBER_APK_SIGNER:
+  name: uber-apk-signer
+  version: 1.2.1
+  download_url: https://github.com/patrickfav/uber-apk-signer/releases/download/v{version}/uber-apk-signer-{version}.jar
+  target_path: uber-apk-signer-{version}.jar
+  executable: false
+  executable_cmdline: [java, -jar, "{absolute_path}"]
+
 GENERAL_TOOL_CHROMEDRIVER80: &GENERAL_TOOL_CHROMEDRIVER80
   version: 80.0.3987.106
   base_url: http://chromedriver.storage.googleapis.com

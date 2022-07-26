@@ -252,5 +252,5 @@ def load_cached(path, use_cache_server=True, verify_ssl=True):
     return read(path)
 
 
-from fake_useragent import settings  # noqa # isort:skip
-from fake_useragent.errors import FakeUserAgentError  # noqa # isort:skip
+from . import settings  # noqa # isort:skip
+from .errors import FakeUserAgentError  # noqa # isort:skip
