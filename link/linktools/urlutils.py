@@ -195,7 +195,6 @@ class UrlFile:
                         context.file_name = save_name or guess_file_name(self._url)
                     if not context.user_agent or True:
                         context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
-                        print(context.user_agent)
 
                     # 开始下载
                     context.completed = False
