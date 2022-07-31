@@ -160,14 +160,15 @@ class PackagePrinter:
                 self._print_component(self.stream, provider, indent=indent + 4, identity="Provider")
             self.stream.print_line()
 
-    @staticmethod
-    def _print_permission(stream: PrintStreamWrapper, permission: Permission, indent: int = 0, identity: str = None):
+    @classmethod
+    def _print_permission(cls, stream: PrintStreamWrapper, permission: Permission, indent: int = 0,
+                          identity: str = None):
         if permission.is_defined():
             stream.print("%s [%s] %s" % (identity, permission, permission.protection), indent=indent,
                          level=stream.dangerous if permission.is_dangerous() else stream.normal)
 
-    @staticmethod
-    def _print_component(stream: PrintStreamWrapper, component: Component, indent: int = 0, identity: str = None):
+    @classmethod
+    def _print_component(cls, stream: PrintStreamWrapper, component: Component, indent: int = 0, identity: str = None):
         if not component.enabled:
             description = "disabled"
             level = stream.useless
@@ -183,29 +184,29 @@ class PackagePrinter:
         stream.print("%s [%s] %s" % (identity, component, description), indent=indent, level=level)
 
         if isinstance(component, Activity) or isinstance(component, Service) or isinstance(component, Receiver):
-            PackagePrinter._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
+            cls._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
         elif isinstance(component, Provider):
             stream.print("Authority [%s]" % component.authority, indent=indent + 4, level=level)
-            PackagePrinter._print_permission(stream, component.read_permission, indent=indent + 4,
-                                             identity="ReadPermission")
-            PackagePrinter._print_permission(stream, component.write_permission, indent=indent + 4,
-                                             identity="writePermission")
+            cls._print_permission(stream, component.read_permission, indent=indent + 4,
+                                  identity="ReadPermission")
+            cls._print_permission(stream, component.write_permission, indent=indent + 4,
+                                  identity="writePermission")
             for pattern in component.uri_permission_patterns:
                 stream.print("UriPermissionPattern [%s]" % pattern, indent=indent + 4, level=level)
             for permission in component.path_permissions:
                 stream.print("PathPermission [%s]" % permission, indent=indent + 4,
                              level=stream.dangerous if permission.is_dangerous() else stream.normal)
-                PackagePrinter._print_permission(stream, permission.read_permission, indent=indent + 8,
-                                                 identity="ReadPermission")
-                PackagePrinter._print_permission(stream, permission.write_permission, indent=indent + 8,
-                                                 identity="writePermission")
+                cls._print_permission(stream, permission.read_permission, indent=indent + 8,
+                                      identity="ReadPermission")
+                cls._print_permission(stream, permission.write_permission, indent=indent + 8,
+                                      identity="writePermission")
 
         if not utils.is_empty(component.intents):
             for intent in component.intents:
-                PackagePrinter._print_intent(stream, intent, indent=indent + 4, level=level)
+                cls._print_intent(stream, intent, indent=indent + 4, level=level)
 
-    @staticmethod
-    def _print_intent(stream: PrintStreamWrapper, intent: IntentFilter, indent: int = 0,
+    @classmethod
+    def _print_intent(cls, stream: PrintStreamWrapper, intent: IntentFilter, indent: int = 0,
                       level: int = PrintLevel.normal):
         stream.print("IntentFilter:", indent=indent, level=level)
         for action in intent.actions:

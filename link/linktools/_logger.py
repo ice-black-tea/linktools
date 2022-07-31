@@ -105,36 +105,46 @@ class Logger(logging.Logger):
                 return options.get(item, default)
             return None
 
+        fore = get_option("fore")
+        back = get_option("back")
+        style = get_option("style")
+
+        def set_styles():
+            result = ""
+            if fore is not None:
+                result = result + fore
+            if back is not None:
+                result = result + back
+            if style is not None:
+                result = result + style
+            return result
+
+        def reset_styles():
+            result = ""
+            if fore is not None and fore != colorama.Fore.RESET:
+                result = result + colorama.Fore.RESET
+            if back is not None and back != colorama.Back.RESET:
+                result = result + colorama.Back.RESET
+            if style is not None and style != colorama.Style.RESET_ALL:
+                result = result + colorama.Style.RESET_ALL
+            return result
+
         msg = ""
+
+        tag = get_option("tag") or ""
+        if len(tag) > 0:
+            msg += str(tag) + " "
 
         indent = get_option("indent", 0)
         if indent > 0:
             msg = msg + indent * " "
-        fore = get_option("fore")
-        if fore is not None:
-            msg = msg + fore
-        back = get_option("back")
-        if back is not None:
-            msg = msg + back
-        style = get_option("style")
-        if style is not None:
-            msg = msg + style
-        tag = get_option("tag") or ""
-        if len(tag) > 0:
-            tag = str(tag) + " "
-            msg = msg + tag
+
+        msg += set_styles()
         for arg in args:
             msg = msg + str(arg)
-
         if indent + len(tag) > 0:
             msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
-
-        if fore is not None and fore != colorama.Fore.RESET:
-            msg = msg + colorama.Fore.RESET
-        if back is not None and back != colorama.Back.RESET:
-            msg = msg + colorama.Back.RESET
-        if style is not None and style != colorama.Style.RESET_ALL:
-            msg = msg + colorama.Style.RESET_ALL
+        msg += reset_styles()
 
         return msg, kwargs
 

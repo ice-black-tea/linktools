@@ -27,9 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-# !/usr/bin/python
-
-# -*- coding: utf-8 -*-
 import os
 import re
 import shutil
