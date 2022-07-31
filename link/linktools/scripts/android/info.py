@@ -71,7 +71,7 @@ cmds = (
 )
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(logger_tag=True, known_errors=[AdbError])
 def main():
     parser = AndroidArgumentParser(description='fetch device information')
     parser.add_argument('agent_args', nargs='...', help="agent args")
