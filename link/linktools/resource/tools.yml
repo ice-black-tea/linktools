@@ -225,3 +225,13 @@ GENERAL_TOOL_TIDEVICE:
   target_path: fake_path
   executable: false
   executable_cmdline: [python, -m, tidevice]
+
+GENERAL_TOOL_IPATOOL:
+  version: 1.1.4
+  download_url:
+    case:
+      - when: {system: darwin}
+        then: https://github.com/majd/ipatool/releases/download/v{version}/ipatool-macos-v{version}.zip
+      - else: ~
+  unpack_path: ipatool-{version}
+  target_path: ipatool
