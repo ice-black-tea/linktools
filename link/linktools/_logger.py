@@ -132,8 +132,9 @@ class Logger(logging.Logger):
         msg = ""
 
         tag = get_option("tag") or ""
-        if len(tag) > 0:
-            msg += str(tag) + " "
+        if tag:
+            tag = tag + " "
+            msg += str(tag)
 
         indent = get_option("indent", 0)
         if indent > 0:

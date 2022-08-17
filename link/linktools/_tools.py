@@ -150,7 +150,7 @@ class GeneralTool(metaclass=Meta):
     exists: bool = property(lambda self: os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: os.path.dirname(self.absolute_path))
 
-    def __init__(self, container, cfg: Union[dict, str], **kwargs):
+    def __init__(self, container: "GeneralTools", cfg: Union[dict, str], **kwargs):
         self.__container = container
         self.__config = cfg
 
@@ -206,20 +206,22 @@ class GeneralTool(metaclass=Meta):
         return GeneralTool(self.__container, self.__config, **kwargs)
 
     def prepare(self) -> None:
+        # download and unzip file
         if self.exists:
             pass
         elif not self.download_url:
-            logger.warning("Download url is empty, skipped.")
-        else:
-            # download tool files
+            raise Exception(f"{self.name} does not support running on {self.__container.system}")
+        elif not self.exists:
             logger.info("Download tool: {}".format(self.download_url))
             url_file = urlutils.UrlFile(self.download_url)
             temp_dir = resource.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
+                logger.debug("Unpack tool to {}".format(self.root_path))
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
+                logger.debug("Move tool to {}".format(self.absolute_path))
                 os.rename(temp_path, self.absolute_path)
 
         # change tool file mode

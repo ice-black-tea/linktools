@@ -11,7 +11,9 @@ __all__ = ("FridaApplication",)
 
 import json
 import logging
+import os
 import threading
+from datetime import datetime
 from typing import Optional, Union, Dict, Collection, Callable
 
 import _frida
@@ -534,7 +536,10 @@ class FridaApplication:
         :param message: 事件消息
         :param data: 事件数据
         """
-        logger.info(f"Script event: {json.dumps(message, indent=2, ensure_ascii=False)}")
+        logger.info(
+            f"Script event at {datetime.now()}: {os.linesep}"
+            f"{json.dumps(message, indent=2, ensure_ascii=False)}"
+        )
 
     def on_script_send(self, script: FridaScript, type: str, message: object, data: object):
         """
@@ -544,7 +549,7 @@ class FridaApplication:
         :param message: json/字符串消息，上述例子的"xxx"
         :param data: 上述例子的null
         """
-        logger.debug(f"Script send, type={type}, message={message}")
+        logger.debug(f"Script send at {datetime.now()}, type={type}, message={message}")
 
     def on_script_message(self, script: FridaScript, message: object, data: object):
         """

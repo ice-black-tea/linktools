@@ -46,8 +46,9 @@ class FridaAndroidServer(FridaServer):
             env.prepare()
 
     @classmethod
-    def _run_in_background(cls, device: adb.Device, path: str, port: int):
+    def _run_in_background(cls, device_id, path: str, port: int):
         try:
+            device = adb.Device(device_id)
             device.sudo(path, "-d", "fs-binaries", "-l", f"0.0.0.0:{port}", stdin=subprocess.PIPE)
         except (KeyboardInterrupt, EOFError):
             pass
@@ -71,7 +72,7 @@ class FridaAndroidServer(FridaServer):
         self._process = billiard.context.Process(
             target=self._run_in_background,
             args=(
-                self._device,
+                self._device.id,
                 self._environ.remote_path,
                 self._remote_port,
             ),
