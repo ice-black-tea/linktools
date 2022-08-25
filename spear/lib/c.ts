@@ -137,7 +137,6 @@ export class CHelper {
         };
 
         const result = function (args) {
-            const result = this(args);
             const event = {};
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
@@ -150,20 +149,31 @@ export class CHelper {
             }
             if (opts.args) {
                 event["args"] = pretty2Json(args);
-                event["result"] = pretty2Json(result);
+                event["result"] = null;
+                event["error"] = null;
             }
-            if (opts.stack) {
-                const stack = [];
-                const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
-                for (let i = 0; i < elements.length; i++) {
-                    stack.push(DebugSymbol.fromAddress(elements[i]).toString());
+            try {
+                const result = this(args);
+                if (opts.args) {
+                    event["result"] = pretty2Json(result);
                 }
-                event["stack"] = stack;
+                return result;
+            } catch (e) {
+                if (opts.args) {
+                    event["error"] = pretty2Json(e);
+                }
+                throw e;
+            } finally {
+                if (opts.stack) {
+                    const stack = [];
+                    const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
+                    for (let i = 0; i < elements.length; i++) {
+                        stack.push(DebugSymbol.fromAddress(elements[i]).toString());
+                    }
+                    event["stack"] = stack;
+                }
+                send({event: event});
             }
-            send({
-                event: event
-            });
-            return result;
         };
 
         result["onLeave"] = function (ret) {
@@ -188,9 +198,7 @@ export class CHelper {
                 }
                 event["stack"] = stack;
             }
-            send({
-                event: event
-            });
+            send({event: event});
         }
 
         return result;

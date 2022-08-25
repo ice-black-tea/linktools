@@ -537,7 +537,7 @@ class FridaApplication:
         :param data: 事件数据
         """
         logger.info(
-            f"Script event at {datetime.now()}: {os.linesep}"
+            f"Script event at {datetime.now()}, {script.process_name} ({script.pid}): {os.linesep}"
             f"{json.dumps(message, indent=2, ensure_ascii=False)}"
         )
 
@@ -549,7 +549,10 @@ class FridaApplication:
         :param message: json/字符串消息，上述例子的"xxx"
         :param data: 上述例子的null
         """
-        logger.debug(f"Script send at {datetime.now()}, type={type}, message={message}")
+        logger.debug(
+            f"Script send at {datetime.now()}, {script.process_name} ({script.pid}), "
+            f"type={type}, message={message}"
+        )
 
     def on_script_message(self, script: FridaScript, message: object, data: object):
         """

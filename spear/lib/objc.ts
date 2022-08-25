@@ -165,7 +165,7 @@ export class ObjCHelper {
         };
 
         return function (obj, args) {
-            const result = this(obj, args);
+
             const event = {};
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
@@ -185,20 +185,31 @@ export class ObjCHelper {
                     objectArgs.push(self.convert2ObjcObject(args[i]));
                 }
                 event["args"] = pretty2Json(objectArgs);
-                event["result"] = pretty2Json(self.convert2ObjcObject(result));
+                event["result"] = null;
+                event["error"] = null;
             }
-            if (opts.stack) {
-                const stack = [];
-                const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
-                for (let i = 0; i < elements.length; i++) {
-                    stack.push(DebugSymbol.fromAddress(elements[i]).toString());
+            try {
+                const result = this(obj, args);
+                if (opts.args) {
+                    event["result"] = pretty2Json(self.convert2ObjcObject(result));
                 }
-                event["stack"] = stack;
+                return result;
+            } catch (e) {
+                if (opts.args) {
+                    event["error"] = pretty2Json(e);
+                }
+                throw e;
+            } finally {
+                if (opts.stack) {
+                    const stack = [];
+                    const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
+                    for (let i = 0; i < elements.length; i++) {
+                        stack.push(DebugSymbol.fromAddress(elements[i]).toString());
+                    }
+                    event["stack"] = stack;
+                }
+                send({ event: event });
             }
-            send({
-                event: event
-            });
-            return result;
         };
     }
 

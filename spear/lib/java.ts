@@ -21,6 +21,8 @@
  *   └─ canInvokeWith
  */
 
+import { resourceLimits } from "worker_threads";
+
 
 /**
  *  用于方便调用frida的java方法
@@ -338,7 +340,6 @@ export class JavaHelper {
         };
 
         return function (obj, args) {
-            const result = this(obj, args);
             const event = {};
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
@@ -354,15 +355,27 @@ export class JavaHelper {
             }
             if (opts.args) {
                 event["args"] = pretty2Json(args);
-                event["result"] = pretty2Json(result);
+                event["result"] = null;
+                event["error"] = null;
             }
-            if (opts.stack) {
-                event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
+
+            try {
+                const result = this(obj, args);
+                if (opts.args) {
+                    event["result"] = pretty2Json(result);
+                }
+                return result;
+            } catch (e) {
+                if (opts.args) {
+                    event["error"] = pretty2Json(e);
+                }
+                throw e;
+            } finally {
+                if (opts.stack) {
+                    event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
+                }
+                send({event: event});
             }
-            send({
-                event: event
-            });
-            return result;
         };
     }
 
