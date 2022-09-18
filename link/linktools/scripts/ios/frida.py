@@ -57,6 +57,8 @@ def main():
                         type=lambda o: FridaShareScript(o, cached=False),
                         help="load share script url")
 
+    parser.add_argument("-a", "--auto-start", action="store_true", default=False,
+                        help="automatically start when all processes exits")
     parser.add_argument("-d", "--debug", action="store_true", default=False,
                         help="debug mode")
 
@@ -81,7 +83,8 @@ def main():
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:
-                app.load_script(app.device.spawn(bundle_id), resume=True)
+                if args.auto_start:
+                    app.load_script(app.device.spawn(bundle_id), resume=True)
 
     with FridaIOSServer(device=device) as server:
 
@@ -103,8 +106,12 @@ def main():
 
         target_pids = set()
 
+        if args.spawn:
+            # 打开进程后注入
+            app.load_script(app.spawn(bundle_id), resume=True)
+
         # 匹配正在运行的进程
-        if not args.spawn:
+        else:
             # 匹配所有app
             for target_app in app.enumerate_applications():
                 if target_app.pid > 0 and target_app.identifier == bundle_id:
@@ -115,13 +122,13 @@ def main():
                 if target_process.pid > 0 and target_process.name == bundle_id:
                     target_pids.add(target_process.pid)
 
-        if len(target_pids) > 0:
-            # 进程存在，直接注入
-            for pid in target_pids:
-                app.load_script(pid)
-        else:
-            # 进程不存在，打开进程后注入
-            app.load_script(app.spawn(bundle_id), resume=True)
+            if len(target_pids) > 0:
+                # 进程存在，直接注入
+                for pid in target_pids:
+                    app.load_script(pid)
+            elif args.auto_start:
+                # 进程不存在，打开进程后注入
+                app.load_script(app.spawn(bundle_id), resume=True)
 
         app.run()
 

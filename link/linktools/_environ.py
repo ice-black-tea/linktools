@@ -103,7 +103,7 @@ def _create_default_tools():
         # dirname(executable[0]) -> environ["PATH"]
         if tool.executable:
             dir_name = tool.dirname
-            if len(dir_name) > 0 and dir_name not in dir_names:
+            if dir_name and dir_name not in dir_names:
                 # insert to head
                 dir_names.insert(index, tool.dirname)
                 index += 1

@@ -141,14 +141,15 @@ class GeneralTool(metaclass=Meta):
     name: str = Var(default="")
     version: str = Var(default="")
     download_url: str = Var(default="")
+    dummy_path: bool = Var(default=False)
     root_path: str = Var(default="")
     unpack_path: str = Var(default="")
     absolute_path: str = Var(default="")
     executable: bool = Var(default=True)
     executable_cmdline: tuple = Var(default=[])
 
-    exists: bool = property(lambda self: os.path.exists(self.absolute_path))
-    dirname: bool = property(lambda self: os.path.dirname(self.absolute_path))
+    exists: bool = property(lambda self: self.dummy_path or os.path.exists(self.absolute_path))
+    dirname: bool = property(lambda self: None if self.dummy_path else os.path.dirname(self.absolute_path))
 
     def __init__(self, container: "GeneralTools", cfg: Union[dict, str], **kwargs):
         self.__container = container
@@ -164,41 +165,59 @@ class GeneralTool(metaclass=Meta):
         cfg = self.__parser__.parse(self._raw_config)
 
         # download url
-        download_url = utils.get_item(cfg, "download_url", type=str) or ""
+        download_url = utils.get_item(cfg, "download_url") or ""
+        assert isinstance(download_url, str), \
+            f"{cfg['name']}.download_url type error, " \
+            f"str was expects, got {type(download_url)}"
+
         cfg["download_url"] = download_url.format(tools=self.__container, **cfg)
 
-        # unpack path
-        unpack_path = utils.get_item(cfg, "unpack_path", type=str) or ""
-        cfg["unpack_path"] = unpack_path.format(tools=self.__container, **cfg)
+        unpack_path = utils.get_item(cfg, "unpack_path") or ""
+        assert isinstance(unpack_path, str), \
+            f"{cfg['name']}.unpack_path type error, " \
+            f"str was expects, got {type(unpack_path)}"
 
+        target_path = utils.get_item(cfg, "target_path", type=str) or ""
+        assert isinstance(target_path, str), \
+            f"{cfg['name']}.target_path type error, " \
+            f"str was expects, got {type(target_path)}"
+
+        # target path: {target_path}
+        # unpack path: {unpack_path}
         # root path: tools/{unpack_path}/
+        # absolute path: tools/{unpack_path}/{target_path}
+        cfg["target_path"] = target_path.format(tools=self.__container, **cfg)
+        cfg["unpack_path"] = unpack_path.format(tools=self.__container, **cfg)
         paths = ["tools"]
         if not utils.is_empty(cfg["unpack_path"]):
             paths.append(cfg["unpack_path"])
         cfg["root_path"] = resource.get_data_dir(*paths)
-
-        # file path: tools/{unpack_path}/{target_path}
-        target_path = utils.get_item(cfg, "target_path", type=str) or ""
-        cfg["target_path"] = target_path.format(tools=self.__container, **cfg)
         cfg["absolute_path"] = os.path.join(cfg["root_path"], cfg["target_path"])
 
-        # is it executable
-        cfg["executable"] = utils.get_item(cfg, "executable", type=bool)
-
         # set executable cmdline
-        cmdline = (utils.get_item(cfg, "cmdline", type=str) or "")
+        cmdline = utils.get_item(cfg, "cmdline", type=str) or ""
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
         if not utils.is_empty(cmdline):
             cfg["absolute_path"] = cmdline
             cfg["executable_cmdline"] = [cmdline]
         else:
-            executable_cmdline = (utils.get_item(cfg, "executable_cmdline") or [cfg["absolute_path"]])
+            executable_cmdline = utils.get_item(cfg, "executable_cmdline")
+            if executable_cmdline:
+                assert isinstance(executable_cmdline, (str, tuple, list)), \
+                    f"{cfg['name']}.executable_cmdline type error, " \
+                    f"str/tuple/list was expects, got {type(executable_cmdline)}"
+                # if executable_cmdline is not empty,
+                # set the executable flag to false
+                cfg["executable"] = False
+            else:
+                # if executable_cmdline is empty,
+                # set absolute_path as executable_cmdline
+                executable_cmdline = cfg["absolute_path"]
             if isinstance(executable_cmdline, str):
                 executable_cmdline = [executable_cmdline]
-            for i in range(len(executable_cmdline)):
-                executable_cmdline[i] = str(executable_cmdline[i]).format(tools=self.__container, **cfg)
-            cfg["executable_cmdline"] = executable_cmdline
+            cfg["executable_cmdline"] = [str(i).format(tools=self.__container, **cfg) \
+                                         for i in executable_cmdline]
 
         return cfg
 

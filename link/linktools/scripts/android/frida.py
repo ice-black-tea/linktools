@@ -36,7 +36,6 @@ from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile,
 
 @entry_point(logger_tag=True, known_errors=[AdbError])
 def main():
-
     parser = AndroidArgumentParser(description="easy to use frida")
     parser.add_argument("-p", "--package", action="store", default=None,
                         help="target package (default: current running package)")
@@ -61,12 +60,14 @@ def main():
     parser.add_argument("--redirect-address", metavar="ADDRESS", action="store", dest="redirect_address",
                         type=str,
                         help="redirect traffic to target address (default: localhost)")
-    parser.add_argument("--redirect-port", metavar="port", action="store", dest="redirect_port",
+    parser.add_argument("--redirect-port", metavar="ADDRESS", action="store", dest="redirect_port",
                         type=range_type(1, 65536),
                         help="redirect traffic to target port (default: 8080)")
 
+    parser.add_argument("-a", "--auto-start", action="store_true", default=False,
+                        help="automatically start when all processes exits")
     parser.add_argument("-d", "--debug", action="store_true", default=False,
-                        help="debug mode")
+                        help="enable debug mode")
 
     args = parser.parse_args()
     device = args.parse_device()
@@ -89,7 +90,8 @@ def main():
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:
-                app.load_script(app.device.spawn(package), resume=True)
+                if args.auto_start:
+                    app.load_script(app.device.spawn(package), resume=True)
 
     with FridaAndroidServer(device=device) as server:
 
@@ -111,8 +113,11 @@ def main():
 
         target_pids = set()
 
-        # 匹配正在运行的进程
-        if not args.spawn:
+        if args.spawn:
+            # 打开进程后注入
+            app.load_script(app.spawn(package), resume=True)
+
+        else:
             # 匹配所有app
             for target_app in app.enumerate_applications():
                 if target_app.pid > 0 and target_app.identifier == package:
@@ -123,13 +128,13 @@ def main():
                 if target_process.pid > 0 and device.extract_package(target_process.name) == package:
                     target_pids.add(target_process.pid)
 
-        if len(target_pids) > 0:
-            # 进程存在，直接注入
-            for pid in target_pids:
-                app.load_script(pid)
-        else:
-            # 进程不存在，打开进程后注入
-            app.load_script(app.spawn(package), resume=True)
+            if len(target_pids) > 0:
+                # 进程存在，直接注入
+                for pid in target_pids:
+                    app.load_script(pid)
+            elif args.auto_start:
+                # 进程不存在，打开进程后注入
+                app.load_script(app.spawn(package), resume=True)
 
         if args.redirect_address or args.redirect_port:
             # 如果需要重定向到本地端口

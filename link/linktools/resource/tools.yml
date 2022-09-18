@@ -1,25 +1,70 @@
 # general tools
 
+jar: &JAR
+  executable_cmdline: [java, -jar, "{absolute_path}"]
+
+py: &PY
+  dummy_path: true
+  executable_cmdline: [python, -m, "{name}"]
+
 GENERAL_TOOL_BAKSMALI:
+  <<: *JAR
   version: 2.5.2
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/baksmali-{version}.jar
   target_path: baksmali-{version}.jar
-  executable: false
-  executable_cmdline: [java, -jar, "{absolute_path}"]
 
 GENERAL_TOOL_SMALI:
+  <<: *JAR
   version: 2.5.2
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/smali-{version}.jar
   target_path: smali-{version}.jar
-  executable: false
-  executable_cmdline: [java, -jar, "{absolute_path}"]
 
 GENERAL_TOOL_APKTOOL:
+  <<: *JAR
   version: 2.6.1
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
   target_path: apktool-{version}.jar
-  executable: false
-  executable_cmdline: [java, -jar, "{absolute_path}"]
+
+GENERAL_TOOL_UBER_APK_SIGNER:
+  <<: *JAR
+  name: uber-apk-signer
+  version: 1.2.1
+  download_url: https://github.com/patrickfav/uber-apk-signer/releases/download/v{version}/uber-apk-signer-{version}.jar
+  target_path: uber-apk-signer-{version}.jar
+
+GENERAL_TOOL_APPCRAWLER:
+  <<: *JAR
+  cmdline: appcrawler
+  version: 2.7.4
+  download_url: https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar
+  target_path: appcrawler-{version}-hogwarts.jar
+
+GENERAL_TOOL_TIDEVICE:
+  <<: *PY
+
+GENERAL_TOOL_JAVA:
+  cmdline: java
+  version: 1.8.0_121
+  version_name: 8u121
+  download_url:
+    case:
+      - when: {system: darwin}
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-macosx-x64.tar.gz  # 修改版本时需要调整
+      - when: {system: linux}
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-linux-x64.tar.gz  # 修改版本时需要调整
+      - when: {system: windows}
+        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-windows-x64.tar.gz  # 修改版本时需要调整
+      - else: ~
+  unpack_path: java-{version}
+  target_path:
+    case:
+      - when: {system: darwin}
+        then: jre{version}.jre/Contents/Home/bin/java
+      - when: {system: linux}
+        then: jre{version}/bin/java
+      - when: {system: windows}
+        then: jre{version}/bin/java.exe
+      - else: ~
 
 GENERAL_TOOL_DEX2JAR: &GENERAL_TOOL_DEX2JAR
   version: 2.2-SNAPSHOT
@@ -66,33 +111,6 @@ GENERAL_TOOL_FASTBOOT:
       - when: {system: windows}
         then: platform-tools/fastboot.exe
       - else: ~
-
-GENERAL_TOOL_JAVA8: &GENERAL_TOOL_JAVA8
-  version: 1.8.0_121
-  version_name: 8u121
-  download_url:
-    case:
-      - when: {system: darwin}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-macosx-x64.tar.gz  # 修改版本时需要调整
-      - when: {system: linux}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-linux-x64.tar.gz  # 修改版本时需要调整
-      - when: {system: windows}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-windows-x64.tar.gz  # 修改版本时需要调整
-      - else: ~
-  unpack_path: java-{version}
-  target_path:
-    case:
-      - when: {system: darwin}
-        then: jre{version}.jre/Contents/Home/bin/java
-      - when: {system: linux}
-        then: jre{version}/bin/java
-      - when: {system: windows}
-        then: jre{version}/bin/java.exe
-      - else: ~
-
-GENERAL_TOOL_JAVA:
-  <<: *GENERAL_TOOL_JAVA8
-  cmdline: java
 
 GENERAL_TOOL_MIPAY_EXTRACT: &GENERAL_TOOL_MIPAY_EXTRACT
   version: 8.12.6
@@ -179,15 +197,8 @@ GENERAL_TOOL_JADX_GUI:
         then: bin/jadx-gui.bat
       - else: ~
 
-GENERAL_TOOL_UBER_APK_SIGNER:
-  name: uber-apk-signer
-  version: 1.2.1
-  download_url: https://github.com/patrickfav/uber-apk-signer/releases/download/v{version}/uber-apk-signer-{version}.jar
-  target_path: uber-apk-signer-{version}.jar
-  executable: false
-  executable_cmdline: [java, -jar, "{absolute_path}"]
-
-GENERAL_TOOL_CHROMEDRIVER80: &GENERAL_TOOL_CHROMEDRIVER80
+GENERAL_TOOL_CHROMEDRIVER:
+  cmdline: chromedriver
   version: 80.0.3987.106
   base_url: http://chromedriver.storage.googleapis.com
   download_url:
@@ -207,24 +218,6 @@ GENERAL_TOOL_CHROMEDRIVER80: &GENERAL_TOOL_CHROMEDRIVER80
       - when: {system: windows}
         then: chromedriver.exe
       - else: ~
-
-GENERAL_TOOL_CHROMEDRIVER:
-  <<: *GENERAL_TOOL_CHROMEDRIVER80
-  cmdline: chromedriver
-
-GENERAL_TOOL_APPCRAWLER:
-  cmdline: appcrawler
-  version: 2.7.4
-  download_url: https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar
-  target_path: appcrawler-{version}-hogwarts.jar
-  executable: false
-  executable_cmdline: [java, -jar, "{absolute_path}"]
-
-GENERAL_TOOL_TIDEVICE:
-  cmdline: tidevice
-  target_path: fake_path
-  executable: false
-  executable_cmdline: [python, -m, tidevice]
 
 GENERAL_TOOL_IPATOOL:
   version: 1.1.4
