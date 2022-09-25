@@ -1,7 +1,10 @@
 package org.ironman.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+
+import org.ironman.adbd.component.AdbdActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -10,7 +13,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Main.main(new String[] { "" });
+        startActivity(new Intent(this, AdbdActivity.class));
 
     }
 }
