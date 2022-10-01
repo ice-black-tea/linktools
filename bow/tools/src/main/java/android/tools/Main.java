@@ -10,8 +10,6 @@ import com.beust.jcommander.Parameter;
 public class Main {
 
     private static final String TAG = "android-tools";
-    private static final String FLAG_BEGIN = " -*- output -*- by -*- android -*- tools -*- begin -*- ";
-    private static final String FLAG_END = " -*- output -*- by -*- android -*- tools -*- end -*- ";
 
     private static final String PROGRAM_NAME = String.format(
             "CLASSPATH=%s app_process / %s",
@@ -19,8 +17,11 @@ public class Main {
             Main.class.getName()
     );
 
-    @Parameter(names = "--add-flag", hidden = true)
-    private boolean flag = false;
+    @Parameter(names = "--start-flag", hidden = true)
+    private String startFlag = null;
+
+    @Parameter(names = "--end-flag", hidden = true)
+    private String endFlag = null;
 
     private static void parseArgs(String[] args) throws Throwable {
         Main main = new Main();
@@ -31,25 +32,20 @@ public class Main {
         JCommander commander = builder.build();
         commander.parse(args);
 
-        int index = 0;
-        if (main.flag) {
-            index++;
-            Output.out.print(FLAG_BEGIN);
-        }
-
-        if (args.length > index) {
-            JCommander jCommander = commander.getCommands().get(args[index]);
+        try {
+            if (main.startFlag != null) {
+                Output.out.print(main.startFlag);
+            }
+            JCommander jCommander = commander.getCommands().get(commander.getParsedCommand());
             if (jCommander != null) {
                 ((Command) jCommander.getObjects().get(0)).run();
             } else {
                 commander.usage();
             }
-        } else {
-            commander.usage();
-        }
-
-        if (main.flag) {
-            Output.out.print(FLAG_END);
+        } finally {
+            if (main.endFlag != null) {
+                Output.out.print(main.endFlag);
+            }
         }
     }
 

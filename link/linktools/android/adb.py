@@ -259,8 +259,8 @@ class Device(object):
         apk_name = self.config["name"]
         apk_md5 = self.config["md5"]
         main_class = self.config["main"]
-        flag_begin = self.config["flag_begin"]
-        flag_end = self.config["flag_end"]
+        start_flag = f"__start_flag_{apk_md5}__"
+        end_flag = f"__end_flag_{apk_md5}__"
 
         apk_path = resource.get_path(apk_name)
         target_dir = self.get_storage_path("apk", apk_md5)
@@ -274,9 +274,9 @@ class Device(object):
             self.push(apk_path, target_path)
             if not self.is_file_exist(target_path):
                 raise AdbError("%s does not exist" % target_path)
-        # set --add-flag if necessary
+        # set flag if necessary
         if capture_output:
-            args = ["--add-flag", *args]
+            args = ["--start-flag", start_flag, "--end-flag", end_flag, *args]
         # call apk
         result = self.shell(
             "CLASSPATH=%s" % target_path,
@@ -285,13 +285,13 @@ class Device(object):
         )
         # parse flag if necessary
         if capture_output:
-            begin = result.find(flag_begin)
-            end = result.rfind(flag_end)
+            begin = result.find(start_flag)
+            end = result.rfind(end_flag)
             if begin >= 0 and end >= 0:
-                begin = begin + len(flag_begin)
+                begin = begin + len(start_flag)
                 result = result[begin: end]
             elif begin >= 0:
-                begin = begin + len(flag_begin)
+                begin = begin + len(start_flag)
                 raise AdbError(result[begin:])
         return result
 

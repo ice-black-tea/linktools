@@ -117,8 +117,6 @@ task buildTools {
             info.main = "android.tools.Main"
             info.size = file(targetPath).length()
             info.time = new Date().format("yyyy-MM-dd-HH:mm:ss", TimeZone.getTimeZone("GMT+08:00"))
-            info.flag_begin = " -*- output -*- by -*- android -*- tools -*- begin -*- "
-            info.flag_end = " -*- output -*- by -*- android -*- tools -*- end -*- "
 
             writeConfig(configPath, config)
         }
