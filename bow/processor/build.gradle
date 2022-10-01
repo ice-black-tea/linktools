@@ -2,7 +2,7 @@ apply plugin: 'java-library'
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.beust:jcommander:1.71'
+    implementation 'com.beust:jcommander:1.82'
     implementation 'com.squareup:javapoet:1.11.1'
 }
 

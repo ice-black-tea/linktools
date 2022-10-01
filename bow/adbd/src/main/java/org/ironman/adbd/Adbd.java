@@ -11,7 +11,7 @@ import android.os.Process;
 public class Adbd implements Parcelable {
 
     static {
-        System.loadLibrary("adbd-jni");
+        System.loadLibrary("adbd");
     }
 
     private int mIsDaemon = 0;

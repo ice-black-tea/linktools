@@ -6,20 +6,20 @@ apply plugin: 'com.android.application'
 
 android {
 
-    compileSdkVersion 28
+    compileSdkVersion 33
 
     defaultConfig {
         applicationId "android.tools"
         minSdkVersion 17
-        targetSdkVersion 28
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
 
-        javaCompileOptions {
-            annotationProcessorOptions {
-                includeCompileClasspath = true
-            }
-        }
+//        javaCompileOptions {
+//            annotationProcessorOptions {
+//                includeCompileClasspath = true
+//            }
+//        }
     }
 
     buildTypes {
@@ -27,6 +27,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+
+    buildFeatures {
+        buildConfig = false
     }
 
     compileOptions {
@@ -37,8 +41,8 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.beust:jcommander:1.71'
-    implementation 'com.google.code.gson:gson:2.8.5'
+    implementation 'com.beust:jcommander:1.82'
+    implementation 'com.google.code.gson:gson:2.8.6'
     implementation project(path: ':framework')
     compileOnly 'ice.black.tea:android-17:1.0.0'
     annotationProcessor project(':processor')
@@ -98,8 +102,6 @@ task buildTools {
         def configDir = "${rootDir}/linktools/resource"
         def configPath = "${configDir}/android-tools.json"
         def config = readConfig(configPath)
-
-        println(config)
 
         if (config.tools_apk == null || config.tools_apk.md5 != apkMd5) {
 

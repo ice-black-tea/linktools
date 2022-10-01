@@ -487,7 +487,7 @@ class Device(object):
                 kwargs.pop(key)
                 warnings.warn(f"invalid argument {key}={value}, ignored!", stacklevel=2)
 
-    class Redirect:
+    class _Redirect:
 
         def __init__(self, device: "Device", address: str, port: int):
             self.device = device
@@ -536,4 +536,4 @@ class Device(object):
         :param port: 本地监听端口
         :return: 重定向对象
         """
-        return self.Redirect(self, address, port)
+        return self._Redirect(self, address, port)
