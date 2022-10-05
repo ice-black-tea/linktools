@@ -81,24 +81,3 @@ def getNdkBuildCmd() {
         ndkbuild += ".cmd"
     return ndkbuild
 }
-
-tasks.all {
-    if ("compileDebugJavaWithJavac".equalsIgnoreCase(it.name)) {
-        it.doLast {
-            copy {
-                from "src/main/java"
-                into "build/intermediates/classes/debug"
-                include '**/*'
-            }
-        }
-    }
-    if ("compileReleaseJavaWithJavac".equalsIgnoreCase(it.name)) {
-        it.doLast {
-            copy {
-                from "src/main/java"
-                into "build/intermediates/classes/release"
-                include '**/*'
-            }
-        }
-    }
-}

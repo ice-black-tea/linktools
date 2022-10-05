@@ -14,17 +14,13 @@ android {
         targetSdkVersion 33
         versionCode 1
         versionName "1.0"
-
-//        javaCompileOptions {
-//            annotationProcessorOptions {
-//                includeCompileClasspath = true
-//            }
-//        }
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            zipAlignEnabled true
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -44,6 +40,7 @@ dependencies {
     implementation 'com.beust:jcommander:1.82'
     implementation 'com.google.code.gson:gson:2.8.6'
     implementation project(path: ':framework')
+
     compileOnly 'ice.black.tea:android-17:1.0.0'
     annotationProcessor project(':processor')
 }
