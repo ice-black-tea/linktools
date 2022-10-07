@@ -14,9 +14,9 @@ import java.util.List;
  * Created by hu on 18-12-29.
  */
 
-public class JPackage {
+public class FPackage {
 
-    private static final String TAG = JPackage.class.getSimpleName();
+    private static final String TAG = FPackage.class.getSimpleName();
 
     public String name;
     public String appName;
@@ -30,18 +30,18 @@ public class JPackage {
     public boolean debuggable;
     public boolean allowBackup;
 
-    public List<JPermission> requestedPermissions;
-    public List<JPermission> permissions;
-    public List<JActivity> activities;
-    public List<JService> services;
-    public List<JReceiver> receivers;
-    public List<JProvider> providers;
+    public List<FPermission> requestedPermissions;
+    public List<FPermission> permissions;
+    public List<FActivity> activities;
+    public List<FService> services;
+    public List<FReceiver> receivers;
+    public List<FProvider> providers;
 
-    public JPackage(PackageInfo info) {
+    public FPackage(PackageInfo info) {
         this(info, true);
     }
 
-    public JPackage(PackageInfo info, boolean basicOnly) {
+    public FPackage(PackageInfo info, boolean skipParse) {
         name = info.packageName;
         appName = PackageUtil.getApplicationName(info);
         userId = info.applicationInfo.uid;
@@ -54,7 +54,7 @@ public class JPackage {
         debuggable = (info.applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         allowBackup = (info.applicationInfo.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0;
 
-        if (basicOnly) {
+        if (skipParse) {
             return;
         }
 
@@ -67,42 +67,42 @@ public class JPackage {
         if (pkg.requestedPermissions != null && pkg.requestedPermissions.size() > 0) {
             requestedPermissions = new ArrayList<>(pkg.requestedPermissions.size());
             for (String permission : pkg.requestedPermissions) {
-                requestedPermissions.add(new JPermission(permission));
+                requestedPermissions.add(new FPermission(permission));
             }
         }
 
         if (pkg.permissions != null && pkg.permissions.size() > 0) {
             permissions = new ArrayList<>(pkg.permissions.size());
             for (PackageParser.Permission p : pkg.permissions) {
-                permissions.add(new JPermission(p.info.name));
+                permissions.add(new FPermission(p.info.name));
             }
         }
 
         if (pkg.activities != null && pkg.activities.size() > 0) {
             activities = new ArrayList<>(pkg.activities.size());
             for (PackageParser.Activity a : pkg.activities) {
-                activities.add(new JActivity(a));
+                activities.add(new FActivity(a));
             }
         }
 
         if (pkg.services != null && pkg.services.size() > 0) {
             services = new ArrayList<>(pkg.services.size());
             for (PackageParser.Service s : pkg.services) {
-                services.add(new JService(s));
+                services.add(new FService(s));
             }
         }
 
         if (pkg.receivers != null && pkg.receivers.size() > 0) {
             receivers = new ArrayList<>(pkg.receivers.size());
             for (PackageParser.Activity r : pkg.receivers) {
-                receivers.add(new JReceiver(r));
+                receivers.add(new FReceiver(r));
             }
         }
 
         if (pkg.providers != null && pkg.providers.size() > 0) {
             providers = new ArrayList<>(pkg.providers.size());
             for (PackageParser.Provider p : pkg.providers) {
-                providers.add(new JProvider(p));
+                providers.add(new FProvider(p));
             }
         }
     }

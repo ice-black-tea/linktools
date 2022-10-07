@@ -14,9 +14,9 @@ import org.ironman.framework.util.LogUtil;
 import org.ironman.framework.util.ReflectHelper;
 import org.ironman.framework.util.Singleton;
 
-public final class JEnvironment {
+public final class Environment {
 
-    private static final String TAG = JEnvironment.class.getSimpleName();
+    private static final String TAG = Environment.class.getSimpleName();
 
     private static final Singleton<Application> sApplication = new Singleton<Application>() {
         @Override
@@ -55,7 +55,7 @@ public final class JEnvironment {
 
     @SuppressWarnings("unchecked")
     public static <T> T getSystemService(String name) {
-        return (T) JEnvironment.getApplication().getSystemService(name);
+        return (T) Environment.getApplication().getSystemService(name);
     }
 
     private static void initApplication(Application application) {

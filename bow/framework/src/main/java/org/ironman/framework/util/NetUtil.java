@@ -3,7 +3,7 @@ package org.ironman.framework.util;
 import android.text.TextUtils;
 
 import org.ironman.framework.Const;
-import org.ironman.framework.bean.net.JUnixSocket;
+import org.ironman.framework.bean.net.FUnixSocket;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,8 +23,8 @@ public class NetUtil {
     private static final String PROC_NET_RAW6 = "/proc/net/raw6";
     private static final String PROC_NET_UNIX = "/proc/net/unix";
 
-    public static List<JUnixSocket> getUnixSockets() throws IOException {
-        List<JUnixSocket> sockets = new ArrayList<>();
+    public static List<FUnixSocket> getUnixSockets() throws IOException {
+        List<FUnixSocket> sockets = new ArrayList<>();
         String result = FileUtil.readString(PROC_NET_UNIX);
         String[] items = result.split(Const.LINE_BREAK);
         for (int i = 1; i < items.length; i++) {
@@ -43,7 +43,7 @@ public class NetUtil {
             String path = detail.length > 7 ? detail[7] : null;
             int pid = detail.length > 8 ? CommonUtil.parseInt(detail[8], 16, 0) : 0;
 
-            JUnixSocket socket = new JUnixSocket();
+            FUnixSocket socket = new FUnixSocket();
             switch ((int)protocol) {
                 case 0:
                     socket.proto = "unix";

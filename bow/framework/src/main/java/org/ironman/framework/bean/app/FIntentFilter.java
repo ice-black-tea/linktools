@@ -8,17 +8,17 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class JIntentFilter {
+public class FIntentFilter {
 
     public List<String> actions;
     public List<String> categories;
     public List<String> dataSchemes;
-    public List<JPatternMatcher> dataSchemeSpecificParts;
-    public List<JIntentFilter.AuthorityEntry> dataAuthorities;
-    public List<JPatternMatcher> dataPaths;
+    public List<FPatternMatcher> dataSchemeSpecificParts;
+    public List<FIntentFilter.AuthorityEntry> dataAuthorities;
+    public List<FPatternMatcher> dataPaths;
     public List<String> dataTypes;
 
-    public JIntentFilter(IntentFilter intent) {
+    public FIntentFilter(IntentFilter intent) {
         if (intent.countActions() > 0) {
             actions = new ArrayList<>(intent.countActions());
             Iterator<String> it = intent.actionsIterator();
@@ -48,7 +48,7 @@ public class JIntentFilter {
                 dataSchemeSpecificParts = new ArrayList<>(intent.countDataSchemeSpecificParts());
                 Iterator<PatternMatcher> it = intent.schemeSpecificPartsIterator();
                 while (it.hasNext()) {
-                    dataSchemeSpecificParts.add(new JPatternMatcher(it.next()));
+                    dataSchemeSpecificParts.add(new FPatternMatcher(it.next()));
                 }
             }
         }
@@ -65,7 +65,7 @@ public class JIntentFilter {
             dataPaths = new ArrayList<>(intent.countDataPaths());
             Iterator<PatternMatcher> it = intent.pathsIterator();
             while (it.hasNext()) {
-                dataPaths.add(new JPatternMatcher(it.next()));
+                dataPaths.add(new FPatternMatcher(it.next()));
             }
         }
 

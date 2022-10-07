@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.provider.Settings;
 
-import org.ironman.framework.JEnvironment;
+import org.ironman.framework.Environment;
 import org.ironman.framework.proxy.ActivityManagerProxy;
 
 import java.util.List;
@@ -23,7 +23,7 @@ public class ActivityUtil {
     };
 
     public static String getTopActivity() {
-        ActivityManager am = JEnvironment.getActivityManager();
+        ActivityManager am = Environment.getActivityManager();
         List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(0);
         if (tasks != null && tasks.size() > 0) {
             return tasks.get(0).topActivity.getClassName();
@@ -40,17 +40,17 @@ public class ActivityUtil {
         sActivityManagerProxy.get().replaceActivityManagerService();
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-        JEnvironment.getApplication().startActivity(intent);
+        Environment.getApplication().startActivity(intent);
     }
 
     public static void startService(Intent intent) {
         sActivityManagerProxy.get().replaceActivityManagerService();
-        JEnvironment.getApplication().startService(intent);
+        Environment.getApplication().startService(intent);
     }
 
     public static void sendBroadcast(Intent intent) {
         sActivityManagerProxy.get().replaceActivityManagerService();
-        JEnvironment.getApplication().sendBroadcast(intent);
+        Environment.getApplication().sendBroadcast(intent);
     }
 }
 

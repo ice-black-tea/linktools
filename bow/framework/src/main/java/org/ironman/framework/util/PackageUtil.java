@@ -14,7 +14,7 @@ import android.content.pm.PackageParser;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 
-import org.ironman.framework.JEnvironment;
+import org.ironman.framework.Environment;
 import org.ironman.framework.util.compat.PackageParserCompat;
 
 import java.io.File;
@@ -35,7 +35,7 @@ public class PackageUtil {
         List<PackageInfo> packages = new ArrayList<>();
         for (String packageName : packageNames) {
             try {
-                packages.add(JEnvironment.getPackageManager().getPackageInfo(packageName, flags));
+                packages.add(Environment.getPackageManager().getPackageInfo(packageName, flags));
             } catch (PackageManager.NameNotFoundException e) {
                 LogUtil.printStackTrace(TAG, e, null);
             }
@@ -50,7 +50,7 @@ public class PackageUtil {
 
     @SuppressLint("WrongConstant")
     public static List<PackageInfo> getInstalledPackages(int flags) {
-        return JEnvironment.getPackageManager().getInstalledPackages(flags);
+        return Environment.getPackageManager().getInstalledPackages(flags);
     }
 
     public static PackageParser.Package parsePackage(String packagePath) {
@@ -66,23 +66,23 @@ public class PackageUtil {
     }
 
     public static String getApplicationName(PackageInfo packageInfo) {
-        return packageInfo.applicationInfo.loadLabel(JEnvironment.getPackageManager()).toString();
+        return packageInfo.applicationInfo.loadLabel(Environment.getPackageManager()).toString();
     }
 
     public static Drawable getApplicationIcon(PackageInfo packageInfo) {
-        return packageInfo.applicationInfo.loadIcon(JEnvironment.getPackageManager());
+        return packageInfo.applicationInfo.loadIcon(Environment.getPackageManager());
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public static boolean checkUsageStatsPermission() {
         boolean granted;
         int mode = AppOpsManager.MODE_DEFAULT;
-        Context context = JEnvironment.getApplication();
+        Context context = Environment.getApplication();
         String permission = "android.permission.PACKAGE_USAGE_STATS";
         AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         if (appOps != null) {
             mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(), JEnvironment.getPackageName());
+                    android.os.Process.myUid(), Environment.getPackageName());
         }
         if (mode == AppOpsManager.MODE_DEFAULT) {
             granted = context.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
@@ -99,7 +99,7 @@ public class PackageUtil {
                 ActivityUtil.startUsageAccessSettings();
                 throw new Exception("make sure to allow permission in usage stats");
             }
-            UsageStatsManager usm = JEnvironment.getSystemService(Context.USAGE_STATS_SERVICE);
+            UsageStatsManager usm = Environment.getSystemService(Context.USAGE_STATS_SERVICE);
             if (usm != null) {
                 long end = System.currentTimeMillis();
                 long start = end - 60 * 60 * 1000;
@@ -117,7 +117,7 @@ public class PackageUtil {
                 }
             }
         } else {
-            ActivityManager am = JEnvironment.getActivityManager();
+            ActivityManager am = Environment.getActivityManager();
             List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(0);
             if (tasks != null && tasks.size() > 0) {
                 return tasks.get(0).topActivity.getPackageName();

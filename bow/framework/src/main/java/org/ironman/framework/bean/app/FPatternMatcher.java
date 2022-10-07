@@ -2,7 +2,7 @@ package org.ironman.framework.bean.app;
 
 import android.os.PatternMatcher;
 
-public class JPatternMatcher {
+public class FPatternMatcher {
 
     public enum Type {
         literal,
@@ -14,7 +14,7 @@ public class JPatternMatcher {
     public String path;
     public Type type;
 
-    public JPatternMatcher(PatternMatcher patternMatcher) {
+    public FPatternMatcher(PatternMatcher patternMatcher) {
         path = patternMatcher.getPath();
         type = getType(patternMatcher.getType());
     }

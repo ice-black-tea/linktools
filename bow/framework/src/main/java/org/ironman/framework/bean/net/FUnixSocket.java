@@ -4,7 +4,7 @@ package org.ironman.framework.bean.net;
  * Created by hu on 19-2-13.
  */
 
-public class JUnixSocket {
+public class FUnixSocket {
     public String proto;
     public long refCnt;
     public String flags;

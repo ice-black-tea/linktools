@@ -1,11 +1,10 @@
 package org.ironman.framework.bean.app;
 
 import android.content.pm.PackageParser;
-import android.content.pm.PermissionInfo;
 
 import org.ironman.framework.util.PermissionUtil;
 
-public class JPermission {
+public class FPermission {
 
     public enum Protection {
         dangerous,
@@ -17,12 +16,12 @@ public class JPermission {
     public String name;
     public Protection protection;
 
-    public JPermission(String name) {
+    public FPermission(String name) {
         this.name = name;
         this.protection = PermissionUtil.getProtection(name);
     }
 
-    public JPermission(PackageParser.Permission perm) {
+    public FPermission(PackageParser.Permission perm) {
         this.name = perm.info.name;
         this.protection = PermissionUtil.getProtection(perm.info);
     }

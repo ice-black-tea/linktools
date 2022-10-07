@@ -7,7 +7,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 
-import org.ironman.framework.bean.app.JPackage;
+import org.ironman.framework.bean.app.FPackage;
 import org.ironman.framework.util.PackageUtil;
 
 import java.util.ArrayList;
@@ -41,7 +41,7 @@ public class PackageCommand extends Command {
             packageInfos = PackageUtil.getInstalledPackages();
         }
 
-        List<JPackage> packages = new ArrayList<>(packageInfos.size());
+        List<FPackage> packages = new ArrayList<>(packageInfos.size());
         for (PackageInfo packageInfo : packageInfos) {
             if (system) {
                 if (!PackageUtil.isSystemApp(packageInfo)) {
@@ -52,7 +52,7 @@ public class PackageCommand extends Command {
                     continue;
                 }
             }
-            packages.add(new JPackage(packageInfo, basic));
+            packages.add(new FPackage(packageInfo, basic));
         }
 
         Output.out.println(new Gson().toJson(packages));
