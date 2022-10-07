@@ -31,7 +31,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'com.google.code.gson:gson:2.9.1'
     compileOnly 'ice.black.tea:android-17:1.0.0'
 
     testImplementation 'junit:junit:4.13.2'

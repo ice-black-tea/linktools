@@ -3,7 +3,6 @@ import org.apache.tools.ant.taskdefs.condition.Os
 apply plugin: 'com.android.library'
 
 android {
-    resourcePrefix "adbd_"
 
     compileSdkVersion 33
 
@@ -28,28 +27,16 @@ android {
         buildConfig = false
     }
 
-    sourceSets {
-        main {
-            jni.srcDirs = []
-            jniLibs.srcDirs = ['src/main/libs/']
+    resourcePrefix "adbd_"
+
+    ndkVersion "17.2.4988734"
+
+    externalNativeBuild {
+        ndkBuild {
+            path file('src/main/jni/Android.mk')
         }
     }
 
-    task ndkBuild(type: Exec) {
-        workingDir file('src/main')
-        commandLine getNdkBuildCmd()
-    }
-
-    tasks.withType(JavaCompile) {
-        compileTask -> compileTask.dependsOn ndkBuild
-    }
-
-    task cleanNative(type: Exec) {
-        workingDir file('src/main')
-        commandLine getNdkBuildCmd(), 'clean'
-    }
-
-    clean.dependsOn cleanNative
 }
 
 dependencies {
@@ -60,24 +47,4 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
-}
-
-def getNdkDir() {
-    if (System.env.ANDROID_NDK_ROOT != null)
-        return System.env.ANDROID_NDK_ROOT
-    Properties properties = new Properties()
-    properties.load(project.rootProject.file('local.properties')
-            .newDataInputStream())
-    def ndkdir = properties.getProperty('ndk.dir', null)
-    if (ndkdir == null)
-        throw new GradleException("NDK location not found. Define location with ndk.dir in the local.properties file or with an ANDROID_NDK_ROOT environment variable.")
-
-    return ndkdir
-}
-
-def getNdkBuildCmd() {
-    def ndkbuild = getNdkDir() + "/ndk-build"
-    if (Os.isFamily(Os.FAMILY_WINDOWS))
-        ndkbuild += ".cmd"
-    return ndkbuild
 }
