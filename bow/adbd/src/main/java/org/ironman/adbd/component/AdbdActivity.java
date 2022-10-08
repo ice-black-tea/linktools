@@ -1,11 +1,12 @@
 package org.ironman.adbd.component;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
 import android.view.View;
@@ -23,6 +24,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -30,12 +32,26 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
 
     private static final int DEFAULT_START_PORT = 5555;
     private static final int DEFAULT_END_PORT = 5558;
+    private static final String[] PERMISSIONS;
 
-    @SuppressLint("InlinedApi")
-    private static final String[] PERMISSIONS = {
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-    };
+    static {
+        List<String> permissions = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS);
+            permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
+            permissions.add(Manifest.permission.READ_MEDIA_VIDEO);
+            permissions.add(Manifest.permission.READ_MEDIA_AUDIO);
+        }
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN &&
+                Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+        PERMISSIONS = permissions.toArray(new String[0]);
+    }
+
 
     private Handler mHandler = null;
     private TextView mIp = null;
@@ -48,13 +64,10 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.adbd_activity);
 
-        requestPermissions(PERMISSIONS, new RequestPermissionsCallback() {
-            @Override
-            public void onResult(String[] deniedPermissions) {
-                if (deniedPermissions.length > 0) {
-                    showToast("please grant all permissions");
-                    startSettingsActivity();
-                }
+        requestPermissions(PERMISSIONS, deniedPermissions -> {
+            if (deniedPermissions.length > 0) {
+                showToast("please grant all permissions");
+                startSettingsActivity();
             }
         });
 
@@ -67,10 +80,10 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
         mEndPort.setHint(String.valueOf(DEFAULT_END_PORT));
         mStatus = findViewById(R.id.tv_status);
 
-        Button mStartAdbd = findViewById(R.id.btn_start_adbd);
-        mStartAdbd.setOnClickListener(this);
-        Button mStopAdbd = findViewById(R.id.btn_stop_adbd);
-        mStopAdbd.setOnClickListener(this);
+        Button startAdbd = findViewById(R.id.btn_start_adbd);
+        startAdbd.setOnClickListener(this);
+        Button stopAdbd = findViewById(R.id.btn_stop_adbd);
+        stopAdbd.setOnClickListener(this);
 
         refreshStatus();
     }
@@ -108,7 +121,11 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
                         showToast("start port " + port);
                         Context context = getApplicationContext();
                         Intent intent = new Intent(context, AdbdActivity.class);
-                        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, 0);
+                        int flags = PendingIntent.FLAG_ONE_SHOT;
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            flags = PendingIntent.FLAG_MUTABLE;
+                        }
+                        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, flags);
                         AdbdManager.startForeground(context, "Adbd", "adbd is running ...", pendingIntent);
                     }
 
@@ -188,6 +205,7 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
         private final WeakReference<AdbdActivity> mActivty;
 
         private Handler(AdbdActivity activity) {
+            super(Looper.getMainLooper());
             mActivty = new WeakReference<>(activity);
         }
 
