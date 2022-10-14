@@ -25,7 +25,7 @@ public class ReflectHelper {
         return classLoader == null ? get() : new ReflectHelper(classLoader);
     }
 
-    private ClassLoader mClassLoader;
+    private final ClassLoader mClassLoader;
 
     private ReflectHelper() {
         mClassLoader = ReflectHelper.class.getClassLoader();

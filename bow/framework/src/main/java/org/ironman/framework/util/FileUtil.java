@@ -3,7 +3,6 @@ package org.ironman.framework.util;
 import org.ironman.framework.Const;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -35,7 +34,7 @@ public class FileUtil {
             String line;
             while ((line = reader.readLine()) != null) {
                 result.append(line);
-                result.append(Const.LINE_BREAK);
+                result.append(Const.LINE_SEPARATOR);
             }
         } finally {
             CommonUtil.closeQuietly(reader);

@@ -230,24 +230,24 @@ class Device(object):
         args = ["-s", self.id, "pull", src, dst]
         return Adb.exec(*args, **kwargs)
 
-    def forward(self, local, remote, **kwargs) -> str:
+    def forward(self, arg1, arg2, **kwargs) -> str:
         """
         端口转发
-        :param local: 本地端口
-        :param remote: 设备端口
+        :param arg1: 本地端口
+        :param arg2: 设备端口
         :return: adb输出结果
         """
-        args = ["-s", self.id, "forward", local, remote]
+        args = ["-s", self.id, "forward", arg1, arg2]
         return Adb.exec(*args, **kwargs)
 
-    def reverse(self, remote, local, **kwargs) -> str:
+    def reverse(self, arg1, arg2, **kwargs) -> str:
         """
         端口转发
-        :param remote: 设备端口
-        :param local: 本地端口
+        :param arg1: 设备端口
+        :param arg2: 本地端口
         :return: adb输出结果
         """
-        args = ["-s", self.id, "reverse", local, remote]
+        args = ["-s", self.id, "reverse", arg1, arg2]
         return Adb.exec(*args, **kwargs)
 
     def call_agent(self, *args: [str], **kwargs) -> str:
@@ -316,7 +316,7 @@ class Device(object):
         args = ["setprop", prop, value]
         return self.shell(*args, **kwargs).rstrip()
 
-    def kill(self, package_name, **kwargs) -> str:
+    def kill(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
         :param package_name: 关闭的包名
@@ -325,7 +325,7 @@ class Device(object):
         args = ["am", "kill", self.extract_package(package_name)]
         return self.shell(*args, **kwargs).rstrip()
 
-    def force_stop(self, package_name, **kwargs) -> str:
+    def force_stop(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
         :param package_name: 关闭的包名
@@ -334,7 +334,7 @@ class Device(object):
         args = ["am", "force-stop", self.extract_package(package_name)]
         return self.shell(*args, **kwargs).rstrip()
 
-    def is_file_exist(self, path, **kwargs) -> bool:
+    def is_file_exist(self, path: str, **kwargs) -> bool:
         """
         文件是否存在
         :param path: 文件路径
@@ -397,10 +397,10 @@ class Device(object):
             match = re.search(r"^.*package:[ ]*(.*)[\s\S]*$", out)
             if match is not None:
                 return match.group(1).strip()
-        obj = self.get_packages(package, basic_info=True, timeout=timeout_meter.get(), **kwargs)
+        obj = self.get_packages(package, simple=True, timeout=timeout_meter.get(), **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
-    def get_package(self, package_name, **kwargs) -> Optional[Package]:
+    def get_package(self, package_name: str, **kwargs) -> Optional[Package]:
         self._ignore_invalid_argument(kwargs, "capture_output", False)
         self._ignore_invalid_argument(kwargs, "daemon", True)
 
@@ -408,29 +408,51 @@ class Device(object):
         objs = json.loads(self.call_agent(*args, **kwargs))
         return Package(objs[0]) if len(objs) > 0 else None
 
-    def get_packages(self, *package_names, system=False, non_system=False, basic_info=False, **kwargs) -> [Package]:
+    def get_packages(self, *package_names: str, system: bool = None, simple: bool = None, **kwargs) -> [Package]:
         """
         获取包信息
         :param package_names: 需要匹配的所有包名，为空则匹配所有
-        :param system: 只匹配系统应用
-        :param non_system: 只匹配非系统应用
-        :param basic_info: 只获取基本信息
+        :param system: true只匹配系统应用，false只匹配非系统应用，为空则全匹配
+        :param simple: 只获取基本信息
         :return: 包信息
         """
         self._ignore_invalid_argument(kwargs, "capture_output", False)
         self._ignore_invalid_argument(kwargs, "daemon", True)
 
         result = []
-        dex_args = ["package"]
+        agent_args = ["package"]
         if not utils.is_empty(package_names):
-            dex_args.extend(["--packages", *package_names])
-        if system:
-            dex_args.append("--system")
-        elif non_system:
-            dex_args.append("--non-system")
-        if basic_info:
-            dex_args.append("--basic-info")
-        objs = json.loads(self.call_agent(*dex_args, **kwargs))
+            agent_args.append("--packages")
+            agent_args.extend(package_names)
+        if system is True:
+            agent_args.append("--system")
+        elif system is False:
+            agent_args.append("--non-system")
+        if simple is True:
+            agent_args.append("--simple")
+        objs = json.loads(self.call_agent(*agent_args, **kwargs))
+        for obj in objs:
+            result.append(Package(obj))
+        return result
+
+    def get_packages_for_uid(self, *uids: int, simple: bool = None, **kwargs) -> [Package]:
+        """
+        获取指定uid包信息
+        :param uids: 需要匹配的所有uid
+        :param simple: 只获取基本信息
+        :return: 包信息
+        """
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
+
+        result = []
+        agent_args = ["package"]
+        if not utils.is_empty(uids):
+            agent_args.append("--uids")
+            agent_args.extend([str(uid) for uid in uids])
+        if simple is True:
+            agent_args.append("--simple")
+        objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
             result.append(Package(obj))
         return result

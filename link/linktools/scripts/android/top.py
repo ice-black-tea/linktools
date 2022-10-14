@@ -67,7 +67,7 @@ def main():
     elif "--apk" in sys.argv:
         package_name = device.get_current_package()
         logger.info("find current package: {}".format(package_name))
-        package = utils.get_item(device.get_packages(package_name, basic_info=True), 0)
+        package = utils.get_item(device.get_packages(package_name, simple=True), 0)
         if package is not None:
             logger.info("find current apk path: {}".format(package.source_dir))
             path = device.get_storage_path("{}_{}.apk".format(package.name, package.version_name))

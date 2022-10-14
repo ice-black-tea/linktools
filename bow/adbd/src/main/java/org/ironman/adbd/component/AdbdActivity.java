@@ -36,17 +36,18 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
 
     static {
         List<String> permissions = new ArrayList<>();
+        permissions.add(Manifest.permission.CALL_PHONE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS);
             permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
             permissions.add(Manifest.permission.READ_MEDIA_VIDEO);
             permissions.add(Manifest.permission.READ_MEDIA_AUDIO);
         }
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN &&
-                Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         }
         PERMISSIONS = permissions.toArray(new String[0]);

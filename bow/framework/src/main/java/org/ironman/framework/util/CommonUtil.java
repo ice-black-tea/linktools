@@ -105,7 +105,7 @@ public class CommonUtil {
         return (getByte(bytes, offset + 3) & 0xFF |
                 (getByte(bytes, offset + 2) & 0xFF) << 8 |
                 (getByte(bytes, offset + 1) & 0xFF) << 16 |
-                (getByte(bytes, offset + 0) & 0xFF) << 24);
+                (getByte(bytes, offset) & 0xFF) << 24);
     }
 
     public static void int2Bytes(int num, byte[] bytes, int offset) {
@@ -113,6 +113,20 @@ public class CommonUtil {
         setByte(bytes, offset + 1, (byte) ((num >> 16) & 0xFF));
         setByte(bytes, offset + 2, (byte) ((num >> 8) & 0xFF));
         setByte(bytes, offset + 3, (byte) ((num) & 0xFF));
+    }
+
+    public static short reverseBytes(short num) {
+        return (short)(
+                (((num >> 8) & 0xFF)) |
+                (((num) & 0xFF) << 8)
+        );
+    }
+
+    public static int reverseBytes(int num) {
+        return (((num & (0xFF << 24) >> 24)) |
+                ((num & (0xFF << 16)) >> 8) |
+                ((num & (0xFF << 8)) << 8) |
+                ((num & (0xFF)) << 24));
     }
 
     public static void writeBytes(Parcel data, byte[] bytes) {

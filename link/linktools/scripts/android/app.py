@@ -229,21 +229,23 @@ class PackagePrinter:
 def main():
     parser = AndroidArgumentParser(description='fetch application info')
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-a', '--all', action='store_true', default=False,
-                       help='fetch all apps')
+    group = parser.add_mutually_exclusive_group()
     group.add_argument('-t', '--top', action='store_true', default=False,
                        help='fetch current running app only')
+    group.add_argument('-a', '--all', action='store_true', default=False,
+                       help='fetch all apps')
     group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
                        help='fetch target apps only')
+    group.add_argument('-u', '--uids', metavar="uid", action='store', nargs='+', type=int, default=None,
+                       help='fetch apps with specified uids only')
     group.add_argument('--system', action='store_true', default=False,
                        help='fetch system apps only')
     group.add_argument('--non-system', action='store_true', default=False,
                        help='fetch non-system apps only')
 
-    parser.add_argument('-b', '--basic-info', action='store_true', default=False,
-                        help='display basic info only')
-    parser.add_argument('-dang', '--dangerous', action='store_true', default=False,
+    parser.add_argument('--simple', action='store_true', default=False,
+                        help='display simple info only')
+    parser.add_argument('--dangerous', action='store_true', default=False,
                         help='display dangerous permissions and components only')
     parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
                         choices=['name', 'appName', 'userId', 'sourceDir',
@@ -253,16 +255,18 @@ def main():
     args = parser.parse_args()
     device = args.parse_device()
 
-    if args.top:
-        packages = device.get_packages(device.get_current_package(), basic_info=args.basic_info)
-    elif not utils.is_empty(args.packages):
-        packages = device.get_packages(*args.packages, basic_info=args.basic_info)
+    if not utils.is_empty(args.packages):
+        packages = device.get_packages(*args.packages, simple=args.simple)
+    elif not utils.is_empty(args.uids):
+        packages = device.get_packages_for_uid(*args.uids, simple=args.simple)
     elif args.system:
-        packages = device.get_packages(system=True, basic_info=args.basic_info)
+        packages = device.get_packages(system=True, simple=args.simple)
     elif args.non_system:
-        packages = device.get_packages(non_system=True, basic_info=args.basic_info)
+        packages = device.get_packages(system=False, simple=args.simple)
+    elif args.all:
+        packages = device.get_packages(simple=args.simple)
     else:
-        packages = device.get_packages(basic_info=args.basic_info)
+        packages = device.get_packages(device.get_current_package(), simple=args.simple)
 
     if not utils.is_empty(args.order_by):
         packages = sorted(packages, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])

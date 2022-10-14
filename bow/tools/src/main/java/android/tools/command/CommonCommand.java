@@ -6,10 +6,8 @@ import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.google.gson.Gson;
 
 import org.ironman.framework.util.ActivityUtil;
-import org.ironman.framework.util.NetUtil;
 import org.ironman.framework.util.PackageUtil;
 
 import java.util.List;
@@ -26,9 +24,6 @@ public class CommonCommand extends Command {
     @Parameter(names = {"--apk-file"}, order = 2, description = "Display package file")
     private String apk_path = null;
 
-    @Parameter(names = {"--unix-sock"}, order = 3, description = "Display unix sockets")
-    private boolean unix_sock = false;
-
     @Override
     public void run() throws Exception {
         if (top_package) {
@@ -43,11 +38,9 @@ public class CommonCommand extends Command {
             }
         } else if (!TextUtils.isEmpty(apk_path)) {
             List<PackageInfo> packages = PackageUtil.getPackages(apk_path);
-            if (packages != null && packages.size() > 0) {
+            if (packages.size() > 0) {
                 Output.out.print(packages.get(0).applicationInfo.publicSourceDir);
             }
-        } else if (unix_sock) {
-            Output.out.print(new Gson().toJson(NetUtil.getUnixSockets()));
         }
     }
 }

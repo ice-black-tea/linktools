@@ -25,12 +25,7 @@ public final class Environment {
                 Looper.prepareMainLooper();
             }
             if (ActivityThread.currentActivityThread() == null) {
-                CommonUtil.runQuietly(new Runnable() {
-                    @Override
-                    public void run() {
-                        ActivityThread.systemMain();
-                    }
-                });
+                CommonUtil.runQuietly(ActivityThread::systemMain);
                 initApplication(ActivityThread.currentApplication());
             }
             return ActivityThread.currentApplication();

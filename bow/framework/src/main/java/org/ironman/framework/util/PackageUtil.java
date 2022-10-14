@@ -19,7 +19,11 @@ import org.ironman.framework.util.compat.PackageParserCompat;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class PackageUtil {
 
@@ -28,10 +32,30 @@ public class PackageUtil {
     public static final int PARSE_PACKAGE_FLAGS = 0;
 
     public static List<PackageInfo> getPackages(String... packageNames) {
+        return getPackages(Arrays.asList(packageNames));
+    }
+
+    public static List<PackageInfo> getPackages(Collection<String> packageNames) {
         return getPackages(packageNames, GET_PACKAGE_INFO_FLAGS);
     }
 
-    public static List<PackageInfo> getPackages(String[] packageNames, int flags) {
+    public static List<PackageInfo> getPackagesForUid(Integer... uids) {
+        return getPackagesForUid(Arrays.asList(uids));
+    }
+
+    public static List<PackageInfo> getPackagesForUid(Collection<Integer> uids) {
+        PackageManager pm = Environment.getPackageManager();
+        Set<String> packageNames = new HashSet<>();
+        for (int uid : uids) {
+            String[] names = pm.getPackagesForUid(uid);
+            if (names != null) {
+                packageNames.addAll(Arrays.asList(names));
+            }
+        }
+        return getPackages(packageNames);
+    }
+
+    public static List<PackageInfo> getPackages(Collection<String> packageNames, int flags) {
         List<PackageInfo> packages = new ArrayList<>();
         for (String packageName : packageNames) {
             try {

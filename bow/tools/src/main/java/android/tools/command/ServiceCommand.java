@@ -22,8 +22,8 @@ public class ServiceCommand extends Command {
     @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
     private boolean list = false;
 
-    @Parameter(names = {"-s", "--simplify"}, order = 1, description = "Display Simplified information.")
-    private boolean simplify = false;
+    @Parameter(names = {"-s", "--simple"}, order = 1, description = "Display Simplified information.")
+    private boolean simple = false;
 
     @Parameter(names = {"-f", "--fuzz"}, order = 100, variableArity = true, description = "Fuzz system services")
     private List<String> fuzz = new ArrayList<>();
@@ -52,7 +52,7 @@ public class ServiceCommand extends Command {
             }
 
             Service service = new Service(name);
-            service.print(simplify);
+            service.print(simple);
 
             if (service.valid() && needFuzz) {
                 service.fuzz();
