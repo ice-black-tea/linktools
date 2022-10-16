@@ -7,6 +7,7 @@ import android.os.Build;
 import android.provider.Settings;
 
 import org.ironman.framework.Environment;
+import org.ironman.framework.Singleton;
 import org.ironman.framework.proxy.ActivityManagerProxy;
 
 import java.util.List;

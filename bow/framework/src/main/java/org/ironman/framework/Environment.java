@@ -12,7 +12,6 @@ import android.text.TextUtils;
 import org.ironman.framework.util.CommonUtil;
 import org.ironman.framework.util.LogUtil;
 import org.ironman.framework.util.ReflectHelper;
-import org.ironman.framework.util.Singleton;
 
 public final class Environment {
 

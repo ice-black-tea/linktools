@@ -11,5 +11,4 @@ public class FUnixSocket extends FSocket {
     public String path;
     public boolean readable;
     public boolean writable;
-    public int pid;
 }

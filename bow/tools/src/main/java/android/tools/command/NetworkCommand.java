@@ -6,7 +6,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
 import org.ironman.framework.util.GsonUtil;
-import org.ironman.framework.util.NetUtil;
+import org.ironman.framework.util.NetworkUtil;
 
 @Parameters(commandNames = "network")
 public class NetworkCommand extends Command {
@@ -26,13 +26,13 @@ public class NetworkCommand extends Command {
     @Override
     public void run() throws Exception {
         if (tcp_sock) {
-            Output.out.print(GsonUtil.toJson(NetUtil.getTcpSockets()));
+            Output.out.print(GsonUtil.toJson(NetworkUtil.getTcpSockets()));
         } else if (udp_sock) {
-            Output.out.print(GsonUtil.toJson(NetUtil.getUdpSockets()));
+            Output.out.print(GsonUtil.toJson(NetworkUtil.getUdpSockets()));
         } else if (raw_sock) {
-            Output.out.print(GsonUtil.toJson(NetUtil.getRawSockets()));
+            Output.out.print(GsonUtil.toJson(NetworkUtil.getRawSockets()));
         } else if (unix_sock) {
-            Output.out.print(GsonUtil.toJson(NetUtil.getUnixSockets()));
+            Output.out.print(GsonUtil.toJson(NetworkUtil.getUnixSockets()));
         }
     }
 }

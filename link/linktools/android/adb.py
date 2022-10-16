@@ -38,7 +38,7 @@ from typing import Optional, Any
 import linktools
 from linktools import __name__ as module_name, utils, resource, tools, get_logger
 from linktools.decorator import cached_property
-from .struct import Package
+from .struct import Package, UnixSocket, InetSocket
 
 logger = get_logger("android.adb")
 
@@ -171,13 +171,17 @@ class Device(object):
         args = ["-s", self.id, *args]
         return Adb.exec(*args, **kwargs)
 
-    def shell(self, *args: [str], **kwargs) -> str:
+    def shell(self, *args: [str], privilege: bool = False, **kwargs) -> str:
         """
         执行shell
         :param args: shell命令
+        :param privilege: 是否以root权限运行
         :return: adb输出结果
         """
-        args = ["-s", self.id, "shell", *args]
+        if not privilege or self.uid == 0:
+            args = ["-s", self.id, "shell", *args]
+        else:
+            args = ["-s", self.id, "shell", "su", "-c", *args]
         return Adb.exec(*args, **kwargs)
 
     def sudo(self, *args: [str], **kwargs) -> str:
@@ -186,11 +190,8 @@ class Device(object):
         :param args: shell命令
         :return: adb输出结果
         """
-        if self.uid != 0:
-            args = ["-s", self.id, "shell", "su", "-c", *args]
-        else:
-            args = ["-s", self.id, "shell", *args]
-        return Adb.exec(*args, **kwargs)
+        kwargs["privilege"] = True
+        return self.shell(*args, **kwargs)
 
     def install(self, file_path: str, **kwargs) -> str:
         """
@@ -455,6 +456,45 @@ class Device(object):
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
             result.append(Package(obj))
+        return result
+
+    def get_tcp_sockets(self, **kwargs) -> [InetSocket]:
+        """
+        同netstat命令，获取设备tcp连接情况，需要读取/proc/net/tcp文件，高版本设备至少需要shell权限
+        :return: tcp连接列表
+        """
+        return self._get_sockets(InetSocket, "--tcp-sock", **kwargs)
+
+    def get_udp_sockets(self, **kwargs) -> [InetSocket]:
+        """
+        同netstat命令，获取设备udp连接情况，需要读取/proc/net/udp文件，高版本设备至少需要shell权限
+        :return: udp连接列表
+        """
+        return self._get_sockets(InetSocket, "--udp-sock", **kwargs)
+
+    def get_raw_sockets(self, **kwargs) -> [InetSocket]:
+        """
+        同netstat命令，获取设备raw连接情况，需要读取/proc/net/raw文件，高版本设备至少需要shell权限
+        :return: raw连接列表
+        """
+        return self._get_sockets(InetSocket, "--raw-sock", **kwargs)
+
+    def get_unix_sockets(self, **kwargs) -> [UnixSocket]:
+        """
+        同netstat命令，获取设备unix连接情况，需要读取/proc/net/unix文件，高版本设备至少需要shell权限
+        :return: unix连接列表
+        """
+        return self._get_sockets(UnixSocket, "--unix-sock", **kwargs)
+
+    def _get_sockets(self, type, command, **kwargs):
+        self._ignore_invalid_argument(kwargs, "capture_output", False)
+        self._ignore_invalid_argument(kwargs, "daemon", True)
+
+        result = []
+        agent_args = ["network", command]
+        objs = json.loads(self.call_agent(*agent_args, **kwargs))
+        for obj in objs:
+            result.append(type(obj))
         return result
 
     @classmethod

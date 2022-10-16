@@ -1,4 +1,4 @@
-package org.ironman.framework.util;
+package org.ironman.framework;
 
 public abstract class Singleton<T> {
     private volatile T mInstance;

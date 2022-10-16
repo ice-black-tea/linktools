@@ -66,7 +66,8 @@ class IntentFilter:
         self.actions = utils.get_array_item(obj, "actions", type=str, default=[])
         self.categories = utils.get_array_item(obj, "categories", type=str, default=[])
         self.data_schemes = utils.get_array_item(obj, "dataSchemes", type=str, default=[])
-        self.data_scheme_specific_parts = utils.get_array_item(obj, "dataSchemeSpecificParts", type=PatternMatcher, default=[])
+        self.data_scheme_specific_parts = utils.get_array_item(obj, "dataSchemeSpecificParts", type=PatternMatcher,
+                                                               default=[])
         self.data_authorities = utils.get_array_item(obj, "dataAuthorities", type=AuthorityEntry, default=[])
         self.data_paths = utils.get_array_item(obj, "dataPaths", type=PatternMatcher, default=[])
         self.data_types = utils.get_array_item(obj, "dataTypes", type=str, default=[])
@@ -144,7 +145,8 @@ class Provider(Component):
         self.authority = utils.get_item(obj, "authority", type=str, default="")
         self.read_permission = utils.get_item(obj, "readPermission", type=Permission, default=Permission.default())
         self.write_permission = utils.get_item(obj, "writePermission", type=Permission, default=Permission.default())
-        self.uri_permission_patterns = utils.get_array_item(obj, "uriPermissionPatterns", type=PatternMatcher, default=[])
+        self.uri_permission_patterns = utils.get_array_item(obj, "uriPermissionPatterns", type=PatternMatcher,
+                                                            default=[])
         self.path_permissions = utils.get_array_item(obj, "pathPermissions", type=PathPermission, default=[])
 
     def is_dangerous(self):
@@ -222,19 +224,41 @@ class Package:
         return self.name
 
 
-class UnixSocket:
+class Socket:
 
     def __init__(self, obj: dict):
         self.proto = utils.get_item(obj, "proto", type=str, default="")
-        self.refCnt = utils.get_item(obj, "refCnt", type=int, default="")
-        self.flags = utils.get_item(obj, "flags", type=str, default="")
-        self.type = utils.get_item(obj, "type", type=str, default=[])
         self.state = utils.get_item(obj, "state", type=str, default="")
         self.inode = utils.get_item(obj, "inode", type=int, default="")
+        self.listening = utils.get_item(obj, "listening", type=bool, default=False)
+
+    def is_dangerous(self):
+        return self.listening
+
+
+class InetSocket(Socket):
+
+    def __init__(self, obj: dict):
+        super().__init__(obj)
+        self.local_address = utils.get_item(obj, "localAddress", type=str, default="")
+        self.local_port = utils.get_item(obj, "localPort", type=int, default="")
+        self.remote_address = utils.get_item(obj, "remoteAddress", type=str, default="")
+        self.remote_port = utils.get_item(obj, "remotePort", type=int, default="")
+        self.uid = utils.get_item(obj, "uid", type=int, default="")
+        self.transmit_queue = utils.get_item(obj, "transmitQueue", type=int, default="")
+        self.receive_queue = utils.get_item(obj, "receiveQueue", type=int, default="")
+
+
+class UnixSocket(Socket):
+
+    def __init__(self, obj: dict):
+        super().__init__(obj)
+        self.ref_cnt = utils.get_item(obj, "refCnt", type=int, default="")
+        self.flags = utils.get_item(obj, "flags", type=str, default="")
+        self.type = utils.get_item(obj, "type", type=str, default=[])
         self.path = utils.get_item(obj, "path", type=str, default="")
         self.readable = utils.get_item(obj, "readable", type=bool, default=False)
         self.writable = utils.get_item(obj, "writable", type=bool, default=False)
-        self.pid = utils.get_item(obj, "pid", type=int, default=False)
 
     def is_dangerous(self):
-        return self.readable or self.writable
+        return super().is_dangerous() and (self.readable or self.writable)

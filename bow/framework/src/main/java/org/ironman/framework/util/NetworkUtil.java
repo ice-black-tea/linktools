@@ -19,7 +19,9 @@ import java.util.List;
  * Created by hu on 19-2-13.
  */
 
-public class NetUtil {
+public class NetworkUtil {
+
+    private static final String TAG = NetworkUtil.class.getSimpleName();
 
     private static final String PROC_NET_TCP = "/proc/net/tcp";
     private static final String PROC_NET_TCP6 = "/proc/net/tcp6";
@@ -58,7 +60,7 @@ public class NetUtil {
 
     public static List<FUnixSocket> getUnixSockets() throws IOException {
         List<FUnixSocket> sockets = new ArrayList<>();
-        parse("udp", PROC_NET_UNIX, unixParser, sockets);
+        parse("unix", PROC_NET_UNIX, unixParser, sockets);
         return sockets;
     }
 
@@ -69,7 +71,7 @@ public class NetUtil {
             try {
                 list.add(parser.parse(proto, lines[i].trim()));
             } catch (Exception e) {
-                e.printStackTrace();
+                LogUtil.printStackTrace(TAG, e);
             }
         }
     }
@@ -327,7 +329,6 @@ public class NetUtil {
 
         socket.refCnt = refCount;
         socket.inode = inode;
-        socket.pid = 0;
         socket.listening = (state == Const.UNIX_STATE_UNCONNECTED) && ((flags & Const.UNIX_FLAG_ACCEPTCON) != 0);
 
         if (!TextUtils.isEmpty(path)) {
