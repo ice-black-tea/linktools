@@ -43,17 +43,18 @@ GENERAL_TOOL_TIDEVICE:
   <<: *PY
 
 GENERAL_TOOL_JAVA:
-  cmdline: java
-  version: 1.8.0_121
-  version_name: 8u121
+  # cmdline: java
+  version: 1.8.0_212
+  version_name: 8u212
+  version_tag: 8u212-b10
   download_url:
     case:
       - when: {system: darwin}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-macosx-x64.tar.gz  # 修改版本时需要调整
+        then: https://github.com/frekele/oracle-java/releases/download/{version_tag}/jre-{version_name}-macosx-x64.tar.gz
       - when: {system: linux}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-linux-x64.tar.gz  # 修改版本时需要调整
+        then: https://github.com/frekele/oracle-java/releases/download/{version_tag}/jre-{version_name}-linux-x64.tar.gz
       - when: {system: windows}
-        then: https://bitbucket.org/ice-black-tea/jre/downloads/jre-{version_name}-windows-x64.tar.gz  # 修改版本时需要调整
+        then: https://github.com/frekele/oracle-java/releases/download/{version_tag}/jre-{version_name}-windows-x64.tar.gz
       - else: ~
   unpack_path: java-{version}
   target_path:
@@ -110,47 +111,6 @@ GENERAL_TOOL_FASTBOOT:
         then: platform-tools/fastboot
       - when: {system: windows}
         then: platform-tools/fastboot.exe
-      - else: ~
-
-GENERAL_TOOL_MIPAY_EXTRACT: &GENERAL_TOOL_MIPAY_EXTRACT
-  version: 8.12.6
-  download_url: https://bitbucket.org/ice-black-tea/tools/downloads/mipay-extract-{version}.zip
-  unpack_path: eufix-{version}
-  target_path:
-    case:
-      - when: {system: [darwin, linux]}
-        then: extract.sh
-      - when: {system: windows}
-        then: extract.bat
-      - else: ~
-
-GENERAL_TOOL_VDEX_EXTRACTOR:
-  <<: *GENERAL_TOOL_MIPAY_EXTRACT
-  target_path:
-    case:
-      - when: {system: darwin}
-        then: tools/darwin/vdexExtractor
-      - when: {system: linux}
-        then: tools/vdexExtractor
-      - when: {system: windows}
-        then: tools/vdexExtractor
-      - else: ~
-
-GENERAL_TOOL_COMPACT_DEX_CONVERTER:
-  <<: *GENERAL_TOOL_MIPAY_EXTRACT
-  target_path:
-    case:
-      - when: {system: darwin}
-        then: tools/cdex/compact_dex_converter_mac
-      - when: {system: linux}
-        then: tools/cdex/compact_dex_converter_linux
-      - when: {system: windows}
-        then: tools/cdex/flinux.exe
-      - else: ~
-  executable_cmdline:
-    case:
-      - when: {system: windows}
-        then: ["{root_path}/tools/cdex/flinux.exe", "{root_path}/tools/cdex/compact_dex_converter_linux"]
       - else: ~
 
 GENERAL_TOOL_AAPT:

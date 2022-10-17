@@ -31,10 +31,10 @@ __all__ = ("make_url", "cookie_to_dict", "guess_file_name", "user_agent",
            "DownloadError", "UrlFile",
            "NotFoundVersion", "get_chrome_driver",)
 
+import cgi
 import contextlib
 import json
 import os
-import re
 import shelve
 import shutil
 from typing import Dict, Union, List, Tuple
@@ -303,9 +303,9 @@ class UrlFile:
             if "Content-Length" in resp.headers:
                 context.file_size = int(resp.headers.get("Content-Length"))
             if "Content-Disposition" in resp.headers:
-                groups = re.findall("filename=(.+)", resp.headers.get("Content-Disposition"))
-                if len(groups) > 0:
-                    context.file_name = groups[0]
+                _, params = cgi.parse_header(resp.headers["Content-Disposition"])
+                if "filename" in params:
+                    context.file_name = params["filename"]
 
             for chunk in resp.iter_content(bs):
                 if chunk:
@@ -324,9 +324,9 @@ class UrlFile:
             if "Content-Length" in headers:
                 context.file_size = int(headers["Content-Length"])
             if "Content-Disposition" in headers:
-                groups = re.findall("filename=(.+)", headers["Content-Disposition"])
-                if len(groups) > 0:
-                    context.file_size = groups[0]
+                _, params = cgi.parse_header(headers["Content-Disposition"])
+                if "filename" in params:
+                    context.file_name = params["filename"]
 
             while True:
                 chunk = fp.read(bs)
