@@ -81,17 +81,22 @@ def user_agent(style=None) -> str:
     return config["SETTING_DOWNLOAD_USER_AGENT"]
 
 
-def make_url(url: str, path: str, **kwargs: QueryType) -> str:
-    result = url.rstrip("/") + "/" + path.lstrip("/")
+def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:
+    result = url
+
+    for path in paths:
+        result = result.rstrip("/") + "/" + path.lstrip("/")
+
     if len(kwargs) > 0:
         queries = []
         for key, value in kwargs.items():
             if isinstance(value, (list, tuple)):
-                for v in value:
-                    queries.append((key, v))
+                queries.extend((key, v) for v in value)
             else:
                 queries.append((key, value))
-        result = result + "?" + "&".join([f"{parse.quote(k)}={parse.quote(str(v))}" for k, v in queries])
+
+        result = result + "?" + parse.urlencode(queries)
+
     return result
 
 

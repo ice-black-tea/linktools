@@ -31,7 +31,7 @@ __all__ = (
     "TimeoutMeter", "Reactor",
     "Proxy", "lazy_load", "lazy_raise", "ignore_error",
     "read_file", "popen", "exec",
-    "int", "bool", "is_contain", "is_empty", "get_item", "pop_item", "get_array_item",
+    "int", "bool", "is_contain", "is_empty", "get_item", "pop_item", "get_list_item",
     "get_md5", "get_sha1", "get_sha256", "make_uuid", "gzip_compress", "get_host_ip"
 )
 
@@ -664,7 +664,7 @@ def pop_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> O
 
 
 # 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_array_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] = None) -> List[T]:
+def get_list_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] = None) -> List[T]:
     """
     获取子项（列表）
     :param obj: 对象
@@ -676,16 +676,16 @@ def get_array_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] 
     objs = get_item(obj, *keys, default=None)
     if objs is None or not isinstance(objs, collections.abc.Iterable):
         return default
-    array = []
+    result = []
     for obj in objs:
         if obj is not None and type is not None:
             try:
-                array.append(type(obj))
+                result.append(type(obj))
             except:
                 pass
         else:
-            array.append(obj)
-    return array
+            result.append(obj)
+    return result
 
 
 def get_md5(data: Union[str, bytes]) -> str:

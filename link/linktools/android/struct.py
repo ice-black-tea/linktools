@@ -63,14 +63,14 @@ class AuthorityEntry:
 class IntentFilter:
 
     def __init__(self, obj: dict):
-        self.actions = utils.get_array_item(obj, "actions", type=str, default=[])
-        self.categories = utils.get_array_item(obj, "categories", type=str, default=[])
-        self.data_schemes = utils.get_array_item(obj, "dataSchemes", type=str, default=[])
-        self.data_scheme_specific_parts = utils.get_array_item(obj, "dataSchemeSpecificParts", type=PatternMatcher,
-                                                               default=[])
-        self.data_authorities = utils.get_array_item(obj, "dataAuthorities", type=AuthorityEntry, default=[])
-        self.data_paths = utils.get_array_item(obj, "dataPaths", type=PatternMatcher, default=[])
-        self.data_types = utils.get_array_item(obj, "dataTypes", type=str, default=[])
+        self.actions = utils.get_list_item(obj, "actions", type=str, default=[])
+        self.categories = utils.get_list_item(obj, "categories", type=str, default=[])
+        self.data_schemes = utils.get_list_item(obj, "dataSchemes", type=str, default=[])
+        self.data_scheme_specific_parts = utils.get_list_item(obj, "dataSchemeSpecificParts", type=PatternMatcher,
+                                                              default=[])
+        self.data_authorities = utils.get_list_item(obj, "dataAuthorities", type=AuthorityEntry, default=[])
+        self.data_paths = utils.get_list_item(obj, "dataPaths", type=PatternMatcher, default=[])
+        self.data_types = utils.get_list_item(obj, "dataTypes", type=str, default=[])
 
 
 class Permission:
@@ -99,7 +99,7 @@ class Component:
         self.name = utils.get_item(obj, "name", type=str, default="")
         self.exported = utils.get_item(obj, "exported", type=bool, default=False)
         self.enabled = utils.get_item(obj, "enabled", type=bool, default=False)
-        self.intents = utils.get_array_item(obj, "intents", type=IntentFilter, default=[])
+        self.intents = utils.get_list_item(obj, "intents", type=IntentFilter, default=[])
 
     def is_dangerous(self):
         return True
@@ -145,9 +145,9 @@ class Provider(Component):
         self.authority = utils.get_item(obj, "authority", type=str, default="")
         self.read_permission = utils.get_item(obj, "readPermission", type=Permission, default=Permission.default())
         self.write_permission = utils.get_item(obj, "writePermission", type=Permission, default=Permission.default())
-        self.uri_permission_patterns = utils.get_array_item(obj, "uriPermissionPatterns", type=PatternMatcher,
-                                                            default=[])
-        self.path_permissions = utils.get_array_item(obj, "pathPermissions", type=PathPermission, default=[])
+        self.uri_permission_patterns = utils.get_list_item(obj, "uriPermissionPatterns", type=PatternMatcher,
+                                                           default=[])
+        self.path_permissions = utils.get_list_item(obj, "pathPermissions", type=PathPermission, default=[])
 
     def is_dangerous(self):
         if not self.exported:
@@ -175,12 +175,12 @@ class Package:
         self.debuggable = utils.get_item(obj, "debuggable", type=bool, default=False)
         self.allow_backup = utils.get_item(obj, "allowBackup", type=bool, default=False)
 
-        self.requested_permissions = utils.get_array_item(obj, "requestedPermissions", type=Permission, default=[])
-        self.permissions = utils.get_array_item(obj, "permissions", type=Permission, default=[])
-        self.activities = utils.get_array_item(obj, "activities", type=Activity, default=[])
-        self.services = utils.get_array_item(obj, "services", type=Service, default=[])
-        self.receivers = utils.get_array_item(obj, "receivers", type=Receiver, default=[])
-        self.providers = utils.get_array_item(obj, "providers", type=Provider, default=[])
+        self.requested_permissions = utils.get_list_item(obj, "requestedPermissions", type=Permission, default=[])
+        self.permissions = utils.get_list_item(obj, "permissions", type=Permission, default=[])
+        self.activities = utils.get_list_item(obj, "activities", type=Activity, default=[])
+        self.services = utils.get_list_item(obj, "services", type=Service, default=[])
+        self.receivers = utils.get_list_item(obj, "receivers", type=Receiver, default=[])
+        self.providers = utils.get_list_item(obj, "providers", type=Provider, default=[])
 
     def is_dangerous(self):
         return self.debuggable or self.allow_backup or \
