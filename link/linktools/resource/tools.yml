@@ -179,6 +179,20 @@ GENERAL_TOOL_CHROMEDRIVER:
         then: chromedriver.exe
       - else: ~
 
+GENERAL_TOOL_SIB:
+  version: 1.2.3
+  download_url:
+    case:
+      - when: {system: darwin}
+        then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_macosx_x86_64.tar.gz
+      - when: {system: linux}
+        then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_linux_x86_64.tar.gz
+      - when: {system: windows}
+        then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_windows_x86_64.tar.gz
+      - else: ~
+  unpack_path: sib-{version}
+  target_path: sib
+
 GENERAL_TOOL_IPATOOL:
   version: 1.1.4
   download_url:

@@ -32,7 +32,7 @@ __all__ = (
     "Proxy", "lazy_load", "lazy_raise", "ignore_error",
     "read_file", "popen", "exec",
     "int", "bool", "is_contain", "is_empty", "get_item", "pop_item", "get_list_item",
-    "get_md5", "get_sha1", "get_sha256", "make_uuid", "gzip_compress", "get_host_ip"
+    "get_md5", "get_sha1", "get_sha256", "make_uuid", "gzip_compress", "get_lan_ip", "get_wan_ip"
 )
 
 import collections
@@ -728,7 +728,7 @@ def gzip_compress(data: Union[str, bytes]) -> bytes:
     return gzip.compress(data)
 
 
-def get_host_ip() -> Optional[str]:
+def get_lan_ip() -> Optional[str]:
     import socket
     s = None
     try:
@@ -739,3 +739,15 @@ def get_host_ip() -> Optional[str]:
         return None
     finally:
         s.close()
+
+
+def get_wan_ip() -> Optional[str]:
+    from .urlutils import UrlFile
+    with UrlFile(url="http://ifconfig.me/ip") as file:
+        try:
+            with open(file.save(), "rt") as fd:
+                return fd.read().strip()
+        except:
+            return None
+        finally:
+            file.clear()
