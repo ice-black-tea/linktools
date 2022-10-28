@@ -63,11 +63,7 @@ def user_agent(style=None) -> str:
         global _user_agent
         if (not _user_agent) and style:
             _user_agent = UserAgent(
-                path=resource.get_temp_path(
-                    "fake_useragent",
-                    f"{VERSION}.json",
-                    create_parent=True
-                )
+                path=resource.get_path(f"fake_useragent_{VERSION}.json")
             )
 
         if style:
@@ -198,7 +194,7 @@ class UrlFile:
 
                     if not context.file_name:
                         context.file_name = save_name or guess_file_name(self._url)
-                    if not context.user_agent or True:
+                    if not context.user_agent:
                         context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
 
                     # 开始下载
