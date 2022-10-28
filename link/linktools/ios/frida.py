@@ -6,6 +6,9 @@
 # User      : huji
 # Product   : PyCharm
 # Project   : link
+import os
+import signal
+
 import billiard
 import frida
 
@@ -31,6 +34,8 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
     @classmethod
     def _run_in_background(cls, udid, usbmux, local_port: int, remote_port: int):
         try:
+            if hasattr(os, "setsid"):
+                os.setsid()
             device = Device(udid=udid, usbmux=usbmux)
             device.relay(local_port, remote_port)
         except (KeyboardInterrupt, EOFError):
@@ -55,4 +60,6 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         if self._process is not None:
             utils.ignore_error(self._process.terminate)
             utils.ignore_error(self._process.join, 5)
+            if hasattr(os, "killpg"):
+                utils.ignore_error(os.killpg, self._process.pid, signal.SIGQUIT)
             self._process = None

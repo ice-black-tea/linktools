@@ -13,6 +13,7 @@ import fnmatch
 import lzma
 import os
 import shutil
+import signal
 import subprocess
 
 import billiard
@@ -48,8 +49,13 @@ class FridaAndroidServer(FridaServer):
     @classmethod
     def _run_in_background(cls, device_id, path: str, port: int):
         try:
+            if hasattr(os, "setsid"):
+                os.setsid()
             device = adb.Device(device_id)
-            device.sudo(path, "-d", "fs-binaries", "-l", f"0.0.0.0:{port}", stdin=subprocess.PIPE)
+            device.sudo(
+                path, "-d", "fs-binaries", "-l", f"0.0.0.0:{port}",
+                stdin=subprocess.PIPE
+            )
         except (KeyboardInterrupt, EOFError):
             pass
         except Exception as e:
@@ -88,9 +94,11 @@ class FridaAndroidServer(FridaServer):
         if self._process is not None:
             utils.ignore_error(self._process.terminate)
             utils.ignore_error(self._process.join, 5)
+            if hasattr(os, "killpg"):
+                utils.ignore_error(os.killpg, self._process.pid, signal.SIGQUIT)
             self._process = None
 
-        # 就算杀死adb经常，frida server也不一定真的结束了，所以kill一下frida server进程
+        # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
         process_name_lc = f"*{self._environ.remote_name}*".lower()
         for process in self.enumerate_processes():
             if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
@@ -100,8 +108,7 @@ class FridaAndroidServer(FridaServer):
 
         def __init__(self, abi, version):
             config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
-            config.setdefault("version", version)
-            config.setdefault("abi", abi)
+            config.update(version=version, abi=abi)
 
             self._download_url = config["url"].format(**config)
             self.local_name = config["name"].format(**config)
