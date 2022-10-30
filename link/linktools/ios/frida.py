@@ -6,10 +6,7 @@
 # User      : huji
 # Product   : PyCharm
 # Project   : link
-import os
-import signal
 
-import billiard
 import frida
 
 from linktools import get_logger, utils
@@ -29,13 +26,11 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         self._device = device or Device()
         self._local_port = local_port
         self._remote_port = remote_port
-        self._process = None
+        self._thread = None
 
     @classmethod
     def _run_in_background(cls, udid, usbmux, local_port: int, remote_port: int):
         try:
-            if hasattr(os, "setsid"):
-                os.setsid()
             device = Device(udid=udid, usbmux=usbmux)
             device.relay(local_port, remote_port)
         except (KeyboardInterrupt, EOFError):
@@ -44,22 +39,10 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
             logger.error(e)
 
     def _start(self):
-        self._process = billiard.context.Process(
-            target=self._run_in_background,
-            args=(
-                self._device.udid,
-                self._device.usbmux,
-                self._local_port,
-                self._remote_port,
-            ),
-            daemon=True
-        )
-        self._process.start()
+        self._thread = self._device.relay(self._local_port, self._remote_port)
 
     def _stop(self):
-        if self._process is not None:
-            utils.ignore_error(self._process.terminate)
-            utils.ignore_error(self._process.join, 5)
-            if hasattr(os, "killpg"):
-                utils.ignore_error(os.killpg, self._process.pid, signal.SIGQUIT)
-            self._process = None
+        if self._thread is not None:
+            utils.ignore_error(self._thread.stop)
+            utils.ignore_error(self._thread.join, 5)
+            self._thread = None

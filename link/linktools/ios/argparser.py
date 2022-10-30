@@ -30,8 +30,7 @@ import argparse
 import functools
 import os
 
-from linktools import utils, resource, logger
-from linktools._argparser import ArgumentParser
+from linktools import utils, resource, logger, ArgumentParser
 from linktools.ios.device import Device, Usbmux, MuxError
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("ios_udid_cache.txt", create_parent=True)

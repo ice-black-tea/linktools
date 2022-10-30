@@ -13,14 +13,11 @@ import fnmatch
 import lzma
 import os
 import shutil
-import signal
-import subprocess
 
-import billiard
 import frida
 
 import linktools
-from linktools import resource, utils, get_logger, urlutils
+from linktools import resource, get_logger, urlutils
 from linktools.android import adb
 from linktools.frida import FridaServer
 
@@ -38,28 +35,12 @@ class FridaAndroidServer(FridaServer):
         self._local_port = local_port
         self._remote_port = remote_port
         self._environ = self.Environ(device.abi, frida.__version__)
-        self._process = None
 
     @classmethod
     def setup(cls, abis=("arm", "arm64", "x86_64", "x86"), version=frida.__version__):
         for abi in abis:
             env = cls.Environ(abi, version)
             env.prepare()
-
-    @classmethod
-    def _run_in_background(cls, device_id, path: str, port: int):
-        try:
-            if hasattr(os, "setsid"):
-                os.setsid()
-            device = adb.Device(device_id)
-            device.sudo(
-                path, "-d", "fs-binaries", "-l", f"0.0.0.0:{port}",
-                stdin=subprocess.PIPE
-            )
-        except (KeyboardInterrupt, EOFError):
-            pass
-        except Exception as e:
-            logger.error(e)
 
     def _start(self):
         # 先下载frida server，然后把server推送到设备上
@@ -73,30 +54,17 @@ class FridaAndroidServer(FridaServer):
 
         # 转发端口
         self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
-
-        # 启动frida server
-        self._process = billiard.context.Process(
-            target=self._run_in_background,
-            args=(
-                self._device.id,
-                self._environ.remote_path,
-                self._remote_port,
-            ),
-            daemon=True
+        self._device.sudo(
+            self._environ.remote_path,
+            "-d", "fs-binaries",
+            "-l", f"0.0.0.0:{self._remote_port}",
+            timeout=1,
+            daemon=True,
         )
-        self._process.start()
 
     def _stop(self):
         # 先把转发端口给移除了，不然会一直占用这个端口
         self._device.forward("--remove", f"tcp:{self._local_port}", ignore_error=True)
-
-        # 结束adb进程
-        if self._process is not None:
-            utils.ignore_error(self._process.terminate)
-            utils.ignore_error(self._process.join, 5)
-            if hasattr(os, "killpg"):
-                utils.ignore_error(os.killpg, self._process.pid, signal.SIGQUIT)
-            self._process = None
 
         # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
         process_name_lc = f"*{self._environ.remote_name}*".lower()

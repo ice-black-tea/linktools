@@ -66,28 +66,27 @@ class Adb(object):
             splits = lines[i].split(maxsplit=1)
             if len(splits) >= 2:
                 device, status = splits
-                if alive is not None:
-                    if alive == (status in cls._alive_status):
-                        devices.append(device)
-                else:
+                if alive is None:
+                    devices.append(device)
+                elif alive == (status in cls._alive_status):
                     devices.append(device)
 
         return devices
 
     @classmethod
     def popen(cls, *args: [str], **kwargs) -> subprocess.Popen:
-        return tools.adb.popen(*args, **kwargs)
+        return tools["adb"].popen(*args, **kwargs)
 
     @classmethod
     def exec(cls, *args: [str], capture_output: bool = True, ignore_error: bool = False, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
-        :param capture_output: 捕获输出。对于需要返回结果的功能设置为True
+        :param capture_output: 捕获输出，默认为True
         :param ignore_error: 忽略错误，报错不会抛异常
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
-        process, out, err = tools.adb.exec(*args, capture_output=capture_output, **kwargs)
+        process, out, err = tools["adb"].exec(*args, capture_output=capture_output, **kwargs)
         if not ignore_error and process.returncode != 0 and not utils.is_empty(err):
             err = err.decode(errors='ignore')
             if not utils.is_empty(err):
@@ -178,11 +177,10 @@ class Device(object):
         :param privilege: 是否以root权限运行
         :return: adb输出结果
         """
-        if not privilege or self.uid == 0:
-            args = ["-s", self.id, "shell", *args]
-        else:
-            args = ["-s", self.id, "shell", "su", "-c", *args]
-        return Adb.exec(*args, **kwargs)
+        args = ["shell", *args] \
+            if not privilege or self.uid == 0 \
+            else ["shell", "su", "-c", *args]
+        return self.exec(*args, **kwargs)
 
     def sudo(self, *args: [str], **kwargs) -> str:
         """
@@ -193,14 +191,13 @@ class Device(object):
         kwargs["privilege"] = True
         return self.shell(*args, **kwargs)
 
-    def install(self, file_path: str, **kwargs) -> str:
+    def install(self, *file_path: str, **kwargs) -> str:
         """
         安装apk
         :param file_path: apk文件路径
         :return: adb输出结果
         """
-        args = ["-s", self.id, "install", file_path]
-        return Adb.exec(*args, **kwargs)
+        return self.exec("install", *file_path, **kwargs)
 
     def uninstall(self, package_name: str, **kwargs) -> str:
         """
@@ -208,8 +205,7 @@ class Device(object):
         :param package_name: 包名
         :return: adb输出结果
         """
-        args = ["-s", self.id, "uninstall", self.extract_package(package_name)]
-        return Adb.exec(*args, **kwargs)
+        return self.exec("uninstall", self.extract_package(package_name), **kwargs)
 
     def push(self, src: str, dst: str, **kwargs) -> str:
         """
@@ -218,8 +214,7 @@ class Device(object):
         :param dst: 目标文件
         :return: adb输出结果
         """
-        args = ["-s", self.id, "push", src, dst]
-        return Adb.exec(*args, **kwargs)
+        return self.exec("push", src, dst, **kwargs)
 
     def pull(self, src: str, dst: str, **kwargs) -> str:
         """
@@ -228,8 +223,7 @@ class Device(object):
         :param dst: 目标文件
         :return: adb输出结果
         """
-        args = ["-s", self.id, "pull", src, dst]
-        return Adb.exec(*args, **kwargs)
+        return self.exec("pull", src, dst, **kwargs)
 
     def forward(self, arg1, arg2, **kwargs) -> str:
         """
@@ -238,8 +232,7 @@ class Device(object):
         :param arg2: 设备端口
         :return: adb输出结果
         """
-        args = ["-s", self.id, "forward", arg1, arg2]
-        return Adb.exec(*args, **kwargs)
+        return self.exec("forward", arg1, arg2, **kwargs)
 
     def reverse(self, arg1, arg2, **kwargs) -> str:
         """
@@ -248,8 +241,7 @@ class Device(object):
         :param arg2: 本地端口
         :return: adb输出结果
         """
-        args = ["-s", self.id, "reverse", arg1, arg2]
-        return Adb.exec(*args, **kwargs)
+        return self.exec("reverse", arg1, arg2, **kwargs)
 
     def call_agent(self, *args: [str], **kwargs) -> str:
         """
@@ -498,13 +490,20 @@ class Device(object):
         return result
 
     @classmethod
-    def _get_safe_path(cls, path: str) -> str:
+    def get_safe_path(cls, path: str) -> str:
         temp = path
         while True:
             result = temp.replace("../", "..")
             if temp == result:
                 return result
             temp = result
+
+    @classmethod
+    def get_safe_command(cls, path: str) -> str:
+        path = path \
+            .replace("\\", "\\\\") \
+            .replace('\"', '\\\"')
+        return "\"" + path + "\""
 
     @classmethod
     def get_storage_path(cls, *paths: [str]) -> str:
@@ -515,7 +514,7 @@ class Device(object):
         """
         return "/sdcard/%s/%s" % (
             module_name,
-            "/".join([cls._get_safe_path(o) for o in paths])
+            "/".join([cls.get_safe_path(o) for o in paths])
         )
 
     @classmethod
@@ -527,7 +526,7 @@ class Device(object):
         """
         ""
         return "/data/local/tmp/%s" % (
-            "/".join([cls._get_safe_path(o) for o in paths])
+            "/".join([cls.get_safe_path(o) for o in paths])
         )
 
     @classmethod
@@ -599,3 +598,6 @@ class Device(object):
         :return: 重定向对象
         """
         return self._Redirect(self, address, port)
+
+    def __repr__(self):
+        return f"AdbDevice<{self.id}>"

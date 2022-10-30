@@ -97,7 +97,11 @@ class FridaServer(utils.Proxy, metaclass=abc.ABCMeta):  # proxy for frida.core.D
         pass
 
     def __enter__(self):
-        self.start()
+        try:
+            self.start()
+        except Exception as e:
+            self.stop()
+            raise e
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

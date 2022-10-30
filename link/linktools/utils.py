@@ -498,7 +498,7 @@ def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, by
     if daemon:
         out, err = None, None
         try:
-            out, err = process.communicate(input=input, timeout=.1)
+            out, err = process.communicate(input=input, timeout=timeout or .1)
         except subprocess.TimeoutExpired:
             pass
         return process, out, err
