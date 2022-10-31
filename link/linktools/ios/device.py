@@ -77,7 +77,9 @@ class Device(tidevice.Device):
                         server.close()
                         loop.run_until_complete(server.wait_closed())
 
-                    tasks = asyncio.all_tasks(loop=loop)
+                    tasks = asyncio.all_tasks(loop=loop) \
+                        if hasattr(asyncio, "all_tasks") \
+                        else asyncio.Task.all_tasks(loop=loop)
                     group = asyncio.gather(*tasks)
                     loop.run_until_complete(group)
                     loop.close()
@@ -95,14 +97,13 @@ class Device(tidevice.Device):
                 tasks = None
                 event = asyncio.Event()
                 client_address = client_writer.get_extra_info('peername')
-
                 plist_socket, usbmux_reader, usbmux_writer = None, None, None
 
                 try:
                     logger.debug(f"Handle client proxy request: {client_address}")
 
-                    self._device._info = None
-                    plist_socket = self._device.create_inner_connection(remote_port)
+                    device = Device(self._device.udid, self._device.usbmux)
+                    plist_socket = device.create_inner_connection(remote_port)
                     usbmux_reader, usbmux_writer = await asyncio.open_connection(sock=plist_socket.get_socket())
 
                     tasks = [
