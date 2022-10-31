@@ -18,7 +18,7 @@ import frida
 
 import linktools
 from linktools import resource, get_logger, urlutils
-from linktools.android import adb
+from linktools.android import adb, AdbError
 from linktools.frida import FridaServer
 
 logger = get_logger("android.frida")
@@ -54,23 +54,29 @@ class FridaAndroidServer(FridaServer):
 
         # 转发端口
         self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
-        self._device.sudo(
-            self._environ.remote_path,
-            "-d", "fs-binaries",
-            "-l", f"0.0.0.0:{self._remote_port}",
-            timeout=1,
-            daemon=True,
-        )
+
+        # 接下来新开一个进程运行frida server，并且输出一下是否出错
+        try:
+            self._device.sudo(
+                self._environ.remote_path,
+                "-d", "fs-binaries",
+                "-l", f"0.0.0.0:{self._remote_port}",
+                timeout=1,
+                daemon=True,
+            )
+        except AdbError as e:
+            logger.error(e)
 
     def _stop(self):
-        # 先把转发端口给移除了，不然会一直占用这个端口
-        self._device.forward("--remove", f"tcp:{self._local_port}", ignore_error=True)
-
-        # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
-        process_name_lc = f"*{self._environ.remote_name}*".lower()
-        for process in self.enumerate_processes():
-            if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
-                self.kill(process.pid)
+        try:
+            # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
+            process_name_lc = f"*{self._environ.remote_name}*".lower()
+            for process in self.enumerate_processes():
+                if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
+                    self.kill(process.pid)
+        finally:
+            # 把转发端口给移除了，不然会一直占用这个端口
+            self._device.forward("--remove", f"tcp:{self._local_port}", ignore_error=True)
 
     class Environ:
 
