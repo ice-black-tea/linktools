@@ -28,18 +28,8 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         self._remote_port = remote_port
         self._thread = None
 
-    @classmethod
-    def _run_in_background(cls, udid, usbmux, local_port: int, remote_port: int):
-        try:
-            device = Device(udid=udid, usbmux=usbmux)
-            device.relay(local_port, remote_port)
-        except (KeyboardInterrupt, EOFError):
-            pass
-        except Exception as e:
-            logger.error(e)
-
     def _start(self):
-        self._thread = self._device.relay(self._local_port, self._remote_port)
+        self._thread = self._device.forward(self._local_port, self._remote_port)
 
     def _stop(self):
         if self._thread is not None:
