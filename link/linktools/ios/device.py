@@ -7,6 +7,7 @@
 # Product   : PyCharm
 # Project   : link
 import asyncio
+import copy
 import threading
 from asyncio import StreamReader, StreamWriter
 from typing import Union, Optional
@@ -45,6 +46,9 @@ class Device(tidevice.Device):
 
     def forward(self, local_port: int, remote_port: int):
         return _ForwardThread(self, local_port, remote_port)
+
+    def __copy__(self):
+        return Device(self.udid, self.usbmux)
 
 
 class _ForwardThread(threading.Thread):
@@ -124,7 +128,7 @@ class _ForwardThread(threading.Thread):
         plist_socket, usbmux_reader, usbmux_writer = None, None, None
 
         try:
-            device = Device(self._device.udid, self._device.usbmux)
+            device = copy.copy(self._device)
             plist_socket = device.create_inner_connection(self._remote_port)
             usbmux_reader, usbmux_writer = await asyncio.open_connection(sock=plist_socket.get_socket())
 
@@ -180,3 +184,4 @@ class _ForwardThread(threading.Thread):
         writer.close()
         if hasattr(writer, "wait_closed"):
             await writer.wait_closed()
+

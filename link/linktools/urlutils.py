@@ -281,8 +281,11 @@ class UrlFile:
             BarColumn(),
             DownloadColumn(),
             TransferSpeedColumn(),
+            "·",
             TaskProgressColumn(),
+            "· elapsed",
             TimeElapsedColumn(),
+            "· remaining",
             TimeRemainingColumn(),
         )
 

@@ -37,7 +37,7 @@ from rich.table import Table
 from linktools import utils, resource, ArgumentParser
 from linktools.android.adb import Adb, AdbError, Device
 
-_DEVICE_CACHE_PATH = resource.get_temp_path("android_serial_cache.txt", create_parent=True)
+_DEVICE_CACHE_PATH = resource.get_temp_path("cache", "device", "android", create_parent=True)
 
 
 class AndroidArgumentParser(ArgumentParser):
@@ -66,7 +66,7 @@ class AndroidArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0]
 
-            table = Table(title="More than one device/emulator")
+            table = Table()
             table.add_column("Index", justify="right", style="cyan", no_wrap=True)
             table.add_column("Serial", style="magenta")
             table.add_column("Name", style="magenta")
@@ -82,8 +82,10 @@ class AndroidArgumentParser(ArgumentParser):
             console = get_console()
             console.print(table)
 
+            prompt = f"More than one device/emulator. {os.linesep}" \
+                     f"Enter device index"
             choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = IntPrompt.ask("enter device index", choices=choices, default=offset, console=console)
+            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
 
             return devices[index - offset]
 

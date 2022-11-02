@@ -163,10 +163,10 @@ class FridaShareScript(FridaUserScript):
             console = get_console()
             console.print(table)
 
-            message = f"This is the first time you're running this particular snippet, " \
-                      f"or the snippet's source code has changed. {os.linesep}" \
-                      f"Are you sure you'd like to trust it?"
-            if Confirm.ask(message, console=console):
+            prompt = f"This is the first time you're running this particular snippet, " \
+                     f"or the snippet's source code has changed. {os.linesep}" \
+                     f"Are you sure you'd like to trust it?"
+            if Confirm.ask(prompt, console=console):
                 with open(cached_md5_path, "wt") as fd:
                     fd.write(source_md5)
                 logger.info(f"Load trusted shared script: {self._url}")

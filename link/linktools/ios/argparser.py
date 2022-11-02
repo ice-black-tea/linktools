@@ -37,7 +37,7 @@ from rich.table import Table
 from linktools import utils, resource, ArgumentParser
 from linktools.ios.device import Device, Usbmux, MuxError
 
-_DEVICE_CACHE_PATH = resource.get_temp_path("ios_udid_cache.txt", create_parent=True)
+_DEVICE_CACHE_PATH = resource.get_temp_path("cache", "device", "ios", create_parent=True)
 
 
 class IOSArgumentParser(ArgumentParser):
@@ -66,7 +66,7 @@ class IOSArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0].udid
 
-            table = Table(title="More than one device/emulator")
+            table = Table()
             table.add_column("Index", justify="right", style="cyan", no_wrap=True)
             table.add_column("UDID", style="magenta")
             table.add_column("Name", style="magenta")
@@ -84,8 +84,10 @@ class IOSArgumentParser(ArgumentParser):
             console = get_console()
             console.print(table)
 
+            prompt = f"More than one device/emulator. {os.linesep}" \
+                     f"Enter device index"
             choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = IntPrompt.ask("Enter device index", choices=choices, default=offset, console=console)
+            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
 
             return devices[index - offset].udid
 
