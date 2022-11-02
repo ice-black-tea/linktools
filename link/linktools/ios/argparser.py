@@ -30,7 +30,11 @@ import argparse
 import functools
 import os
 
-from linktools import utils, resource, logger, ArgumentParser
+from rich import get_console
+from rich.prompt import IntPrompt
+from rich.table import Table
+
+from linktools import utils, resource, ArgumentParser
 from linktools.ios.device import Device, Usbmux, MuxError
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("ios_udid_cache.txt", create_parent=True)
@@ -62,27 +66,28 @@ class IOSArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0].udid
 
-            logger.info("more than one device/emulator")
+            table = Table(title="More than one device/emulator")
+            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
+            table.add_column("UDID", style="magenta")
+            table.add_column("Name", style="magenta")
 
             offset = 1
             for i in range(len(devices)):
                 try:
+                    udid = devices[i].udid
                     name = Device(devices[0].udid, usbmux).name
                 except Exception:
+                    udid = ""
                     name = ""
-                logger.info(f"%d: %-20s [%s]" % (i + offset, devices[i].udid, name))
+                table.add_row(str(i + offset), udid, name)
 
-            while True:
-                offset = 1
-                data = input(
-                    "enter device index %d~%d (default %d): " %
-                    (offset, len(devices) + offset - 1, offset)
-                )
-                if utils.is_empty(data):
-                    return devices[0].udid
-                index = utils.cast(int, data, offset - 1) - offset
-                if 0 <= index < len(devices):
-                    return devices[index].udid
+            console = get_console()
+            console.print(table)
+
+            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
+            index = IntPrompt.ask("Enter device index", choices=choices, default=offset, console=console)
+
+            return devices[index - offset].udid
 
         class UdidAction(argparse.Action):
 

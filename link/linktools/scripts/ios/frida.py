@@ -34,7 +34,7 @@ from linktools.ios import IOSArgumentParser, MuxError
 from linktools.ios.frida import FridaIOSServer
 
 
-@entry_point(logger_tag=True, known_errors=[MuxError])
+@entry_point(known_errors=[MuxError])
 def main():
     parser = IOSArgumentParser(description="easy to use frida")
     parser.add_argument("-b", "--bundle-id", action="store", default=None,

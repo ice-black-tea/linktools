@@ -34,7 +34,7 @@ from linktools.decorator import entry_point
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 
 
-@entry_point(logger_tag=True, known_errors=[AdbError])
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AndroidArgumentParser(description="easy to use frida")
     parser.add_argument("-p", "--package", action="store", default=None,

@@ -158,7 +158,7 @@ class Reactor(object):
         assert self._worker
         self._worker.join(timeout)
         if self._worker.is_alive():
-            warnings.warn("Worker did not finish normally")
+            logger.warning("Worker did not finish normally")
 
     def __enter__(self):
         self.run()

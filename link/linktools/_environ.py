@@ -29,9 +29,7 @@
 import json
 import os
 import pathlib
-import platform
 
-import colorama
 import yaml
 
 from . import utils
@@ -81,12 +79,6 @@ def _create_default_config():
 
 def _create_default_logger():
     from ._logger import get_logger
-
-    if "windows" in platform.system().lower():  # works for Win7, 8, 10 ...
-        import ctypes
-        k = ctypes.windll.kernel32
-        k.SetConsoleMode(k.GetStdHandle(-11), 7)
-    colorama.init(autoreset=False)
 
     return get_logger()
 

@@ -27,8 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from colorama import Fore, Style, Back
-
 from linktools import utils, logger
 from linktools.android import AdbError, AndroidArgumentParser, Package, Permission, Component, Activity, Service, \
     Receiver, Provider, IntentFilter
@@ -56,16 +54,16 @@ class PrintStream(PrintLevel):
         if not self.min <= level <= self.max:
             pass
         elif level == PrintLevel.title:
-            logger.info(text, style=Style.BRIGHT, indent=indent)
+            logger.info(text, style="bold", indent=indent)
         elif level == PrintLevel.dangerous:
-            logger.info(text, fore=Fore.RED, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
+            logger.info(text, style="red bold", indent=indent)
         elif level == PrintLevel.useless:
-            logger.info(text, fore=Fore.YELLOW, back=Back.WHITE, style=Style.BRIGHT, indent=indent)
+            logger.info(text, style="strike", indent=indent)
         else:
             logger.info(text, indent=indent)
 
     def print_line(self):
-        logger.info()
+        logger.info("")
 
 
 class PrintStreamWrapper(PrintLevel):

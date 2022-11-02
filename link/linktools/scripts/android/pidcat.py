@@ -23,7 +23,6 @@ import re
 import sys
 from subprocess import PIPE, DEVNULL
 
-from linktools import logger
 from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
@@ -330,7 +329,7 @@ def main():
                 linebuf += colorize(' ' * (header_size - 1), bg=WHITE)
                 linebuf += ' PID: %s    UID: %s    GIDs: %s' % (line_pid, line_uid, line_gids)
                 linebuf += '\n'
-                logger.info(linebuf)
+                print(linebuf)
                 last_tag = None  # Ensure next log gets a tag printed
 
         dead_pid, dead_pname = parse_death(tag, message)
@@ -340,7 +339,7 @@ def main():
             linebuf += colorize(' ' * (header_size - 1), bg=RED)
             linebuf += ' Process %s (PID: %s) ended' % (dead_pname, dead_pid)
             linebuf += '\n'
-            logger.info(linebuf)
+            print(linebuf)
             last_tag = None  # Ensure next log gets a tag printed
 
         # Make sure the backtrace is printed after a native crash
@@ -385,7 +384,7 @@ def main():
             message = matcher.sub(replace, message)
 
         linebuf += indent_wrap(message)
-        logger.info(linebuf)
+        print(linebuf)
 
 
 if __name__ == '__main__':

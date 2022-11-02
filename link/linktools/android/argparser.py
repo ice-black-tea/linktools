@@ -30,9 +30,12 @@ import argparse
 import functools
 import os
 
-from linktools import utils, resource, logger
+from rich import get_console
+from rich.prompt import IntPrompt
+from rich.table import Table
+
+from linktools import utils, resource, ArgumentParser
 from linktools.android.adb import Adb, AdbError, Device
-from linktools._argparser import ArgumentParser
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("android_serial_cache.txt", create_parent=True)
 
@@ -63,26 +66,26 @@ class AndroidArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0]
 
-            logger.info("more than one device/emulator")
+            table = Table(title="More than one device/emulator")
+            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
+            table.add_column("Serial", style="magenta")
+            table.add_column("Name", style="magenta")
 
             offset = 1
             for i in range(len(devices)):
                 try:
                     name = Device(devices[i]).get_prop("ro.product.name", timeout=1)
-                except Exception:
+                except:
                     name = ""
-                logger.info("%d: %-20s [%s]" % (i + offset, devices[i], name))
+                table.add_row(str(i + offset), devices[i], name)
 
-            while True:
-                data = input(
-                    "enter device index %d~%d (default %d): " %
-                    (offset, len(devices) + offset - 1, offset)
-                )
-                if utils.is_empty(data):
-                    return devices[0]
-                index = utils.cast(int, data, offset - 1) - offset
-                if 0 <= index < len(devices):
-                    return devices[index]
+            console = get_console()
+            console.print(table)
+
+            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
+            index = IntPrompt.ask("enter device index", choices=choices, default=offset, console=console)
+
+            return devices[index - offset]
 
         class SerialAction(argparse.Action):
 

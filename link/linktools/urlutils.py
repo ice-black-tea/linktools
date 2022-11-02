@@ -41,7 +41,15 @@ from typing import Dict, Union, List, Tuple
 from urllib import parse
 
 from filelock import FileLock
-from tqdm import tqdm
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn, TransferSpeedColumn,
+)
 
 from . import utils
 from ._environ import resource, config, tools
@@ -126,13 +134,13 @@ class _ContextVar(property):
 
 
 class _Context:
-    url = _ContextVar("url")
-    user_agent = _ContextVar("user_agent")
-    headers = _ContextVar("headers")
-    file_path = _ContextVar("file_path")
-    file_size = _ContextVar("file_size")
-    file_name = _ContextVar("file_name")
-    completed = _ContextVar("completed", False)
+    url: str = _ContextVar("url")
+    user_agent: str = _ContextVar("user_agent")
+    headers: dict = _ContextVar("headers")
+    file_path: str = _ContextVar("file_path")
+    file_size: int = _ContextVar("file_size")
+    file_name: str = _ContextVar("file_name")
+    completed: bool = _ContextVar("completed", False)
 
     def __init__(self, path: str):
         self._db = shelve.open(path)
@@ -267,26 +275,49 @@ class UrlFile:
             "Range": f"bytes={initial}-",
         }
 
-        with tqdm(unit='B', initial=initial, unit_scale=True, miniters=1, desc=context.file_name) as t:
+        progress = Progress(
+            SpinnerColumn(),
+            "{task.description}",
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+        )
 
-            try:
-                import requests
-                download_fn = cls._download_with_requests
-            except ModuleNotFoundError:
-                download_fn = cls._download_with_urllib
+        try:
+            import requests
+            download_fn = cls._download_with_requests
+        except ModuleNotFoundError:
+            download_fn = cls._download_with_urllib
+
+        with progress:
+            task_id = progress.add_task(context.file_name, total=initial + 1)
+            progress.advance(task_id, initial)
 
             with open(context.file_path, 'ab') as fp:
                 offset = 0
                 for data in download_fn(context, timeout_meter.get()):
-                    offset += len(data)
+                    advance = len(data)
+                    offset += advance
                     fp.write(data)
+                    progress.update(
+                        task_id,
+                        advance=advance,
+                        description=context.file_name
+                    )
                     if context.file_size is not None:
-                        t.total = initial + context.file_size
-                    t.desc = context.file_name
-                    t.update(initial + offset - t.n)
+                        progress.update(
+                            task_id,
+                            total=initial + context.file_size
+                        )
 
-            if t.total is not None and t.total > t.n:
-                raise DownloadError(f"download size {t.total} bytes was expected, got {t.n} bytes")
+            if context.file_size is not None and context.file_size > offset:
+                raise DownloadError(
+                    f"download size {initial + context.file_size} bytes was expected,"
+                    f" got {initial + offset} bytes"
+                )
 
             if os.path.getsize(context.file_path) == 0:
                 raise DownloadError(f"download {context.url} error")

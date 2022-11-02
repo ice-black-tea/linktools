@@ -26,7 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import functools
 import os
 import re
 import shutil
@@ -34,14 +34,18 @@ import zipfile
 
 import lief
 import magic
-from colorama import Fore
+from rich import get_console
+from rich.highlighter import NullHighlighter
+from rich.text import Text
+
+from linktools import utils
+from linktools.android.argparser import ArgumentParser
 from linktools.decorator import entry_point
 
-from linktools import utils, logger
-from linktools.android.argparser import ArgumentParser
+pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)
 
 
-class GrepHandler():
+class GrepHandler:
     _handlers = {}
     _filter_handlers = {}
 
@@ -114,14 +118,14 @@ class GrepMatcher:
         filter=lambda t: t.startswith("text/"),
     )
     def on_text(self, filename: str, mimetype: str):
+
         with open(filename, "rb") as fd:
             lines = fd.readlines()
             for i in range(0, len(lines)):
                 out = self.match_content(lines[i].rstrip())
                 if not utils.is_empty(out):
-                    logger.info(Fore.CYAN, filename,
-                                Fore.RESET, ":", Fore.GREEN, i + 1,
-                                Fore.RESET, ": ", out)
+                    pprint(Text(filename, style="cyan"), ":",
+                           Text(str(i + 1), style="green"), ": ", *out)
 
     @GrepHandler.match(
         "application/zip",
@@ -148,18 +152,14 @@ class GrepMatcher:
         for symbol in file.imported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
-                logger.info(Fore.CYAN, filename,
-                            Fore.RESET, ":", Fore.GREEN, "import_symbols",
-                            Fore.RESET, ": ", out,
-                            Fore.RESET, " match")
+                pprint(Text(filename, style="cyan"), ":",
+                       Text("import_symbols", style="green"), ": ", *out, " match")
 
         for symbol in file.exported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
-                logger.info(Fore.CYAN, filename,
-                            Fore.RESET, ":", Fore.GREEN, "export_symbols",
-                            Fore.RESET, ": ", out,
-                            Fore.RESET, " match")
+                pprint(Text(filename, style="cyan"), ":",
+                       Text("export_symbols", style="green"), ": ", *out, " match")
 
         self.on_binary(filename, mimetype=mimetype)
 
@@ -168,22 +168,21 @@ class GrepMatcher:
         with open(filename, "rb") as fd:
             for line in fd.readlines():
                 if self.pattern.search(line) is not None:
-                    logger.info(Fore.CYAN, filename,
-                                Fore.RESET, ": ", Fore.RED, mimetype,
-                                Fore.RESET, " match")
+                    pprint(Text(filename, style="cyan"), ":",
+                           Text(mimetype, style="red"), " match")
                     return
 
     def match_content(self, content):
-        out, last = "", 0
+        out, last = [], 0
         if type(content) == str:
             content = bytes(content, encoding="utf-8")
         for match in self.pattern.finditer(content):
             start, end = match.span()
-            out = out + Fore.RESET + str(content[last:start], encoding="utf-8")
-            out = out + Fore.RED + str(content[start:end], encoding="utf-8")
+            out.append(str(content[last:start], encoding="utf-8"))
+            out.append(Text(str(content[start:end], encoding="utf-8"), style="red"))
             last = end
         if not utils.is_empty(out):
-            out = out + Fore.RESET + str(content[last:], encoding="utf-8")
+            out.append(str(content[last:], encoding="utf-8"))
         return out
 
 

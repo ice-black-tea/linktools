@@ -26,7 +26,6 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from colorama import Fore
 
 from linktools import logger
 from linktools.android import AdbError, AndroidArgumentParser, Device
@@ -71,24 +70,33 @@ cmds = (
 )
 
 
-@entry_point(logger_tag=True, known_errors=[AdbError])
+@entry_point(known_errors=[AdbError])
 def main():
     parser = AndroidArgumentParser(description='fetch device information')
     parser.add_argument('agent_args', nargs='...', help="agent args")
     args = parser.parse_args()
     device: Device = args.parse_device()
 
-    logger.info(f"Property", fore=Fore.RED)
+    logger.info(f"Property", style="red")
     for prop in props:
-        logger.info(f"{prop}: {device.get_prop(prop)}", indent=2)
+        logger.info(
+            f"{prop}: {device.get_prop(prop)}",
+            indent=2
+        )
 
-    logger.info(f"File", fore=Fore.RED)
+    logger.info(f"File", style="red")
     for file in files:
-        logger.info(f"{file}: {device.shell('cat', file, ignore_error=True).strip()}", indent=2)
+        logger.info(
+            f"{file}: {device.shell('cat', file, ignore_error=True).strip()}",
+            indent=2
+        )
 
-    logger.info(f"Cmdline", fore=Fore.RED)
+    logger.info(f"Cmdline", style="red")
     for cmd in cmds:
-        logger.info(f"{cmd[0]}: {device.shell(*cmd[1], ignore_error=True).strip()}", indent=2)
+        logger.info(
+            f"{cmd[0]}: {device.shell(*cmd[1], ignore_error=True).strip()}",
+            indent=2
+        )
 
 
 if __name__ == '__main__':

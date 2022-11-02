@@ -18,12 +18,43 @@ from typing import Optional, Union, Dict, Collection, Callable
 
 import _frida
 import frida
-from colorama import Fore
 
 from linktools import utils, resource, get_logger
 from linktools.frida.script import FridaUserScript, FridaEvalCode, FridaScriptFile
 
 logger = get_logger("frida.app")
+
+
+class Counter:
+
+    def __init__(self):
+        self._map = {}
+        self._lock = threading.RLock()
+
+    def increase(self, group: "Group"):
+        with self._lock:
+            keys = group.get()
+            if keys not in self._map:
+                self._map[keys] = 0
+            self._map[keys] = self._map[keys] + 1
+            return self._map[keys]
+
+    class Group:
+
+        def __init__(self):
+            self._names = []
+            self._values = []
+
+        def add(self, **kwargs):
+            for k, v in kwargs.items():
+                self._names.append(k)
+                self._values.append(v)
+
+        def get(self):
+            return tuple(self._values)
+
+        def __repr__(self):
+            return ", ".join(self._names)
 
 
 class FridaReactor(utils.Reactor):
@@ -166,6 +197,8 @@ class FridaApplication:
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
+
+        self._event_counter = Counter()
 
     def _init(self):
         logger.debug(f"FridaApplication init")
@@ -520,14 +553,22 @@ class FridaApplication:
         if message is not None and isinstance(message, dict):
             stack = utils.pop_item(message, "stack")
             if not utils.is_empty(stack):
-                log_fn(stack, fore=Fore.CYAN)
+                log_fn(stack, extra=dict(style="cyan"))
 
             arguments = utils.pop_item(message, "arguments")
             if not utils.is_empty(arguments):
-                log_fn(arguments, fore=Fore.LIGHTMAGENTA_EX)
+                log_fn(arguments, extra=dict(style="magenta2"))
 
         if not utils.is_empty(message):
             log_fn(message)
+
+    def _get_event_group(self, script: FridaScript, message: object, data: object) -> Counter.Group:
+        group = Counter.Group()
+        group.add(pid=script.pid)
+        method_name = utils.get_item(message, "method_name")
+        if method_name:
+            group.add(method_name=method_name)
+        return group
 
     def on_script_event(self, script: FridaScript, message: object, data: object):
         """
@@ -536,9 +577,12 @@ class FridaApplication:
         :param message: 事件消息
         :param data: 事件数据
         """
+        group = self._get_event_group(script, message, data)
+        count = self._event_counter.increase(group)
+
         logger.info(
-            f"Script event at {datetime.now()}, {script.process_name} ({script.pid}): {os.linesep}"
-            f"{json.dumps(message, indent=2, ensure_ascii=False)}"
+            f"Script event with the count of {count} grouped by ({group}), {script.process_name} ({script.pid}): {os.linesep}"
+            f"{json.dumps(message, indent=2, ensure_ascii=False)}",
         )
 
     def on_script_send(self, script: FridaScript, type: str, message: object, data: object):

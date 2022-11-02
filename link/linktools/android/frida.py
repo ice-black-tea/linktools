@@ -13,6 +13,7 @@ import fnmatch
 import lzma
 import os
 import shutil
+import subprocess
 
 import frida
 
@@ -61,6 +62,7 @@ class FridaAndroidServer(FridaServer):
                 self._environ.remote_path,
                 "-d", "fs-binaries",
                 "-l", f"0.0.0.0:{self._remote_port}",
+                stdin=subprocess.PIPE,
                 timeout=1,
                 daemon=True,
             )

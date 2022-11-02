@@ -31,14 +31,8 @@ import threading
 import traceback
 
 
-def entry_point(logger_tag: bool = False, known_errors: [Exception] = ()):
+def entry_point(known_errors: [Exception] = ()):
     from linktools import logger
-
-    if logger_tag:
-        logger.set_debug_options(tag="[D]")
-        logger.set_info_options(tag="[I]")
-        logger.set_warning_options(tag="[W]")
-        logger.set_error_options(tag="[E]")
 
     def decorator(fn):
         @functools.wraps(fn)

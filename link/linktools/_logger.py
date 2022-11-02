@@ -27,127 +27,106 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("get_logger", "Logger")
+__all__ = ("get_logger", "Handler")
 
 import logging
 import os
 
-import colorama
+from rich.console import ConsoleRenderable
+from rich.logging import RichHandler
+from rich.text import Text
 
 from .version import __name__ as module_name
 
 
-class Logger(logging.Logger):
-    __options = {
+class Handler(RichHandler):
+    __default_styles = {
         logging.DEBUG: {
-            "fore": colorama.Fore.GREEN,
-            "back": None,
-            "style": None
+            "level": "black on blue",
+            "message": None,
         },
         logging.INFO: {
-            "fore": None,
-            "back": None,
-            "style": None
+            "level": "black on green",
+            "message": None,
         },
         logging.WARNING: {
-            "fore": colorama.Fore.MAGENTA,
-            "back": None,
-            "style": None
+            "level": "black on yellow",
+            "message": "magenta1",
         },
         logging.ERROR: {
-            "fore": colorama.Fore.RED,
-            "back": None,
-            "style": None
+            "level": "black on red1",
+            "message": "red1",
+        },
+        logging.CRITICAL: {
+            "level": "black on red1",
+            "message": "red1",
         },
     }
 
-    @classmethod
-    def set_debug_options(cls, **kwargs):
-        cls.__options.get(logging.DEBUG).update(kwargs)
+    def __init__(self):
+        super().__init__(
+            show_path=False,
+            # show_level=False,
+            # show_time=False,
+            omit_repeated_times=False,
+            # markup=True,
+            # highlighter=NullHighlighter()
+        )
 
-    @classmethod
-    def set_info_options(cls, **kwargs):
-        cls.__options.get(logging.INFO).update(kwargs)
+    def _get_level_style(self, level_no):
+        style = self.__default_styles.get(level_no)
+        if style:
+            return style.get("level")
+        return None
 
-    @classmethod
-    def set_warning_options(cls, **kwargs):
-        cls.__options.get(logging.WARNING).update(kwargs)
+    def _get_message_style(self, level_no):
+        style = self.__default_styles.get(level_no)
+        if style:
+            return style.get("message")
+        return None
 
-    @classmethod
-    def set_error_options(cls, **kwargs):
-        cls.__options.get(logging.ERROR).update(kwargs)
+    def get_level_text(self, record: logging.LogRecord) -> Text:
+        level_name = record.levelname
+        level_no = record.levelno
+        return Text(f" {level_name[:1]} ", style=self._get_level_style(level_no))
 
-    def debug(self, *args, **kwargs):
-        super().debug(None, *args, **kwargs)
+    def render_message(self, record: logging.LogRecord, message: str) -> "ConsoleRenderable":
+        indent = getattr(record, "indent", 0)
+        if indent > 0:
+            message = " " * indent + message
+            message = message.replace(os.linesep, os.linesep + " " * indent)
 
-    def info(self, *args, **kwargs):
-        super().info(None, *args, **kwargs)
+        use_markup = getattr(record, "markup", self.markup)
+        style = getattr(record, "style", self._get_message_style(record.levelno))
+        message_text = Text.from_markup(message, style=style) if use_markup else Text(message, style=style)
 
-    def warning(self, *args, **kwargs):
-        super().warning(None, *args, **kwargs)
+        highlighter = getattr(record, "highlighter", False)
+        if highlighter and self.highlighter:
+            message_text = self.highlighter(message_text)
 
-    def error(self, *args, **kwargs):
-        super().error(None, *args, **kwargs)
+        return message_text
+
+
+class Logger(logging.Logger):
 
     # noinspection PyTypeChecker, PyProtectedMember
     def _log(self, level, msg, args, **kwargs):
-        options = self.__options.get(level)
-        msg, kwargs = self._compatible_args(args, **kwargs, options=options)
+        msg += ''.join([str(i) for i in args])
+
+        extra = kwargs.get("extra") or {}
+        self._move_args(kwargs, extra, "style")
+        self._move_args(kwargs, extra, "indent")
+        self._move_args(kwargs, extra, "markup")
+        self._move_args(kwargs, extra, "highlighter")
+        kwargs["extra"] = extra
+
         return super()._log(level, msg, None, **kwargs)
 
     @classmethod
-    def _compatible_args(cls, args, options=None, **kwargs):
-
-        def get_option(item, default=None):
-            if item in kwargs:
-                return kwargs.pop(item)
-            if options is not None:
-                return options.get(item, default)
-            return None
-
-        fore = get_option("fore")
-        back = get_option("back")
-        style = get_option("style")
-
-        def set_styles():
-            result = ""
-            if fore is not None:
-                result = result + fore
-            if back is not None:
-                result = result + back
-            if style is not None:
-                result = result + style
-            return result
-
-        def reset_styles():
-            result = ""
-            if fore is not None and fore != colorama.Fore.RESET:
-                result = result + colorama.Fore.RESET
-            if back is not None and back != colorama.Back.RESET:
-                result = result + colorama.Back.RESET
-            if style is not None and style != colorama.Style.RESET_ALL:
-                result = result + colorama.Style.RESET_ALL
-            return result
-
-        msg = ""
-
-        tag = get_option("tag") or ""
-        if tag:
-            tag = tag + " "
-            msg += str(tag)
-
-        indent = get_option("indent", 0)
-        if indent > 0:
-            msg = msg + indent * " "
-
-        msg += set_styles()
-        for arg in args:
-            msg = msg + str(arg)
-        if indent + len(tag) > 0:
-            msg = msg.replace(os.linesep, os.linesep + " " * (indent + len(tag)))
-        msg += reset_styles()
-
-        return msg, kwargs
+    def _move_args(cls, from_, to_, key):
+        value = from_.pop(key, None)
+        if value is not None:
+            to_[key] = value
 
 
 manager = logging.Manager(logging.getLogger())
@@ -157,4 +136,5 @@ manager.setLoggerClass(Logger)
 def get_logger(name: str = None, prefix=module_name) -> "Logger":
     if prefix:
         name = f"{prefix}.{name}" if name else prefix
-    return manager.getLogger(name)
+    logger = manager.getLogger(name)
+    return logger
