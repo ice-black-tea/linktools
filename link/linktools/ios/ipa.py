@@ -6,7 +6,7 @@
 # User      : huji
 # Product   : PyCharm
 # Project   : link
-
+import os
 import plistlib
 import re
 import zipfile
@@ -68,3 +68,13 @@ class IPA(object):
 
     def get_version_string(self):
         return self.get_info_plist().get("CFBundleShortVersionString")
+
+    def get_permssions(self):
+        plist = self.get_info_plist()
+        for key in plist:
+            if key.endswith("Description"):
+                print(key, plist[key])
+
+
+if __name__ == '__main__':
+    IPA(os.path.expanduser("~/Downloads/201200@蜂鸟跑腿.ipa")).get_permssions()
