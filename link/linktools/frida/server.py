@@ -33,15 +33,13 @@ import frida
 
 from linktools import get_logger, utils
 
-
 logger = get_logger("frida.server")
 
 
-class FridaServer(utils.Proxy, metaclass=abc.ABCMeta):  # proxy for frida.core.Device
-    __setattr__ = object.__setattr__
+class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMeta):  # proxy for frida.core.Device
 
     def __init__(self, device: frida.core.Device):
-        super().__init__(lambda: device)
+        super().__init__(device)
 
     @property
     def is_running(self) -> bool:

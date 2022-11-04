@@ -83,21 +83,19 @@ class FridaReactor(utils.Reactor):
                 pass
 
 
-class FridaSession(utils.Proxy):  # proxy for frida.core.Session
-    __setattr__ = object.__setattr__
+class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for frida.core.Session
 
     def __init__(self, session: frida.core.Session):
-        super().__init__(lambda: session)
+        super().__init__(session)
         self.pid: Optional[int] = None
         self.process_name: Optional[str] = None
         self.script: Optional[FridaScript] = None
 
 
-class FridaScript(utils.Proxy):  # proxy for frida.core.Session
-    __setattr__ = object.__setattr__
+class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida.core.Script
 
     def __init__(self, session: FridaSession, code: str):
-        super().__init__(lambda: session.create_script(code))
+        super().__init__(session.create_script(code))
         self.session: FridaSession = session
 
     @property
@@ -160,7 +158,7 @@ class FridaApplication:
             eternalize: str = False,
             debug: str = False,
     ):
-        self.device: frida.core.Device = device
+        self.device = device
         self.spawn = self.device.spawn
         self.resume = self.device.resume
         self.enumerate_applications = self.device.enumerate_applications

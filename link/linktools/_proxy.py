@@ -5,6 +5,12 @@
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 
 
+__all__ = ("get_derived_type", "lazy_load", "lazy_raise")
+
+import functools
+from typing import TypeVar, Type, Callable, Union
+
+
 def _default_cls_attr(name, type_, cls_value):
     # Proxy uses properties to forward the standard
     # class attributes __module__, __name__ and __doc__ to the real
@@ -31,7 +37,7 @@ __module__ = __name__  # used by Proxy class body
 class _Proxy(object):
     """Proxy to another object."""
 
-    # Code stolen from werkzeug.local.Proxy and celery.local.Proxy.
+    # Code stolen from celery.local.Proxy.
     __slots__ = ('__fn', '__object', '__dict__')
     __missing__ = object()
 
@@ -259,3 +265,58 @@ class _Proxy(object):
 
     def __reduce__(self):
         return self._get_current_object().__reduce__()
+
+
+T = TypeVar('T')
+
+
+def get_derived_type(t: Type[T]) -> Type[T]:
+    """
+    生成委托类型，常用于自定义类继承委托类，替换某些方法, 如：
+
+    import subprocess
+
+    class Wrapper(get_derived_type(subprocess.Popen)):
+        def communicate(self, *args, **kwargs):
+            out, err = self.super.communicate(*args, **kwargs)
+            return out, 'too many errors!!!'
+
+    popen = Wrapper(subprocess.Popen(["/usr/bin/git", "commit", "-m", "Fixes a bug."]))
+    print(popen.communicate()) # (None, 'too many errors!!!')
+
+    :param t: 需要委托的类型
+    :return: 同参数t，需要委托的类型
+    """
+
+    class Derived(_Proxy):
+
+        def __init__(self, obj: T):
+            super().__init__(obj=obj)
+
+        @property
+        def super(self) -> T:
+            return self._get_current_object()
+
+    return Derived
+
+
+def lazy_load(fn: Callable[..., T], *args, **kwargs) -> T:
+    """
+    延迟加载
+    :param fn: 延迟加载的方法
+    :return: proxy
+    """
+    return _Proxy(functools.partial(fn, *args, **kwargs))
+
+
+def lazy_raise(e: Exception) -> T:
+    """
+    延迟抛出异常
+    :param e: exception
+    :return: proxy
+    """
+
+    def raise_error():
+        raise e
+
+    return lazy_load(raise_error)
