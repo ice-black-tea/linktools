@@ -36,17 +36,18 @@ __all__ = (
     "get_lan_ip", "get_wan_ip"
 )
 
-import collections
 import functools
 import os
 import subprocess
 import threading
 import time
 import traceback
+from collections import deque
+from collections.abc import Iterable
 from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
 
-from ._logger import get_logger
-from ._proxy import get_derived_type, lazy_load, lazy_raise
+from .logger import get_logger
+from .utils._proxy import get_derived_type, lazy_load, lazy_raise
 
 logger = get_logger("utils")
 
@@ -84,7 +85,7 @@ class Reactor(object):
         self._running = False
         self._on_stop = on_stop
         self._on_error = on_error
-        self._pending = collections.deque([])
+        self._pending = deque([])
         self._lock = threading.Lock()
         self._cond = threading.Condition(self._lock)
         self._worker = None
@@ -280,7 +281,7 @@ def is_contain(obj: object, key: object) -> "bool":
     """
     if object is None:
         return False
-    if isinstance(obj, collections.abc.Iterable):
+    if isinstance(obj, Iterable):
         return key in obj
     return False
 
@@ -396,7 +397,7 @@ def get_list_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] =
     :return: 子项
     """
     objs = get_item(obj, *keys, default=None)
-    if objs is None or not isinstance(objs, collections.abc.Iterable):
+    if objs is None or not isinstance(objs, Iterable):
         return default
     result = []
     for obj in objs:
