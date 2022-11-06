@@ -43,7 +43,7 @@ class Handler(RichHandler):
     __default_styles = {
         logging.DEBUG: {
             "level": "black on blue",
-            "message": None,
+            "message": "deep_sky_blue1",
         },
         logging.INFO: {
             "level": "black on green",
@@ -111,6 +111,7 @@ class Logger(logging.Logger):
 
     # noinspection PyTypeChecker, PyProtectedMember
     def _log(self, level, msg, args, **kwargs):
+        msg = str(msg)
         msg += ''.join([str(i) for i in args])
 
         extra = kwargs.get("extra") or {}

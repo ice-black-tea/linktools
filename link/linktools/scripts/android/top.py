@@ -63,7 +63,7 @@ def main():
     elif args.path:
         logger.info(device.get_apk_path(device.get_current_package()))
     elif args.kill:
-        device.shell("am", "force-stop", device.get_current_package(), capture_output=False)
+        device.shell("am", "force-stop", device.get_current_package(), capture_to_logger=True)
     elif "--apk" in sys.argv:
         package_name = device.get_current_package()
         logger.info("find current package: {}".format(package_name))
@@ -72,17 +72,17 @@ def main():
             logger.info("find current apk path: {}".format(package.source_dir))
             path = device.get_storage_path("{}_{}.apk".format(package.name, package.version_name))
             dest = args.apk if not utils.is_empty(args.apk) else "."
-            device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
-            device.shell("cp", package.source_dir, path, capture_output=False)
-            device.pull(path, dest, capture_output=False)
+            device.shell("mkdir", "-p", device.get_storage_path(), capture_to_logger=True)
+            device.shell("cp", package.source_dir, path, capture_to_logger=True)
+            device.pull(path, dest, capture_to_logger=True)
             device.shell("rm", path)
     elif "--screen" in sys.argv:
         now = datetime.datetime.now()
         path = device.get_storage_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
         dest = args.screen if not utils.is_empty(args.screen) else "."
-        device.shell("mkdir", "-p", device.get_storage_path(), capture_output=False)
-        device.shell("screencap", "-p", path, capture_output=False)
-        device.pull(path, dest, capture_output=False)
+        device.shell("mkdir", "-p", device.get_storage_path(), capture_to_logger=True)
+        device.shell("screencap", "-p", path, capture_to_logger=True)
+        device.pull(path, dest, capture_to_logger=True)
         device.shell("rm", path)
     else:
         package = device.get_current_package()

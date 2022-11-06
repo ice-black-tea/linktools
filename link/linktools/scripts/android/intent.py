@@ -61,31 +61,32 @@ def main():
     if "--setting" in sys.argv:
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.SETTINGS",
-                     capture_output=False)
+                     capture_to_logger=True)
     elif "--setting-dev" in sys.argv:
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
-                     capture_output=False)
+                     capture_to_logger=True)
     elif "--setting-dev2" in sys.argv:
         device.shell("am", "start", "--user", "0",
                      "-a", "android.intent.action.View",
                      "com.android.settings/com.android.settings.DevelopmentSettings",
-                     capture_output=False)
+                     capture_to_logger=True)
     elif "--setting-app" in sys.argv:
         package = args.package if not utils.is_empty(args.package) else device.get_current_package()
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,
-                     capture_output=False)
+                     capture_to_logger=True)
     elif "--setting-cert" in sys.argv:
         remote_path = device.get_data_path("cert", os.path.basename(args.path))
-        device.push(args.path, remote_path, capture_output=False)
+        device.push(args.path, remote_path,
+                    capture_to_logger=True)
         device.shell("am", "start", "--user", "0",
                      "-n", "com.android.certinstaller/.CertInstallerMain",
                      "-a", "android.intent.action.VIEW",
                      "-t", "application/x-x509-ca-cert",
                      "-d", "file://%s" % remote_path,
-                     capture_output=False)
+                     capture_to_logger=True)
     elif "--install" in sys.argv:
         apk_path = args.path
 
@@ -98,26 +99,27 @@ def main():
         remote_path = device.get_data_path("apk", f"{int(time.time())}.apk")
         try:
             logger.info(f"Push file to remote: {remote_path}")
-            device.push(apk_path, remote_path, capture_output=False)
+            device.push(apk_path, remote_path,
+                        capture_to_logger=True)
             if device.uid >= 10000:
                 device.shell("am", "start", "--user", "0",
                              "-a", "android.intent.action.VIEW",
                              "-t", "application/vnd.android.package-archive",
                              "-d", "file://%s" % remote_path,
-                             capture_output=False)
+                             capture_to_logger=True)
             else:
                 device.shell("pm", "install", "--user", "0",
                              "-r", "-t", "-d", "-f", remote_path,
-                             capture_output=False)
+                             capture_to_logger=True)
         finally:
-            logger.info(f"Clear remote file: {remote_path}")
-            device.shell("rm", remote_path, capture_output=False)
+            logger.debug(f"Clear remote file: {remote_path}")
+            device.shell("rm", remote_path, capture_to_logger=True)
 
     elif "--browser" in sys.argv:
         device.shell("am", "start", "--user", "0",
                      "-a", "android.intent.action.VIEW",
                      "-d", args.url,
-                     capture_output=False)
+                     capture_to_logger=True)
 
 
 if __name__ == '__main__':

@@ -66,7 +66,7 @@ class AndroidArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0]
 
-            table = Table()
+            table = Table(show_lines=True)
             table.add_column("Index", justify="right", style="cyan", no_wrap=True)
             table.add_column("Serial", style="magenta")
             table.add_column("Name", style="magenta")
@@ -142,8 +142,7 @@ class AndroidArgumentParser(ArgumentParser):
                         addr = addr + ":5555"
                     devices = Adb.devices()
                     if addr not in devices:
-                        process = Adb.popen("connect", addr, capture_output=False)
-                        process.wait()
+                        Adb.exec("connect", addr, capture_to_logger=True)
                     return addr
 
                 setattr(namespace, self.dest, wrapper)

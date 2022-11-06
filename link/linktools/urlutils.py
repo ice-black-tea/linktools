@@ -283,10 +283,9 @@ class UrlFile:
             TransferSpeedColumn(),
             "·",
             TaskProgressColumn(),
-            "· elapsed",
-            TimeElapsedColumn(),
-            "· remaining",
+            "·",
             TimeRemainingColumn(),
+            "eta"
         )
 
         try:

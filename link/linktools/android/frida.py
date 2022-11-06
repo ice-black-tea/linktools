@@ -49,25 +49,24 @@ class FridaAndroidServer(FridaServer):
             self._environ.prepare()
             logger.info(f"Push frida server to remote: {self._environ.remote_path}")
             temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
-            self._device.push(self._environ.local_path, temp_path, capture_output=False)
-            self._device.sudo("mv", temp_path, self._environ.remote_path, capture_output=False)
-            self._device.sudo("chmod", "755", self._environ.remote_path)
+            self._device.push(self._environ.local_path, temp_path, capture_to_logger=True)
+            self._device.sudo("mv", temp_path, self._environ.remote_path, capture_to_logger=True)
+            self._device.sudo("chmod", "755", self._environ.remote_path, capture_to_logger=True)
 
         # 转发端口
         self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
 
         # 接下来新开一个进程运行frida server，并且输出一下是否出错
-        try:
-            self._device.sudo(
-                self._environ.remote_path,
-                "-d", "fs-binaries",
-                "-l", f"0.0.0.0:{self._remote_port}",
-                stdin=subprocess.PIPE,
-                timeout=1,
-                daemon=True,
-            )
-        except AdbError as e:
-            logger.error(e)
+        self._device.sudo(
+            self._environ.remote_path,
+            "-d", "fs-binaries",
+            "-l", f"0.0.0.0:{self._remote_port}",
+            stdin=subprocess.PIPE,
+            timeout=1,
+            daemon=True,
+            ignore_error=True,
+            capture_to_logger=True,
+        )
 
     def _stop(self):
         try:

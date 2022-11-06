@@ -13,14 +13,14 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
 from typing import Optional, Union, Dict, Collection, Callable
 
 import _frida
 import frida
 
 from linktools import utils, resource, get_logger
-from linktools.frida.script import FridaUserScript, FridaEvalCode, FridaScriptFile
+from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
+from .server import FridaServer
 
 logger = get_logger("frida.app")
 
@@ -85,29 +85,27 @@ class FridaReactor(utils.Reactor):
 
 class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for frida.core.Session
 
-    def __init__(self, session: frida.core.Session):
+    pid: int = property(lambda self: self._pid)
+    process_name: str = property(lambda self: self._process_name)
+
+    def __init__(self, session: frida.core.Session, pid, process_name):
         super().__init__(session)
-        self.pid: Optional[int] = None
-        self.process_name: Optional[str] = None
+        self._pid: Optional[int] = pid
+        self._process_name: Optional[str] = process_name
         self.script: Optional[FridaScript] = None
 
 
 class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida.core.Script
 
-    def __init__(self, session: FridaSession, code: str):
-        super().__init__(session.create_script(code))
-        self.session: FridaSession = session
+    session: FridaSession = property(lambda self: self._session)
+    pid: int = property(lambda self: self._session.pid)
+    process_name: str = property(lambda self: self._session.process_name)
 
-    @property
-    def pid(self) -> int:
-        return self.session.pid
-
-    @property
-    def process_name(self) -> str:
-        return self.session.process_name
+    def __init__(self, session: FridaSession, script: frida.core.Script):
+        super().__init__(script)
+        self._session: FridaSession = session
 
 
-# noinspection PyUnresolvedReferences
 class FridaApplication:
     """
     ----------------------------------------------------------------------
@@ -174,8 +172,8 @@ class FridaApplication:
 
         self._debug = debug
         self._last_error = None
-        self._stop_request = threading.Event()
-        self._finished = threading.Event()
+        self._stop_request = utils.InterruptableEvent()
+        self._finished = utils.InterruptableEvent()
         self._reactor = FridaReactor(
             on_stop=self._on_stop,
             on_error=self._on_error
@@ -251,10 +249,6 @@ class FridaApplication:
 
     def stop(self):
         self._stop_request.set()
-
-    def run_in_block(self) -> "FridaApplication":
-        assert not self.is_running
-        return self
 
     def __enter__(self):
         self._init()
@@ -332,7 +326,10 @@ class FridaApplication:
         entry_code = self._internal_debug_script.source \
             if self._debug \
             else self._internal_script.source
-        script = FridaScript(session, entry_code)
+        script = FridaScript(
+            session,
+            session.create_script(entry_code)
+        )
 
         script.on("message", lambda message, data: self.on_script_message(script, message, data))
         script.on("destroyed", lambda: self.on_script_destroyed(script))
@@ -365,9 +362,11 @@ class FridaApplication:
         if target_process is None:
             raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}'")
 
-        session = FridaSession(self.device.attach(target_process.pid))
-        session.pid = target_process.pid
-        session.process_name = target_process.name
+        session = FridaSession(
+            self.device.attach(target_process.pid),
+            target_process.pid,
+            target_process.name,
+        )
 
         if self._enable_child_gating:
             logger.debug(f"Enable child gating: {pid}")
@@ -521,14 +520,14 @@ class FridaApplication:
         脚本加载回调，默认只打印log
         :param script: frida的脚本
         """
-        logger.debug(f"Script loaded: {script.session.process_name} ({script.session.pid})")
+        logger.debug(f"Script loaded: {script.process_name} ({script.pid})")
 
     def on_script_destroyed(self, script: FridaScript):
         """
         脚本结束回调函数，默认只打印log
         :param script: frida的脚本
         """
-        logger.debug(f"Script destroyed: {script.session.process_name} ({script.session.pid})")
+        logger.debug(f"Script destroyed: {script.process_name} ({script.pid})")
 
     def on_script_log(self, script: FridaScript, log: dict, data: object):
         """
@@ -592,8 +591,7 @@ class FridaApplication:
         :param data: 上述例子的null
         """
         logger.debug(
-            f"Script send at {datetime.now()}, {script.process_name} ({script.pid}), "
-            f"type={type}, message={message}"
+            f"Script send: {script.process_name} ({script.pid}), type={type}, message={message}"
         )
 
     def on_script_message(self, script: FridaScript, message: object, data: object):

@@ -30,10 +30,11 @@
 __all__ = (
     "TimeoutMeter", "Reactor", "ignore_error",
     "get_derived_type", "lazy_load", "lazy_raise",
-    "read_file", "popen", "exec",
-    "int", "bool", "is_contain", "is_empty", "get_item", "pop_item", "get_list_item",
+    "popen", "exec",
+    "int", "bool", "is_contain", "is_empty",
+    "get_item", "pop_item", "get_list_item",
     "get_md5", "get_sha1", "get_sha256", "make_uuid", "gzip_compress",
-    "get_lan_ip", "get_wan_ip"
+    "read_file", "get_lan_ip", "get_wan_ip"
 )
 
 import functools
@@ -46,8 +47,8 @@ from collections import deque
 from collections.abc import Iterable
 from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
 
-from .logger import get_logger
-from .utils._proxy import get_derived_type, lazy_load, lazy_raise
+from ._logger import get_logger
+from ._proxy import get_derived_type, lazy_load, lazy_raise
 
 logger = get_logger("utils")
 
@@ -74,6 +75,328 @@ class TimeoutMeter:
             if time.time() > self._deadline:
                 return False
         return True
+
+
+_T = TypeVar('_T')
+
+
+def ignore_error(fn: Callable[..., _T], *args, **kwargs) -> _T:
+    try:
+        return fn(*args, **kwargs)
+    except:
+        return None
+
+
+def popen(*args, **kwargs) -> subprocess.Popen:
+    """
+    打开进程
+    :param args: 参数
+    :return: 子进程
+    """
+    capture_output = kwargs.pop("capture_output", False)
+    if capture_output is True:
+        if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
+            raise ValueError("stdout and stderr arguments may not be used "
+                             "with capture_output.")
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+    if "cwd" not in kwargs:
+        kwargs["cwd"] = os.getcwd()
+    if "shell" not in kwargs:
+        kwargs["shell"] = False
+    if "append_env" in kwargs:
+        env = os.environ.copy()
+        env.update(kwargs.pop("env", {}))
+        env.update(kwargs.pop("append_env"))
+        kwargs["env"] = env
+    logger.debug(f"Exec cmdline: {' '.join(args)}")
+    return subprocess.Popen(args, **kwargs)
+
+
+def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
+    """
+    执行命令
+    :param args: 参数
+    :return: 子进程
+    """
+
+    input = kwargs.pop("input", None)
+    timeout = kwargs.pop("timeout", None)
+    daemon = kwargs.pop("daemon", None)
+
+    capture_output = kwargs.pop("capture_output", False)
+    capture_to_logger = kwargs.pop("capture_to_logger", False)
+
+    if capture_output is True or capture_to_logger is True:
+        if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
+            raise ValueError("stdout and stderr arguments may not be used "
+                             "with capture_output or capture_to_logger.")
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+
+    process, out, err = popen(*args, **kwargs), None, None
+    if daemon:
+        try:
+            out, err = process.communicate(input=input, timeout=timeout or .1)
+        except subprocess.TimeoutExpired:
+            pass
+
+    else:
+        out, err = process.communicate(input=input, timeout=timeout)
+
+    if capture_to_logger is True:
+        if out:
+            message = out.decode(errors="ignore") if isinstance(out, bytes) else out
+            logger.info(message.rstrip())
+        if err:
+            message = err.decode(errors="ignore") if isinstance(err, bytes) else err
+            logger.error(message.rstrip())
+
+    return process, out, err
+
+
+# noinspection PyShadowingBuiltins
+def cast(type: type, obj: object, default=None):
+    """
+    类型转换
+    :param type: 目标类型
+    :param obj: 对象
+    :param default: 默认值
+    :return: 转换后的值
+    """
+    try:
+        return type(obj)
+    except:
+        return default
+
+
+def int(obj: object, default: int = 0) -> int:
+    """
+    转为int
+    :param obj: 需要转换的值
+    :param default: 默认值
+    :return: 转换后的值
+    """
+    return cast(type(0), obj, default=default)
+
+
+def bool(obj: object, default: bool = False) -> "bool":
+    """
+    转为bool
+    :param obj: 需要转换的值
+    :param default: 默认值
+    :return: 转换后的值
+    """
+    return cast(type(True), obj, default=default)
+
+
+def is_contain(obj: object, key: object) -> "bool":
+    """
+    是否包含内容
+    :param obj: 对象
+    :param key: 键
+    :return: 是否包含
+    """
+    if object is None:
+        return False
+    if isinstance(obj, Iterable):
+        return key in obj
+    return False
+
+
+def is_empty(obj: object) -> "bool":
+    """
+    对象是否为空
+    :param obj: 对象
+    :return: 是否为空
+    """
+    if obj is None:
+        return True
+    if isinstance(obj, Sized):
+        return len(obj) == 0
+    return False
+
+
+# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
+def get_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) -> Optional[_T]:
+    """
+    获取子项
+    :param obj: 对象
+    :param keys: 键
+    :param type: 对应类型
+    :param default: 默认值
+    :return: 子项
+    """
+    for key in keys:
+        if obj is None:
+            return default
+
+        try:
+            obj = obj[key]
+            continue
+        except:
+            pass
+
+        try:
+            obj = getattr(obj, key)
+            continue
+        except:
+            pass
+
+        return default
+
+    if obj is not None and type is not None:
+        try:
+            obj = type(obj)
+        except:
+            return default
+
+    return obj
+
+
+# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
+def pop_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) -> Optional[_T]:
+    """
+    获取并删除子项
+    :param obj: 对象
+    :param keys: 键
+    :param type: 对应类型
+    :param default: 默认值
+    :return: 子项
+    """
+    last_obj = None
+    last_key = None
+
+    for key in keys:
+
+        if obj is None:
+            return default
+
+        last_obj = obj
+        last_key = key
+
+        try:
+            obj = obj[key]
+            continue
+        except:
+            pass
+
+        try:
+            obj = getattr(obj, key)
+            continue
+        except:
+            pass
+
+        return default
+
+    if last_obj is not None and last_key is not None:
+        try:
+            del last_obj[last_key]
+        except:
+            pass
+
+    if obj is not None and type is not None:
+        try:
+            obj = type(obj)
+        except:
+            return default
+
+    return obj
+
+
+# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
+def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T] = None) -> List[Optional[_T]]:
+    """
+    获取子项（列表）
+    :param obj: 对象
+    :param keys: 键
+    :param type: 对应类型
+    :param default: 默认值
+    :return: 子项
+    """
+    objs = get_item(obj, *keys, default=None)
+    if objs is None or not isinstance(objs, Iterable):
+        return default
+    result = []
+    for obj in objs:
+        if obj is not None and type is not None:
+            try:
+                result.append(type(obj))
+            except:
+                pass
+        else:
+            result.append(obj)
+    return result
+
+
+def get_md5(data: Union[str, bytes]) -> str:
+    import hashlib
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    m = hashlib.md5()
+    m.update(data)
+    return m.hexdigest()
+
+
+def get_sha1(data: Union[str, bytes]) -> str:
+    import hashlib
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    s1 = hashlib.sha1()
+    s1.update(data)
+    return s1.hexdigest()
+
+
+def get_sha256(data: Union[str, bytes]) -> str:
+    import hashlib
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    s1 = hashlib.sha256()
+    s1.update(data)
+    return s1.hexdigest()
+
+
+def make_uuid() -> str:
+    import uuid
+    import random
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")
+
+
+def gzip_compress(data: Union[str, bytes]) -> bytes:
+    import gzip
+    if type(data) == str:
+        data = bytes(data, 'utf8')
+    return gzip.compress(data)
+
+
+def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
+    with open(path, 'rb' if binary else 'r') as f:
+        return f.read()
+
+
+def get_lan_ip() -> Optional[str]:
+    import socket
+    s = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        return s.getsockname()[0]
+    except:
+        return None
+    finally:
+        s.close()
+
+
+def get_wan_ip() -> Optional[str]:
+    from .urlutils import UrlFile
+    with UrlFile(url="http://ifconfig.me/ip") as file:
+        try:
+            with open(file.save(), "rt") as fd:
+                return fd.read().strip()
+        except:
+            return None
+        finally:
+            file.clear()
 
 
 class Reactor(object):
@@ -170,307 +493,16 @@ class Reactor(object):
         self.wait()
 
 
-T = TypeVar('T')
-
-
-def ignore_error(fn: Callable[..., T], *args, **kwargs) -> T:
-    try:
-        return fn(*args, **kwargs)
-    except:
-        return None
-
-
-def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
-    with open(path, 'rb' if binary else 'r') as f:
-        return f.read()
-
-
-def popen(*args, **kwargs) -> subprocess.Popen:
-    """
-    打开进程
-    :param args: 参数
-    :return: 子进程
-    """
-    if "capture_output" in kwargs:
-        capture_output = kwargs.pop("capture_output")
-        if capture_output is True:
-            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
-                raise ValueError('stdout and stderr arguments may not be used '
-                                 'with capture_output.')
-            kwargs["stdout"] = subprocess.PIPE
-            kwargs["stderr"] = subprocess.PIPE
-    if "cwd" not in kwargs:
-        kwargs["cwd"] = os.getcwd()
-    if "shell" not in kwargs:
-        kwargs["shell"] = False
-    if "append_env" in kwargs:
-        env = os.environ.copy()
-        env.update(kwargs.pop("env", {}))
-        env.update(kwargs.pop("append_env"))
-        kwargs["env"] = env
-    logger.debug(f"Exec cmdline: {' '.join(args)}")
-    return subprocess.Popen(args, **kwargs)
-
-
-def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
-    """
-    执行命令
-    :param args: 参数
-    :return: 子进程
-    """
-
-    input = kwargs.pop("input", None)
-    timeout = kwargs.pop("timeout", None)
-    daemon = kwargs.pop("daemon", None)
-
-    process = popen(*args, **kwargs)
-    if daemon:
-        out, err = None, None
-        try:
-            out, err = process.communicate(input=input, timeout=timeout or .1)
-        except subprocess.TimeoutExpired:
-            pass
-        return process, out, err
-
-    else:
-        out, err = process.communicate(input=input, timeout=timeout)
-        return process, out, err
-
-
-# noinspection PyShadowingBuiltins
-def cast(type: type, obj: object, default=None):
-    """
-    类型转换
-    :param type: 目标类型
-    :param obj: 对象
-    :param default: 默认值
-    :return: 转换后的值
-    """
-    try:
-        return type(obj)
-    except:
-        return default
-
-
-def int(obj: object, default: int = 0) -> int:
-    """
-    转为int
-    :param obj: 需要转换的值
-    :param default: 默认值
-    :return: 转换后的值
-    """
-    return cast(type(0), obj, default=default)
-
-
-def bool(obj: object, default: bool = False) -> "bool":
-    """
-    转为bool
-    :param obj: 需要转换的值
-    :param default: 默认值
-    :return: 转换后的值
-    """
-    return cast(type(True), obj, default=default)
-
-
-def is_contain(obj: object, key: object) -> "bool":
-    """
-    是否包含内容
-    :param obj: 对象
-    :param key: 键
-    :return: 是否包含
-    """
-    if object is None:
-        return False
-    if isinstance(obj, Iterable):
-        return key in obj
-    return False
-
-
-def is_empty(obj: object) -> "bool":
-    """
-    对象是否为空
-    :param obj: 对象
-    :return: 是否为空
-    """
-    if obj is None:
-        return True
-    if isinstance(obj, Sized):
-        return len(obj) == 0
-    return False
-
-
-# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> Optional[T]:
-    """
-    获取子项
-    :param obj: 对象
-    :param keys: 键
-    :param type: 对应类型
-    :param default: 默认值
-    :return: 子项
-    """
-    for key in keys:
-        if obj is None:
-            return default
-
-        try:
-            obj = obj[key]
-            continue
-        except:
-            pass
-
-        try:
-            obj = getattr(obj, key)
-            continue
-        except:
-            pass
-
-        return default
-
-    if obj is not None and type is not None:
-        try:
-            obj = type(obj)
-        except:
-            return default
-
-    return obj
-
-
-# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def pop_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> Optional[T]:
-    """
-    获取并删除子项
-    :param obj: 对象
-    :param keys: 键
-    :param type: 对应类型
-    :param default: 默认值
-    :return: 子项
-    """
-    last_obj = None
-    last_key = None
-
-    for key in keys:
-
-        if obj is None:
-            return default
-
-        last_obj = obj
-        last_key = key
-
-        try:
-            obj = obj[key]
-            continue
-        except:
-            pass
-
-        try:
-            obj = getattr(obj, key)
-            continue
-        except:
-            pass
-
-        return default
-
-    if last_obj is not None and last_key is not None:
-        try:
-            del last_obj[last_key]
-        except:
-            pass
-
-    if obj is not None and type is not None:
-        try:
-            obj = type(obj)
-        except:
-            return default
-
-    return obj
-
-
-# 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_list_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] = None) -> List[T]:
-    """
-    获取子项（列表）
-    :param obj: 对象
-    :param keys: 键
-    :param type: 对应类型
-    :param default: 默认值
-    :return: 子项
-    """
-    objs = get_item(obj, *keys, default=None)
-    if objs is None or not isinstance(objs, Iterable):
-        return default
-    result = []
-    for obj in objs:
-        if obj is not None and type is not None:
-            try:
-                result.append(type(obj))
-            except:
-                pass
-        else:
-            result.append(obj)
-    return result
-
-
-def get_md5(data: Union[str, bytes]) -> str:
-    import hashlib
-    if type(data) == str:
-        data = bytes(data, 'utf8')
-    m = hashlib.md5()
-    m.update(data)
-    return m.hexdigest()
-
-
-def get_sha1(data: Union[str, bytes]) -> str:
-    import hashlib
-    if type(data) == str:
-        data = bytes(data, 'utf8')
-    s1 = hashlib.sha1()
-    s1.update(data)
-    return s1.hexdigest()
-
-
-def get_sha256(data: Union[str, bytes]) -> str:
-    import hashlib
-    if type(data) == str:
-        data = bytes(data, 'utf8')
-    s1 = hashlib.sha256()
-    s1.update(data)
-    return s1.hexdigest()
-
-
-def make_uuid() -> str:
-    import uuid
-    import random
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")
-
-
-def gzip_compress(data: Union[str, bytes]) -> bytes:
-    import gzip
-    if type(data) == str:
-        data = bytes(data, 'utf8')
-    return gzip.compress(data)
-
-
-def get_lan_ip() -> Optional[str]:
-    import socket
-    s = None
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80))
-        return s.getsockname()[0]
-    except:
-        return None
-    finally:
-        s.close()
-
-
-def get_wan_ip() -> Optional[str]:
-    from .urlutils import UrlFile
-    with UrlFile(url="http://ifconfig.me/ip") as file:
-        try:
-            with open(file.save(), "rt") as fd:
-                return fd.read().strip()
-        except:
-            return None
-        finally:
-            file.clear()
+class InterruptableEvent(threading.Event):
+    def wait(self, timeout=None):
+        interval = 1
+        wait = super().wait
+        meter = TimeoutMeter(timeout)
+        while True:
+            t = meter.get()
+            if t is None:
+                t = interval
+            elif t <= 0:
+                break
+            if wait(min(t, interval)):
+                break

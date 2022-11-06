@@ -66,7 +66,7 @@ class IOSArgumentParser(ArgumentParser):
             if len(devices) == 1:
                 return devices[0].udid
 
-            table = Table()
+            table = Table(show_lines=True)
             table.add_column("Index", justify="right", style="cyan", no_wrap=True)
             table.add_column("UDID", style="magenta")
             table.add_column("Name", style="magenta")

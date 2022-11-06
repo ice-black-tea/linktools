@@ -4,11 +4,10 @@
 # Datetime  : 2022/11/4 下午1:18
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 
-
 __all__ = ("get_derived_type", "lazy_load", "lazy_raise")
 
 import functools
-from typing import TypeVar, Type, Callable, Union
+from typing import TypeVar, Type, Callable
 
 
 def _default_cls_attr(name, type_, cls_value):
@@ -267,22 +266,24 @@ class _Proxy(object):
         return self._get_current_object().__reduce__()
 
 
-T = TypeVar('T')
+_T = TypeVar('_T')
 
 
-def get_derived_type(t: Type[T]) -> Type[T]:
+def get_derived_type(t: Type[_T]) -> Type[_T]:
     """
     生成委托类型，常用于自定义类继承委托类，替换某些方法, 如：
 
     import subprocess
 
     class Wrapper(get_derived_type(subprocess.Popen)):
-        def communicate(self, *args, **kwargs):
-            out, err = self.super.communicate(*args, **kwargs)
-            return out, 'too many errors!!!'
+        __super__: subprocess.Popen
 
-    popen = Wrapper(subprocess.Popen(["/usr/bin/git", "commit", "-m", "Fixes a bug."]))
-    print(popen.communicate()) # (None, 'too many errors!!!')
+        def communicate(self, *args, **kwargs):
+            out, err = self.__super__.communicate(*args, **kwargs)
+            return out, 'fake error!!!'
+
+    popen = Wrapper(subprocess.Popen(["/usr/bin/git", "status"]))
+    print(popen.communicate())  # (None, 'fake error!!!')
 
     :param t: 需要委托的类型
     :return: 同参数t，需要委托的类型
@@ -290,17 +291,17 @@ def get_derived_type(t: Type[T]) -> Type[T]:
 
     class Derived(_Proxy):
 
-        def __init__(self, obj: T):
+        def __init__(self, obj: _T):
             super().__init__(obj=obj)
 
         @property
-        def super(self) -> T:
+        def __super__(self) -> _T:
             return self._get_current_object()
 
     return Derived
 
 
-def lazy_load(fn: Callable[..., T], *args, **kwargs) -> T:
+def lazy_load(fn: Callable[..., _T], *args, **kwargs) -> _T:
     """
     延迟加载
     :param fn: 延迟加载的方法
@@ -309,7 +310,7 @@ def lazy_load(fn: Callable[..., T], *args, **kwargs) -> T:
     return _Proxy(functools.partial(fn, *args, **kwargs))
 
 
-def lazy_raise(e: Exception) -> T:
+def lazy_raise(e: Exception) -> _T:
     """
     延迟抛出异常
     :param e: exception

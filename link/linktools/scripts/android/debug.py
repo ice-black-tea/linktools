@@ -44,16 +44,16 @@ def main():
     args = parser.parse_args()
     device = args.parse_device()
 
-    device.shell("am", "force-stop", args.package, capture_output=False)
-    device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_output=False)
+    device.shell("am", "force-stop", args.package, capture_to_logger=True)
+    device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), capture_to_logger=True)
 
     pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
-    device.forward("tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_output=False)
+    device.forward("tcp:{}".format(args.port), "jdwp:{}".format(pid), capture_to_logger=True)
 
     data = input("jdb connect? [Y/n]: ").strip()
     if data in ["", "Y", "y"]:
         utils.exec("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port),
-                   capture_output=False)
+                   capture_to_logger=True)
 
 
 if __name__ == '__main__':

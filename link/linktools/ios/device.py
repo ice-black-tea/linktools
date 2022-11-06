@@ -65,9 +65,10 @@ class _ForwardThread(threading.Thread):
         self._lock = threading.RLock()
 
     def run_forever(self):
-        self.start()
         try:
-            self.join()
+            self.start()
+            while True:
+                self.join(1)
         except KeyboardInterrupt:
             self.stop()
         finally:
@@ -108,6 +109,8 @@ class _ForwardThread(threading.Thread):
             logger.error(f"Usbmux proxy error: {e}")
 
         finally:
+            self._event.set()
+
             if server:
                 logger.debug(f"Usbmux proxy close")
                 server.close()
@@ -116,7 +119,8 @@ class _ForwardThread(threading.Thread):
             tasks = asyncio.all_tasks(loop=loop) \
                 if hasattr(asyncio, "all_tasks") \
                 else asyncio.Task.all_tasks(loop=loop)
-            loop.run_until_complete(asyncio.gather(*tasks))
+            for task in tasks:
+                loop.run_until_complete(task)
             loop.close()
 
     async def _handle_client(self, client_reader: StreamReader, client_writer: StreamWriter):
@@ -184,4 +188,3 @@ class _ForwardThread(threading.Thread):
         writer.close()
         if hasattr(writer, "wait_closed"):
             await writer.wait_closed()
-
