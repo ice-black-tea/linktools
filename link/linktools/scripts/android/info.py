@@ -87,14 +87,14 @@ def main():
     logger.info(f"File", style="red")
     for file in files:
         logger.info(
-            f"{file}: {device.shell('cat', file, ignore_error=True).strip()}",
+            f"{file}: {device.shell('cat', file, ignore_errors=True).strip()}",
             indent=2
         )
 
     logger.info(f"Cmdline", style="red")
     for cmd in cmds:
         logger.info(
-            f"{cmd[0]}: {device.shell(*cmd[1], ignore_error=True).strip()}",
+            f"{cmd[0]}: {device.shell(*cmd[1], ignore_errors=True).strip()}",
             indent=2
         )
 

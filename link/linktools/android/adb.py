@@ -32,12 +32,11 @@ __all__ = ("AdbError", "Adb", "Device")
 import json
 import re
 import subprocess
-import warnings
 from typing import Optional, Any
 
-import linktools
-from linktools import __name__ as module_name, utils, resource, tools, get_logger
+from linktools import __name__ as module_name, utils, resource, tools, config, get_logger
 from linktools.decorator import cached_property
+
 from .struct import Package, UnixSocket, InetSocket
 
 logger = get_logger("android.adb")
@@ -78,16 +77,21 @@ class Adb(object):
         return tools["adb"].popen(*args, **kwargs)
 
     @classmethod
-    def exec(cls, *args: [str], capture_output: bool = True, ignore_error: bool = False, **kwargs) -> str:
+    def exec(cls, *args: [str], capture_output: bool = True, ignore_errors: bool = False, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
         :param capture_output: 捕获输出，默认为True
-        :param ignore_error: 忽略错误，报错不会抛异常
+        :param ignore_errors: 忽略错误，报错不会抛异常
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
-        process, out, err = tools["adb"].exec(*args, capture_output=capture_output, **kwargs)
-        if not ignore_error and process.returncode != 0 and not utils.is_empty(err):
+        process, out, err = tools["adb"].exec(
+            *args,
+            capture_output=capture_output,
+            ignore_errors=ignore_errors,
+            **kwargs
+        )
+        if not ignore_errors and process.returncode != 0 and not utils.is_empty(err):
             err = err.decode(errors='ignore')
             if not utils.is_empty(err):
                 raise AdbError(err)
@@ -112,7 +116,7 @@ class Device(object):
 
     @property
     def config(self) -> dict:
-        return linktools.config["ANDROID_TOOL_BRIDGE_APK"]
+        return config["ANDROID_TOOL_BRIDGE_APK"]
 
     @cached_property
     def id(self) -> str:
@@ -225,23 +229,19 @@ class Device(object):
         """
         return self.exec("pull", src, dst, **kwargs)
 
-    def forward(self, arg1, arg2, **kwargs) -> str:
+    def forward(self, *args, **kwargs) -> str:
         """
         端口转发
-        :param arg1: 本地端口
-        :param arg2: 设备端口
         :return: adb输出结果
         """
-        return self.exec("forward", arg1, arg2, **kwargs)
+        return self.exec("forward", *args, **kwargs)
 
-    def reverse(self, arg1, arg2, **kwargs) -> str:
+    def reverse(self, *args, **kwargs) -> str:
         """
         端口转发
-        :param arg1: 设备端口
-        :param arg2: 本地端口
         :return: adb输出结果
         """
-        return self.exec("reverse", arg1, arg2, **kwargs)
+        return self.exec("reverse", *args, **kwargs)
 
     def call_agent(self, *args: [str], **kwargs) -> str:
         """
@@ -294,8 +294,7 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         return self.shell("getprop", prop, **kwargs).rstrip()
 
@@ -333,8 +332,7 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
         out = self.shell(*args, **kwargs)
@@ -345,8 +343,7 @@ class Device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -366,8 +363,7 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
         result = self.shell(*args, **kwargs)
@@ -381,8 +377,7 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -394,8 +389,12 @@ class Device(object):
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     def get_package(self, package_name: str, **kwargs) -> Optional[Package]:
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        """
+        根据包名获取包信息
+        :param package_name: 包名
+        :return: 包信息
+        """
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         args = ["package", "--packages", package_name]
         objs = json.loads(self.call_agent(*args, **kwargs))
@@ -409,8 +408,7 @@ class Device(object):
         :param simple: 只获取基本信息
         :return: 包信息
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         result = []
         agent_args = ["package"]
@@ -435,8 +433,7 @@ class Device(object):
         :param simple: 只获取基本信息
         :return: 包信息
         """
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         result = []
         agent_args = ["package"]
@@ -479,8 +476,7 @@ class Device(object):
         return self._get_sockets(UnixSocket, "--unix-sock", **kwargs)
 
     def _get_sockets(self, type, command, **kwargs):
-        self._ignore_invalid_argument(kwargs, "capture_output", False)
-        self._ignore_invalid_argument(kwargs, "daemon", True)
+        self._set_default(kwargs, capture_output=True, daemon=False)
 
         result = []
         agent_args = ["network", command]
@@ -491,6 +487,11 @@ class Device(object):
 
     @classmethod
     def get_safe_path(cls, path: str) -> str:
+        """
+        过滤"../"关键字
+        :param path: 原始路径
+        :return: 过滤完"../"的路径
+        """
         temp = path
         while True:
             result = temp.replace("../", "..")
@@ -499,11 +500,16 @@ class Device(object):
             temp = result
 
     @classmethod
-    def get_safe_command(cls, path: str) -> str:
-        path = path \
+    def get_safe_command(cls, cmd: str) -> str:
+        """
+        用双引号把命令包起来
+        :param cmd: 原命令
+        :return: 双引号包起来的命令
+        """
+        cmd = cmd \
             .replace("\\", "\\\\") \
             .replace('\"', '\\\"')
-        return "\"" + path + "\""
+        return "\"" + cmd + "\""
 
     @classmethod
     def get_storage_path(cls, *paths: [str]) -> str:
@@ -532,7 +538,7 @@ class Device(object):
     @classmethod
     def extract_package(cls, package_name) -> str:
         """
-        获取可识别的包名
+        获取可识别的包名（主要是过滤像":"这类字符）
         :param package_name: 包名
         :return: 包名
         """
@@ -542,53 +548,11 @@ class Device(object):
         return package_name
 
     @classmethod
-    def _ignore_invalid_argument(cls, kwargs: dict, key: str, value: Any):
-        if key in kwargs:
-            if kwargs[key] == value:
-                kwargs.pop(key)
-                warnings.warn(f"invalid argument {key}={value}, ignored!", stacklevel=2)
-
-    class _Redirect:
-
-        def __init__(self, device: "Device", address: str, port: int):
-            self.device = device
-            self.target_address = address
-            self.target_port = port
-            self.remote_port = None
-
-        def start(self):
-            if not self.target_address:
-                # 如果没有指定目标地址，则通过reverse端口访问
-                self.remote_port = self.device.exec("reverse", f"tcp:0", f"tcp:{self.target_port}").strip()
-                destination = f"127.0.0.1:{self.remote_port}"
-                logger.debug(f"Not found redirect address, use {destination} instead")
-            else:
-                # 指定了目标地址那就直接用目标地址
-                destination = f"{self.target_address}:{self.target_port}"
-                logger.debug(f"Found redirect address {destination}")
-            # 排除localhost
-            self.device.sudo(
-                "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-o", "lo", "-j", "RETURN"
-            )
-            # 转发流量
-            self.device.sudo(
-                "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-j", "DNAT", "--to-destination", destination
-            )
-
-        def stop(self):
-            # 清空iptables -t nat配置
-            utils.ignore_error(self.device.sudo, "iptables", "-t", "nat", "-F")
-            # 如果占用reverse端口，则释放端口
-            if self.remote_port:
-                utils.ignore_error(self.device.exec, "reverse", "--remove", f"tcp:{self.remote_port}")
-
-        def __enter__(self):
-            self.stop()
-            self.start()
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self.stop()
+    def _set_default(cls, kwargs: dict, **_kwargs: Any):
+        for key, value in _kwargs.items():
+            if key in kwargs and kwargs[key] != value:
+                logger.warning(f"Invalid argument {key}={kwargs[key]}, ignored!", stack_info=True)
+            kwargs[key] = value
 
     def redirect(self, address: str = None, port: int = 8080):
         """
@@ -597,7 +561,50 @@ class Device(object):
         :param port: 本地监听端口
         :return: 重定向对象
         """
-        return self._Redirect(self, address, port)
+        return _Redirect(self, address, port)
 
     def __repr__(self):
         return f"AdbDevice<{self.id}>"
+
+
+class _Redirect:
+
+    def __init__(self, device: "Device", address: str, port: int):
+        self.device = device
+        self.target_address = address
+        self.target_port = port
+        self.remote_port = None
+
+    def start(self):
+        if not self.target_address:
+            # 如果没有指定目标地址，则通过reverse端口访问
+            self.remote_port = self.device.exec("reverse", f"tcp:0", f"tcp:{self.target_port}").strip()
+            destination = f"127.0.0.1:{self.remote_port}"
+            logger.debug(f"Not found redirect address, use {destination} instead")
+        else:
+            # 指定了目标地址那就直接用目标地址
+            destination = f"{self.target_address}:{self.target_port}"
+            logger.debug(f"Found redirect address {destination}")
+        # 排除localhost
+        self.device.sudo(
+            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-o", "lo", "-j", "RETURN"
+        )
+        # 转发流量
+        self.device.sudo(
+            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-j", "DNAT", "--to-destination", destination
+        )
+
+    def stop(self):
+        # 清空iptables -t nat配置
+        self.device.sudo("iptables", "-t", "nat", "-F", ignore_errors=True)
+        # 如果占用reverse端口，则释放端口
+        if self.remote_port:
+            self.device.exec("reverse", "--remove", f"tcp:{self.remote_port}", ignore_errors=True)
+
+    def __enter__(self):
+        self.stop()
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()

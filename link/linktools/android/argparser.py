@@ -142,7 +142,7 @@ class AndroidArgumentParser(ArgumentParser):
                         addr = addr + ":5555"
                     devices = Adb.devices()
                     if addr not in devices:
-                        Adb.exec("connect", addr, capture_to_logger=True)
+                        Adb.exec("connect", addr, output_to_logger=True)
                     return addr
 
                 setattr(namespace, self.dest, wrapper)

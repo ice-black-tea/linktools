@@ -49,23 +49,24 @@ class FridaAndroidServer(FridaServer):
             self._environ.prepare()
             logger.info(f"Push frida server to remote: {self._environ.remote_path}")
             temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
-            self._device.push(self._environ.local_path, temp_path, capture_to_logger=True)
-            self._device.sudo("mv", temp_path, self._environ.remote_path, capture_to_logger=True)
-            self._device.sudo("chmod", "755", self._environ.remote_path, capture_to_logger=True)
+            self._device.push(self._environ.local_path, temp_path, output_to_logger=True)
+            self._device.sudo("mv", temp_path, self._environ.remote_path, output_to_logger=True)
+            self._device.sudo("chmod", "755", self._environ.remote_path, output_to_logger=True)
 
         # 转发端口
         self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
 
         # 接下来新开一个进程运行frida server，并且输出一下是否出错
         self._device.sudo(
-            self._environ.remote_path,
-            "-d", "fs-binaries",
-            "-l", f"0.0.0.0:{self._remote_port}",
+            " ".join([
+                self._device.get_safe_command(self._environ.remote_path),
+                "-d", "fs-binaries",
+                "-l", f"0.0.0.0:{self._remote_port}",
+                "-D", "&"
+            ]),
             stdin=subprocess.PIPE,
-            timeout=1,
-            daemon=True,
-            ignore_error=True,
-            capture_to_logger=True,
+            ignore_errors=True,
+            output_to_logger=True,
         )
 
     def _stop(self):
@@ -77,7 +78,7 @@ class FridaAndroidServer(FridaServer):
                     self.kill(process.pid)
         finally:
             # 把转发端口给移除了，不然会一直占用这个端口
-            self._device.forward("--remove", f"tcp:{self._local_port}", ignore_error=True)
+            self._device.forward("--remove", f"tcp:{self._local_port}", ignore_errors=True)
 
     class Environ:
 

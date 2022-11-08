@@ -38,7 +38,7 @@ from rich import get_console
 from rich.highlighter import NullHighlighter
 from rich.text import Text
 
-from linktools import utils
+from linktools import utils, logger
 from linktools.android.argparser import ArgumentParser
 from linktools.decorator import entry_point
 
@@ -109,9 +109,14 @@ class GrepMatcher:
 
     def on_file(self, filename: str):
         if os.path.exists(filename):
-            mimetype = magic.from_file(filename, mime=True)
-            if not GrepHandler.handle(self, filename, mimetype):
-                self.on_binary(filename, mimetype)
+            try:
+                with open(filename, 'rb') as fd:
+                    buffer = fd.read(1024)
+                mimetype = magic.from_buffer(buffer, mime=True)
+                if not GrepHandler.handle(self, filename, mimetype):
+                    self.on_binary(filename, mimetype)
+            except Exception as e:
+                logger.debug(f"handle file error: {e}")
 
     @GrepHandler.match(
         "application/xml",
@@ -207,6 +212,7 @@ def main():
     if utils.is_empty(args.files):
         args.files = ["."]
 
+    lief.logging.disable()
     for file in args.files:
         GrepMatcher(pattern).match(file)
 

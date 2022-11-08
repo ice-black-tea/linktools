@@ -125,26 +125,35 @@ def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, by
     daemon = kwargs.pop("daemon", None)
 
     capture_output = kwargs.pop("capture_output", False)
-    capture_to_logger = kwargs.pop("capture_to_logger", False)
+    output_to_logger = kwargs.pop("output_to_logger", False)
+    ignore_errors = kwargs.pop("ignore_errors", False)
 
-    if capture_output is True or capture_to_logger is True:
+    if capture_output is True or output_to_logger is True:
         if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
             raise ValueError("stdout and stderr arguments may not be used "
-                             "with capture_output or capture_to_logger.")
+                             "with capture_output or output_to_logger.")
         kwargs["stdout"] = subprocess.PIPE
         kwargs["stderr"] = subprocess.PIPE
 
-    process, out, err = popen(*args, **kwargs), None, None
-    if daemon:
-        try:
-            out, err = process.communicate(input=input, timeout=timeout or .1)
-        except subprocess.TimeoutExpired:
+    process, out, err = None, None, None
+    try:
+        process = popen(*args, **kwargs)
+        out, err = process.communicate(
+            input=input,
+            timeout=timeout or .1 if daemon else timeout
+        )
+    except Exception as e:
+        if ignore_errors:
+            logger.debug(f"Ignore error: {e}")
+        elif daemon and isinstance(e, subprocess.TimeoutExpired):
             pass
+        else:
+            raise e
+    finally:
+        if not daemon:
+            process.kill()
 
-    else:
-        out, err = process.communicate(input=input, timeout=timeout)
-
-    if capture_to_logger is True:
+    if output_to_logger is True:
         if out:
             message = out.decode(errors="ignore") if isinstance(out, bytes) else out
             logger.info(message.rstrip())
@@ -494,6 +503,9 @@ class Reactor(object):
 
 
 class InterruptableEvent(threading.Event):
+    """
+    解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
+    """
     def wait(self, timeout=None):
         interval = 1
         wait = super().wait

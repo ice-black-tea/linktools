@@ -271,7 +271,7 @@ class GeneralTool(metaclass=Meta):
         # java or other
         if executable_cmdline[0] in self.__container.items:
             args = [*executable_cmdline[1:], *args]
-            tool: GeneralTool = self.__container.items[executable_cmdline[0]]
+            tool = self.__container.items[executable_cmdline[0]]
             return tool._process(fn, *args, **kwargs)
 
         return fn(*[*executable_cmdline, *args], **kwargs)
