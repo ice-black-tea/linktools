@@ -150,7 +150,7 @@ def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, by
         else:
             raise e
     finally:
-        if not daemon:
+        if not daemon and process:
             process.kill()
 
     if output_to_logger is True:
