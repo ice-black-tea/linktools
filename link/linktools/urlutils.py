@@ -47,8 +47,8 @@ from rich.progress import (
     Progress,
     SpinnerColumn,
     TaskProgressColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn, TransferSpeedColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
 )
 
 from . import utils
@@ -290,9 +290,9 @@ class UrlFile:
 
         try:
             import requests
-            download_fn = cls._download_with_requests
+            fn = cls._download_with_requests
         except ModuleNotFoundError:
-            download_fn = cls._download_with_urllib
+            fn = cls._download_with_urllib
 
         with progress:
             task_id = progress.add_task(context.file_name, total=initial + 1)
@@ -300,7 +300,7 @@ class UrlFile:
 
             with open(context.file_path, 'ab') as fp:
                 offset = 0
-                for data in download_fn(context, timeout_meter.get()):
+                for data in fn(context, timeout_meter.get()):
                     advance = len(data)
                     offset += advance
                     fp.write(data)

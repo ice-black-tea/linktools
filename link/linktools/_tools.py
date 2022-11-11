@@ -279,7 +279,7 @@ class GeneralTool(metaclass=Meta):
     def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
         return self._process(utils.popen, *args, **kwargs)
 
-    def exec(self, *args: [str], **kwargs) -> (subprocess.Popen, str, str):
+    def exec(self, *args: [str], **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
         return self._process(utils.exec, *args, **kwargs)
 
     def __repr__(self):

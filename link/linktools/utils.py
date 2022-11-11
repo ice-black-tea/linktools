@@ -34,12 +34,10 @@ __all__ = (
     "int", "bool", "is_contain", "is_empty",
     "get_item", "pop_item", "get_list_item",
     "get_md5", "get_sha1", "get_sha256", "make_uuid", "gzip_compress",
-    "read_file", "get_lan_ip", "get_wan_ip"
+    "read_file", "write_file", "get_lan_ip", "get_wan_ip"
 )
 
 import functools
-import os
-import subprocess
 import threading
 import time
 import traceback
@@ -49,6 +47,7 @@ from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
 
 from ._logger import get_logger
 from ._proxy import get_derived_type, lazy_load, lazy_raise
+from ._subprocess import popen, exec
 
 logger = get_logger("utils")
 
@@ -85,83 +84,6 @@ def ignore_error(fn: Callable[..., _T], *args, **kwargs) -> _T:
         return fn(*args, **kwargs)
     except:
         return None
-
-
-def popen(*args, **kwargs) -> subprocess.Popen:
-    """
-    打开进程
-    :param args: 参数
-    :return: 子进程
-    """
-    capture_output = kwargs.pop("capture_output", False)
-    if capture_output is True:
-        if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
-            raise ValueError("stdout and stderr arguments may not be used "
-                             "with capture_output.")
-        kwargs["stdout"] = subprocess.PIPE
-        kwargs["stderr"] = subprocess.PIPE
-    if "cwd" not in kwargs:
-        kwargs["cwd"] = os.getcwd()
-    if "shell" not in kwargs:
-        kwargs["shell"] = False
-    if "append_env" in kwargs:
-        env = os.environ.copy()
-        env.update(kwargs.pop("env", {}))
-        env.update(kwargs.pop("append_env"))
-        kwargs["env"] = env
-    logger.debug(f"Exec cmdline: {' '.join(args)}")
-    return subprocess.Popen(args, **kwargs)
-
-
-def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
-    """
-    执行命令
-    :param args: 参数
-    :return: 子进程
-    """
-
-    input = kwargs.pop("input", None)
-    timeout = kwargs.pop("timeout", None)
-    daemon = kwargs.pop("daemon", None)
-
-    capture_output = kwargs.pop("capture_output", False)
-    output_to_logger = kwargs.pop("output_to_logger", False)
-    ignore_errors = kwargs.pop("ignore_errors", False)
-
-    if capture_output is True or output_to_logger is True:
-        if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
-            raise ValueError("stdout and stderr arguments may not be used "
-                             "with capture_output or output_to_logger.")
-        kwargs["stdout"] = subprocess.PIPE
-        kwargs["stderr"] = subprocess.PIPE
-
-    process, out, err = None, None, None
-    try:
-        process = popen(*args, **kwargs)
-        out, err = process.communicate(
-            input=input,
-            timeout=timeout or .1 if daemon else timeout
-        )
-    except Exception as e:
-        if ignore_errors:
-            logger.debug(f"Ignore error: {e}")
-        elif daemon and isinstance(e, subprocess.TimeoutExpired):
-            pass
-        else:
-            raise e
-    finally:
-        if not daemon and process:
-            process.kill()
-
-    if output_to_logger is True:
-        if out:
-            message = out.decode(errors="ignore") if isinstance(out, bytes) else out
-            logger.info(message.rstrip())
-        if err:
-            message = err.decode(errors="ignore") if isinstance(err, bytes) else err
-            logger.error(message.rstrip())
-
-    return process, out, err
 
 
 # noinspection PyShadowingBuiltins
@@ -383,6 +305,11 @@ def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
         return f.read()
 
 
+def write_file(path: str, data: [str, bytes]) -> None:
+    with open(path, 'wb' if isinstance(data, bytes) else 'w') as f:
+        f.write(data)
+
+
 def get_lan_ip() -> Optional[str]:
     import socket
     s = None
@@ -506,6 +433,7 @@ class InterruptableEvent(threading.Event):
     """
     解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
     """
+
     def wait(self, timeout=None):
         interval = 1
         wait = super().wait

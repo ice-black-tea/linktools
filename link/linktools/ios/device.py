@@ -14,7 +14,7 @@ from typing import Union, Optional
 
 import tidevice
 
-from linktools import get_logger
+from linktools import get_logger, utils
 
 logger = get_logger("ios.device")
 
@@ -44,8 +44,8 @@ class Device(tidevice.Device):
     def __init__(self, udid: Optional[str] = None, usbmux: Union[Usbmux, str, None] = None):
         super().__init__(udid, usbmux or Usbmux.get_default())
 
-    def forward(self, local_port: int, remote_port: int):
-        return _ForwardThread(self, local_port, remote_port)
+    def forward(self, local_port: int, remote_port: int, local_address: str = "127.0.0.1"):
+        return _ForwardThread(self, local_address, local_port, remote_port)
 
     def __copy__(self):
         return Device(self.udid, self.usbmux)
@@ -53,15 +53,17 @@ class Device(tidevice.Device):
 
 class _ForwardThread(threading.Thread):
 
-    def __init__(self, device: "Device", local_port: int, remote_port: int):
+    def __init__(self, device: "Device", local_address: str, local_port: int, remote_port: int):
         super().__init__()
         self._device = device
+        self._local_address = local_address
         self._local_port = local_port
         self._remote_port = remote_port
 
         self._loop = None
-        self._event = None
         self._stopped = False
+        self._stop_event = None
+        self._stop_event_task = None
         self._lock = threading.RLock()
 
     def run_forever(self):
@@ -79,8 +81,8 @@ class _ForwardThread(threading.Thread):
             if self._stopped:
                 return
             self._stopped = True
-            if self._loop and self._event:
-                self._loop.call_soon_threadsafe(self._event.set)
+            if self._loop and self._stop_event:
+                self._loop.call_soon_threadsafe(self._stop_event.set)
 
     def __enter__(self):
         self.start()
@@ -96,20 +98,23 @@ class _ForwardThread(threading.Thread):
                 return
             loop = self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            event = self._event = asyncio.Event()
+            event = self._stop_event = asyncio.Event()
+            task = self._stop_event_task = loop.create_task(event.wait())
 
         server = None
         try:
-            coro = asyncio.start_server(self._handle_client, '127.0.0.1', self._local_port)
+            coro = asyncio.start_server(self._handle_client, self._local_address, self._local_port)
             server = loop.run_until_complete(coro)
             logger.debug(f"Usbmux proxy serving on {server.sockets[0].getsockname()} => {self._remote_port}")
-            loop.run_until_complete(event.wait())
+            loop.run_until_complete(task)
 
         except BaseException as e:
             logger.error(f"Usbmux proxy error: {e}")
 
         finally:
-            self._event.set()
+            with self._lock:
+                self._stopped = True
+                self._loop.call_soon(self._stop_event.set)
 
             if server:
                 logger.debug(f"Usbmux proxy close")
@@ -120,7 +125,7 @@ class _ForwardThread(threading.Thread):
                 if hasattr(asyncio, "all_tasks") \
                 else asyncio.Task.all_tasks(loop=loop)
             for task in tasks:
-                loop.run_until_complete(task)
+                utils.ignore_error(loop.run_until_complete, task)
             loop.close()
 
     async def _handle_client(self, client_reader: StreamReader, client_writer: StreamWriter):
@@ -160,7 +165,7 @@ class _ForwardThread(threading.Thread):
             logger.debug(f"handle client proxy request finished: {client_address}")
 
     async def _handle_forward_stream(self, reader: StreamReader, writer: StreamWriter):
-        while not self._event.is_set():
+        while not self._stop_event.is_set():
             try:
                 data = await reader.read(1024 * 10)
                 if not data:
@@ -172,19 +177,19 @@ class _ForwardThread(threading.Thread):
                 break
 
     async def _handle_close_stream(self, writers: [StreamWriter], event):
-        _, pending = await asyncio.wait([
-            asyncio.create_task(self._event.wait()),
+        await asyncio.wait([
+            self._stop_event_task,
             asyncio.create_task(event.wait())
-        ])
-        for task in pending:
-            task.cancel()
-        await asyncio.wait((
-            *[asyncio.create_task(self._close_stream(w)) for w in writers],
-            *pending
-        ))
+        ], return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait(
+            [asyncio.create_task(self._close_stream(w)) for w in writers],
+        )
 
     @classmethod
     async def _close_stream(cls, writer: StreamWriter):
-        writer.close()
-        if hasattr(writer, "wait_closed"):
-            await writer.wait_closed()
+        try:
+            writer.close()
+            if hasattr(writer, "wait_closed"):
+                await writer.wait_closed()
+        except Exception as e:
+            logger.debug(f"Close stream error: {e}")
