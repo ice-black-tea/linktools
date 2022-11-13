@@ -19,10 +19,10 @@ import frida
 
 import linktools
 from linktools import resource, get_logger, urlutils
-from linktools.android import adb, AdbError
+from linktools.android import adb
 from linktools.frida import FridaServer
 
-logger = get_logger("android.frida")
+_logger = get_logger("android.frida")
 
 
 class FridaAndroidServer(FridaServer):
@@ -47,7 +47,7 @@ class FridaAndroidServer(FridaServer):
         # 先下载frida server，然后把server推送到设备上
         if not self._device.is_file_exist(self._environ.remote_path):
             self._environ.prepare()
-            logger.info(f"Push frida server to remote: {self._environ.remote_path}")
+            _logger.info(f"Push frida server to remote: {self._environ.remote_path}")
             temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
             self._device.push(self._environ.local_path, temp_path, output_to_logger=True)
             self._device.sudo("mv", temp_path, self._environ.remote_path, output_to_logger=True)
@@ -95,7 +95,7 @@ class FridaAndroidServer(FridaServer):
         def prepare(self):
             if os.path.exists(self.local_path):
                 return
-            logger.info("Download frida server ...")
+            _logger.info("Download frida server ...")
             with urlutils.UrlFile(self._download_url) as file:
                 if os.path.exists(self.local_path):
                     return

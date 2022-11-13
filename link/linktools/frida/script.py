@@ -37,7 +37,7 @@ from rich.table import Table
 
 from linktools import utils, get_logger, urlutils
 
-logger = get_logger("frida.app")
+_logger = get_logger("frida.app")
 
 
 class FridaUserScript(metaclass=abc.ABCMeta):
@@ -85,7 +85,7 @@ class FridaScriptFile(FridaUserScript):
 
     def _load(self) -> Optional[str]:
         with open(self._path, "rb") as f:
-            logger.info(f"Load script: {self._path}")
+            _logger.info(f"Load script: {self._path}")
             return f.read().decode("utf-8")
 
     def __repr__(self):
@@ -125,14 +125,14 @@ class FridaShareScript(FridaUserScript):
             if not self._cached:
                 file.clear()
 
-            logger.info(f"Download shared script: {self._url}")
+            _logger.info(f"Download shared script: {self._url}")
             target_path = file.save()
 
             with open(target_path, "rb") as f:
                 source = f.read().decode("utf-8")
 
             if self._trusted:
-                logger.info(f"Load trusted shared script: {self._url}")
+                _logger.info(f"Load trusted shared script: {self._url}")
                 return source
 
             cached_md5 = ""
@@ -143,7 +143,7 @@ class FridaShareScript(FridaUserScript):
 
             source_md5 = utils.get_md5(source)
             if cached_md5 == source_md5:
-                logger.info(f"Load trusted shared script: {self._url}")
+                _logger.info(f"Load trusted shared script: {self._url}")
                 return source
 
             line_count = 20
@@ -169,8 +169,8 @@ class FridaShareScript(FridaUserScript):
             if Confirm.ask(prompt, console=console):
                 with open(cached_md5_path, "wt") as fd:
                     fd.write(source_md5)
-                logger.info(f"Load trusted shared script: {self._url}")
+                _logger.info(f"Load trusted shared script: {self._url}")
                 return source
             else:
-                logger.info(f"Ignore untrusted shared script: {self._url}")
+                _logger.info(f"Ignore untrusted shared script: {self._url}")
                 return None

@@ -22,7 +22,7 @@ from linktools import utils, resource, get_logger
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 
-logger = get_logger("frida.app")
+_logger = get_logger("frida.app")
 
 
 class Counter:
@@ -92,7 +92,15 @@ class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for fri
         super().__init__(session)
         self._pid: Optional[int] = pid
         self._process_name: Optional[str] = process_name
-        self.script: Optional[FridaScript] = None
+        self._script: Optional[FridaScript] = None
+
+    @property
+    def script(self):
+        return self._script
+
+    @script.setter
+    def script(self, script: "FridaScript"):
+        self._script = script
 
 
 class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida.core.Script
@@ -197,7 +205,7 @@ class FridaApplication:
         self._event_counter = Counter()
 
     def _init(self):
-        logger.debug(f"FridaApplication init")
+        _logger.debug(f"FridaApplication init")
 
         self._finished.clear()
         self._monitor_all()
@@ -215,7 +223,7 @@ class FridaApplication:
             self.device.enable_spawn_gating()
 
     def _deinit(self):
-        logger.debug(f"FridaApplication deinit")
+        _logger.debug(f"FridaApplication deinit")
 
         utils.ignore_error(self.device.off, "spawn-added", self._cb_spawn_added)
         utils.ignore_error(self.device.off, "spawn-removed", self._cb_spawn_removed)
@@ -302,13 +310,13 @@ class FridaApplication:
         script_files = []
 
         # 保持脚本log输出级别同步
-        if logger.isEnabledFor(logging.DEBUG):
+        if _logger.isEnabledFor(logging.DEBUG):
             script_files.append(FridaEvalCode("Log.setLevel(Log.debug);"))
-        elif logger.isEnabledFor(logging.INFO):
+        elif _logger.isEnabledFor(logging.INFO):
             script_files.append(FridaEvalCode("Log.setLevel(Log.info);"))
-        elif logger.isEnabledFor(logging.WARNING):
+        elif _logger.isEnabledFor(logging.WARNING):
             script_files.append(FridaEvalCode("Log.setLevel(Log.warning);"))
-        elif logger.isEnabledFor(logging.ERROR):
+        elif _logger.isEnabledFor(logging.ERROR):
             script_files.append(FridaEvalCode("Log.setLevel(Log.error);"))
 
         for user_script in self._user_scripts:
@@ -317,7 +325,7 @@ class FridaApplication:
         return [{"filename": o.ident, "source": o.source} for o in script_files]
 
     def _load_script(self, pid: int, resume: bool = False):
-        logger.debug(f"Attempt to load script: pid={pid}, resume={resume}")
+        _logger.debug(f"Attempt to load script: pid={pid}, resume={resume}")
 
         session = self._attach_session(pid)
         self._unload_script(session)
@@ -353,7 +361,7 @@ class FridaApplication:
                     return session
                 self._sessions.pop(pid)
 
-        logger.debug(f"Attempt to attach process: pid={pid}")
+        _logger.debug(f"Attempt to attach process: pid={pid}")
 
         target_process = None
         for process in self.enumerate_processes():
@@ -369,7 +377,7 @@ class FridaApplication:
         )
 
         if self._enable_child_gating:
-            logger.debug(f"Enable child gating: {pid}")
+            _logger.debug(f"Enable child gating: {pid}")
             session.enable_child_gating()
 
         def on_session_detached(reason, crash):
@@ -386,25 +394,25 @@ class FridaApplication:
 
     def _detach_session(self, session: FridaSession):
         if session is not None:
-            logger.debug(f"Detach process: pid={session.pid}")
+            _logger.debug(f"Detach process: pid={session.pid}")
             utils.ignore_error(session.detach)
 
     def _unload_script(self, session: FridaSession):
         if session is not None and session.script is not None:
-            logger.debug(f"Unload script: pid={session.pid}")
+            _logger.debug(f"Unload script: pid={session.pid}")
             utils.ignore_error(session.script.unload)
             session.script = None
 
     def _eternalize_script(self, session: FridaSession):
         if session is not None and session.script is not None:
-            logger.debug(f"Eternalize script: pid={session.pid}")
+            _logger.debug(f"Eternalize script: pid={session.pid}")
             utils.ignore_error(session.script.eternalize)
             session.script = None
 
     def _monitor_all(self):
 
         def monitor_file(file: FridaScriptFile):
-            logger.debug(f"Monitor file: {file.path}")
+            _logger.debug(f"Monitor file: {file.path}")
             monitor = frida.FileMonitor(file.path)
             monitor.on("change", lambda changed_file, other_file, event_type: on_change(event_type, file))
             monitor.enable()
@@ -412,7 +420,7 @@ class FridaApplication:
 
         def on_change(event_type, changed_file):
             if event_type == "changes-done-hint":
-                logger.debug(f"Monitor event: {event_type}, file: {changed_file}")
+                _logger.debug(f"Monitor event: {event_type}, file: {changed_file}")
                 self._last_change_id += 1
                 change_id = self._last_change_id
                 changed_file.clear()
@@ -450,7 +458,7 @@ class FridaApplication:
         self.on_stop()
 
     def on_stop(self):
-        logger.debug("Application stopped")
+        _logger.debug("Application stopped")
 
     def _on_error(self, exc, traceback):
         self._last_error = exc
@@ -458,22 +466,22 @@ class FridaApplication:
 
     def on_error(self, exc, traceback):
         if isinstance(exc, (KeyboardInterrupt, frida.TransportError, frida.ServerNotRunningError)):
-            logger.error(f"{traceback if self._debug else exc}")
+            _logger.error(f"{traceback if self._debug else exc}")
             self.stop()
         elif isinstance(exc, (frida.core.RPCException,)):
-            logger.error(f"{exc}")
+            _logger.error(f"{exc}")
         else:
-            logger.error(f"{traceback if self._debug else exc}")
+            _logger.error(f"{traceback if self._debug else exc}")
 
     def raise_on_error(self):
         if self._last_error is not None:
             raise self._last_error
 
     def on_output(self, pid: int, fd, data):
-        logger.debug(f"Output: pid={pid}, fd={fd}, data={data}")
+        _logger.debug(f"Output: pid={pid}, fd={fd}, data={data}")
 
     def on_device_lost(self):
-        logger.info("Device lost")
+        _logger.info("Device lost")
         self.stop()
 
     def on_file_change(self, file: FridaScriptFile):
@@ -481,7 +489,7 @@ class FridaApplication:
         脚本文件改变回调，默认重新加载脚本
         :param file: 脚本文件路径
         """
-        logger.debug(f"File changed")
+        _logger.debug(f"File changed")
         for session in self.sessions.values():
             self.load_script(session.pid)
 
@@ -490,7 +498,7 @@ class FridaApplication:
         spaw进程添加回调，默认resume所有spawn进程
         :param spawn: spawn进程信息
         """
-        logger.debug(f"Spawn added: {spawn}")
+        _logger.debug(f"Spawn added: {spawn}")
         self.device.resume(spawn.pid)
 
     def on_spawn_removed(self, spawn: "_frida.Spawn"):
@@ -498,14 +506,14 @@ class FridaApplication:
         spaw进程移除回调，默认只打印log
         :param spawn: spawn进程信息
         """
-        logger.debug(f"Spawn removed: {spawn}")
+        _logger.debug(f"Spawn removed: {spawn}")
 
     def on_child_added(self, child: "_frida.Child"):
         """
         子进程添加回调，默认resume所有子进程
         :param child: 子进程信息
         """
-        logger.debug(f"Child added: {child}")
+        _logger.debug(f"Child added: {child}")
         self.device.resume(child.pid)
 
     def on_child_removed(self, child: "_frida.Child"):
@@ -513,21 +521,21 @@ class FridaApplication:
         子进程移除回调，默认只打印log
         :param child: 子进程信息
         """
-        logger.debug(f"Child removed: {child}")
+        _logger.debug(f"Child removed: {child}")
 
     def on_script_loaded(self, script: FridaScript):
         """
         脚本加载回调，默认只打印log
         :param script: frida的脚本
         """
-        logger.debug(f"Script loaded: {script.process_name} ({script.pid})")
+        _logger.debug(f"Script loaded: {script.process_name} ({script.pid})")
 
     def on_script_destroyed(self, script: FridaScript):
         """
         脚本结束回调函数，默认只打印log
         :param script: frida的脚本
         """
-        logger.debug(f"Script destroyed: {script.process_name} ({script.pid})")
+        _logger.debug(f"Script destroyed: {script.process_name} ({script.pid})")
 
     def on_script_log(self, script: FridaScript, log: dict, data: object):
         """
@@ -539,13 +547,13 @@ class FridaApplication:
         level = log.get("level") or "debug"
         message = log.get("message")
 
-        log_fn = logger.debug
+        log_fn = _logger.debug
         if level == "info":
-            log_fn = logger.info
+            log_fn = _logger.info
         if level == "warning":
-            log_fn = logger.warning
+            log_fn = _logger.warning
         if level == "error":
-            log_fn = logger.error
+            log_fn = _logger.error
 
         if message is not None and isinstance(message, dict):
             stack = utils.pop_item(message, "stack")
@@ -559,14 +567,6 @@ class FridaApplication:
         if not utils.is_empty(message):
             log_fn(message)
 
-    def _get_event_group(self, script: FridaScript, message: object, data: object) -> Counter.Group:
-        group = Counter.Group()
-        group.add(pid=script.pid)
-        method_name = utils.get_item(message, "method_name")
-        if method_name:
-            group.add(method_name=method_name)
-        return group
-
     def on_script_event(self, script: FridaScript, message: object, data: object):
         """
         脚本发送事件回调
@@ -574,11 +574,16 @@ class FridaApplication:
         :param message: 事件消息
         :param data: 事件数据
         """
-        group = self._get_event_group(script, message, data)
+        group = Counter.Group()
+        group.add(pid=script.pid)
+
+        method_name = utils.get_item(message, "method_name")
+        if method_name:
+            group.add(method_name=method_name)
         count = self._event_counter.increase(group)
 
-        logger.info(
-            f"Script event with the count of {count} grouped by ({group}), {script.process_name} ({script.pid}): {os.linesep}"
+        _logger.info(
+            f"Script event count={count} group=({group}), {script.process_name} ({script.pid}): {os.linesep}"
             f"{json.dumps(message, indent=2, ensure_ascii=False)}",
         )
 
@@ -590,7 +595,7 @@ class FridaApplication:
         :param message: json/字符串消息，上述例子的"xxx"
         :param data: 上述例子的null
         """
-        logger.debug(
+        _logger.debug(
             f"Script send: {script.process_name} ({script.pid}), type={type}, message={message}"
         )
 
@@ -623,24 +628,24 @@ class FridaApplication:
 
             # 字符串类型，直接输出
             if not utils.is_empty(payload):
-                logger.info(payload)
+                _logger.info(payload)
 
         elif utils.get_item(message, "type") == "error":
 
             if utils.is_contain(message, "stack"):
-                logger.error(utils.get_item(message, "stack"))
+                _logger.error(utils.get_item(message, "stack"))
             else:
-                logger.error(message)
+                _logger.error(message)
 
         else:
-            logger.warning(message)
+            _logger.warning(message)
 
     def on_session_attached(self, session: FridaSession):
         """
         会话建立连接回调函数，默认只打印log
         :param session: 附加的会话
         """
-        logger.info(f"Session attached: {session.process_name} ({session.pid})")
+        _logger.info(f"Session attached: {session.process_name} ({session.pid})")
 
     def on_session_detached(self, session: FridaSession, reason: str, crash: "_frida.Crash"):
         """
@@ -649,4 +654,4 @@ class FridaApplication:
         :param reason: 结束原因
         :param crash: crash信息
         """
-        logger.info(f"Session detached: {session.process_name} ({session.pid}), reason={reason}")
+        _logger.info(f"Session detached: {session.process_name} ({session.pid}), reason={reason}")

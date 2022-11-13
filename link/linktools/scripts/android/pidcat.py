@@ -54,7 +54,7 @@ def get_char_width(char):
     return 1
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(known_errors=(AdbError,))
 def main():
     parser = AndroidArgumentParser(description='Filter logcat by package name', conflict_handler='resolve')
     parser.add_argument('package', nargs='*', help='application package name(s)')

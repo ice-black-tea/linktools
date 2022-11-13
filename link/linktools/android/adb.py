@@ -39,7 +39,7 @@ from linktools.decorator import cached_property
 
 from .struct import Package, UnixSocket, InetSocket
 
-logger = get_logger("android.adb")
+_logger = get_logger("android.adb")
 
 
 class AdbError(Exception):
@@ -551,7 +551,7 @@ class Device(object):
     def _set_default(cls, kwargs: dict, **_kwargs: Any):
         for key, value in _kwargs.items():
             if key in kwargs and kwargs[key] != value:
-                logger.warning(f"Invalid argument {key}={kwargs[key]}, ignored!", stack_info=True)
+                _logger.warning(f"Invalid argument {key}={kwargs[key]}, ignored!", stack_info=True)
             kwargs[key] = value
 
     def redirect(self, address: str = None, port: int = 8080):
@@ -580,11 +580,11 @@ class _Redirect:
             # 如果没有指定目标地址，则通过reverse端口访问
             self.remote_port = self.device.exec("reverse", f"tcp:0", f"tcp:{self.target_port}").strip()
             destination = f"127.0.0.1:{self.remote_port}"
-            logger.debug(f"Not found redirect address, use {destination} instead")
+            _logger.debug(f"Not found redirect address, use {destination} instead")
         else:
             # 指定了目标地址那就直接用目标地址
             destination = f"{self.target_address}:{self.target_port}"
-            logger.debug(f"Found redirect address {destination}")
+            _logger.debug(f"Found redirect address {destination}")
         # 排除localhost
         self.device.sudo(
             "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-o", "lo", "-j", "RETURN"

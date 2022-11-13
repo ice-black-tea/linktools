@@ -7,7 +7,9 @@ import os
 import subprocess
 from typing import Union
 
-from linktools import logger
+from ._logging import get_logger
+
+_logger = get_logger("subprocess")
 
 
 def popen(*args, **kwargs) -> subprocess.Popen:
@@ -32,7 +34,7 @@ def popen(*args, **kwargs) -> subprocess.Popen:
         env.update(kwargs.pop("env", {}))
         env.update(kwargs.pop("append_env"))
         kwargs["env"] = env
-    logger.debug(f"Exec cmdline: {' '.join(args)}")
+    _logger.debug(f"Exec cmdline: {' '.join(args)}")
     return subprocess.Popen(args, **kwargs)
 
 
@@ -61,14 +63,13 @@ def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, by
     process, out, err = None, None, None
     try:
         process = popen(*args, **kwargs)
-        process.stdout.tell()
         out, err = process.communicate(
             input=input,
             timeout=timeout or .1 if daemon else timeout
         )
     except Exception as e:
         if ignore_errors:
-            logger.debug(f"Ignore error: {e}")
+            _logger.debug(f"Ignore error: {e}")
         elif daemon and isinstance(e, subprocess.TimeoutExpired):
             pass
         else:
@@ -80,9 +81,9 @@ def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, by
     if output_to_logger is True:
         if out:
             message = out.decode(errors="ignore") if isinstance(out, bytes) else out
-            logger.info(message.rstrip())
+            _logger.info(message.rstrip())
         if err:
             message = err.decode(errors="ignore") if isinstance(err, bytes) else err
-            logger.error(message.rstrip())
+            _logger.error(message.rstrip())
 
     return process, out, err

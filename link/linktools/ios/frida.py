@@ -13,7 +13,7 @@ from linktools import get_logger, utils
 from linktools.frida import FridaServer
 from linktools.ios import Device
 
-logger = get_logger("ios.frida")
+_logger = get_logger("ios.frida")
 
 
 class FridaIOSServer(FridaServer):  # proxy for frida.core.Device

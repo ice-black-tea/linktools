@@ -78,7 +78,7 @@ def _create_default_config():
 
 
 def _create_default_logger():
-    from ._logger import get_logger
+    from ._logging import get_logger
 
     return get_logger()
 

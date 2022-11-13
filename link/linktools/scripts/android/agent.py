@@ -30,7 +30,7 @@ from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(known_errors=(AdbError,))
 def main():
     parser = AndroidArgumentParser(description='used for debugging android-tools.apk')
     parser.add_argument('-p', '--privilege', action='store_true', default=False,

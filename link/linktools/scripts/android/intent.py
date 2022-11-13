@@ -35,7 +35,7 @@ from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(known_errors=(AdbError,))
 def main():
     parser = AndroidArgumentParser(description='common intent action')
 

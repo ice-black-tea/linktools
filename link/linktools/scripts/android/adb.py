@@ -31,7 +31,7 @@ from linktools.android import Adb, AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(known_errors=(AdbError,))
 def main():
     general_commands = [
         "devices",
@@ -51,19 +51,16 @@ def main():
     args, extra = parser.parse_known_args()
 
     adb_args = [*extra, *args.adb_args]
-    if len(adb_args) == 0:
-        process = Adb.popen(capture_output=False)
-        process.communicate()
-        return process.returncode
-
-    # 如果第一个不是"-"开头的参数，并且参数需要添加设备，就额外添加"-s serial"参数
-    if not adb_args[0].startswith("-"):
-        if adb_args[0] not in general_commands:
+    if not extra:
+        if args.adb_args and args.adb_args[0] not in general_commands:
             device = args.parse_device()
-            device.exec(*adb_args, capture_output=False)
-            return
+            process = device.popen(*adb_args, capture_output=False)
+            process.communicate()
+            return process.returncode
 
-    Adb.exec(*adb_args, capture_output=False)
+    process = Adb.popen(*adb_args, capture_output=False)
+    process.communicate()
+    return process.returncode
 
 
 if __name__ == '__main__':

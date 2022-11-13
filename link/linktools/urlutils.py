@@ -53,15 +53,14 @@ from rich.progress import (
 
 from . import utils
 from ._environ import resource, config, tools
-from ._logger import get_logger
+from ._logging import get_logger
 from .decorator import cached_property
 
-logger = get_logger("urlutils")
+_logger = get_logger("urlutils")
+_user_agent = None
 
 DataType = Union[str, int, float]
 QueryType = Union[DataType, List[DataType], Tuple[DataType]]
-
-_user_agent = None
 
 
 def user_agent(style=None) -> str:
@@ -80,7 +79,7 @@ def user_agent(style=None) -> str:
         return _user_agent.random
 
     except Exception as e:
-        logger.debug(f"fetch user agent error: {e}")
+        _logger.debug(f"fetch user agent error: {e}")
 
     return config["SETTING_DOWNLOAD_USER_AGENT"]
 
@@ -192,7 +191,7 @@ class UrlFile:
 
                 if os.path.exists(self._file_path) and context.completed:
                     # 下载完成了，那就不用再下载了
-                    logger.debug(f"{self._file_path} downloaded, skip")
+                    _logger.debug(f"{self._file_path} downloaded, skip")
 
                 else:
                     # 初始化环境信息
@@ -213,12 +212,12 @@ class UrlFile:
                 if save_dir:
                     # 如果指定了路径，先创建路径
                     if not os.path.exists(save_dir):
-                        logger.debug(f"{save_dir} does not exist, create")
+                        _logger.debug(f"{save_dir} does not exist, create")
                         os.makedirs(save_dir)
 
                     # 然后把文件保存到指定路径下
                     target_path = os.path.join(save_dir, save_name or context.file_name)
-                    logger.debug(f"Rename {self._file_path} to {target_path}")
+                    _logger.debug(f"Rename {self._file_path} to {target_path}")
                     os.rename(self._file_path, target_path)
 
                     # 把文件移动到指定目录之后，就可以清理缓存文件了
@@ -242,9 +241,9 @@ class UrlFile:
         lock = self._lock
         with lock.acquire(timeout):
             if not os.path.exists(self._root_path):
-                logger.debug(f"{self._root_path} does not exist, skip")
+                _logger.debug(f"{self._root_path} does not exist, skip")
                 return
-            logger.debug(f"Clear {self._root_path}")
+            _logger.debug(f"Clear {self._root_path}")
             if os.path.exists(self._file_path):
                 os.remove(self._file_path)
             if os.path.exists(self._context_path):
@@ -261,13 +260,13 @@ class UrlFile:
 
     @classmethod
     def _download(cls, context: _Context, timeout_meter: utils.TimeoutMeter):
-        logger.debug(f"Download file to temp path {context.file_path}")
+        _logger.debug(f"Download file to temp path {context.file_path}")
 
         initial = 0
         # 如果文件存在，则继续上一次下载
         if os.path.exists(context.file_path):
             size = os.path.getsize(context.file_path)
-            logger.debug(f"{size} bytes downloaded, continue")
+            _logger.debug(f"{size} bytes downloaded, continue")
             initial = size
 
         context.headers = {

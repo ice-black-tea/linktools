@@ -45,11 +45,11 @@ from collections import deque
 from collections.abc import Iterable
 from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
 
-from ._logger import get_logger
+from ._logging import get_logger
 from ._proxy import get_derived_type, lazy_load, lazy_raise
 from ._subprocess import popen, exec
 
-logger = get_logger("utils")
+_logger = get_logger("utils")
 
 
 class TimeoutMeter:
@@ -419,7 +419,7 @@ class Reactor(object):
         assert self._worker
         self._worker.join(timeout)
         if self._worker.is_alive():
-            logger.warning("Worker did not finish normally")
+            _logger.warning("Worker did not finish normally")
 
     def __enter__(self):
         self.run()

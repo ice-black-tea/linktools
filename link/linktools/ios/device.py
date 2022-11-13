@@ -16,7 +16,7 @@ import tidevice
 
 from linktools import get_logger, utils
 
-logger = get_logger("ios.device")
+_logger = get_logger("ios.device")
 
 MuxError = tidevice.MuxError
 
@@ -105,11 +105,11 @@ class _ForwardThread(threading.Thread):
         try:
             coro = asyncio.start_server(self._handle_client, self._local_address, self._local_port)
             server = loop.run_until_complete(coro)
-            logger.debug(f"Usbmux proxy serving on {server.sockets[0].getsockname()} => {self._remote_port}")
+            _logger.debug(f"Usbmux proxy serving on {server.sockets[0].getsockname()} => {self._remote_port}")
             loop.run_until_complete(task)
 
         except BaseException as e:
-            logger.error(f"Usbmux proxy error: {e}")
+            _logger.error(f"Usbmux proxy error: {e}")
 
         finally:
             with self._lock:
@@ -117,7 +117,7 @@ class _ForwardThread(threading.Thread):
                 self._loop.call_soon(self._stop_event.set)
 
             if server:
-                logger.debug(f"Usbmux proxy close")
+                _logger.debug(f"Usbmux proxy close")
                 server.close()
                 loop.run_until_complete(server.wait_closed())
 
@@ -131,7 +131,7 @@ class _ForwardThread(threading.Thread):
     async def _handle_client(self, client_reader: StreamReader, client_writer: StreamWriter):
 
         client_address = client_writer.get_extra_info('peername')
-        logger.debug(f"Handle client request: {client_address}")
+        _logger.debug(f"Handle client request: {client_address}")
 
         pending_tasks, finished = None, asyncio.Event()
         plist_socket, usbmux_reader, usbmux_writer = None, None, None
@@ -148,7 +148,7 @@ class _ForwardThread(threading.Thread):
             ], return_when=asyncio.FIRST_COMPLETED)
 
         except tidevice.MuxError as e:
-            logger.debug(f"connect to device error: {e}")
+            _logger.debug(f"connect to device error: {e}")
 
         finally:
             finished.set()
@@ -162,7 +162,7 @@ class _ForwardThread(threading.Thread):
             if plist_socket:
                 plist_socket.close()
 
-            logger.debug(f"handle client proxy request finished: {client_address}")
+            _logger.debug(f"handle client proxy request finished: {client_address}")
 
     async def _handle_forward_stream(self, reader: StreamReader, writer: StreamWriter):
         while not self._stop_event.is_set():
@@ -173,7 +173,7 @@ class _ForwardThread(threading.Thread):
                 writer.write(data)
                 await writer.drain()
             except Exception as e:
-                logger.debug(f"forward stream error: {e}")
+                _logger.debug(f"forward stream error: {e}")
                 break
 
     async def _handle_close_stream(self, writers: [StreamWriter], event):
@@ -192,4 +192,4 @@ class _ForwardThread(threading.Thread):
             if hasattr(writer, "wait_closed"):
                 await writer.wait_closed()
         except Exception as e:
-            logger.debug(f"Close stream error: {e}")
+            _logger.debug(f"Close stream error: {e}")

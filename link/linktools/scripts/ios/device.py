@@ -12,7 +12,7 @@ from linktools.decorator import entry_point
 from linktools.ios import MuxError, IOSArgumentParser
 
 
-@entry_point(known_errors=[MuxError])
+@entry_point(known_errors=(MuxError,))
 def main():
     general_commands = [
         "version",
@@ -27,20 +27,17 @@ def main():
     args, extra = parser.parse_known_args()
 
     device_args = [*extra, *args.device_args]
-    if len(device_args) == 0:
-        process = tools["tidevice"].popen(capture_output=False)
-        process.communicate()
-        return process.returncode
-
-    # 如果第一个不是"-"开头的参数，并且参数需要添加设备，就额外添加"-s serial"参数
-    if not device_args[0].startswith("-"):
-        if device_args[0] not in general_commands:
+    if not extra:
+        if args.device_args and args.device_args[0] not in general_commands:
             device = args.parse_device()
             device_args = ["--socket", device.usbmux.address, "-u", device.udid, *device_args]
-            tools["tidevice"].exec(*device_args, capture_output=False)
-            return
+            process = tools["tidevice"].popen(*device_args, capture_output=False)
+            process.communicate()
+            return process.returncode
 
-    tools["tidevice"].exec(*device_args, capture_output=False)
+    process = tools["tidevice"].popen(*device_args, capture_output=False)
+    process.communicate()
+    return process.returncode
 
 
 if __name__ == '__main__':

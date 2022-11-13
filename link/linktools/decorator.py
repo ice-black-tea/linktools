@@ -29,29 +29,34 @@
 import functools
 import threading
 import traceback
+from typing import Tuple, Type, Any, TypeVar, Callable
+
+from ._logging import get_logger
+
+_logger = get_logger("decorator")
+_T = TypeVar('_T')
 
 
-def entry_point(known_errors: [Exception] = ()):
-    from linktools import logger
-
+def entry_point(known_errors: Tuple[Type[BaseException]] = ()):
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             try:
-                return fn(*args, **kwargs)
+                exit(fn(*args, **kwargs) or 0)
             except (KeyboardInterrupt, EOFError, *known_errors) as e:
-                etype = e.__class__.__name__
-                error = f"{e}".strip()
-                logger.error(f"{etype}: {error}" if error else etype)
-            except Exception:
-                logger.error(traceback.format_exc())
+                error_type, error_message = e.__class__.__name__, str(e).strip()
+                _logger.error(f"{error_type}: {error_message}" if error_message else error_type)
+                exit(0)
+            except:
+                _logger.error(traceback.format_exc())
+                exit(1)
 
         return wrapper
 
     return decorator
 
 
-def singleton(cls):
+def singleton(cls: Type[_T]) -> Callable[..., _T]:
     instances = {}
 
     def wrapper(*args, **kwargs):
@@ -62,10 +67,10 @@ def singleton(cls):
     return wrapper
 
 
-def try_except(errors=(Exception,), default=None):
-    def decorator(fn):
+def try_except(errors: Tuple[Type[BaseException]] = (Exception,), default: Any = None):
+    def decorator(fn: Callable[..., _T]) -> Callable[..., _T]:
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> _T:
             try:
                 return fn(*args, **kwargs)
             except errors:
@@ -80,9 +85,9 @@ def synchronized(lock=None):
     if lock is None:
         lock = threading.Lock()
 
-    def decorator(fn):
+    def decorator(fn: Callable[..., _T]) -> Callable[..., _T]:
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> _T:
             lock.acquire()
             try:
                 return fn(*args, **kwargs)

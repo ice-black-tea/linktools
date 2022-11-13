@@ -30,8 +30,9 @@ def main():
     if not os.path.exists(bash_path):
         raise NotImplementedError(f"file {bash_path} does not exist")
 
-    process, _, _ = utils.exec(bash_path, *sys.argv[1:])
-    exit(process.returncode)
+    process = utils.popen(bash_path, *sys.argv[1:])
+    process.communicate()
+    return process.returncode
 
 
 if __name__ == "__main__":

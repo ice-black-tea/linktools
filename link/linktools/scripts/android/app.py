@@ -223,7 +223,7 @@ class PackagePrinter:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 
-@entry_point(known_errors=[AdbError])
+@entry_point(known_errors=(AdbError,))
 def main():
     parser = AndroidArgumentParser(description='fetch application info')
 

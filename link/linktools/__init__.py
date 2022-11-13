@@ -31,7 +31,7 @@ from .version import __name__, __version__, __author__, __email__, __url__
 
 from . import utils
 from . import decorator
-from ._logger import get_logger, Handler as LogHandler
+from ._logging import get_logger, Handler as LogHandler
 from ._resource import Resource
 from ._config import Config
 from ._tools import GeneralTools

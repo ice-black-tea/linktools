@@ -33,7 +33,7 @@ import frida
 
 from linktools import get_logger, utils
 
-logger = get_logger("frida.server")
+_logger = get_logger("frida.server")
 
 
 class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMeta):  # proxy for frida.core.Device
@@ -59,15 +59,15 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         :return: 运行成功为True，否则为False
         """
         if self.is_running:
-            logger.info("Frida server is running ...")
+            _logger.info("Frida server is running ...")
             return True
 
-        logger.info("Start frida server ...")
+        _logger.info("Start frida server ...")
         self._start()
         for i in range(10):
             time.sleep(0.5)
             if self.is_running:
-                logger.info("Frida server is running ...")
+                _logger.info("Frida server is running ...")
                 return True
 
         raise frida.ServerNotRunningError("Frida server failed to run ...")
@@ -77,7 +77,7 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         强制结束frida server
         :return: 结束成功为True，否则为False
         """
-        logger.info("Kill frida server ...")
+        _logger.info("Kill frida server ...")
         try:
             self._stop()
             return True

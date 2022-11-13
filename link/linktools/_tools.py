@@ -39,10 +39,10 @@ from typing import Dict, Union, Mapping, Iterator
 
 from . import utils, urlutils
 from ._environ import resource, config
-from ._logger import get_logger
+from ._logging import get_logger
 from .decorator import cached_property
 
-logger = get_logger("utils")
+_logger = get_logger("utils")
 
 
 class Parser(object):
@@ -231,32 +231,32 @@ class GeneralTool(metaclass=Meta):
         elif not self.download_url:
             raise Exception(f"{self.name} does not support running on {self.__container.system}")
         elif not self.exists:
-            logger.info("Download tool: {}".format(self.download_url))
+            _logger.info("Download tool: {}".format(self.download_url))
             url_file = urlutils.UrlFile(self.download_url)
             temp_dir = resource.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
-                logger.debug("Unpack tool to {}".format(self.root_path))
+                _logger.debug("Unpack tool to {}".format(self.root_path))
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
-                logger.debug("Move tool to {}".format(self.absolute_path))
+                _logger.debug("Move tool to {}".format(self.absolute_path))
                 os.rename(temp_path, self.absolute_path)
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
-            logger.debug(f"Chmod 755 {self.absolute_path}")
+            _logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
         if not self.exists:
-            logger.debug(f"{self} does not exist, skip")
+            _logger.debug(f"{self} does not exist, skip")
             return
         if not utils.is_empty(self.unpack_path):
-            logger.debug(f"Delete {self.root_path}")
+            _logger.debug(f"Delete {self.root_path}")
             shutil.rmtree(self.root_path, ignore_errors=True)
         elif self.absolute_path.startswith(self.root_path):
-            logger.debug(f"Delete {self.absolute_path}")
+            _logger.debug(f"Delete {self.absolute_path}")
             os.remove(self.absolute_path)
 
     def _process(self, fn, *args, **kwargs):

@@ -52,7 +52,7 @@ def main():
     args = parser.parse_args()
     if len(args.tool) == 0 or args.tool[0] not in tool_names:
         parser.print_help()
-        exit(-1)
+        return -1
 
     tool_name = args.tool[0]
     tool_args = args.tool[1:]
@@ -82,7 +82,7 @@ def main():
 
     else:
         process, _, _ = tools[tool_name].exec(*tool_args)
-        exit(process.returncode)
+        return process.returncode
 
 
 if __name__ == "__main__":
