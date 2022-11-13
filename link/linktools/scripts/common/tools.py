@@ -81,7 +81,8 @@ def main():
         )
 
     else:
-        process, _, _ = tools[tool_name].exec(*tool_args)
+        process = tools[tool_name].popen(*tool_args)
+        process.communicate()
         return process.returncode
 
 
