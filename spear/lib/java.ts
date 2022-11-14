@@ -72,15 +72,6 @@ export class JavaHelper {
     }
 
     /**
-     * 获取类对象类名
-     * @param clazz 类对象
-     * @returns 类名
-     */
-    getClassName<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>): string {
-        return clazz.$classWrapper.__name__;
-    }
-
-    /**
      * 获取java类的类对象
      * @param className java类名
      * @param classloader java类所在的ClassLoader
@@ -118,17 +109,63 @@ export class JavaHelper {
     }
 
     /**
+     * 获取类名
+     * @param clazz 类对象
+     * @returns 
+     */
+    private $getClassName<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>): string {
+        var className = clazz.$className;
+        if (className != void 0) {
+            return className;
+        }
+        className = clazz.__name__;
+        if (className != void 0) {
+            return className;
+        }
+        if (clazz.$classWrapper != void 0) {
+            className = clazz.$classWrapper.$className;
+            if (className != void 0) {
+                return className;
+            }
+            className = clazz.$classWrapper.__name__;
+            if (className != void 0) {
+                return className;
+            }
+        }
+        Log.e("Cannot get class name: " + clazz);
+    }
+
+    /**
+     * 获取真实方法对象
+     * @param clazz 类对象
+     * @param methodName 方法名
+     * @returns 方法对象
+     */
+    private $getClassMethod<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>, methodName: string): Java.MethodDispatcher<T> {
+        var method = clazz[methodName];
+        if (method !== void 0) {
+            return method;
+        }
+        if (methodName[0] == "$") {
+            method = clazz["_" + methodName];
+            if (method !== void 0) {
+                return method;
+            }
+        }
+        return void 0;
+    }
+
+    /**
      * 为method添加properties
      * @param method 方法对象
      */
-    private $fixMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>): void {
+    private $defineMethodProperties<T extends Java.Members<T> = {}>(method: Java.Method<T>): void {
         Object.defineProperties(method, {
             className: {
                 configurable: true,
                 enumerable: true,
-                get() {
-                    return this.holder.$className || this.holder.__name__;
-                },
+                writable: false,
+                value: this.$getClassName(method.holder)
             },
             name: {
                 configurable: true,
@@ -160,7 +197,10 @@ export class JavaHelper {
      * @param method 方法对象
      * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
-    private $hookMethod<T extends Java.Members<T> = {}>(method: Java.Method<T>, impl: (obj: Java.Wrapper<T>, args: any[]) => any = null): void {
+    private $hookMethod<T extends Java.Members<T> = {}>(
+        method: Java.Method<T>,
+        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+    ): void {
         if (impl != null) {
             const proxy = new Proxy(method, {
                 apply: function (target, thisArg: any, argArray: any[]) {
@@ -183,7 +223,7 @@ export class JavaHelper {
      * hook指定方法对象
      * @param clazz java类名/类对象
      * @param method java方法名/方法对象
-     * @param signature java方法签名，为null表示不设置签名
+     * @param signatures java方法签名，为null表示不设置签名
      * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookMethod<T extends Java.Members<T> = {}>(
@@ -192,25 +232,34 @@ export class JavaHelper {
         signatures: (string | Java.Wrapper<T>)[],
         impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
     ): void {
-        var tragetMethod: any = method;
-        if (typeof (tragetMethod) === "string") {
+        var targetMethod: any = method;
+        if (typeof (targetMethod) === "string") {
+            var methodName = targetMethod;
             var targetClass: any = clazz;
             if (typeof (targetClass) === "string") {
                 targetClass = this.findClass(targetClass);
             }
-            tragetMethod = targetClass[tragetMethod];
+            const method = this.$getClassMethod(targetClass, methodName);
+            if (method === void 0) {
+                Log.w("Cannot find method: " + this.$getClassName(targetClass) + "." + methodName);
+                return;
+            }
             if (signatures != null) {
                 var targetSignatures: any[] = signatures;
                 for (var i in targetSignatures) {
                     if (typeof (targetSignatures[i]) !== "string") {
-                        targetSignatures[i] = this.getClassName(targetSignatures[i]);
+                        targetSignatures[i] = this.$getClassName(targetSignatures[i]);
                     }
                 }
-                tragetMethod = tragetMethod.overload.apply(tragetMethod, targetSignatures);
+                targetMethod = method.overload.apply(targetMethod, targetSignatures);
+            } else if (method.overloads.length == 1) {
+                targetMethod = method.overloads[0];
+            } else {
+                throw Error(this.$getClassName(targetClass) + "." + methodName + " has too many overloads");
             }
         }
-        this.$fixMethod(tragetMethod);
-        this.$hookMethod(tragetMethod, impl);
+        this.$defineMethodProperties(targetMethod);
+        this.$hookMethod(targetMethod, impl);
     }
 
     /**
@@ -228,13 +277,17 @@ export class JavaHelper {
         if (typeof (targetClass) === "string") {
             targetClass = this.findClass(targetClass);
         }
-        var methods: Java.Method<T>[] = targetClass[methodName].overloads;
-        for (var i = 0; i < methods.length; i++) {
-            const targetMethod = methods[i];
+        var method = this.$getClassMethod(targetClass, methodName);
+        if (method === void 0) {
+            Log.w("Cannot find method: " + this.$getClassName(targetClass) + "." + methodName);
+            return;
+        }
+        for (var i = 0; i < method.overloads.length; i++) {
+            const targetMethod = method.overloads[i];
             /* 过滤一些不存在的方法（拿不到返回值） */
             if (targetMethod.returnType !== void 0 &&
                 targetMethod.returnType.className !== void 0) {
-                this.$fixMethod(targetMethod);
+                this.$defineMethodProperties(targetMethod);
                 this.$hookMethod(targetMethod, impl);
             }
         }
@@ -303,20 +356,6 @@ export class JavaHelper {
     }
 
     /**
-     * 根据当前栈调用原java方法
-     * @param obj java对象
-     * @param args java参数
-     * @returns java方法返回值
-     */
-    callMethod<T extends Java.Members<T> = {}>(obj: Java.Wrapper<T>, args: any[]): any {
-        var methodName = this.getStackTrace()[0].getMethodName();
-        if (methodName === "<init>") {
-            methodName = "$init";
-        }
-        return Reflect.get(obj, methodName).apply(obj, args);
-    }
-
-    /**
      * 获取hook实现，调用原方法并发送调用事件
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
@@ -374,7 +413,7 @@ export class JavaHelper {
                 if (opts.stack) {
                     event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
                 }
-                send({event: event});
+                send({ event: event });
             }
         };
     }
@@ -440,46 +479,6 @@ export class JavaHelper {
             result.push(elements[i]);
         }
         return result;
-    }
-
-    private $makeStackObject<T extends Java.Members<T> = {}>(elements: Java.Wrapper<T>[] = void 0) {
-        if (elements === void 0) {
-            elements = this.getStackTrace()
-        }
-        var body = "Stack: ";
-        for (var i = 0; i < elements.length; i++) {
-            body += "\n    at " + pretty2String(elements[i]);
-        }
-        return { "stack": body };
-    }
-
-    /**
-     * 打印当前栈
-     */
-    printStack(): void {
-        var elements = this.getStackTrace();
-        Log.i(this.$makeStackObject(elements));
-    }
-
-    private $makeArgsObject(args: any, ret: any) {
-        var body = "Arguments: ";
-        for (var i = 0; i < args.length; i++) {
-            body += "\n    Arguments[" + i + "]: " + pretty2String(args[i]);
-        }
-        if (ret !== void 0) {
-            body += "\n    Return: " + pretty2String(ret);
-        }
-        return { "arguments": body };
-    }
-
-    /**
-     * 打印当前参数和返回值
-     * @param args java方法参数
-     * @param ret java方法返回值
-     * @param message 回显的信息
-     */
-    printArguments(args: any, ret: any) {
-        Log.i(this.$makeArgsObject(args, ret));
     }
 
 }

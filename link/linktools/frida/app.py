@@ -555,15 +555,6 @@ class FridaApplication:
         if level == "error":
             log_fn = _logger.error
 
-        if message is not None and isinstance(message, dict):
-            stack = utils.pop_item(message, "stack")
-            if not utils.is_empty(stack):
-                log_fn(stack, extra=dict(style="cyan"))
-
-            arguments = utils.pop_item(message, "arguments")
-            if not utils.is_empty(arguments):
-                log_fn(arguments, extra=dict(style="magenta2"))
-
         if not utils.is_empty(message):
             log_fn(message)
 
