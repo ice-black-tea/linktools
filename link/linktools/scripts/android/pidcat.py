@@ -224,7 +224,7 @@ def main():
             return None
 
     if sys.stdin.isatty():
-        adb = device.popen(*adb_command, stdin=PIPE, stdout=PIPE)
+        adb = device.popen(*adb_command, stdin=PIPE, stdout=PIPE, capture_output=False)
     else:
         adb = FakeStdinProcess()
     pids = set()
@@ -280,7 +280,7 @@ def main():
     def tag_in_tags_regex(tag, tags):
         return any(re.match(r'^' + t + r'$', tag) for t in map(str.strip, tags))
 
-    for line in device.shell("ps", stdout=PIPE, stderr=DEVNULL).splitlines():
+    for line in device.shell("ps", stdout=PIPE, stderr=DEVNULL, capture_output=False).splitlines():
         pid_match = PID_LINE.match(line.strip())
         if pid_match is not None:
             pid = pid_match.group(1)
@@ -289,7 +289,7 @@ def main():
                 seen_pids = True
                 pids.add(pid)
 
-    for line in device.shell("ps", "-A", stdout=PIPE, stderr=DEVNULL).splitlines():
+    for line in device.shell("ps", "-A", stdout=PIPE, stderr=DEVNULL, capture_output=False).splitlines():
         pid_match = PID_LINE.match(line.strip())
         if pid_match is not None:
             pid = pid_match.group(1)

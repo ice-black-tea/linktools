@@ -42,16 +42,15 @@ def entry_point(known_errors: Tuple[Type[BaseException]] = ()):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             try:
-                exit(fn(*args, **kwargs) or 0)
-            except SystemExit:
-                pass
+                code = fn(*args, **kwargs) or 0
             except (KeyboardInterrupt, EOFError, *known_errors) as e:
                 error_type, error_message = e.__class__.__name__, str(e).strip()
                 _logger.error(f"{error_type}: {error_message}" if error_message else error_type)
-                exit(0)
+                code = 0
             except:
                 _logger.error(traceback.format_exc())
-                exit(1)
+                code = 1
+            exit(code)
 
         return wrapper
 

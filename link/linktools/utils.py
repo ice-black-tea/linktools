@@ -357,6 +357,7 @@ class Reactor(object):
         with self._lock:
             self._running = True
         self._worker = threading.Thread(target=self._run)
+        self._worker.setDaemon(True)
         self._worker.start()
 
     def _run(self):
@@ -415,7 +416,7 @@ class Reactor(object):
     def _work(self, fn: Callable[[], any]):
         fn()
 
-    def wait(self, timeout=10):
+    def wait(self, timeout=5):
         assert self._worker
         self._worker.join(timeout)
         if self._worker.is_alive():

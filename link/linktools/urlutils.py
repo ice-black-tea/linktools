@@ -294,7 +294,7 @@ class UrlFile:
             fn = cls._download_with_urllib
 
         with progress:
-            task_id = progress.add_task(context.file_name, total=initial + 1)
+            task_id = progress.add_task(context.file_name, total=0)
             progress.advance(task_id, initial)
 
             with open(context.file_path, 'ab') as fp:
