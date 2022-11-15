@@ -21,8 +21,6 @@
  *   └─ canInvokeWith
  */
 
-import { resourceLimits } from "worker_threads";
-
 
 /**
  *  用于方便调用frida的java方法
@@ -251,7 +249,7 @@ export class JavaHelper {
                         targetSignatures[i] = this.$getClassName(targetSignatures[i]);
                     }
                 }
-                targetMethod = method.overload.apply(targetMethod, targetSignatures);
+                targetMethod = method.overload.apply(method, targetSignatures);
             } else if (method.overloads.length == 1) {
                 targetMethod = method.overloads[0];
             } else {

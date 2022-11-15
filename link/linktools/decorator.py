@@ -46,7 +46,7 @@ def entry_point(known_errors: Tuple[Type[BaseException]] = ()):
             except (KeyboardInterrupt, EOFError, *known_errors) as e:
                 error_type, error_message = e.__class__.__name__, str(e).strip()
                 _logger.error(f"{error_type}: {error_message}" if error_message else error_type)
-                code = 0
+                code = 1
             except:
                 _logger.error(traceback.format_exc())
                 code = 1
@@ -60,6 +60,7 @@ def entry_point(known_errors: Tuple[Type[BaseException]] = ()):
 def singleton(cls: Type[_T]) -> Callable[..., _T]:
     instances = {}
 
+    @functools.wraps(cls)
     def wrapper(*args, **kwargs):
         if cls not in instances:
             instances[cls] = cls(*args, **kwargs)

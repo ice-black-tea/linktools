@@ -43,7 +43,7 @@ GENERAL_TOOL_TIDEVICE:
   <<: *PY
 
 GENERAL_TOOL_JAVA:
-  # cmdline: java
+  cmdline: java
   version: 1.8.0_212
   version_name: 8u212
   version_tag: 8u212-b10
@@ -180,7 +180,7 @@ GENERAL_TOOL_CHROMEDRIVER:
       - else: ~
 
 GENERAL_TOOL_SIB:
-  version: 1.2.3
+  version: 1.2.5
   download_url:
     case:
       - when: {system: darwin}

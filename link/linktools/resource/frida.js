@@ -484,7 +484,7 @@ var e = function() {
       if (null != r) {
         var l = r;
         for (var u in l) "string" != typeof l[u] && (l[u] = this.$getClassName(l[u]));
-        o = i.overload.apply(o, l);
+        o = i.overload.apply(i, l);
       } else {
         if (1 != i.overloads.length) throw Error(this.$getClassName(s) + "." + n + " has too many overloads");
         o = i.overloads[0];
