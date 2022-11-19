@@ -1,0 +1,121 @@
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+
+apply plugin: 'com.android.application'
+
+android {
+
+    compileSdkVersion 33
+
+    defaultConfig {
+        applicationId "android.tools"
+        minSdkVersion 17
+        targetSdkVersion 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            zipAlignEnabled true
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        buildConfig = false
+    }
+
+    compileOptions {
+        sourceCompatibility 1.8
+        targetCompatibility 1.8
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.beust:jcommander:1.82'
+    implementation 'com.google.code.gson:gson:2.9.1'
+    implementation project(path: ':framework')
+
+    compileOnly 'ice.black.tea:android-17:1.0.0'
+    annotationProcessor project(':processor')
+}
+
+
+static def calcMd5(path) {
+    MessageDigest md = null;
+    try {
+        md = MessageDigest.getInstance("MD5")
+    } catch (ignored) {
+        return ""
+    }
+    new File(path).eachByte 4096, {
+        bytes, size -> md.update(bytes, 0, size)
+    }
+    return md.digest().collect { String.format "%02x", it }.join()
+}
+
+
+static def readConfig(path) {
+    try {
+        return new JsonSlurper().parseText(new File(path).text)
+    } catch (ignore) {
+        return [:]
+    }
+}
+
+
+static def writeConfig(path, config) {
+    def file = new File(path)
+    if (file.exists() || file.createNewFile()){
+        def jsonOutput = new JsonOutput()
+        file.withPrintWriter { printWriter ->
+            printWriter.println(jsonOutput.prettyPrint(jsonOutput.toJson(config)))
+        }
+    }
+}
+
+
+task buildTools {
+
+    buildTools.dependsOn ":tools:assembleRelease"
+
+    doLast {
+        def apkName = "tools-release-unsigned.apk"
+        def apkDir = "${project.buildDir}/outputs/apk/release"
+        def apkPath = "${apkDir}/${apkName}"
+        def apkMd5 = calcMd5(apkPath)
+
+        def assetsDir = file("${rootDir}/../linktools/linktools/assets").getAbsolutePath()
+
+        def targetName = "android-tools.apk"
+        def targetPath = "${assetsDir}/${targetName}"
+        def configName = "android-tools.json"
+        def configPath = "${assetsDir}/${configName}"
+        def config = readConfig(configPath)
+
+        if (config.tools_apk == null || config.tools_apk.md5 != apkMd5) {
+
+            copy {
+                println("copy from ${apkPath}")
+                println("copy into ${targetPath}")
+                from(apkPath)
+                into(assetsDir)
+                rename(apkName, targetName)
+            }
+
+            def info = config.ANDROID_TOOL_BRIDGE_APK = [:]
+            info.name = targetName
+            info.md5 = apkMd5
+            info.main = "android.tools.Main"
+            info.size = file(targetPath).length()
+            info.time = new Date().format("yyyy-MM-dd HH:mm:ss", TimeZone.getTimeZone("GMT+08:00"))
+
+            writeConfig(configPath, config)
+        }
+    }
+}

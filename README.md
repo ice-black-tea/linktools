@@ -4,15 +4,14 @@
 
 ```tree
 .
-├── link                工具集入口，其他文件夹都是为此服务的
-├── bow                 android项目，编译的apk产物是link中android相关功能的依赖项
-├── spear               frida相关脚本，编译后产物是link中frida内置脚本
-└── shield              杂项，存储一些定制脚本
+├── linktools           工具集入口，其他文件夹都是为此服务的
+├── android-agent       android项目，编译的apk产物是linktools中android相关功能的依赖项
+└── frida-agent         frida相关脚本，编译后产物是linktools中frida内置脚本
 ```
 
 ## 工具集入口
 
-工具集入口在link目录中，详情参见：[传送门](link/README.md)
+工具集入口在linktools目录中，详情参见：[传送门](linktools/README.md)
 
 ## TODO
 

@@ -1,0 +1,2 @@
+include linktools/assets/*
+recursive-include linktools/scripts *.py
