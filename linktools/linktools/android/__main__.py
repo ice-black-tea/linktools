@@ -5,7 +5,7 @@
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 import logging
 
-from linktools import tools, logger
+from .. import tools, logger
 
 logging.basicConfig(
     level=logging.INFO,

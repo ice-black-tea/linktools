@@ -26,7 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from linktools import utils
+from .. import utils
 
 
 class PatternMatcher:

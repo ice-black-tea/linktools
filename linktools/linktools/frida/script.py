@@ -35,7 +35,7 @@ from rich import get_console
 from rich.prompt import Confirm
 from rich.table import Table
 
-from linktools import utils, get_logger, urlutils
+from .. import utils, get_logger
 
 _logger = get_logger("frida.app")
 
@@ -120,7 +120,7 @@ class FridaShareScript(FridaUserScript):
 
     def _load(self):
 
-        with urlutils.UrlFile(self._url) as file:  # 文件锁，避免多进程同时操作
+        with utils.UrlFile(self._url) as file:  # 文件锁，避免多进程同时操作
 
             if not self._cached:
                 file.clear()

@@ -27,10 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("make_url", "cookie_to_dict", "guess_file_name", "user_agent",
-           "DownloadError", "UrlFile",
-           "NotFoundVersion", "get_chrome_driver",)
-
 import cgi
 import contextlib
 import json
@@ -41,22 +37,15 @@ from typing import Dict, Union, List, Tuple
 from urllib import parse
 
 from filelock import FileLock
-from rich.progress import (
-    BarColumn,
-    DownloadColumn,
-    Progress,
-    SpinnerColumn,
-    TaskProgressColumn,
-    TimeRemainingColumn,
-    TransferSpeedColumn,
-)
+from rich.progress import BarColumn, DownloadColumn, Progress, \
+    SpinnerColumn, TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn
 
-from . import utils
-from ._environ import resource, config, tools
-from ._logging import get_logger
-from .decorator import cached_property
+from .common import TimeoutMeter, get_md5, ignore_error
+from .._environ import resource, config, tools
+from .._logging import get_logger
+from ..decorator import cached_property
 
-_logger = get_logger("urlutils")
+_logger = get_logger("utils.url")
 _user_agent = None
 
 DataType = Union[str, int, float]
@@ -65,7 +54,7 @@ QueryType = Union[DataType, List[DataType], Tuple[DataType]]
 
 def user_agent(style=None) -> str:
     try:
-        from .reference.fake_useragent import UserAgent, VERSION
+        from ..references.fake_useragent import UserAgent, VERSION
 
         global _user_agent
         if (not _user_agent) and style:
@@ -156,7 +145,7 @@ class UrlFile:
 
     def __init__(self, url: str):
         self._url = url
-        self._ident = f"{utils.get_md5(url)}_{guess_file_name(url)[-100:]}"
+        self._ident = f"{get_md5(url)}_{guess_file_name(url)[-100:]}"
         self._root_path = resource.get_temp_path("download", self._ident)
         self._file_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")
@@ -179,7 +168,7 @@ class UrlFile:
 
         lock = self._lock
         target_path = self._file_path
-        timeout_meter = utils.TimeoutMeter(timeout)
+        timeout_meter = TimeoutMeter(timeout)
 
         try:
             lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
@@ -230,7 +219,7 @@ class UrlFile:
             raise DownloadError(e)
 
         finally:
-            utils.ignore_error(lock.release)
+            ignore_error(lock.release)
 
         return target_path
 
@@ -259,7 +248,7 @@ class UrlFile:
         self._lock.release()
 
     @classmethod
-    def _download(cls, context: _Context, timeout_meter: utils.TimeoutMeter):
+    def _download(cls, context: _Context, timeout_meter: TimeoutMeter):
         _logger.debug(f"Download file to temp path {context.file_path}")
 
         initial = 0
@@ -368,7 +357,7 @@ class UrlFile:
                 yield chunk
 
 
-class NotFoundVersion(Exception):
+class NotFoundError(Exception):
     pass
 
 
@@ -393,4 +382,4 @@ def get_chrome_driver(version: str):
         if versions[0] == split_version(value)[0]:
             return chrome_driver.copy(version=key)
 
-    raise NotFoundVersion(version)
+    raise NotFoundError(version)

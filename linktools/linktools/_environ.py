@@ -32,7 +32,7 @@ import pathlib
 
 import yaml
 
-from . import utils
+from .utils.proxy import lazy_load
 from .version import __name__ as module_name
 
 
@@ -105,7 +105,7 @@ def _create_default_tools():
     return tools
 
 
-resource = utils.lazy_load(_create_default_resource)
-config = utils.lazy_load(_create_default_config)
-logger = utils.lazy_load(_create_default_logger)
-tools = utils.lazy_load(_create_default_tools)
+resource = lazy_load(_create_default_resource)
+config = lazy_load(_create_default_config)
+logger = lazy_load(_create_default_logger)
+tools = lazy_load(_create_default_tools)

@@ -34,8 +34,8 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from linktools import utils, resource, ArgumentParser
-from linktools.ios.device import Device, Usbmux, MuxError
+from .device import Device, Usbmux, MuxError
+from .. import utils, resource, ArgumentParser
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("cache", "device", "ios", create_parent=True)
 

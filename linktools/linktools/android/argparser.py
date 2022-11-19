@@ -34,8 +34,8 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from linktools import utils, resource, ArgumentParser
-from linktools.android.adb import Adb, AdbError, Device
+from .adb import Adb, AdbError, Device
+from .. import utils, resource, ArgumentParser
 
 _DEVICE_CACHE_PATH = resource.get_temp_path("cache", "device", "android", create_parent=True)
 

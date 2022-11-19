@@ -37,7 +37,7 @@ import sys
 import warnings
 from typing import Dict, Union, Mapping, Iterator
 
-from . import utils, urlutils
+from . import utils
 from ._environ import resource, config
 from ._logging import get_logger
 from .decorator import cached_property
@@ -59,27 +59,68 @@ class Parser(object):
     def _extend_field(self, cfg, key: str, default=None):
         value = utils.get_item(cfg, key, default=default)
         if isinstance(value, dict) and "case" in value:
-            case_block = value.get("case")  # ==> find "case"
-            # traverse all blocks
+            # parse case block:
+            # -----------------------------------------
+            #   field:
+            #     case:                                 <== case_block
+            #       - when: {system: [darwin, linux]}
+            #         then: xxx
+            #       - when: {system: windows}
+            #         then: yyy
+            #       - else: ~
+            # -----------------------------------------
+            case_block = value.get("case")
+
             for cond_block in case_block:
-                # if it is a when block
+
                 when_block = utils.get_item(cond_block, "when")
-                if when_block is not None:  # ==> find "case" => "when"
-                    # verify that it matches
+                if when_block is not None:
+                    # if it is a "when" block, verify it
+                    # -----------------------------------------
+                    #   field:
+                    #     case:
+                    #       - when: {system: [darwin, linux]}   <== when_block
+                    #         then: xxx
+                    #       - when: {system: windows}
+                    #         then: yyy
+                    #       - else: ~
+                    # -----------------------------------------
                     is_verified = True
                     for verify in self._verifies:
                         if not verify(cfg, when_block):
                             is_verified = False
                             break
+
                     # if any one of the verification fails, skip
                     if not is_verified:
                         continue
-                    # all items are verified
+
+                    # all items are verified, return "then"
+                    # -----------------------------------------
+                    #   field:
+                    #     case:
+                    #       - when: {system: [darwin, linux]}
+                    #         then: xxx                         <== then_block
+                    #       - when: {system: windows}
+                    #         then: yyy
+                    #       - else: ~
+                    # -----------------------------------------
                     return utils.get_item(cond_block, "then", default=default)  # ==> find "case" "when" "then"
-                # if it is a else block
+
                 else_block = utils.get_item(cond_block, "else")
                 if else_block is not None:  # ==> find "case" => "else"
+                    # if it is a else block, return "else"
+                    # -----------------------------------------
+                    #   field:
+                    #     case:
+                    #       - when: {system: [darwin, linux]}
+                    #         then: xxx
+                    #       - when: {system: windows}
+                    #         then: yyy
+                    #       - else: ~                           <== else_block
+                    # -----------------------------------------
                     return else_block
+
             # use default value
             return default  # ==> not found "else"
 
@@ -88,9 +129,19 @@ class Parser(object):
 
     @classmethod
     def _get_verify(cls, item: str):
+
         def verify(config, when_block):
             when_scope = utils.get_item(when_block, item)
             if when_scope is not None:
+                # -----------------------------------------
+                #   field:
+                #     case:
+                #       - when: {system: [darwin, linux]}   <== when_scope (system: [darwin, linux])
+                #         then: xxx
+                #       - when: {system: windows}
+                #         then: yyy
+                #       - else: ~
+                # -----------------------------------------
                 value = config[item]
                 if isinstance(when_scope, str):
                     if value != when_scope:
@@ -168,19 +219,19 @@ class GeneralTool(metaclass=Meta):
         download_url = utils.get_item(cfg, "download_url") or ""
         assert isinstance(download_url, str), \
             f"{cfg['name']}.download_url type error, " \
-            f"str was expects, got {type(download_url)}"
+                f"str was expects, got {type(download_url)}"
 
         cfg["download_url"] = download_url.format(tools=self.__container, **cfg)
 
         unpack_path = utils.get_item(cfg, "unpack_path") or ""
         assert isinstance(unpack_path, str), \
             f"{cfg['name']}.unpack_path type error, " \
-            f"str was expects, got {type(unpack_path)}"
+                f"str was expects, got {type(unpack_path)}"
 
         target_path = utils.get_item(cfg, "target_path", type=str) or ""
         assert isinstance(target_path, str), \
             f"{cfg['name']}.target_path type error, " \
-            f"str was expects, got {type(target_path)}"
+                f"str was expects, got {type(target_path)}"
 
         # target path: {target_path}
         # unpack path: {unpack_path}
@@ -206,7 +257,7 @@ class GeneralTool(metaclass=Meta):
             if executable_cmdline:
                 assert isinstance(executable_cmdline, (str, tuple, list)), \
                     f"{cfg['name']}.executable_cmdline type error, " \
-                    f"str/tuple/list was expects, got {type(executable_cmdline)}"
+                        f"str/tuple/list was expects, got {type(executable_cmdline)}"
                 # if executable_cmdline is not empty,
                 # set the executable flag to false
                 cfg["executable"] = False
@@ -232,7 +283,7 @@ class GeneralTool(metaclass=Meta):
             raise Exception(f"{self.name} does not support running on {self.__container.system}")
         elif not self.exists:
             _logger.info("Download tool: {}".format(self.download_url))
-            url_file = urlutils.UrlFile(self.download_url)
+            url_file = utils.UrlFile(self.download_url)
             temp_dir = resource.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):

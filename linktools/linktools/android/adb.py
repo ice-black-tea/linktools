@@ -34,10 +34,10 @@ import re
 import subprocess
 from typing import Optional, Any
 
-from linktools import __name__ as module_name, utils, resource, tools, config, get_logger
-from linktools.decorator import cached_property
-
 from .struct import Package, UnixSocket, InetSocket
+from .. import utils, resource, tools, config, get_logger
+from ..decorator import cached_property
+from ..version import __name__ as module_name
 
 _logger = get_logger("android.adb")
 

@@ -7,9 +7,9 @@ import os
 import subprocess
 from typing import Union
 
-from ._logging import get_logger
+from .._logging import get_logger
 
-_logger = get_logger("subprocess")
+_logger = get_logger("utils.subprocess")
 
 
 def popen(*args, **kwargs) -> subprocess.Popen:

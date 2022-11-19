@@ -17,10 +17,9 @@ import subprocess
 
 import frida
 
-import linktools
-from linktools import resource, get_logger, urlutils
-from linktools.android import adb
-from linktools.frida import FridaServer
+from . import adb
+from .. import resource, config, utils, get_logger
+from ..frida import FridaServer
 
 _logger = get_logger("android.frida")
 
@@ -83,20 +82,20 @@ class FridaAndroidServer(FridaServer):
     class Environ:
 
         def __init__(self, abi, version):
-            config = linktools.config["ANDROID_TOOL_FRIDA_SERVER"].copy()
-            config.update(version=version, abi=abi)
+            cfg = config["ANDROID_TOOL_FRIDA_SERVER"].copy()
+            cfg.update(version=version, abi=abi)
 
-            self._download_url = config["url"].format(**config)
-            self.local_name = config["name"].format(**config)
+            self._download_url = cfg["url"].format(**cfg)
+            self.local_name = cfg["name"].format(**cfg)
             self.local_path = resource.get_data_path("frida", self.local_name, create_parent=True)
-            self.remote_name = "fs-{abi}-{version}".format(**config)
+            self.remote_name = "fs-{abi}-{version}".format(**cfg)
             self.remote_path = adb.Device.get_data_path(self.remote_name)
 
         def prepare(self):
             if os.path.exists(self.local_path):
                 return
             _logger.info("Download frida server ...")
-            with urlutils.UrlFile(self._download_url) as file:
+            with utils.UrlFile(self._download_url) as file:
                 if os.path.exists(self.local_path):
                     return
                 with lzma.open(file.save(), "rb") as read, open(self.local_path, "wb") as write:

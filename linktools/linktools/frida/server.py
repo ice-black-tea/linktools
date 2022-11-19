@@ -31,7 +31,7 @@ import time
 
 import frida
 
-from linktools import get_logger, utils
+from .. import get_logger, utils
 
 _logger = get_logger("frida.server")
 

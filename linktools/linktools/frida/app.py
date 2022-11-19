@@ -18,7 +18,7 @@ from typing import Optional, Union, Dict, Collection, Callable
 import _frida
 import frida
 
-from linktools import utils, resource, get_logger
+from .. import utils, resource, get_logger
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 

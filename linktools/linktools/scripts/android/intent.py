@@ -30,7 +30,7 @@ import os
 import sys
 import time
 
-from linktools import utils, logger, urlutils
+from linktools import utils, logger
 from linktools.android import AdbError, AndroidArgumentParser
 from linktools.decorator import entry_point
 
@@ -92,7 +92,7 @@ def main():
 
         if args.path.startswith("http://") or args.path.startswith("https://"):
             logger.info(f"Download file: {args.path}")
-            file = urlutils.UrlFile(args.path)
+            file = utils.UrlFile(args.path)
             apk_path = file.save()
             logger.info(f"Save file to local: {apk_path}")
 

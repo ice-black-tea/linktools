@@ -9,9 +9,9 @@
 
 import frida
 
-from linktools import get_logger, utils
-from linktools.frida import FridaServer
-from linktools.ios import Device
+from .device import Device
+from .. import get_logger, utils
+from ..frida import FridaServer
 
 _logger = get_logger("ios.frida")
 
