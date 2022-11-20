@@ -27,12 +27,9 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("AdbError", "Adb", "Device")
-
 import json
 import re
-import subprocess
-from typing import Optional, Any
+from typing import Optional, Any, AnyStr
 
 from .struct import Package, UnixSocket, InetSocket
 from .. import utils, resource, tools, config, get_logger
@@ -73,28 +70,51 @@ class Adb(object):
         return devices
 
     @classmethod
-    def popen(cls, *args: [str], **kwargs) -> subprocess.Popen:
+    def popen(cls, *args: [Any], **kwargs) -> utils.Popen:
         return tools["adb"].popen(*args, **kwargs)
 
     @classmethod
-    def exec(cls, *args: [str], capture_output: bool = True, ignore_errors: bool = False, **kwargs) -> str:
+    def exec(cls, *args: [Any], input: AnyStr = None, timeout: float = None, ignore_errors: bool = False,
+             capture_output: bool = True, output_to_logger: bool = False, **kwargs) -> str:
         """
         执行命令
         :param args: 命令
-        :param capture_output: 捕获输出，默认为True
+        :param input: 输入
+        :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
+        :param capture_output: 捕获输出，默认为True
+        :param output_to_logger: 把输出打印到logger中
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
-        process, out, err = tools["adb"].exec(
+        if output_to_logger:
+            if not capture_output:
+                capture_output = True
+                _logger.warning("output_to_logger argument needs to be used with capture_output argument")
+
+        process = cls.popen(
             *args,
             capture_output=capture_output,
-            ignore_errors=ignore_errors,
             **kwargs
         )
+        out, err = process.communicate(
+            input=input,
+            timeout=timeout,
+            ignore_errors=ignore_errors
+        )
+
+        if output_to_logger:
+            if out:
+                message = out.decode(errors="ignore") if isinstance(out, bytes) else out
+                _logger.info(message.rstrip())
+            if err:
+                message = err.decode(errors="ignore") if isinstance(err, bytes) else err
+                _logger.error(message.rstrip())
+
         if not ignore_errors and process.returncode != 0 and not utils.is_empty(err):
             err = err.decode(errors='ignore')
             if not utils.is_empty(err):
                 raise AdbError(err)
+
         return out.decode(errors='ignore') if out is not None else ""
 
 
@@ -156,7 +176,7 @@ class Device(object):
             return uid
         raise AdbError("unknown adb uid: %s" % out)
 
-    def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
+    def popen(self, *args: [Any], **kwargs) -> utils.Popen:
         """
         执行命令
         :param args: 命令行参数
@@ -165,7 +185,7 @@ class Device(object):
         args = ["-s", self.id, *args]
         return Adb.popen(*args, **kwargs)
 
-    def exec(self, *args: [str], **kwargs) -> str:
+    def exec(self, *args: [Any], **kwargs) -> str:
         """
         执行命令
         :param args: 命令行参数
@@ -174,7 +194,7 @@ class Device(object):
         args = ["-s", self.id, *args]
         return Adb.exec(*args, **kwargs)
 
-    def shell(self, *args: [str], privilege: bool = False, **kwargs) -> str:
+    def shell(self, *args: [Any], privilege: bool = False, **kwargs) -> str:
         """
         执行shell
         :param args: shell命令
@@ -186,7 +206,7 @@ class Device(object):
             else ["shell", "su", "-c", *args]
         return self.exec(*args, **kwargs)
 
-    def sudo(self, *args: [str], **kwargs) -> str:
+    def sudo(self, *args: [Any], **kwargs) -> str:
         """
         以root权限执行shell
         :param args: shell命令
@@ -294,7 +314,7 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         return self.shell("getprop", prop, **kwargs).rstrip()
 
@@ -332,7 +352,7 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
         out = self.shell(*args, **kwargs)
@@ -343,7 +363,7 @@ class Device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -363,7 +383,7 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
         result = self.shell(*args, **kwargs)
@@ -377,7 +397,7 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
@@ -394,7 +414,7 @@ class Device(object):
         :param package_name: 包名
         :return: 包信息
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         args = ["package", "--packages", package_name]
         objs = json.loads(self.call_agent(*args, **kwargs))
@@ -408,7 +428,7 @@ class Device(object):
         :param simple: 只获取基本信息
         :return: 包信息
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         result = []
         agent_args = ["package"]
@@ -433,7 +453,7 @@ class Device(object):
         :param simple: 只获取基本信息
         :return: 包信息
         """
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         result = []
         agent_args = ["package"]
@@ -476,7 +496,7 @@ class Device(object):
         return self._get_sockets(UnixSocket, "--unix-sock", **kwargs)
 
     def _get_sockets(self, type, command, **kwargs):
-        self._set_default(kwargs, capture_output=True, daemon=False)
+        self._set_default(kwargs, capture_output=True, output_to_logger=False)
 
         result = []
         agent_args = ["network", command]

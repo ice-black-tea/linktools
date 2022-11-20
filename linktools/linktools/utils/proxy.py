@@ -8,6 +8,8 @@ import functools
 from typing import TypeVar, Type, Callable
 
 
+# Code stolen from celery.local.Proxy.
+
 def _default_cls_attr(name, type_, cls_value):
     # Proxy uses properties to forward the standard
     # class attributes __module__, __name__ and __doc__ to the real
@@ -34,7 +36,6 @@ __module__ = __name__  # used by Proxy class body
 class _Proxy(object):
     """Proxy to another object."""
 
-    # Code stolen from celery.local.Proxy.
     __slots__ = ('__fn', '__object', '__dict__')
     __missing__ = object()
 

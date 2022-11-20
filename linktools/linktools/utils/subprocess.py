@@ -5,85 +5,78 @@
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 import os
 import subprocess
-from typing import Union
+from typing import AnyStr
 
 from .._logging import get_logger
 
 _logger = get_logger("utils.subprocess")
 
 
-def popen(*args, **kwargs) -> subprocess.Popen:
-    """
-    打开进程
-    :param args: 参数
-    :return: 子进程
-    """
-    capture_output = kwargs.pop("capture_output", False)
-    if capture_output is True:
-        if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
-            raise ValueError("stdout and stderr arguments may not be used "
-                             "with capture_output.")
-        kwargs["stdout"] = subprocess.PIPE
-        kwargs["stderr"] = subprocess.PIPE
-    if "cwd" not in kwargs:
-        kwargs["cwd"] = os.getcwd()
-    if "shell" not in kwargs:
-        kwargs["shell"] = False
-    if "append_env" in kwargs:
-        env = os.environ.copy()
-        env.update(kwargs.pop("env", {}))
-        env.update(kwargs.pop("append_env"))
-        kwargs["env"] = env
-    _logger.debug(f"Exec cmdline: {' '.join(args)}")
-    return subprocess.Popen(args, **kwargs)
+class Popen(subprocess.Popen):
 
+    def __init__(self, *args, **kwargs):
+        capture_output = kwargs.pop("capture_output", False)
+        if capture_output is True:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs["stdout"] = subprocess.PIPE
+            kwargs["stderr"] = subprocess.PIPE
+        if "cwd" not in kwargs:
+            kwargs["cwd"] = os.getcwd()
+        if kwargs.get("shell", False):
+            raise ValueError("shell argument is not allowed.")
+        if "append_env" in kwargs:
+            env = os.environ.copy()
+            env.update(kwargs.pop("env", {}))
+            env.update(kwargs.pop("append_env"))
+            kwargs["env"] = env
 
-def exec(*args, **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
-    """
-    执行命令
-    :param args: 参数
-    :return: 子进程
-    """
+        super().__init__([str(arg) for arg in args], **kwargs)
+        _logger.debug(f"Exec cmdline: {' '.join(self.args)}")
 
-    input = kwargs.pop("input", None)
-    timeout = kwargs.pop("timeout", None)
-    daemon = kwargs.pop("daemon", None)
+    def call(self, timeout: float = None, daemon: bool = False) -> int:
+        with self:
+            try:
+                return self.wait(timeout=timeout or .1 if daemon else timeout)
+            except Exception as e:
+                if daemon and isinstance(e, subprocess.TimeoutExpired):
+                    return 0
+                self.kill()
+                raise
 
-    capture_output = kwargs.pop("capture_output", False)
-    output_to_logger = kwargs.pop("output_to_logger", False)
-    ignore_errors = kwargs.pop("ignore_errors", False)
+    def check_call(self, timeout: float = None) -> int:
+        with self:
+            try:
+                retcode = self.wait(timeout=timeout)
+                if retcode:
+                    raise subprocess.CalledProcessError(retcode, self.args)
+                return retcode
+            except:
+                self.kill()
+                raise
 
-    if capture_output is True or output_to_logger is True:
-        if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
-            raise ValueError("stdout and stderr arguments may not be used "
-                             "with capture_output or output_to_logger.")
-        kwargs["stdout"] = subprocess.PIPE
-        kwargs["stderr"] = subprocess.PIPE
+    def communicate(self, input: AnyStr = None, timeout: float = None, ignore_errors=False) -> (AnyStr, AnyStr):
+        """
+        执行命令，简单包装了一下communicate
+        :param input:
+        :param timeout:
+        :param ignore_errors:
+        :return: out, err
+        """
 
-    process, out, err = None, None, None
-    try:
-        process = popen(*args, **kwargs)
-        out, err = process.communicate(
-            input=input,
-            timeout=timeout or .1 if daemon else timeout
-        )
-    except Exception as e:
-        if ignore_errors:
-            _logger.debug(f"Ignore error: {e}")
-        elif daemon and isinstance(e, subprocess.TimeoutExpired):
-            pass
-        else:
-            raise e
-    finally:
-        if process and not daemon:
-            process.kill()
+        out, err = None, None
+        try:
+            out, err = super().communicate(
+                input=input,
+                timeout=timeout,
+            )
+        except Exception as e:
+            if ignore_errors:
+                _logger.debug(f"Ignore error: {e}")
+            else:
+                raise e
+        finally:
+            self.kill()
 
-    if output_to_logger is True:
-        if out:
-            message = out.decode(errors="ignore") if isinstance(out, bytes) else out
-            _logger.info(message.rstrip())
-        if err:
-            message = err.decode(errors="ignore") if isinstance(err, bytes) else err
-            _logger.error(message.rstrip())
-
-    return process, out, err
+        return out, err

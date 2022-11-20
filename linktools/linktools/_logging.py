@@ -27,8 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("get_logger", "Handler")
-
 import logging
 import os
 
@@ -130,12 +128,12 @@ class Logger(logging.Logger):
             to_[key] = value
 
 
-manager = logging.Manager(logging.getLogger())
-manager.setLoggerClass(Logger)
+_manager = logging.Manager(logging.getLogger())
+_manager.setLoggerClass(Logger)
 
 
 def get_logger(name: str = None, prefix=module_name) -> "Logger":
     if prefix:
         name = f"{prefix}.{name}" if name else prefix
-    logger = manager.getLogger(name)
+    logger = _manager.getLogger(name)
     return logger

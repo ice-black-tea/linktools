@@ -7,24 +7,23 @@
 # Product   : PyCharm
 # Project   : link
 
-__all__ = ("FridaAndroidServer",)
-
 import fnmatch
 import lzma
 import os
 import shutil
 import subprocess
+from typing import Collection
 
 import frida
 
-from . import adb
+from ..android import adb
 from .. import resource, config, utils, get_logger
-from ..frida import FridaServer
+from .server import FridaServer
 
-_logger = get_logger("android.frida")
+_logger = get_logger("frida.server.android")
 
 
-class FridaAndroidServer(FridaServer):
+class AndroidFridaServer(FridaServer):
     """
     android server
     """
@@ -36,8 +35,16 @@ class FridaAndroidServer(FridaServer):
         self._remote_port = remote_port
         self._environ = self.Environ(device.abi, frida.__version__)
 
+    @property
+    def local_port(self):
+        return self._local_port
+
+    @property
+    def remote_port(self):
+        return self._remote_port
+
     @classmethod
-    def setup(cls, abis=("arm", "arm64", "x86_64", "x86"), version=frida.__version__):
+    def setup(cls, abis: Collection[str] = ("arm", "arm64", "x86_64", "x86"), version: str = frida.__version__):
         for abi in abis:
             env = cls.Environ(abi, version)
             env.prepare()
@@ -81,7 +88,7 @@ class FridaAndroidServer(FridaServer):
 
     class Environ:
 
-        def __init__(self, abi, version):
+        def __init__(self, abi: str, version: str):
             cfg = config["ANDROID_TOOL_FRIDA_SERVER"].copy()
             cfg.update(version=version, abi=abi)
 

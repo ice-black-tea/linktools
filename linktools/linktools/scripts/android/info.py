@@ -28,7 +28,8 @@
 """
 
 from linktools import logger
-from linktools.android import AdbError, AndroidArgumentParser, Device
+from linktools.android import AdbError, Device
+from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 
 props = (

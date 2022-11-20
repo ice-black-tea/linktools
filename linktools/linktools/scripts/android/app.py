@@ -28,8 +28,9 @@
 """
 
 from linktools import utils, logger
-from linktools.android import AdbError, AndroidArgumentParser, Package, Permission, Component, Activity, Service, \
-    Receiver, Provider, IntentFilter
+from linktools.android import AdbError, Package, Permission, \
+    Component, Activity, Service, Receiver, Provider, IntentFilter
+from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 
 

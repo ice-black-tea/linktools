@@ -9,14 +9,14 @@
 
 import frida
 
-from .device import Device
+from .server import FridaServer
 from .. import get_logger, utils
-from ..frida import FridaServer
+from ..ios.device import Device
 
-_logger = get_logger("ios.frida")
+_logger = get_logger("frida.server.ios")
 
 
-class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
+class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
     """
     ios server
     """
@@ -27,6 +27,14 @@ class FridaIOSServer(FridaServer):  # proxy for frida.core.Device
         self._local_port = local_port
         self._remote_port = remote_port
         self._thread = None
+
+    @property
+    def local_port(self):
+        return self._local_port
+
+    @property
+    def remote_port(self):
+        return self._remote_port
 
     def _start(self):
         self._thread = self._device.forward(self._local_port, self._remote_port)

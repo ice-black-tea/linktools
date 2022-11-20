@@ -27,15 +27,12 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__all__ = ("GeneralTool", "GeneralTools")
-
 import os
 import platform
 import shutil
-import subprocess
 import sys
 import warnings
-from typing import Dict, Union, Mapping, Iterator
+from typing import Dict, Union, Mapping, Iterator, Any
 
 from . import utils
 from ._environ import resource, config
@@ -219,19 +216,19 @@ class GeneralTool(metaclass=Meta):
         download_url = utils.get_item(cfg, "download_url") or ""
         assert isinstance(download_url, str), \
             f"{cfg['name']}.download_url type error, " \
-                f"str was expects, got {type(download_url)}"
+            f"str was expects, got {type(download_url)}"
 
         cfg["download_url"] = download_url.format(tools=self.__container, **cfg)
 
         unpack_path = utils.get_item(cfg, "unpack_path") or ""
         assert isinstance(unpack_path, str), \
             f"{cfg['name']}.unpack_path type error, " \
-                f"str was expects, got {type(unpack_path)}"
+            f"str was expects, got {type(unpack_path)}"
 
         target_path = utils.get_item(cfg, "target_path", type=str) or ""
         assert isinstance(target_path, str), \
             f"{cfg['name']}.target_path type error, " \
-                f"str was expects, got {type(target_path)}"
+            f"str was expects, got {type(target_path)}"
 
         # target path: {target_path}
         # unpack path: {unpack_path}
@@ -257,7 +254,7 @@ class GeneralTool(metaclass=Meta):
             if executable_cmdline:
                 assert isinstance(executable_cmdline, (str, tuple, list)), \
                     f"{cfg['name']}.executable_cmdline type error, " \
-                        f"str/tuple/list was expects, got {type(executable_cmdline)}"
+                    f"str/tuple/list was expects, got {type(executable_cmdline)}"
                 # if executable_cmdline is not empty,
                 # set the executable flag to false
                 cfg["executable"] = False
@@ -310,37 +307,31 @@ class GeneralTool(metaclass=Meta):
             _logger.debug(f"Delete {self.absolute_path}")
             os.remove(self.absolute_path)
 
-    def _process(self, fn, *args, **kwargs):
+    def popen(self, *args: [Any], **kwargs) -> utils.Popen:
         self.prepare()
 
         # python
         executable_cmdline = self.executable_cmdline
         if executable_cmdline[0] == "python":
             args = [sys.executable, *executable_cmdline[1:], *args]
-            return fn(*args, **kwargs)
+            return utils.Popen(*args, **kwargs)
 
         # java or other
         if executable_cmdline[0] in self.__container.items:
             args = [*executable_cmdline[1:], *args]
             tool = self.__container.items[executable_cmdline[0]]
-            return tool._process(fn, *args, **kwargs)
+            return tool.popen(*args, **kwargs)
 
-        return fn(*[*executable_cmdline, *args], **kwargs)
-
-    def popen(self, *args: [str], **kwargs) -> subprocess.Popen:
-        return self._process(utils.popen, *args, **kwargs)
-
-    def exec(self, *args: [str], **kwargs) -> (subprocess.Popen, Union[str, bytes], Union[str, bytes]):
-        return self._process(utils.exec, *args, **kwargs)
+        return utils.Popen(*[*executable_cmdline, *args], **kwargs)
 
     def __repr__(self):
         return f"<GeneralTool {self.name}>"
 
 
 class GeneralTools(object):
-    system = property(lambda self: self.config["system"])
-    processor = property(lambda self: self.config["processor"])
-    architecture = property(lambda self: self.config["architecture"])
+    system: str = property(lambda self: self.config["system"])
+    processor: str = property(lambda self: self.config["processor"])
+    architecture: str = property(lambda self: self.config["architecture"])
 
     def __init__(self, **kwargs):
         self.config = kwargs

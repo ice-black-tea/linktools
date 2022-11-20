@@ -68,6 +68,9 @@ class FridaUserScript(metaclass=abc.ABCMeta):
     def _load(self) -> Optional[str]:
         pass
 
+    def to_dict(self):
+        return {"filename": self.ident, "source": self.source}
+
 
 class FridaScriptFile(FridaUserScript):
 

@@ -420,7 +420,7 @@ $ at-frida -l android.js
 # -*- coding: utf-8 -*-
 
 from linktools.frida import FridaApplication, FridaEvalCode
-from linktools.android.frida import FridaAndroidServer
+from linktools.frida.android import AndroidFridaServer
 
 
 jscode = """
@@ -433,7 +433,7 @@ Java.perform(function () {
 
 if __name__ == "__main__":
 
-    with FridaAndroidServer() as server:
+    with AndroidFridaServer() as server:
 
         app = FridaApplication(
             server,

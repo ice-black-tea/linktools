@@ -8,8 +8,9 @@
 # Project   : link
 
 from linktools import tools
+from linktools.argparser.ios import IOSArgumentParser
 from linktools.decorator import entry_point
-from linktools.ios import MuxError, IOSArgumentParser
+from linktools.ios import MuxError
 
 
 @entry_point(known_errors=(MuxError,))
@@ -32,12 +33,10 @@ def main():
             device = args.parse_device()
             device_args = ["--socket", device.usbmux.address, "-u", device.udid, *device_args]
             process = tools["tidevice"].popen(*device_args, capture_output=False)
-            process.communicate()
-            return process.returncode
+            return process.call()
 
     process = tools["tidevice"].popen(*device_args, capture_output=False)
-    process.communicate()
-    return process.returncode
+    return process.call()
 
 
 if __name__ == '__main__':

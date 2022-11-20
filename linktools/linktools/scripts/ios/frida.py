@@ -28,10 +28,11 @@
 """
 
 from linktools import logger, utils
+from linktools.argparser.ios import IOSArgumentParser
 from linktools.decorator import entry_point
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
-from linktools.ios import IOSArgumentParser, MuxError
-from linktools.ios.frida import FridaIOSServer
+from linktools.frida.ios import IOSFridaServer
+from linktools.ios import MuxError
 
 
 @entry_point(known_errors=(MuxError,))
@@ -59,8 +60,6 @@ def main():
 
     parser.add_argument("-a", "--auto-start", action="store_true", default=False,
                         help="automatically start when all processes exits")
-    parser.add_argument("-d", "--debug", action="store_true", default=False,
-                        help="debug mode")
 
     args = parser.parse_args()
     device = args.parse_device()
@@ -86,11 +85,10 @@ def main():
                 if args.auto_start:
                     app.load_script(app.device.spawn(bundle_id), resume=True)
 
-    with FridaIOSServer(device=device) as server:
+    with IOSFridaServer(device=device) as server:
 
         app = Application(
             server,
-            debug=args.debug,
             user_parameters=user_parameters,
             user_scripts=user_scripts,
             enable_spawn_gating=True

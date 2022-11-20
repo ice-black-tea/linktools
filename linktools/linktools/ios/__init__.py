@@ -8,5 +8,4 @@
 # Project   : link
 
 from .ipa import IPA, IPAError
-from .argparser import IOSArgumentParser
 from .device import Device, Usbmux, MuxError

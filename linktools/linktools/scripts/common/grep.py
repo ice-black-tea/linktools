@@ -39,7 +39,7 @@ from rich.highlighter import NullHighlighter
 from rich.text import Text
 
 from linktools import utils, logger
-from linktools.android.argparser import ArgumentParser
+from linktools.argparser import ArgumentParser
 from linktools.decorator import entry_point
 
 pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)

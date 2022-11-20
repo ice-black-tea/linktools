@@ -29,7 +29,8 @@
 import json
 import subprocess
 
-from linktools import ArgumentParser, tools, logger
+from linktools import tools, logger
+from linktools.argparser import ArgumentParser
 from linktools.decorator import entry_point
 
 
@@ -58,32 +59,32 @@ def main():
     tool_args = args.tool[1:]
 
     if args.config:
-        logger.info(
-            json.dumps(tools[tool_name].config, indent=2, ensure_ascii=False)
-        )
+        logger.info(json.dumps(tools[tool_name].config, indent=2, ensure_ascii=False))
+        return 0
 
     elif args.download:
         if not tools[tool_name].exists:
             tools[tool_name].prepare()
-        logger.info(f"download tool files success: {tools[tool_name].absolute_path}")
+        logger.info(f"Download tool files success: {tools[tool_name].absolute_path}")
+        return 0
 
     elif args.clear:
         tools[tool_name].clear()
-        logger.info(f"clear tool files success")
+        logger.info(f"Clear tool files success")
+        return 0
 
     elif args.daemon:
-        tools[tool_name].exec(
+        process = tools[tool_name].popen(
             *tool_args,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            daemon=True,
         )
+        return process.call(daemon=True)
 
     else:
         process = tools[tool_name].popen(*tool_args)
-        process.communicate()
-        return process.returncode
+        return process.call()
 
 
 if __name__ == "__main__":

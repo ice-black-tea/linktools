@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : __init__.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : __init__.py.py 
+@time    : 2022/11/20
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -27,20 +27,4 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .version import __name__, __version__, __author__, __email__, __url__
-
-from . import utils
-from . import decorator
-from ._logging import get_logger, Handler as LogHandler
-from ._resource import Resource
-from ._config import Config
-from ._tools import GeneralTools
-from ._environ import resource, config, tools, logger
-
-
-def is_debug() -> bool:
-    return config.get("DEBUG", False)
-
-
-def set_debug(debug: bool):
-    config["DEBUG"] = debug
+from .argparser import ArgumentParser, range_type

@@ -42,7 +42,7 @@ from .proxy import (
 )
 
 from .subprocess import (
-    popen, exec,
+    Popen,
 )
 
 from .url import (

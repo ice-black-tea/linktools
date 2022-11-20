@@ -9,7 +9,7 @@
 import os
 import sys
 
-from linktools import utils, ArgumentParser, tools
+from linktools import utils, tools
 from linktools.decorator import entry_point
 
 
@@ -30,9 +30,8 @@ def main():
     if not os.path.exists(bash_path):
         raise NotImplementedError(f"file {bash_path} does not exist")
 
-    process = utils.popen(bash_path, *sys.argv[1:])
-    process.communicate()
-    return process.returncode
+    process = utils.Popen(bash_path, *sys.argv[1:])
+    return process.call()
 
 
 if __name__ == "__main__":

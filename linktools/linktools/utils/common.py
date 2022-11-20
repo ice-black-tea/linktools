@@ -26,9 +26,13 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import gzip
+import hashlib
+import random
 import socket
 import threading
 import time
+import uuid
 from collections.abc import Iterable
 from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
 from urllib.request import urlopen
@@ -261,7 +265,6 @@ def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T]
 
 
 def get_md5(data: Union[str, bytes]) -> str:
-    import hashlib
     if type(data) == str:
         data = bytes(data, 'utf8')
     m = hashlib.md5()
@@ -270,7 +273,6 @@ def get_md5(data: Union[str, bytes]) -> str:
 
 
 def get_sha1(data: Union[str, bytes]) -> str:
-    import hashlib
     if type(data) == str:
         data = bytes(data, 'utf8')
     s1 = hashlib.sha1()
@@ -279,7 +281,6 @@ def get_sha1(data: Union[str, bytes]) -> str:
 
 
 def get_sha256(data: Union[str, bytes]) -> str:
-    import hashlib
     if type(data) == str:
         data = bytes(data, 'utf8')
     s1 = hashlib.sha256()
@@ -288,13 +289,10 @@ def get_sha256(data: Union[str, bytes]) -> str:
 
 
 def make_uuid() -> str:
-    import uuid
-    import random
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{uuid.uuid1()}{random.random()}")).replace("-", "")
 
 
 def gzip_compress(data: Union[str, bytes]) -> bytes:
-    import gzip
     if type(data) == str:
         data = bytes(data, 'utf8')
     return gzip.compress(data)

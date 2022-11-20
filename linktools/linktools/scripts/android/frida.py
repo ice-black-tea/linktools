@@ -27,18 +27,21 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools import utils, logger, range_type
-from linktools.android import AdbError, AndroidArgumentParser
-from linktools.android.frida import FridaAndroidServer
+from linktools import utils, logger
+from linktools.android import AdbError
+from linktools.argparser import range_type
+from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
+from linktools.frida.android import AndroidFridaServer
 
 
 @entry_point(known_errors=(AdbError,))
 def main():
     parser = AndroidArgumentParser(description="easy to use frida")
+
     parser.add_argument("-p", "--package", action="store", default=None,
-                        help="target package (default: current running package)")
+                        help="target package (default: frontmost application)")
     parser.add_argument("--spawn", action="store_true", default=False,
                         help="inject after spawn (default: false)")
 
@@ -60,14 +63,12 @@ def main():
     parser.add_argument("--redirect-address", metavar="ADDRESS", action="store", dest="redirect_address",
                         type=str,
                         help="redirect traffic to target address (default: localhost)")
-    parser.add_argument("--redirect-port", metavar="ADDRESS", action="store", dest="redirect_port",
+    parser.add_argument("--redirect-port", metavar="PORT", action="store", dest="redirect_port",
                         type=range_type(1, 65536),
                         help="redirect traffic to target port (default: 8080)")
 
     parser.add_argument("-a", "--auto-start", action="store_true", default=False,
                         help="automatically start when all processes exits")
-    parser.add_argument("-d", "--debug", action="store_true", default=False,
-                        help="enable debug mode")
 
     args = parser.parse_args()
     device = args.parse_device()
@@ -93,11 +94,10 @@ def main():
                 if args.auto_start:
                     app.load_script(app.device.spawn(package), resume=True)
 
-    with FridaAndroidServer(device=device) as server:
+    with AndroidFridaServer(device=device) as server:
 
         app = Application(
             server,
-            debug=args.debug,
             user_parameters=user_parameters,
             user_scripts=user_scripts,
             enable_spawn_gating=True,

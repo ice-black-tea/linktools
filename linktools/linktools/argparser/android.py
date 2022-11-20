@@ -34,10 +34,9 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from .adb import Adb, AdbError, Device
-from .. import utils, resource, ArgumentParser
-
-_DEVICE_CACHE_PATH = resource.get_temp_path("cache", "device", "android", create_parent=True)
+from . import ArgumentParser
+from .. import utils, resource
+from ..android.adb import Adb, AdbError, Device
 
 
 class AndroidArgumentParser(ArgumentParser):
@@ -45,12 +44,14 @@ class AndroidArgumentParser(ArgumentParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        cache_path = resource.get_temp_path("cache", "device", "android", create_parent=True)
+
         def parse_handler(fn):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
                 serial = fn(*args, **kwargs)
                 if serial is not None:
-                    with open(_DEVICE_CACHE_PATH, "wt+") as fd:
+                    with open(cache_path, "wt+") as fd:
                         fd.write(serial)
                 return Device(serial)
 
@@ -152,8 +153,8 @@ class AndroidArgumentParser(ArgumentParser):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    if os.path.exists(_DEVICE_CACHE_PATH):
-                        with open(_DEVICE_CACHE_PATH, "rt") as fd:
+                    if os.path.exists(cache_path):
+                        with open(cache_path, "rt") as fd:
                             result = fd.read().strip()
                             if len(result) > 0:
                                 return result

@@ -27,7 +27,8 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from linktools import utils
-from linktools.android import AdbError, AndroidArgumentParser
+from linktools.android import AdbError
+from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
@@ -48,12 +49,12 @@ def main():
     device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), output_to_logger=True)
 
     pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
-    device.forward("tcp:{}".format(args.port), "jdwp:{}".format(pid), output_to_logger=True)
+    device.forward(f"tcp:{args.port}", f"jdwp:{pid}", output_to_logger=True)
 
     data = input("jdb connect? [Y/n]: ").strip()
     if data in ["", "Y", "y"]:
-        utils.exec("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port),
-                   output_to_logger=True)
+        process = utils.Popen("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
+        process.call()
 
 
 if __name__ == '__main__':

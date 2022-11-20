@@ -7,7 +7,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var e = function() {
   function e() {
-    this.debug = 1, this.info = 2, this.warning = 3, this.error = 4, this.$level = this.info;
+    this.DEBUG = 1, this.INFO = 2, this.WARNING = 3, this.ERROR = 4, this.$level = this.INFO;
   }
   return Object.defineProperty(e.prototype, "level", {
     get: function() {
@@ -18,28 +18,28 @@ var e = function() {
   }), e.prototype.setLevel = function(e) {
     this.$level = e, this.d("Set log level: " + e);
   }, e.prototype.d = function(e, r) {
-    this.$level <= this.debug && send({
+    this.$level <= this.DEBUG && send({
       log: {
         level: "debug",
         message: e
       }
     }, r);
   }, e.prototype.i = function(e, r) {
-    this.$level <= this.info && send({
+    this.$level <= this.INFO && send({
       log: {
         level: "info",
         message: e
       }
     }, r);
   }, e.prototype.w = function(e, r) {
-    this.$level <= this.warning && send({
+    this.$level <= this.WARNING && send({
       log: {
         level: "warning",
         message: e
       }
     }, r);
   }, e.prototype.e = function(e, r) {
-    this.$level <= this.error && send({
+    this.$level <= this.ERROR && send({
       log: {
         level: "error",
         message: e
@@ -56,23 +56,23 @@ var e = function() {
         value: r
       }
     });
-    for (var n = 0, t = e; n < t.length; n++) {
-      var o = t[n];
+    for (var t = 0, n = e; t < n.length; t++) {
+      var o = n[t];
       try {
         (0, eval)(o.source);
       } catch (e) {
-        var i = e.hasOwnProperty("stack") ? e.stack : e;
-        throw new Error("Unable to load ".concat(o.filename, ": ").concat(i));
+        var l = e.hasOwnProperty("stack") ? e.stack : e;
+        throw new Error("Unable to load ".concat(o.filename, ": ").concat(l));
       }
     }
   }, e;
-}(), n = new r;
+}(), t = new r;
 
 rpc.exports = {
-  loadScripts: n.load.bind(n)
+  loadScripts: t.load.bind(t)
 };
 
-var t = require("./lib/c"), o = require("./lib/java"), i = require("./lib/android"), l = require("./lib/objc"), a = require("./lib/ios"), u = new e, s = new t.CHelper, c = new o.JavaHelper, p = new i.AndroidHelper, f = new l.ObjCHelper, v = new a.IOSHelper;
+var n = require("./lib/c"), o = require("./lib/java"), l = require("./lib/android"), i = require("./lib/objc"), a = require("./lib/ios"), u = new e, s = new n.CHelper, c = new o.JavaHelper, p = new l.AndroidHelper, v = new i.ObjCHelper, f = new a.IOSHelper;
 
 Object.defineProperties(globalThis, {
   Log: {
@@ -93,11 +93,11 @@ Object.defineProperties(globalThis, {
   },
   ObjCHelper: {
     enumerable: !0,
-    value: f
+    value: v
   },
   IOSHelper: {
     enumerable: !0,
-    value: v
+    value: f
   },
   ignoreError: {
     enumerable: !1,
@@ -115,9 +115,9 @@ Object.defineProperties(globalThis, {
     value: function(e, r) {
       if (void 0 === r && (r = void 0), "boolean" == typeof e) return e;
       if ("string" == typeof e) {
-        var n = e.toLowerCase();
-        if ("true" === n) return !0;
-        if ("false" === n) return !1;
+        var t = e.toLowerCase();
+        if ("true" === t) return !0;
+        if ("false" === t) return !1;
       }
       return r;
     }
@@ -133,7 +133,7 @@ Object.defineProperties(globalThis, {
     value: function(e) {
       if (!(e instanceof Object)) return e;
       if (Array.isArray(e) || c.isArray(e)) {
-        for (var r = [], n = 0; n < e.length; n++) r.push(pretty2Json(e[n]));
+        for (var r = [], t = 0; t < e.length; t++) r.push(pretty2Json(e[t]));
         return r;
       }
       return ignoreError((function() {

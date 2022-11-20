@@ -5,11 +5,11 @@
 
 class Log {
 
-    debug = 1;
-    info = 2;
-    warning = 3;
-    error = 4;
-    private $level = this.info;
+    DEBUG = 1;
+    INFO = 2;
+    WARNING = 3;
+    ERROR = 4;
+    private $level = this.INFO;
 
     get level(): number {
         return this.$level;
@@ -21,25 +21,25 @@ class Log {
     }
 
     d(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.debug) {
+        if (this.$level <= this.DEBUG) {
             send({ log: { level: "debug", message: message } }, data);
         }
     }
 
     i(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.info) {
+        if (this.$level <= this.INFO) {
             send({ log: { level: "info", message: message } }, data);
         }
     }
 
     w(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.warning) {
+        if (this.$level <= this.WARNING) {
             send({ log: { level: "warning", message: message } }, data);
         }
     }
 
     e(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.error) {
+        if (this.$level <= this.ERROR) {
             send({ log: { level: "error", message: message } }, data);
         }
     }

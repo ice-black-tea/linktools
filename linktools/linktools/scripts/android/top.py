@@ -31,7 +31,8 @@ import datetime
 import sys
 
 from linktools import utils, logger
-from linktools.android import AdbError, AndroidArgumentParser
+from linktools.android import AdbError
+from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 
 

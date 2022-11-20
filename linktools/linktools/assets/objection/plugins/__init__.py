@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : __init__.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : __init__.py.py 
+@time    : 2022/11/20
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -27,20 +27,36 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .version import __name__, __version__, __author__, __email__, __url__
+from objection.utils.plugin import Plugin
 
-from . import utils
-from . import decorator
-from ._logging import get_logger, Handler as LogHandler
-from ._resource import Resource
-from ._config import Config
-from ._tools import GeneralTools
-from ._environ import resource, config, tools, logger
+from linktools import resource, __name__ as module_name
+
+__description__ = f"{module_name} plugin"
+
+from linktools.frida import FridaEvalCode
 
 
-def is_debug() -> bool:
-    return config.get("DEBUG", False)
+class LinktoolsPlugin(Plugin):
+
+    def __init__(self, ns):
+        self.script_path = resource.get_asset_path("frida.js")
+        super().__init__(__file__, ns, {
+            'meta': f'"{module_name}',
+            'commands': {
+                'load': {
+                    'meta': 'load',
+                    'exec': self.load_scripts
+                }
+            }
+        })
+        self.inject()
+
+    def load_scripts(self, args: list):
+        scripts = []
+        for arg in args:
+            scripts.append(FridaEvalCode(arg).to_dict())
+        self.api.load_scripts(scripts)
 
 
-def set_debug(debug: bool):
-    config["DEBUG"] = debug
+namespace = 'lt'
+plugin = LinktoolsPlugin

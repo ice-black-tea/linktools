@@ -27,7 +27,8 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools.android import Adb, AdbError, AndroidArgumentParser
+from linktools.android import Adb, AdbError
+from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 
 
@@ -55,12 +56,10 @@ def main():
         if args.adb_args and args.adb_args[0] not in general_commands:
             device = args.parse_device()
             process = device.popen(*adb_args, capture_output=False)
-            process.communicate()
-            return process.returncode
+            return process.call()
 
     process = Adb.popen(*adb_args, capture_output=False)
-    process.communicate()
-    return process.returncode
+    return process.call()
 
 
 if __name__ == '__main__':

@@ -7,8 +7,6 @@
 # Product   : PyCharm
 # Project   : link
 
-__all__ = ("FridaApplication",)
-
 import json
 import logging
 import os
@@ -18,7 +16,7 @@ from typing import Optional, Union, Dict, Collection, Callable
 import _frida
 import frida
 
-from .. import utils, resource, get_logger
+from .. import utils, resource, get_logger, is_debug
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 
@@ -122,30 +120,29 @@ class FridaApplication:
         #!/usr/bin/env python3
         # -*- coding: utf-8 -*-
 
-        from linktools.android.frida import FridaAndroidServer, FridaApplication
+        from linktools.frida import FridaApplication, FridaEvalCode
+        from linktools.frida.android import AndroidFridaServer
+
 
         jscode = \"\"\"
-            Java.perform(function () {
-                JavaHelper.hookMethods(
-                    "java.util.HashMap", "put", JavaHelper.getHookImpl({
-                        printStack: false,
-                        printArgs: true,
-                    })
-                );
-            });
+        Java.perform(function () {
+            JavaHelper.hookMethods(
+                "java.util.HashMap", "put", JavaHelper.getEventImpl({stack: false, args: true})
+            );
+        });
         \"\"\"
 
         if __name__ == "__main__":
 
-            with FridaAndroidServer() as server:
+            with AndroidFridaServer() as server:
 
                 app = FridaApplication(
                     server,
-                    eval_code=jscode,
+                    user_scripts=(FridaEvalCode(jscode),),
                     enable_spawn_gating=True
                 )
 
-                for target_app in app.device.enumerate_applications():
+                for target_app in app.enumerate_applications():
                     if target_app.identifier == "com.topjohnwu.magisk":
                         app.load_script(target_app.pid)
 
@@ -162,7 +159,6 @@ class FridaApplication:
             enable_spawn_gating: bool = False,
             enable_child_gating: bool = False,
             eternalize: str = False,
-            debug: str = False,
     ):
         self.device = device
         self.spawn = self.device.spawn
@@ -178,7 +174,6 @@ class FridaApplication:
         self._cb_output = lambda pid, fd, data: self._reactor.schedule(lambda: self.on_output(pid, fd, data))
         self._cb_lost = lambda: self._reactor.schedule(lambda: self.on_device_lost())
 
-        self._debug = debug
         self._last_error = None
         self._stop_request = utils.InterruptableEvent()
         self._finished = utils.InterruptableEvent()
@@ -311,18 +306,18 @@ class FridaApplication:
 
         # 保持脚本log输出级别同步
         if _logger.isEnabledFor(logging.DEBUG):
-            script_files.append(FridaEvalCode("Log.setLevel(Log.debug);"))
+            script_files.append(FridaEvalCode("Log.setLevel(Log.DEBUG);"))
         elif _logger.isEnabledFor(logging.INFO):
-            script_files.append(FridaEvalCode("Log.setLevel(Log.info);"))
+            script_files.append(FridaEvalCode("Log.setLevel(Log.INFO);"))
         elif _logger.isEnabledFor(logging.WARNING):
-            script_files.append(FridaEvalCode("Log.setLevel(Log.warning);"))
+            script_files.append(FridaEvalCode("Log.setLevel(Log.WARNING);"))
         elif _logger.isEnabledFor(logging.ERROR):
-            script_files.append(FridaEvalCode("Log.setLevel(Log.error);"))
+            script_files.append(FridaEvalCode("Log.setLevel(Log.ERROR);"))
 
         for user_script in self._user_scripts:
             script_files.append(user_script)
 
-        return [{"filename": o.ident, "source": o.source} for o in script_files]
+        return [o.to_dict() for o in script_files]
 
     def _load_script(self, pid: int, resume: bool = False):
         _logger.debug(f"Attempt to load script: pid={pid}, resume={resume}")
@@ -332,7 +327,7 @@ class FridaApplication:
 
         # read the internal script as an entrance
         entry_code = self._internal_debug_script.source \
-            if self._debug \
+            if is_debug() \
             else self._internal_script.source
         script = FridaScript(
             session,
@@ -340,7 +335,7 @@ class FridaApplication:
         )
 
         script.on("message", lambda message, data: self.on_script_message(script, message, data))
-        script.on("destroyed", lambda: self.on_script_destroyed(script))
+        script.on("destroyed", lambda: self._reactor.schedule(lambda: self.on_script_destroyed(script)))
 
         session.script = script
 
@@ -434,7 +429,7 @@ class FridaApplication:
         for user_script in self._user_scripts:
             if isinstance(user_script, FridaScriptFile):
                 script_files.append(user_script)
-        if self._debug:
+        if is_debug():
             script_files.append(self._internal_debug_script)
 
         for script_file in script_files:
@@ -466,12 +461,12 @@ class FridaApplication:
 
     def on_error(self, exc, traceback):
         if isinstance(exc, (KeyboardInterrupt, frida.TransportError, frida.ServerNotRunningError)):
-            _logger.error(f"{traceback if self._debug else exc}")
+            _logger.error(f"{traceback if is_debug() else exc}")
             self.stop()
         elif isinstance(exc, (frida.core.RPCException,)):
             _logger.error(f"{exc}")
         else:
-            _logger.error(f"{traceback if self._debug else exc}")
+            _logger.error(f"{traceback if is_debug() else exc}")
 
     def raise_on_error(self):
         if self._last_error is not None:
@@ -597,6 +592,7 @@ class FridaApplication:
         :param message: frida server发送的数据
         :param data: frida server发送的data
         """
+
         if utils.get_item(message, "type") == "send":
 
             payload = utils.get_item(message, "payload")
