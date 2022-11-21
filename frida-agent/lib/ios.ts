@@ -3,11 +3,7 @@ export class IOSHelper {
     // copy from https://github.com/sensepost/objection/blob/master/agent/src/ios/pinning.ts
     bypassSslPinning() {
 
-        Log.i(
-            '======================================================\r\n' +
-            'iOS Bypass ssl pinning                                \r\n' +
-            '======================================================'
-        );
+        Log.w("iOS Bypass ssl pinning");
 
         try {
             Module.ensureInitialized("libboringssl.dylib");

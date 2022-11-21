@@ -2,11 +2,7 @@ export class AndroidHelper {
 
     setWebviewDebuggingEnabled() {
 
-        Log.i(
-            '======================================================\r\n' +
-            'Android Enable Webview Debugging                      \r\n' +
-            '======================================================'
-        );
+        Log.w("Android Enable Webview Debugging");
 
         Java.perform(function () {
             let WebView = "android.webkit.WebView";
@@ -42,11 +38,7 @@ export class AndroidHelper {
 
     bypassSslPinning() {
 
-        Log.i(
-            '======================================================\r\n' +
-            'Android Bypass ssl pinning                           \r\n' +
-            '======================================================'
-        );
+        Log.w("Android Bypass ssl pinning");
 
         Java.perform(function () {
             const arraysClass = Java.use("java.util.Arrays");
