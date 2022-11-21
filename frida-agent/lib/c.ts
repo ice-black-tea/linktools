@@ -172,7 +172,7 @@ export class CHelper {
                     }
                     event["stack"] = stack;
                 }
-                send({event: event});
+                send({$event: event});
             }
         };
 
@@ -198,7 +198,7 @@ export class CHelper {
                 }
                 event["stack"] = stack;
             }
-            send({event: event});
+            send({$event: event});
         }
 
         return result;

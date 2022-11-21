@@ -411,7 +411,7 @@ export class JavaHelper {
                 if (opts.stack) {
                     event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
                 }
-                send({ event: event });
+                send({ $event: event });
             }
         };
     }

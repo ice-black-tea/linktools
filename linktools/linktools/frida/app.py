@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import threading
-from typing import Optional, Union, Dict, Collection, Callable
+from typing import Optional, Union, Dict, Collection, Callable, Any
 
 import _frida
 import frida
@@ -112,6 +112,7 @@ class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida
         self._session: FridaSession = session
 
 
+
 class FridaApplication:
     """
     ----------------------------------------------------------------------
@@ -159,6 +160,7 @@ class FridaApplication:
             enable_spawn_gating: bool = False,
             enable_child_gating: bool = False,
             eternalize: str = False,
+            logger=_logger,
     ):
         self.device = device
         self.spawn = self.device.spawn
@@ -196,6 +198,7 @@ class FridaApplication:
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
+        self._logger = logger
 
         self._event_counter = Counter()
 
@@ -532,7 +535,7 @@ class FridaApplication:
         """
         _logger.debug(f"Script destroyed: {script.process_name} ({script.pid})")
 
-    def on_script_log(self, script: FridaScript, log: dict, data: object):
+    def on_script_log(self, script: FridaScript, log: dict, data: Any):
         """
         脚本打印日志回调
         :param script: frida的脚本
@@ -553,7 +556,7 @@ class FridaApplication:
         if not utils.is_empty(message):
             log_fn(message)
 
-    def on_script_event(self, script: FridaScript, message: object, data: object):
+    def on_script_event(self, script: FridaScript, message: Any, data: Any):
         """
         脚本发送事件回调
         :param script: frida的脚本
@@ -573,19 +576,18 @@ class FridaApplication:
             f"{json.dumps(message, indent=2, ensure_ascii=False)}",
         )
 
-    def on_script_send(self, script: FridaScript, type: str, message: object, data: object):
+    def on_script_send(self, script: FridaScript, payload: Any, data: Any):
         """
         脚本调用send是收到的回调，例send({trace: "xxx"}, null)
         :param script: frida的脚本
-        :param type: 上述例子的"trace"
-        :param message: json/字符串消息，上述例子的"xxx"
+        :param payload: 上述例子的{trace: "xxx"}
         :param data: 上述例子的null
         """
         _logger.debug(
-            f"Script send: {script.process_name} ({script.pid}), type={type}, message={message}"
+            f"Script send: {script.process_name} ({script.pid}), payload={payload}"
         )
 
-    def on_script_message(self, script: FridaScript, message: object, data: object):
+    def on_script_message(self, script: FridaScript, message: Any, data: Any):
         """
         脚本消息回调函数，默认按照格式打印
         :param script: frida的脚本
@@ -596,31 +598,27 @@ class FridaApplication:
         if utils.get_item(message, "type") == "send":
 
             payload = utils.get_item(message, "payload")
-            if payload is not None and isinstance(payload, dict):
+            if payload and isinstance(payload, dict):
 
                 # log单独解析
-                log = payload.pop("log", None)
+                log = payload.pop("$log", None)
                 if log is not None:
                     self.on_script_log(script, log, data)
 
                 # event单独解析
-                event = payload.pop("event", None)
+                event = payload.pop("$event", None)
                 if event is not None:
                     self.on_script_event(script, event, data)
 
-                # 解析完log，解析其他的
-                while len(payload) > 0:
-                    key, value = payload.popitem()
-                    self.on_script_send(script, key, value, data)
-
             # 字符串类型，直接输出
-            if not utils.is_empty(payload):
-                _logger.info(payload)
+            if payload or data:
+                self.on_script_send(script, payload, data)
 
         elif utils.get_item(message, "type") == "error":
 
-            if utils.is_contain(message, "stack"):
-                _logger.error(utils.get_item(message, "stack"))
+            stack = utils.get_item(message, "stack")
+            if stack:
+                _logger.error(stack)
             else:
                 _logger.error(message)
 

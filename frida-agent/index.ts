@@ -22,25 +22,25 @@ class Log {
 
     d(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.DEBUG) {
-            send({ log: { level: "debug", message: message } }, data);
+            send({ $log: { level: "debug", message: message } }, data);
         }
     }
 
     i(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.INFO) {
-            send({ log: { level: "info", message: message } }, data);
+            send({ $log: { level: "info", message: message } }, data);
         }
     }
 
     w(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.WARNING) {
-            send({ log: { level: "warning", message: message } }, data);
+            send({ $log: { level: "warning", message: message } }, data);
         }
     }
 
     e(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.ERROR) {
-            send({ log: { level: "error", message: message } }, data);
+            send({ $log: { level: "error", message: message } }, data);
         }
     }
 }
