@@ -83,7 +83,7 @@ def main():
                 self.stop()
             elif len(self._sessions) == 0:
                 if args.auto_start:
-                    app.load_script(app.device.spawn(bundle_id), resume=True)
+                    app.load_script(app.spawn(bundle_id), resume=True)
 
     with IOSFridaServer(device=device) as server:
 

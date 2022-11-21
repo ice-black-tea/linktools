@@ -29,6 +29,7 @@
 
 from linktools import utils, logger, is_debug, resource
 from linktools.android import AdbError
+from linktools.argparser import range_type
 from linktools.argparser.android import AndroidArgumentParser
 from linktools.decorator import entry_point
 from linktools.frida.android import AndroidFridaServer
@@ -50,9 +51,17 @@ def main():
     parser.add_argument("-P", "--plugin-folder", action="store", default=resource.get_asset_path("objection"),
                         help="The folder to load plugins from.")
 
-    args = parser.parse_args()
+    parser.add_argument("--redirect-address", metavar="ADDRESS", action="store", dest="redirect_address",
+                        type=str,
+                        help="redirect traffic to target address (default: localhost)")
+    parser.add_argument("--redirect-port", metavar="PORT", action="store", dest="redirect_port",
+                        type=range_type(1, 65536),
+                        help="redirect traffic to target port (default: 8080)")
 
-    with AndroidFridaServer(device=args.parse_device()) as server:
+    args = parser.parse_args()
+    device = args.parse_device()
+
+    with AndroidFridaServer(device=device) as server:
 
         objection_args = ["objection"]
         if is_debug():
@@ -78,7 +87,12 @@ def main():
         if args.plugin_folder:
             objection_args += ["--plugin-folder", args.plugin_folder]
 
-        return utils.Popen(*objection_args).call()
+        if args.redirect_address or args.redirect_port:
+            # 如果需要重定向到本地端口
+            with device.redirect(args.redirect_address, args.redirect_port or 8080):
+                return utils.Popen(*objection_args).call()
+        else:
+            return utils.Popen(*objection_args).call()
 
 
 if __name__ == '__main__':

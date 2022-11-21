@@ -51,22 +51,23 @@ def main():
                         help="The folder to load plugins from.")
 
     args = parser.parse_args()
+    device = args.parse_device()
 
-    with IOSFridaServer(device=args.parse_device()) as server:
+    with IOSFridaServer(device=device) as server:
 
         objection_args = ["objection"]
         if is_debug():
             objection_args += ["--debug"]
         objection_args += ["-N", "-p", server.local_port]
 
-        package = args.package
-        if utils.is_empty(package):
+        bundle_id = args.bundle_id
+        if utils.is_empty(bundle_id):
             target_app = server.get_frontmost_application()
             if target_app is None:
                 logger.error("Unknown frontmost application")
                 return 1
-            package = target_app.identifier
-        objection_args += ["-g", package]
+            bundle_id = target_app.identifier
+        objection_args += ["-g", bundle_id]
         objection_args += ["explore"]
 
         for command in args.startup_command:

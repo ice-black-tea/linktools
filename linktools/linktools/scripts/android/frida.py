@@ -92,7 +92,7 @@ def main():
                 self.stop()
             elif len(self._sessions) == 0:
                 if args.auto_start:
-                    app.load_script(app.device.spawn(package), resume=True)
+                    app.load_script(app.spawn(package), resume=True)
 
     with AndroidFridaServer(device=device) as server:
 
