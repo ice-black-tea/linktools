@@ -26,7 +26,8 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from typing import Any, Optional
+import functools
+from typing import Any
 
 import click
 from objection.state.app import app_state
@@ -42,7 +43,6 @@ __description__ = f"{module_name} plugin"
 class LinktoolsPlugin(Plugin, FridaScriptHandler):
 
     def __init__(self, ns):
-        self._script: Optional[FridaScript] = None
         self.script_path = resource.get_asset_path("frida.js")
 
         super().__init__(__file__, ns, {
@@ -67,25 +67,27 @@ class LinktoolsPlugin(Plugin, FridaScriptHandler):
             FridaEvalCode(arg).to_dict() for arg in args
         ])
 
+    @functools.cached_property
+    def _frida_script(self) -> FridaScript:
+        return FridaScript(
+            FridaSession(self.session),
+            self.script
+        )
+
     def on_message_handler(self, message, data):
-        if not self._script:
-            self._script = FridaScript(
-                FridaSession(self.session),
-                self.script
-            )
         return self.on_script_message(
-            self._script, message, data
+            self._frida_script, message, data
         )
 
     def on_script_log(self, script: FridaScript, level: str, message: Any, data: Any):
-        if level == "info":
-            click.secho(f'[info] ({namespace}) {message}')
-        elif level == "warning":
-            click.secho(f'[warning] ({namespace}) {message}', fg="yellow")
-        elif level == "error":
-            click.secho(f'[error] ({namespace}) {message}', fg="red")
+        if level == self.LogLevel.INFO:
+            click.secho(f"[{level}] ({namespace}) {message}")
+        elif level == self.LogLevel.WARNING:
+            click.secho(f"[{level}] ({namespace}) {message}", fg="yellow")
+        elif level == self.LogLevel.ERROR:
+            click.secho(f"[{level}] ({namespace}) {message}", fg="red")
         elif app_state.should_debug():
-            click.secho(f'[debug] ({namespace}) {message}', dim=True)
+            click.secho(f"[{level}] ({namespace}) {message}", dim=True)
 
 
 namespace = 'lt'

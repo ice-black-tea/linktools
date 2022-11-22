@@ -115,6 +115,11 @@ class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida
 
 
 class FridaScriptHandler(metaclass=abc.ABCMeta):
+    class LogLevel:
+        DEBUG = "debug"
+        INFO = "info"
+        WARNING = "warning"
+        ERROR = "error"
 
     def on_script_message(self, script: FridaScript, message: Any, data: Any):
         """
@@ -125,34 +130,27 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         """
 
         if utils.get_item(message, "type") == "send":
-
             payload = utils.get_item(message, "payload")
             if payload and isinstance(payload, dict):
-                # log单独解析
-                log = payload.pop("$log", None)
+                log = payload.pop("$log", None)  # log单独解析
                 if log is not None:
-                    level = log.get("level") or "debug"
+                    level = log.get("level") or self.LogLevel.DEBUG
                     message = log.get("message")
                     self.on_script_log(script, level, message, data)
-                # event单独解析
-                event = payload.pop("$event", None)
+                event = payload.pop("$event", None)  # event单独解析
                 if event is not None:
                     self.on_script_event(script, event, data)
-            # 字符串类型，直接输出
+            # 其他类型调用on_script_send方法解析
             if payload or data:
                 self.on_script_send(script, payload, data)
 
         elif utils.get_item(message, "type") == "error":
             stack = utils.get_item(message, "stack")
-            if stack:
-                self.on_script_log(script, "error", stack, data)
-            else:
-                self.on_script_log(script, "error", message, data)
+            self.on_script_log(script, self.LogLevel.ERROR, stack if stack else message, data)
 
         else:
-            self.on_script_log(script, "warning", message, data)
+            self.on_script_log(script, self.LogLevel.WARNING, message, data)
 
-    @abc.abstractmethod
     def on_script_log(self, script: FridaScript, level: str, message: Any, data: Any):
         """
         脚本打印日志回调
@@ -161,7 +159,16 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         :param message: 日志内容
         :param data: 事件数据
         """
-        pass
+        log_fn = _logger.debug
+        if level == self.LogLevel.INFO:
+            log_fn = _logger.info
+        if level == self.LogLevel.WARNING:
+            log_fn = _logger.warning
+        if level == self.LogLevel.ERROR:
+            log_fn = _logger.error
+
+        if not utils.is_empty(message):
+            log_fn(message)
 
     def on_script_event(self, script: FridaScript, message: Any, data: Any):
         """
@@ -172,7 +179,7 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         """
         message = f"Script event: {os.linesep}" \
                   f"{json.dumps(message, indent=2, ensure_ascii=False)}"
-        self.on_script_log(script, "info", message, data)
+        self.on_script_log(script, self.LogLevel.INFO, message, data)
 
     def on_script_send(self, script: FridaScript, payload: Any, data: Any):
         """
@@ -181,14 +188,14 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         :param payload: 上述例子的{trace: "xxx"}
         :param data: 上述例子的null
         """
-        self.on_script_log(script, "info", f"Script send: {os.linesep}{payload}", data)
+        self.on_script_log(script, self.LogLevel.INFO, f"Script send: {os.linesep}{payload}", data)
 
     def on_script_destroyed(self, script: FridaScript):
         """
         脚本结束回调函数，默认只打印log
         :param script: frida的脚本
         """
-        self.on_script_log(script, "info", f"Script destroyed.", None)
+        self.on_script_log(script, self.LogLevel.INFO, f"Script destroyed.", None)
 
 
 class FridaApplication(FridaScriptHandler):
@@ -609,25 +616,6 @@ class FridaApplication(FridaScriptHandler):
         """
         _logger.debug(f"Script destroyed: {script.session}")
 
-    def on_script_log(self, script: FridaScript, level: str, message: Any, data: Any):
-        """
-        脚本打印日志回调
-        :param script: frida的脚本
-        :param level: 日志级别
-        :param message: 日志内容
-        :param data: 事件数据
-        """
-        log_fn = _logger.debug
-        if level == "info":
-            log_fn = _logger.info
-        if level == "warning":
-            log_fn = _logger.warning
-        if level == "error":
-            log_fn = _logger.error
-
-        if not utils.is_empty(message):
-            log_fn(message)
-
     def on_script_event(self, script: FridaScript, message: Any, data: Any):
         """
         脚本发送事件回调
@@ -636,10 +624,12 @@ class FridaApplication(FridaScriptHandler):
         :param data: 事件数据
         """
         group = Counter.Group(accept_empty=False)
-        count = self._event_counter.increase(group.add(
-            pid=script.session.pid,
-            method=utils.get_item(message, "method_name"),
-        ))
+        count = self._event_counter.increase(
+            group.add(
+                pid=script.session.pid,
+                method=utils.get_item(message, "method_name"),
+            )
+        )
 
         _logger.info(
             f"Script event count={count} in the {group}, {script.session}: {os.linesep}"
@@ -653,9 +643,7 @@ class FridaApplication(FridaScriptHandler):
         :param payload: 上述例子的{trace: "xxx"}
         :param data: 上述例子的null
         """
-        _logger.debug(
-            f"Script send: {script.session}, payload={payload}"
-        )
+        _logger.debug(f"Script send: {script.session}, payload={payload}")
 
     def on_session_attached(self, session: FridaSession):
         """
