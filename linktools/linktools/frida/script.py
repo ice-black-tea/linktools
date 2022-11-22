@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import abc
+import json
 import os
 import threading
 from typing import Union, Optional
@@ -49,11 +50,13 @@ class FridaUserScript(metaclass=abc.ABCMeta):
 
     @property
     def source(self) -> Optional[str]:
-        if self._source is self.__missing__:
-            with self._lock:
-                if self._source is self.__missing__:
-                    self._source = self._load()
-        return self._source
+        return self.load()
+
+    def load(self) -> Optional[str]:
+        with self._lock:
+            if self._source is self.__missing__:
+                self._source = self._load()
+            return self._source
 
     def clear(self) -> None:
         with self._lock:
@@ -68,8 +71,11 @@ class FridaUserScript(metaclass=abc.ABCMeta):
     def _load(self) -> Optional[str]:
         pass
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {"filename": self.ident, "source": self.source}
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
 
 
 class FridaScriptFile(FridaUserScript):
@@ -111,11 +117,13 @@ class FridaEvalCode(FridaUserScript):
 
 class FridaShareScript(FridaUserScript):
 
-    def __init__(self, url: str, cached: bool = False, trusted: bool = False):
+    def __init__(self, url: str, cached: bool = False, trusted: bool = False, load: bool = False):
         super().__init__()
         self._url = url
         self._cached = cached
         self._trusted = trusted
+        if load:
+            self.load()
 
     @property
     def ident(self):

@@ -55,7 +55,7 @@ def main():
                         type=lambda o: FridaEvalCode(o),
                         help="evaluate code")
     parser.add_argument("-c", "--codeshare", metavar="URL", action="append", dest="user_scripts",
-                        type=lambda o: FridaShareScript(o, cached=False),
+                        type=lambda o: FridaShareScript(o, cached=False, load=True),
                         help="load share script url")
 
     parser.add_argument("-a", "--auto-start", action="store_true", default=False,
@@ -78,7 +78,7 @@ def main():
                 self.resume(spawn.pid)
 
         def on_session_detached(self, session, reason, crash) -> None:
-            logger.info(f"Detach process: {session.process_name} ({session.pid}), reason={reason}")
+            logger.info(f"Detach process: {session}, reason={reason}")
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:

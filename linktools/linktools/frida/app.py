@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 # Datetime  : 2021/12/20 3:41 下午
 # User      : huji
 # Product   : PyCharm
 # Project   : link
 
+import abc
 import json
 import logging
 import os
@@ -16,43 +16,12 @@ from typing import Optional, Union, Dict, Collection, Callable, Any
 import _frida
 import frida
 
-from .. import utils, resource, get_logger, is_debug
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
+from .utils import Counter
+from .. import utils, resource, get_logger, is_debug
 
 _logger = get_logger("frida.app")
-
-
-class Counter:
-
-    def __init__(self):
-        self._map = {}
-        self._lock = threading.RLock()
-
-    def increase(self, group: "Group"):
-        with self._lock:
-            keys = group.get()
-            if keys not in self._map:
-                self._map[keys] = 0
-            self._map[keys] = self._map[keys] + 1
-            return self._map[keys]
-
-    class Group:
-
-        def __init__(self):
-            self._names = []
-            self._values = []
-
-        def add(self, **kwargs):
-            for k, v in kwargs.items():
-                self._names.append(k)
-                self._values.append(v)
-
-        def get(self):
-            return tuple(self._values)
-
-        def __repr__(self):
-            return ", ".join(self._names)
 
 
 class FridaReactor(utils.Reactor):
@@ -83,17 +52,28 @@ class FridaReactor(utils.Reactor):
 
 class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for frida.core.Session
 
-    pid: int = property(lambda self: self._pid)
-    process_name: str = property(lambda self: self._process_name)
-
-    def __init__(self, session: frida.core.Session, pid, process_name):
+    def __init__(self, session: frida.core.Session, name: str = None):
         super().__init__(session)
-        self._pid: Optional[int] = pid
-        self._process_name: Optional[str] = process_name
+        self._name: str = name or ""
         self._script: Optional[FridaScript] = None
 
+    def __repr__(self):
+        return f"Session(pid={self.pid},name={self._name})" \
+            if self._name \
+            else f"Session(pid={self.pid})"
+
+    __str__ = __repr__
+
     @property
-    def script(self):
+    def pid(self) -> int:
+        return self._impl.pid
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def script(self) -> "FridaScript":
         return self._script
 
     @script.setter
@@ -103,17 +83,115 @@ class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for fri
 
 class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida.core.Script
 
-    session: FridaSession = property(lambda self: self._session)
-    pid: int = property(lambda self: self._session.pid)
-    process_name: str = property(lambda self: self._session.process_name)
-
     def __init__(self, session: FridaSession, script: frida.core.Script):
         super().__init__(script)
         self._session: FridaSession = session
+        self._message_handler = None
+        self._destroyed_handler = None
+
+    @property
+    def session(self) -> FridaSession:
+        return self._session
+
+    def add_message_handler(self, message: "FridaScriptHandler"):
+        self.remove_message_handler()
+        self._message_handler = lambda msg, data: message.on_script_message(self, msg, data)
+        self.on("message", self._message_handler)
+
+    def remove_message_handler(self):
+        if self._message_handler is not None:
+            self.off("message", self._message_handler)
+            self._message_handler = None
+
+    def add_destroyed_handler(self, message: "FridaScriptHandler"):
+        self.remove_destroyed_handler()
+        self._destroyed_handler = lambda: message.on_script_destroyed(self)
+        self.on("destroyed", self._destroyed_handler)
+
+    def remove_destroyed_handler(self):
+        if self._destroyed_handler is not None:
+            self.off("destroyed", self._destroyed_handler)
+            self._destroyed_handler = None
 
 
+class FridaScriptHandler(metaclass=abc.ABCMeta):
 
-class FridaApplication:
+    def on_script_message(self, script: FridaScript, message: Any, data: Any):
+        """
+        脚本消息回调函数，默认按照格式打印
+        :param script: frida的脚本
+        :param message: frida server发送的数据
+        :param data: frida server发送的data
+        """
+
+        if utils.get_item(message, "type") == "send":
+
+            payload = utils.get_item(message, "payload")
+            if payload and isinstance(payload, dict):
+                # log单独解析
+                log = payload.pop("$log", None)
+                if log is not None:
+                    level = log.get("level") or "debug"
+                    message = log.get("message")
+                    self.on_script_log(script, level, message, data)
+                # event单独解析
+                event = payload.pop("$event", None)
+                if event is not None:
+                    self.on_script_event(script, event, data)
+            # 字符串类型，直接输出
+            if payload or data:
+                self.on_script_send(script, payload, data)
+
+        elif utils.get_item(message, "type") == "error":
+            stack = utils.get_item(message, "stack")
+            if stack:
+                self.on_script_log(script, "error", stack, data)
+            else:
+                self.on_script_log(script, "error", message, data)
+
+        else:
+            self.on_script_log(script, "warning", message, data)
+
+    @abc.abstractmethod
+    def on_script_log(self, script: FridaScript, level: str, message: Any, data: Any):
+        """
+        脚本打印日志回调
+        :param script: frida的脚本
+        :param level: 日志级别
+        :param message: 日志内容
+        :param data: 事件数据
+        """
+        pass
+
+    def on_script_event(self, script: FridaScript, message: Any, data: Any):
+        """
+        脚本发送事件回调
+        :param script: frida的脚本
+        :param message: 事件消息
+        :param data: 事件数据
+        """
+        message = f"Script event: {os.linesep}" \
+                  f"{json.dumps(message, indent=2, ensure_ascii=False)}"
+        self.on_script_log(script, "info", message, data)
+
+    def on_script_send(self, script: FridaScript, payload: Any, data: Any):
+        """
+        脚本调用send是收到的回调，例send({trace: "xxx"}, null)
+        :param script: frida的脚本
+        :param payload: 上述例子的{trace: "xxx"}
+        :param data: 上述例子的null
+        """
+        self.on_script_log(script, "info", f"Script send: {os.linesep}{payload}", data)
+
+    def on_script_destroyed(self, script: FridaScript):
+        """
+        脚本结束回调函数，默认只打印log
+        :param script: frida的脚本
+        """
+        self.on_script_log(script, "info", f"Script destroyed.", None)
+
+
+class FridaApplication(FridaScriptHandler):
     """
     ----------------------------------------------------------------------
 
@@ -337,9 +415,8 @@ class FridaApplication:
             session.create_script(entry_code)
         )
 
-        script.on("message", lambda message, data: self.on_script_message(script, message, data))
-        script.on("destroyed", lambda: self._reactor.schedule(lambda: self.on_script_destroyed(script)))
-
+        script.add_message_handler(self)
+        script.add_destroyed_handler(self)
         session.script = script
 
         try:
@@ -368,42 +445,39 @@ class FridaApplication:
         if target_process is None:
             raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}'")
 
-        session = FridaSession(
-            self.device.attach(target_process.pid),
-            target_process.pid,
-            target_process.name,
-        )
-
-        if self._enable_child_gating:
-            _logger.debug(f"Enable child gating: {pid}")
-            session.enable_child_gating()
+        session = self.device.attach(target_process.pid)
+        session = FridaSession(session, target_process.name)
+        with self._lock:
+            self._sessions[target_process.pid] = session
 
         def on_session_detached(reason, crash):
             with self._lock:
                 self._sessions.pop(pid, None)
             self._reactor.schedule(lambda: self.on_session_detached(session, reason, crash))
 
+        if self._enable_child_gating:
+            _logger.debug(f"Enable child gating: {pid}")
+            session.enable_child_gating()
+
         session.on("detached", on_session_detached)
-        with self._lock:
-            self._sessions[target_process.pid] = session
         self._reactor.schedule(lambda: self.on_session_attached(session))
 
         return session
 
     def _detach_session(self, session: FridaSession):
         if session is not None:
-            _logger.debug(f"Detach process: pid={session.pid}")
+            _logger.debug(f"Detach process: {session}")
             utils.ignore_error(session.detach)
 
     def _unload_script(self, session: FridaSession):
         if session is not None and session.script is not None:
-            _logger.debug(f"Unload script: pid={session.pid}")
+            _logger.debug(f"Unload script: {session}")
             utils.ignore_error(session.script.unload)
             session.script = None
 
     def _eternalize_script(self, session: FridaSession):
         if session is not None and session.script is not None:
-            _logger.debug(f"Eternalize script: pid={session.pid}")
+            _logger.debug(f"Eternalize script: {session}")
             utils.ignore_error(session.script.eternalize)
             session.script = None
 
@@ -526,25 +600,23 @@ class FridaApplication:
         脚本加载回调，默认只打印log
         :param script: frida的脚本
         """
-        _logger.debug(f"Script loaded: {script.process_name} ({script.pid})")
+        _logger.debug(f"Script loaded: {script.session}")
 
     def on_script_destroyed(self, script: FridaScript):
         """
         脚本结束回调函数，默认只打印log
         :param script: frida的脚本
         """
-        _logger.debug(f"Script destroyed: {script.process_name} ({script.pid})")
+        _logger.debug(f"Script destroyed: {script.session}")
 
-    def on_script_log(self, script: FridaScript, log: dict, data: Any):
+    def on_script_log(self, script: FridaScript, level: str, message: Any, data: Any):
         """
         脚本打印日志回调
         :param script: frida的脚本
-        :param log: 日志内容
+        :param level: 日志级别
+        :param message: 日志内容
         :param data: 事件数据
         """
-        level = log.get("level") or "debug"
-        message = log.get("message")
-
         log_fn = _logger.debug
         if level == "info":
             log_fn = _logger.info
@@ -563,16 +635,14 @@ class FridaApplication:
         :param message: 事件消息
         :param data: 事件数据
         """
-        group = Counter.Group()
-        group.add(pid=script.pid)
-
-        method_name = utils.get_item(message, "method_name")
-        if method_name:
-            group.add(method_name=method_name)
-        count = self._event_counter.increase(group)
+        group = Counter.Group(accept_empty=False)
+        count = self._event_counter.increase(group.add(
+            pid=script.session.pid,
+            method=utils.get_item(message, "method_name"),
+        ))
 
         _logger.info(
-            f"Script event count={count} group=({group}), {script.process_name} ({script.pid}): {os.linesep}"
+            f"Script event count={count} in the {group}, {script.session}: {os.linesep}"
             f"{json.dumps(message, indent=2, ensure_ascii=False)}",
         )
 
@@ -584,53 +654,15 @@ class FridaApplication:
         :param data: 上述例子的null
         """
         _logger.debug(
-            f"Script send: {script.process_name} ({script.pid}), payload={payload}"
+            f"Script send: {script.session}, payload={payload}"
         )
-
-    def on_script_message(self, script: FridaScript, message: Any, data: Any):
-        """
-        脚本消息回调函数，默认按照格式打印
-        :param script: frida的脚本
-        :param message: frida server发送的数据
-        :param data: frida server发送的data
-        """
-
-        if utils.get_item(message, "type") == "send":
-
-            payload = utils.get_item(message, "payload")
-            if payload and isinstance(payload, dict):
-
-                # log单独解析
-                log = payload.pop("$log", None)
-                if log is not None:
-                    self.on_script_log(script, log, data)
-
-                # event单独解析
-                event = payload.pop("$event", None)
-                if event is not None:
-                    self.on_script_event(script, event, data)
-
-            # 字符串类型，直接输出
-            if payload or data:
-                self.on_script_send(script, payload, data)
-
-        elif utils.get_item(message, "type") == "error":
-
-            stack = utils.get_item(message, "stack")
-            if stack:
-                _logger.error(stack)
-            else:
-                _logger.error(message)
-
-        else:
-            _logger.warning(message)
 
     def on_session_attached(self, session: FridaSession):
         """
         会话建立连接回调函数，默认只打印log
         :param session: 附加的会话
         """
-        _logger.info(f"Session attached: {session.process_name} ({session.pid})")
+        _logger.info(f"Session attached: {session}")
 
     def on_session_detached(self, session: FridaSession, reason: str, crash: "_frida.Crash"):
         """
@@ -639,4 +671,4 @@ class FridaApplication:
         :param reason: 结束原因
         :param crash: crash信息
         """
-        _logger.info(f"Session detached: {session.process_name} ({session.pid}), reason={reason}")
+        _logger.info(f"Session detached: {session}, reason={reason}")
