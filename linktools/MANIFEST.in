@@ -1,2 +1,5 @@
 recursive-include linktools/assets *
+recursive-exclude linktools/assets *.pyc
+recursive-exclude linktools/assets __pycache__
+recursive-exclude linktools/assets .DS_Store
 recursive-include linktools/scripts *.py
