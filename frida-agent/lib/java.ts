@@ -307,6 +307,13 @@ export class JavaHelper {
         this.hookMethods(targetClass, "$init", impl);
     }
 
+    $isExcludeClass(className: string) {
+        return false ||
+            className.indexOf("java.lang.") == 0 ||
+            className.indexOf("android.os.") == 0 ||
+            false;
+    }
+
     /**
      * hook指定类的所有成员方法
      * @param clazz java类名/类对象
@@ -321,8 +328,9 @@ export class JavaHelper {
             targetClass = this.findClass(targetClass);
         }
         var methodNames = [];
+        var superJavaClass = null;
         var targetJavaClass = targetClass.class;
-        while (targetJavaClass != null && targetJavaClass.getName() !== "java.lang.Object") {
+        while (targetJavaClass != null) {
             var methods = targetJavaClass.getDeclaredMethods();
             for (let i = 0; i < methods.length; i++) {
                 const method = methods[i];
@@ -332,7 +340,16 @@ export class JavaHelper {
                     this.hookMethods(targetClass, methodName, impl);
                 }
             }
-            targetJavaClass = Java.cast(targetJavaClass.getSuperclass(), this.classClass);
+            superJavaClass = targetJavaClass.getSuperclass();
+            targetJavaClass.$dispose();
+            if (superJavaClass == null) {
+                // 不知道为啥，com.android.org.bouncycastle.crypto.paddings.BlockCipherPadding这个类获取superclass的时候会返回null
+                break;
+            }
+            targetJavaClass = Java.cast(superJavaClass, this.classClass);
+            if (this.$isExcludeClass(targetJavaClass.getName())) {
+                break;
+            }
         }
     }
 

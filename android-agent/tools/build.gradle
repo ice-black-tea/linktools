@@ -90,7 +90,7 @@ task buildTools {
         def apkPath = "${apkDir}/${apkName}"
         def apkMd5 = calcMd5(apkPath)
 
-        def assetsDir = file("${rootDir}/../linktools/linktools/assets").getAbsolutePath()
+        def assetsDir = file("${rootDir}/../linktools/assets").getAbsolutePath()
 
         def targetName = "android-tools.apk"
         def targetPath = "${assetsDir}/${targetName}"

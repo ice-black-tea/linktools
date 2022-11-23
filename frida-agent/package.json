@@ -5,8 +5,8 @@
   "main": "index.js",
   "private": "true",
   "scripts": {
-    "build": "frida-compile index.ts -o ../linktools/linktools/assets/frida.js -c && uglifyjs ../linktools/linktools/assets/frida.js -m -o ../linktools/linktools/assets/frida.min.js",
-    "watch": "frida-compile index.ts -o ../linktools/linktools/assets/frida.js -w"
+    "build": "frida-compile index.ts -o ../linktools/assets/frida.js -c && uglifyjs ../linktools/assets/frida.js -m -o ../linktools/assets/frida.min.js",
+    "watch": "frida-compile index.ts -o ../linktools/assets/frida.js -w"
   },
   "dependencies": {
     "@types/frida-gum": "^17.3.0",
