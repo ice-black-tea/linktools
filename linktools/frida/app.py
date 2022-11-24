@@ -132,24 +132,39 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         if utils.get_item(message, "type") == "send":
             payload = utils.get_item(message, "payload")
             if payload and isinstance(payload, dict):
-                log = payload.pop("$log", None)  # log单独解析
-                if log is not None:
-                    level = log.get("level") or self.LogLevel.DEBUG
-                    message = log.get("message")
-                    self.on_script_log(script, level, message, data)
-                event = payload.pop("$event", None)  # event单独解析
-                if event is not None:
-                    self.on_script_event(script, event, data)
+
+                # 单独解析Emitter发出来的消息
+                events = payload.pop("$events", None)
+                if events:
+
+                    for event in events:
+                        # 如果消息类型是log，那就直接调on_log
+                        log = event.pop("log", None)
+                        if log is not None:
+                            level = log.get("level") or self.LogLevel.DEBUG
+                            message = log.get("message")
+                            self.on_script_log(script, level, message, data)
+
+                        # 如果只是普通消息，则调用on_event
+                        msg = event.pop("msg", None)
+                        if msg is not None:
+                            self.on_script_event(script, msg, data)
+
+                    return
+
             # 其他类型调用on_script_send方法解析
             if payload or data:
                 self.on_script_send(script, payload, data)
+                return
 
         elif utils.get_item(message, "type") == "error":
             stack = utils.get_item(message, "stack")
             self.on_script_log(script, self.LogLevel.ERROR, stack if stack else message, data)
+            return
 
         else:
             self.on_script_log(script, self.LogLevel.WARNING, message, data)
+            return
 
     def on_script_log(self, script: FridaScript, level: str, message: Any, data: Any):
         """
@@ -175,11 +190,11 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         脚本发送事件回调
         :param script: frida的脚本
         :param message: 事件消息
-        :param data: 事件数据
+        :param data: 事件带回来的数据
         """
         message = f"Script event: {os.linesep}" \
                   f"{json.dumps(message, indent=2, ensure_ascii=False)}"
-        self.on_script_log(script, self.LogLevel.INFO, message, data)
+        self.on_script_log(script, self.LogLevel.INFO, message, None)
 
     def on_script_send(self, script: FridaScript, payload: Any, data: Any):
         """

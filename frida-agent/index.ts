@@ -1,3 +1,79 @@
+////////////////////////////////////////////////////////////////////////
+// emitter
+////////////////////////////////////////////////////////////////////////
+
+
+class Event {
+    type: string = null;
+    message: string = null;
+    data: ArrayBuffer | number[] | null = null;
+    constructor(type: string, message: string, data: ArrayBuffer | number[] | null) {
+        this.type = type;
+        this.message = message;
+        this.data = data;
+    }
+}
+
+
+class Emitter {
+
+    private pendingEvents: Event[] = [];
+    private flushTimer: any = null;
+
+    emit(type: string, message: any, data?: ArrayBuffer | number[] | null) {
+        this.pendingEvents.push(new Event(type, message, data));
+
+        if (this.flushTimer === null) {
+            this.flushTimer = setTimeout(this.flush, 50);
+        }
+    }
+
+    private flush = () => {
+        if (this.flushTimer !== null) {
+            clearTimeout(this.flushTimer);
+            this.flushTimer = null;
+        }
+
+        if (this.pendingEvents.length === 0) {
+            return;
+        }
+
+        const events = this.pendingEvents;
+        this.pendingEvents = [];
+
+        var messages = [];
+        while (events.length > 0) {
+            const event = events.shift();
+            if (event.data != null) {
+                // 如果data字段不为空，必须得单独发，同时需要把之前的消息发送了
+                if (messages.length > 0) {
+                    send({ $events: messages });
+                    messages = [];
+                }
+                send({ $event: event }, event.data);
+            } else {
+                // 只是把消息放到待发送队列
+                const message = {};
+                message[event.type] = event.message;
+                messages.push(message);
+            }
+        }
+
+        if (messages.length > 0) {
+            send({ $events: messages });
+            messages = null;
+        }
+    };
+}
+
+
+class EmitterWrapper {
+
+    emit(message: any, data?: ArrayBuffer | number[] | null) {
+        $emitter.emit("msg", message, data);
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 // log
@@ -22,25 +98,25 @@ class Log {
 
     d(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.DEBUG) {
-            send({ $log: { level: "debug", message: message } }, data);
+            $emitter.emit("log", { level: "debug", message: message }, data);
         }
     }
 
     i(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.INFO) {
-            send({ $log: { level: "info", message: message } }, data);
+            $emitter.emit("log", { level: "info", message: message }, data);
         }
     }
 
     w(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.WARNING) {
-            send({ $log: { level: "warning", message: message } }, data);
+            $emitter.emit("log", { level: "warning", message: message }, data);
         }
     }
 
     e(message: any, data?: ArrayBuffer | number[] | null) {
         if (this.$level <= this.ERROR) {
-            send({ $log: { level: "error", message: message } }, data);
+            $emitter.emit("log", { level: "error", message: message }, data);
         }
     }
 }
@@ -99,6 +175,8 @@ import { ObjCHelper } from "./lib/objc";
 import { IOSHelper } from "./lib/ios";
 
 
+const $emitter = new Emitter();
+const emitter = new EmitterWrapper();
 const log = new Log();
 const cHelper = new CHelper();
 const javaHelper = new JavaHelper();
@@ -108,6 +186,7 @@ const iosHelper = new IOSHelper();
 
 
 declare global {
+    const Emitter: EmitterWrapper;
     const Log: Log;
     const CHelper: CHelper;
     const JavaHelper: JavaHelper;
@@ -125,6 +204,10 @@ declare global {
 
 
 Object.defineProperties(globalThis, {
+    Emitter: {
+        enumerable: true,
+        value: emitter
+    },
     Log: {
         enumerable: true,
         value: log

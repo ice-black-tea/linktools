@@ -428,7 +428,7 @@ export class JavaHelper {
                 if (opts.stack) {
                     event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
                 }
-                send({ $event: event });
+                Emitter.emit(event);
             }
         };
     }

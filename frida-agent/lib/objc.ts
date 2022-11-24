@@ -208,7 +208,7 @@ export class ObjCHelper {
                     }
                     event["stack"] = stack;
                 }
-                send({ $event: event });
+                Emitter.emit(event);
             }
         };
     }
