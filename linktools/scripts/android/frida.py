@@ -80,14 +80,14 @@ def main():
     class Application(FridaApplication):
 
         def on_spawn_added(self, spawn):
-            logger.debug(f"Spawn added: {spawn}")
+            logger.debug(f"{spawn} added")
             if device.extract_package(spawn.identifier) == package:
                 self.load_script(spawn.pid, resume=True)
             else:
                 self.resume(spawn.pid)
 
         def on_session_detached(self, session, reason, crash) -> None:
-            logger.info(f"Detach process: {session}, reason={reason}")
+            logger.info(f"{session} detached, reason={reason}")
             if reason in ("connection-terminated", "device-lost"):
                 self.stop()
             elif len(self._sessions) == 0:

@@ -64,7 +64,7 @@ class FridaUserScript(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def ident(self):
+    def filename(self):
         pass
 
     @abc.abstractmethod
@@ -72,10 +72,16 @@ class FridaUserScript(metaclass=abc.ABCMeta):
         pass
 
     def to_dict(self) -> dict:
-        return {"filename": self.ident, "source": self.source}
+        return {"filename": self.filename, "source": self.source}
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        if class_name.startswith("Frida"):
+            class_name = class_name[len("Frida"):]
+        return f"{class_name}(filename={self.filename})"
 
 
 class FridaScriptFile(FridaUserScript):
@@ -89,16 +95,13 @@ class FridaScriptFile(FridaUserScript):
         return self._path
 
     @property
-    def ident(self):
+    def filename(self):
         return self._path
 
     def _load(self) -> Optional[str]:
         with open(self._path, "rb") as f:
-            _logger.info(f"Load script: {self._path}")
+            _logger.info(f"Load {self}")
             return f.read().decode("utf-8")
-
-    def __repr__(self):
-        return self.path
 
 
 class FridaEvalCode(FridaUserScript):
@@ -108,7 +111,7 @@ class FridaEvalCode(FridaUserScript):
         self._code = code
 
     @property
-    def ident(self):
+    def filename(self):
         return "<anonymous>"
 
     def _load(self):
@@ -126,7 +129,7 @@ class FridaShareScript(FridaUserScript):
             self.load()
 
     @property
-    def ident(self):
+    def filename(self):
         return self._url
 
     def _load(self):
@@ -136,14 +139,14 @@ class FridaShareScript(FridaUserScript):
             if not self._cached:
                 file.clear()
 
-            _logger.info(f"Download shared script: {self._url}")
+            _logger.info(f"Download {self}")
             target_path = file.save()
 
             with open(target_path, "rb") as f:
                 source = f.read().decode("utf-8")
 
             if self._trusted:
-                _logger.info(f"Load trusted shared script: {self._url}")
+                _logger.info(f"Load trusted {self}")
                 return source
 
             cached_md5 = ""
@@ -154,7 +157,7 @@ class FridaShareScript(FridaUserScript):
 
             source_md5 = utils.get_md5(source)
             if cached_md5 == source_md5:
-                _logger.info(f"Load trusted shared script: {self._url}")
+                _logger.info(f"Load trusted {self}")
                 return source
 
             line_count = 20
@@ -180,8 +183,8 @@ class FridaShareScript(FridaUserScript):
             if Confirm.ask(prompt, console=console):
                 with open(cached_md5_path, "wt") as fd:
                     fd.write(source_md5)
-                _logger.info(f"Load trusted shared script: {self._url}")
+                _logger.info(f"Load trusted {self}")
                 return source
             else:
-                _logger.info(f"Ignore untrusted shared script: {self._url}")
+                _logger.info(f"Ignore untrusted {self}")
                 return None

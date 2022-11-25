@@ -238,7 +238,7 @@ export class JavaHelper {
                 targetClass = this.findClass(targetClass);
             }
             const method = this.$getClassMethod(targetClass, methodName);
-            if (method === void 0) {
+            if (method === void 0 || method.overloads === void 0) {
                 Log.w("Cannot find method: " + this.$getClassName(targetClass) + "." + methodName);
                 return;
             }
@@ -276,7 +276,7 @@ export class JavaHelper {
             targetClass = this.findClass(targetClass);
         }
         var method = this.$getClassMethod(targetClass, methodName);
-        if (method === void 0) {
+        if (method === void 0 || method.overloads === void 0) {
             Log.w("Cannot find method: " + this.$getClassName(targetClass) + "." + methodName);
             return;
         }
@@ -309,8 +309,10 @@ export class JavaHelper {
 
     $isExcludeClass(className: string) {
         return false ||
-            className.indexOf("java.lang.") == 0 ||
-            className.indexOf("android.os.") == 0 ||
+            className.indexOf("java.") == 0 ||
+            className.indexOf("javax.") == 0 ||
+            className.indexOf("android.") == 0 ||
+            className.indexOf("androidx.") == 0 ||
             false;
     }
 

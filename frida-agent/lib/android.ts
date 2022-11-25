@@ -97,7 +97,7 @@ export class AndroidHelper {
         exclude = exclude != null ? exclude.trim().toLowerCase() : "";
         options = options != null ? options : { stack: true, args: true };
 
-        Log.w("choose classes, include: " + include + ", exclude: " + exclude + ", options: " + JSON.stringify(options));
+        Log.w("trace classes, include: " + include + ", exclude: " + exclude + ", options: " + JSON.stringify(options));
 
         Java.perform(function () {
             Java.enumerateLoadedClasses({
