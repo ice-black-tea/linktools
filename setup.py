@@ -34,14 +34,15 @@ from types import ModuleType
 
 from setuptools import find_packages
 
+
 if __name__ == '__main__':
     get_path = functools.partial(
         os.path.join,
-        os.path.abspath(os.path.dirname(__file__))
+        os.path.abspath(os.path.dirname(__file__)),
     )
 
     version = ModuleType("version")
-    version_path = get_path("linktools", "version.py")
+    version_path = get_path("src", "linktools", "version.py")
     with open(version_path, mode="rb") as fd:
         exec(compile(fd.read(), "version", "exec"), version.__dict__)
 
@@ -49,8 +50,9 @@ if __name__ == '__main__':
     with open(description_path, "r") as fd:
         description = fd.read()
 
+
     def extend_scripts(script_module, script_prefix):
-        scripts_path = get_path("linktools", "scripts", script_module)
+        scripts_path = get_path("src", "linktools", "scripts", script_module)
         for _, module_name, _ in pkgutil.iter_modules([scripts_path]):
             if not module_name.startswith("_"):
                 scripts.append("{script_prefix}-{script_name} = {module_prefix}.{module_name}:main".format(
@@ -59,6 +61,7 @@ if __name__ == '__main__':
                     module_prefix=f"linktools.scripts.{script_module}",
                     module_name=module_name
                 ))
+
 
     scripts = []
     extend_scripts(script_module="common", script_prefix="ct")
@@ -77,6 +80,8 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
 
         include_package_data=True,
-        packages=find_packages(),
+        packages=find_packages("src"),
+        package_dir={'': 'src'},
+
         entry_points={"console_scripts": scripts},
     )
