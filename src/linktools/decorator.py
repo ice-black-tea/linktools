@@ -27,25 +27,39 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import functools
+import logging
 import threading
 import traceback
 from typing import Tuple, Type, Any, TypeVar, Callable
 
-from ._logging import get_logger
+from ._logging import get_logger, LogHandler
+from ._environ import environ
 
 _logger = get_logger("decorator")
 _T = TypeVar('_T')
 
 
-def entry_point(known_errors: Tuple[Type[BaseException]] = ()):
+def entry_point(
+        show_log_time: bool = False,
+        show_log_level: bool = True,
+        known_errors: Tuple[Type[BaseException]] = (),
+):
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             try:
+                environ.show_log_time = show_log_time
+                environ.show_log_level = show_log_level
+                logging.basicConfig(
+                    level=logging.INFO,
+                    format="%(message)s",
+                    datefmt="[%X]",
+                    handlers=[LogHandler()]
+                )
                 code = fn(*args, **kwargs) or 0
             except SystemExit:
                 raise
-            except (KeyboardInterrupt, EOFError, *known_errors) as e:
+            except (KeyboardInterrupt, *known_errors) as e:
                 error_type, error_message = e.__class__.__name__, str(e).strip()
                 _logger.error(f"{error_type}: {error_message}" if error_message else error_type)
                 code = 1

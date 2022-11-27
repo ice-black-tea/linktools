@@ -19,7 +19,7 @@ import frida
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .utils import Counter
-from .. import utils, resource, get_logger, is_debug
+from .. import utils, resource, get_logger, environ
 
 _logger = get_logger("frida.app")
 
@@ -279,12 +279,7 @@ class FridaApplication(FridaScriptHandler):
             eternalize: str = False,
             logger=_logger,
     ):
-        self.device = device
-        self.spawn = self.device.spawn
-        self.resume = self.device.resume
-        self.enumerate_applications = self.device.enumerate_applications
-        self.enumerate_processes = self.device.enumerate_processes
-        self.get_frontmost_application = self.device.get_frontmost_application
+        self._device = device
 
         self._cb_spawn_added = lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start()
         self._cb_spawn_removed = lambda spawn: self._reactor.schedule(self.on_spawn_removed)
@@ -318,6 +313,10 @@ class FridaApplication(FridaScriptHandler):
         self._logger = logger
 
         self._event_counter = Counter()
+
+    @property
+    def device(self) -> frida.core.Device:
+        return self._device
 
     def _init(self):
         _logger.debug(f"FridaApplication init")
@@ -447,7 +446,7 @@ class FridaApplication(FridaScriptHandler):
 
         # read the internal script as an entrance
         source = self._internal_debug_script.source \
-            if is_debug() \
+            if environ.debug \
             else self._internal_script.source
 
         script = FridaScript(
@@ -478,7 +477,7 @@ class FridaApplication(FridaScriptHandler):
         _logger.debug(f"Attempt to attach process: pid={pid}")
 
         target_process = None
-        for process in self.enumerate_processes():
+        for process in self.device.enumerate_processes():
             if process.pid == pid:
                 target_process = process
         if target_process is None:
@@ -553,7 +552,7 @@ class FridaApplication(FridaScriptHandler):
         for user_script in self._user_scripts:
             if isinstance(user_script, FridaScriptFile):
                 script_files.append(user_script)
-        if is_debug():
+        if environ.debug:
             script_files.append(self._internal_debug_script)
 
         for script_file in script_files:
@@ -585,12 +584,12 @@ class FridaApplication(FridaScriptHandler):
 
     def on_error(self, exc, traceback):
         if isinstance(exc, (KeyboardInterrupt, frida.TransportError, frida.ServerNotRunningError)):
-            _logger.error(f"{traceback if is_debug() else exc}")
+            _logger.error(f"{traceback if environ.debug else exc}")
             self.stop()
         elif isinstance(exc, (frida.core.RPCException,)):
             _logger.error(f"{exc}")
         else:
-            _logger.error(f"{traceback if is_debug() else exc}")
+            _logger.error(f"{traceback if environ.debug else exc}")
 
     def raise_on_error(self):
         if self._last_error is not None:

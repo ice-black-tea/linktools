@@ -35,7 +35,7 @@ from linktools.frida.ios import IOSFridaServer
 from linktools.ios import MuxError
 
 
-@entry_point(known_errors=(MuxError,))
+@entry_point(show_log_time=True, known_errors=(MuxError,))
 def main():
     parser = IOSArgumentParser(description="easy to use frida")
     parser.add_argument("-b", "--bundle-id", action="store", default=None,
@@ -75,7 +75,7 @@ def main():
             if spawn.identifier == bundle_id:
                 self.load_script(spawn.pid, resume=True)
             else:
-                self.resume(spawn.pid)
+                self.device.resume(spawn.pid)
 
         def on_session_detached(self, session, reason, crash) -> None:
             logger.info(f"{session} detached, reason={reason}")
@@ -83,7 +83,7 @@ def main():
                 self.stop()
             elif len(self._sessions) == 0:
                 if args.auto_start:
-                    app.load_script(app.spawn(bundle_id), resume=True)
+                    app.load_script(app.device.spawn(bundle_id), resume=True)
 
     with IOSFridaServer(device=device) as server:
 
@@ -96,7 +96,7 @@ def main():
 
         # 如果没有填包名，则找到顶层应用
         if utils.is_empty(bundle_id):
-            target_app = app.get_frontmost_application()
+            target_app = app.device.get_frontmost_application()
             if target_app is None:
                 logger.error("Unknown frontmost application")
                 return
@@ -106,17 +106,17 @@ def main():
 
         if args.spawn:
             # 打开进程后注入
-            app.load_script(app.spawn(bundle_id), resume=True)
+            app.load_script(app.device.spawn(bundle_id), resume=True)
 
         # 匹配正在运行的进程
         else:
             # 匹配所有app
-            for target_app in app.enumerate_applications():
+            for target_app in app.device.enumerate_applications():
                 if target_app.pid > 0 and target_app.identifier == bundle_id:
                     target_pids.add(target_app.pid)
 
             # 匹配所有进程
-            for target_process in app.enumerate_processes():
+            for target_process in app.device.enumerate_processes():
                 if target_process.pid > 0 and target_process.name == bundle_id:
                     target_pids.add(target_process.pid)
 
@@ -126,7 +126,7 @@ def main():
                     app.load_script(pid)
             elif args.auto_start:
                 # 进程不存在，打开进程后注入
-                app.load_script(app.spawn(bundle_id), resume=True)
+                app.load_script(app.device.spawn(bundle_id), resume=True)
 
         app.run()
 

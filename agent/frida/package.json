@@ -2,11 +2,11 @@
   "name": "frida-helper",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "private": "true",
   "scripts": {
-    "build": "frida-compile index.ts -o ../../linktools/assets/frida.js -c && uglifyjs ../../linktools/assets/frida.js -m -o ../../linktools/assets/frida.min.js",
-    "watch": "frida-compile index.ts -o ../../linktools/assets/frida.js -w"
+    "build": "frida-compile index.ts -o ../../src/linktools/assets/frida.js -c && uglifyjs ../../src/linktools/assets/frida.js -m -o ../../src/linktools/assets/frida.min.js",
+    "watch": "frida-compile index.ts -o ../../src/linktools/assets/frida.js -w"
   },
   "dependencies": {
     "@types/frida-gum": "^17.3.0",
@@ -19,6 +19,6 @@
     "frida-compile": "^10.2.5",
     "uglify-js": "^3.14.5"
   },
-  "author": "ice-black-tea",
+  "author": "HuJi",
   "license": "ISC"
 }

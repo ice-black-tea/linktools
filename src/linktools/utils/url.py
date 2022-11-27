@@ -38,11 +38,11 @@ from urllib import parse
 
 from filelock import FileLock
 from rich.progress import BarColumn, DownloadColumn, Progress, \
-    SpinnerColumn, TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn
+    TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn, TextColumn
 
-from .common import TimeoutMeter, get_md5, ignore_error
+from .utils import TimeoutMeter, get_md5, ignore_error
 from .._environ import resource, config, tools
-from .._logging import get_logger
+from .._logging import get_logger, LogColumn
 from ..decorator import cached_property
 
 _logger = get_logger("utils.url")
@@ -108,27 +108,26 @@ class DownloadError(Exception):
     pass
 
 
-# noinspection PyProtectedMember,SpellCheckingInspection
-class _ContextVar(property):
+class DownloadContextVar(property):
 
     def __init__(self, key, default=None):
-        def fget(o: "_Context"):
+        def fget(o: "DownloadContext"):
             return o._db.get(key, default)
 
-        def fset(o: "_Context", v):
+        def fset(o: "DownloadContext", v):
             o._db[key] = v
 
         super().__init__(fget=fget, fset=fset)
 
 
-class _Context:
-    url: str = _ContextVar("url")
-    user_agent: str = _ContextVar("user_agent")
-    headers: dict = _ContextVar("headers")
-    file_path: str = _ContextVar("file_path")
-    file_size: int = _ContextVar("file_size")
-    file_name: str = _ContextVar("file_name")
-    completed: bool = _ContextVar("completed", False)
+class DownloadContext:
+    url: str = DownloadContextVar("url")
+    user_agent: str = DownloadContextVar("user_agent")
+    headers: dict = DownloadContextVar("headers")
+    file_path: str = DownloadContextVar("file_path")
+    file_size: int = DownloadContextVar("file_size")
+    file_name: str = DownloadContextVar("file_name")
+    completed: bool = DownloadContextVar("completed", False)
 
     def __init__(self, path: str):
         self._db = shelve.open(path)
@@ -139,6 +138,110 @@ class _Context:
 
     def __exit__(self, *args, **kwargs):
         self._db.__exit__(*args, **kwargs)
+
+    def download(self, timeout_meter: TimeoutMeter):
+        _logger.debug(f"Download file to temp path {self.file_path}")
+
+        initial = 0
+        # 如果文件存在，则继续上一次下载
+        if os.path.exists(self.file_path):
+            size = os.path.getsize(self.file_path)
+            _logger.debug(f"{size} bytes downloaded, continue")
+            initial = size
+
+        self.headers = {
+            "User-Agent": self.user_agent,
+            "Range": f"bytes={initial}-",
+        }
+
+        progress = Progress(
+            LogColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TaskProgressColumn(),
+            TextColumn("eta"),
+            TimeRemainingColumn(),
+        )
+
+        try:
+            import requests
+            fn = self._download_with_requests
+        except ModuleNotFoundError:
+            fn = self._download_with_urllib
+
+        with progress:
+            task_id = progress.add_task(self.file_name, total=0)
+            progress.advance(task_id, initial)
+
+            with open(self.file_path, 'ab') as fp:
+                offset = 0
+                for data in fn(timeout_meter.get()):
+                    advance = len(data)
+                    offset += advance
+                    fp.write(data)
+                    progress.update(
+                        task_id,
+                        advance=advance,
+                        description=self.file_name
+                    )
+                    if self.file_size is not None:
+                        progress.update(
+                            task_id,
+                            total=initial + self.file_size
+                        )
+
+            if self.file_size is not None and self.file_size > offset:
+                raise DownloadError(
+                    f"download size {initial + self.file_size} bytes was expected,"
+                    f" got {initial + offset} bytes"
+                )
+
+            if os.path.getsize(self.file_path) == 0:
+                raise DownloadError(f"download {self.url} error")
+
+    def _download_with_requests(self, timeout: float):
+        import requests
+
+        bs = 1024 * 8
+
+        with requests.get(self.url, headers=self.headers, stream=True, timeout=timeout) as resp:
+
+            resp.raise_for_status()
+
+            if "Content-Length" in resp.headers:
+                self.file_size = int(resp.headers.get("Content-Length"))
+            if "Content-Disposition" in resp.headers:
+                _, params = cgi.parse_header(resp.headers["Content-Disposition"])
+                if "filename" in params:
+                    self.file_name = params["filename"]
+
+            for chunk in resp.iter_content(bs):
+                if chunk:
+                    yield chunk
+
+    def _download_with_urllib(self, timeout: float):
+        from urllib.request import urlopen, Request
+
+        bs = 1024 * 8
+
+        url = Request(self.url, headers=self.headers)
+        with contextlib.closing(urlopen(url=url, timeout=timeout)) as fp:
+
+            headers = fp.info()
+            if "Content-Length" in headers:
+                self.file_size = int(headers["Content-Length"])
+            if "Content-Disposition" in headers:
+                _, params = cgi.parse_header(headers["Content-Disposition"])
+                if "filename" in params:
+                    self.file_name = params["filename"]
+
+            while True:
+                chunk = fp.read(bs)
+                if not chunk:
+                    break
+                yield chunk
 
 
 class UrlFile:
@@ -176,7 +279,7 @@ class UrlFile:
             if not os.path.exists(self._root_path):
                 os.makedirs(self._root_path)
 
-            with _Context(self._context_path) as context:
+            with DownloadContext(self._context_path) as context:
 
                 if os.path.exists(self._file_path) and context.completed:
                     # 下载完成了，那就不用再下载了
@@ -195,7 +298,7 @@ class UrlFile:
 
                     # 开始下载
                     context.completed = False
-                    self._download(context, timeout_meter)
+                    context.download(timeout_meter)
                     context.completed = True
 
                 if save_dir:
@@ -246,115 +349,6 @@ class UrlFile:
 
     def __exit__(self, *args, **kwargs):
         self._lock.release()
-
-    @classmethod
-    def _download(cls, context: _Context, timeout_meter: TimeoutMeter):
-        _logger.debug(f"Download file to temp path {context.file_path}")
-
-        initial = 0
-        # 如果文件存在，则继续上一次下载
-        if os.path.exists(context.file_path):
-            size = os.path.getsize(context.file_path)
-            _logger.debug(f"{size} bytes downloaded, continue")
-            initial = size
-
-        context.headers = {
-            "User-Agent": context.user_agent,
-            "Range": f"bytes={initial}-",
-        }
-
-        progress = Progress(
-            SpinnerColumn(),
-            "{task.description}",
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-            "·",
-            TaskProgressColumn(),
-            "·",
-            TimeRemainingColumn(),
-            "eta"
-        )
-
-        try:
-            import requests
-            fn = cls._download_with_requests
-        except ModuleNotFoundError:
-            fn = cls._download_with_urllib
-
-        with progress:
-            task_id = progress.add_task(context.file_name, total=0)
-            progress.advance(task_id, initial)
-
-            with open(context.file_path, 'ab') as fp:
-                offset = 0
-                for data in fn(context, timeout_meter.get()):
-                    advance = len(data)
-                    offset += advance
-                    fp.write(data)
-                    progress.update(
-                        task_id,
-                        advance=advance,
-                        description=context.file_name
-                    )
-                    if context.file_size is not None:
-                        progress.update(
-                            task_id,
-                            total=initial + context.file_size
-                        )
-
-            if context.file_size is not None and context.file_size > offset:
-                raise DownloadError(
-                    f"download size {initial + context.file_size} bytes was expected,"
-                    f" got {initial + offset} bytes"
-                )
-
-            if os.path.getsize(context.file_path) == 0:
-                raise DownloadError(f"download {context.url} error")
-
-    @classmethod
-    def _download_with_requests(cls, context: _Context, timeout: float):
-        import requests
-
-        bs = 1024 * 8
-
-        with requests.get(context.url, headers=context.headers, stream=True, timeout=timeout) as resp:
-
-            resp.raise_for_status()
-
-            if "Content-Length" in resp.headers:
-                context.file_size = int(resp.headers.get("Content-Length"))
-            if "Content-Disposition" in resp.headers:
-                _, params = cgi.parse_header(resp.headers["Content-Disposition"])
-                if "filename" in params:
-                    context.file_name = params["filename"]
-
-            for chunk in resp.iter_content(bs):
-                if chunk:
-                    yield chunk
-
-    @classmethod
-    def _download_with_urllib(cls, context: _Context, timeout: float):
-        from urllib.request import urlopen, Request
-
-        bs = 1024 * 8
-
-        url = Request(context.url, headers=context.headers)
-        with contextlib.closing(urlopen(url=url, timeout=timeout)) as fp:
-
-            headers = fp.info()
-            if "Content-Length" in headers:
-                context.file_size = int(headers["Content-Length"])
-            if "Content-Disposition" in headers:
-                _, params = cgi.parse_header(headers["Content-Disposition"])
-                if "filename" in params:
-                    context.file_name = params["filename"]
-
-            while True:
-                chunk = fp.read(bs)
-                if not chunk:
-                    break
-                yield chunk
 
 
 class NotFoundError(Exception):

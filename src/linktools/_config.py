@@ -35,10 +35,8 @@ from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 
 
+# Code stolen from flask.Config
 class Config(dict):
-    """
-    Code stolen from flask.Config
-    """
 
     def __init__(self, defaults: Optional[dict] = None):
         dict.__init__(self, defaults or {})

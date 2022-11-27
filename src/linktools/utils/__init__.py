@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .common import (
+from .utils import (
     TimeoutMeter, InterruptableEvent, ignore_error,
     cast, int, bool,
     is_contain, is_empty,

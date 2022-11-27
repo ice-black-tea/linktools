@@ -170,16 +170,16 @@ export class ObjCHelper {
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
             }
-            if (opts.method) {
+            if (opts.method !== false) {
                 event["class_name"] = new ObjC.Object(obj).$className
                 event["method_name"] = this.name;
                 event["method_simple_name"] = this.methodName;
             }
-            if (opts.thread) {
+            if (opts.thread !== false) {
                 event["thread_id"] = Process.getCurrentThreadId();
                 event["thread_name"] = ObjC.classes.NSThread.currentThread().name().toString()
             }
-            if (opts.args) {
+            if (opts.args !== false) {
                 const objectArgs = []
                 for (let i = 0; i < args.length; i++) {
                     objectArgs.push(self.convert2ObjcObject(args[i]));
@@ -190,19 +190,20 @@ export class ObjCHelper {
             }
             try {
                 const result = this(obj, args);
-                if (opts.args) {
+                if (opts.args !== false) {
                     event["result"] = pretty2Json(self.convert2ObjcObject(result));
                 }
                 return result;
             } catch (e) {
-                if (opts.args) {
+                if (opts.args !== false) {
                     event["error"] = pretty2Json(e);
                 }
                 throw e;
             } finally {
-                if (opts.stack) {
+                if (opts.stack !== false) {
                     const stack = [];
-                    const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
+                    const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                    const elements = Thread.backtrace(this.context, backtracer);
                     for (let i = 0; i < elements.length; i++) {
                         stack.push(DebugSymbol.fromAddress(elements[i]).toString());
                     }

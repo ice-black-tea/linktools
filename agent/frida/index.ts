@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-class EmitterWroker {
+class EmitterWorker {
 
     private pendingEvents: any[] = [];
     private flushTimer: any = null;
@@ -15,7 +15,7 @@ class EmitterWroker {
         if (data == null) {
             // 如果data为空，则加到pending队列，打包一起发送
             this.pendingEvents.push(event);
-            if (this.pendingEvents.length >= 20) {
+            if (this.pendingEvents.length >= 50) {
                 // 当短时间积累的事件太多，可能会出现卡死的情况
                 // 所以设置一个pending队列的阈值
                 this.flush();
@@ -156,7 +156,7 @@ import { ObjCHelper } from "./lib/objc";
 import { IOSHelper } from "./lib/ios";
 
 
-const emitterWorker = new EmitterWroker();
+const emitterWorker = new EmitterWorker();
 const emitter = new Emitter();
 const log = new Log();
 const cHelper = new CHelper();
@@ -244,8 +244,10 @@ Object.defineProperties(globalThis, {
     pretty2String: {
         enumerable: false,
         value: function (obj: any): string {
-            obj = pretty2Json(obj);
-            return obj instanceof Object ? JSON.stringify(obj) : obj;
+            if (typeof obj !== "string") {
+                obj = pretty2Json(obj);
+            }
+            return JSON.stringify(obj);
         }
     },
     pretty2Json: {
@@ -254,7 +256,7 @@ Object.defineProperties(globalThis, {
             if (!(obj instanceof Object)) {
                 return obj;
             }
-            if (Array.isArray(obj) || javaHelper.isArray(obj)) {
+            if (Array.isArray(obj) || javaHelper.isJavaArray(obj)) {
                 let result = [];
                 for (let i = 0; i < obj.length; i++) {
                     result.push(pretty2Json(obj[i]));

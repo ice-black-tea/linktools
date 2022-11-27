@@ -120,7 +120,7 @@ export class CHelper {
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
      */
-    getEventImpl(options: any): any /*InvocationListenerCallbacks | ((args: any[]) => any)*/ {
+    getEventImpl(options: any): InvocationListenerCallbacks & ((args: any[]) => any) {
         const opts = new function () {
             this.method = true;
             this.thread = false;
@@ -141,32 +141,33 @@ export class CHelper {
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
             }
-            if (opts.method) {
+            if (opts.method !== false) {
                 event["method_name"] = this.name;
             }
-            if (opts.thread) {
+            if (opts.thread !== false) {
                 event["thread_id"] = Process.getCurrentThreadId();
             }
-            if (opts.args) {
+            if (opts.args !== false) {
                 event["args"] = pretty2Json(args);
                 event["result"] = null;
                 event["error"] = null;
             }
             try {
                 const result = this(args);
-                if (opts.args) {
+                if (opts.args !== false) {
                     event["result"] = pretty2Json(result);
                 }
                 return result;
             } catch (e) {
-                if (opts.args) {
+                if (opts.args !== false) {
                     event["error"] = pretty2Json(e);
                 }
                 throw e;
             } finally {
-                if (opts.stack) {
+                if (opts.stack !== false) {
                     const stack = [];
-                    const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
+                    const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                    const elements = Thread.backtrace(this.context, backtracer);
                     for (let i = 0; i < elements.length; i++) {
                         stack.push(DebugSymbol.fromAddress(elements[i]).toString());
                     }
@@ -181,18 +182,19 @@ export class CHelper {
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
             }
-            if (opts.method == true) {
+            if (opts.method !== false) {
                 event["method_name"] = this.name;
             }
-            if (opts.thread === true) {
+            if (opts.thread !== false) {
                 event["thread_id"] = Process.getCurrentThreadId();
             }
-            if (opts.args === true) {
+            if (opts.args !== false) {
                 event["result"] = pretty2Json(ret);
             }
-            if (opts.stack === true) {
+            if (opts.stack !== false) {
                 const stack = [];
-                const elements = Thread.backtrace(this.context, Backtracer.ACCURATE);
+                const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                const elements = Thread.backtrace(this.context, backtracer);
                 for (let i = 0; i < elements.length; i++) {
                     stack.push(DebugSymbol.fromAddress(elements[i]).toString());
                 }

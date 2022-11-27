@@ -27,6 +27,13 @@
  */
 export class JavaHelper {
 
+    excludeHookPackages: string[] = [
+        "java.",
+        "javax.",
+        "android.",
+        "androidx.",
+    ]
+
     get classClass(): Java.Wrapper {
         return Java.use("java.lang.Class");
     }
@@ -58,15 +65,6 @@ export class JavaHelper {
     get applicationContext(): Java.Wrapper {
         const activityThreadClass = Java.use('android.app.ActivityThread');
         return activityThreadClass.currentApplication().getApplicationContext();
-    }
-
-    isArray(obj: any): boolean {
-        if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
-            if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -150,7 +148,7 @@ export class JavaHelper {
                 return method;
             }
         }
-        return void 0;
+        return void 0; 
     }
 
     /**
@@ -308,12 +306,12 @@ export class JavaHelper {
     }
 
     $isExcludeClass(className: string) {
-        return false ||
-            className.indexOf("java.") == 0 ||
-            className.indexOf("javax.") == 0 ||
-            className.indexOf("android.") == 0 ||
-            className.indexOf("androidx.") == 0 ||
-            false;
+        for (const i in this.excludeHookPackages) {
+            if (className.indexOf(this.excludeHookPackages[i]) == 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -400,16 +398,16 @@ export class JavaHelper {
             for (const key in opts.extras) {
                 event[key] = opts.extras[key];
             }
-            if (opts.method) {
+            if (opts.method !== false) {
                 event["class_name"] = obj.$className;
                 event["method_name"] = this.name;
                 event["method_simple_name"] = this.methodName;
             }
-            if (opts.thread) {
+            if (opts.thread !== false) {
                 event["thread_id"] = Process.getCurrentThreadId();
                 event["thread_name"] = javaHelperThis.threadClass.currentThread().getName();
             }
-            if (opts.args) {
+            if (opts.args !== false) {
                 event["args"] = pretty2Json(args);
                 event["result"] = null;
                 event["error"] = null;
@@ -417,22 +415,36 @@ export class JavaHelper {
 
             try {
                 const result = this(obj, args);
-                if (opts.args) {
+                if (opts.args !== false) {
                     event["result"] = pretty2Json(result);
                 }
                 return result;
             } catch (e) {
-                if (opts.args) {
+                if (opts.args !== false) {
                     event["error"] = pretty2Json(e);
                 }
                 throw e;
             } finally {
-                if (opts.stack) {
+                if (opts.stack !== false) {
                     event["stack"] = pretty2Json(javaHelperThis.getStackTrace());
                 }
                 Emitter.emit(event);
             }
         };
+    }
+
+    /**
+     * 判断对象是否为java数组
+     * @param obj java对象
+     * @returns obj为java数组，则返回为true，否则为false
+     */
+    isJavaArray(obj: any): boolean {
+        if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
+            if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

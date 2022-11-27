@@ -441,7 +441,7 @@ if __name__ == "__main__":
             enable_spawn_gating=True
         )
 
-        for target_app in app.enumerate_applications():
+        for target_app in app.device.enumerate_applications():
             if target_app.identifier == "com.topjohnwu.magisk":
                 app.load_script(target_app.pid)
 

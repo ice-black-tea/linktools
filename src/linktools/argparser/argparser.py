@@ -32,12 +32,11 @@ __all__ = ("ArgumentParser", "range_type")
 import argparse
 import logging
 
-from .. import logger, set_debug
+from .. import environ
 from ..version import __version__
 
 
 def range_type(min: int, max: int):
-
     def wrapper(o):
         value = int(o)
         if min <= value <= max:
@@ -72,7 +71,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     help=help)
 
             def __call__(self, parser, namespace, values, option_string=None):
-                logger.setLevel(logging.DEBUG)
+                environ.logger.setLevel(logging.DEBUG)
 
         class DebugAction(argparse.Action):
 
@@ -89,8 +88,8 @@ class ArgumentParser(argparse.ArgumentParser):
                     help=help)
 
             def __call__(self, parser, namespace, values, option_string=None):
-                set_debug(True)
-                logger.setLevel(logging.DEBUG)
+                environ.debug = True
+                environ.logger.setLevel(logging.DEBUG)
 
         self.add_argument("--version", action="version", version="%(prog)s " + __version__)
         self.add_argument("-v", "--verbose", action=VerboseAction, help="increase log verbosity")

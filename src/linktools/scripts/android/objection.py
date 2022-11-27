@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from linktools import utils, logger, is_debug, resource
+from linktools import utils, logger, resource, environ
 from linktools.android import AdbError
 from linktools.argparser import range_type
 from linktools.argparser.android import AndroidArgumentParser
@@ -64,7 +64,7 @@ def main():
     with AndroidFridaServer(device=device) as server:
 
         objection_args = ["objection"]
-        if is_debug():
+        if environ.debug:
             objection_args += ["--debug"]
         objection_args += ["-N", "-p", server.local_port]
 

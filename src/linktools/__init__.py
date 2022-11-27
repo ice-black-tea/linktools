@@ -31,16 +31,8 @@ from .version import __name__, __version__, __author__, __email__, __url__
 
 from . import utils
 from . import decorator
-from ._logging import get_logger, Handler as LogHandler
+from ._logging import get_logger, LogHandler
 from ._resource import Resource
 from ._config import Config
 from ._tools import GeneralTools
-from ._environ import resource, config, tools, logger
-
-
-def is_debug() -> bool:
-    return config.get("DEBUG", False)
-
-
-def set_debug(debug: bool):
-    config["DEBUG"] = debug
+from ._environ import environ, resource, config, tools, logger
