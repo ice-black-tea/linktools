@@ -1,3 +1,6 @@
 recursive-include src/linktools/assets *
-recursive-exclude src/linktools/assets __pycache__
 recursive-include src/linktools/scripts *.py
+
+global-exclude .DS_Store
+global-exclude *.pyc
+global-exclude *.user
