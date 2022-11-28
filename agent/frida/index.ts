@@ -164,6 +164,7 @@ const javaHelper = new JavaHelper();
 const androidHelper = new AndroidHelper();
 const objCHelper = new ObjCHelper();
 const iosHelper = new IOSHelper();
+const debugSymbolAddressCache: { [key: string]: DebugSymbol; } = {};
 
 
 declare global {
@@ -181,6 +182,7 @@ declare global {
     function parseBoolean(value: string | boolean, defaultValue: boolean);
     function pretty2String(obj: any): any;
     function pretty2Json(obj: any): any;
+    function getDebugSymbolFromAddress(pointer: NativePointer): DebugSymbol;
 }
 
 
@@ -264,6 +266,16 @@ Object.defineProperties(globalThis, {
                 return result;
             }
             return ignoreError(() => obj.toString());
+        }
+    },
+    getDebugSymbolFromAddress: {
+        enumerable: false,
+        value: function(pointer: NativePointer): DebugSymbol {
+            const key = pointer.toString();
+            if (debugSymbolAddressCache[key] === undefined) {
+                debugSymbolAddressCache[key] = DebugSymbol.fromAddress(pointer);
+            }
+            return debugSymbolAddressCache[key];
         }
     }
 });

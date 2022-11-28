@@ -205,7 +205,7 @@ export class ObjCHelper {
                     const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
                     const elements = Thread.backtrace(this.context, backtracer);
                     for (let i = 0; i < elements.length; i++) {
-                        stack.push(DebugSymbol.fromAddress(elements[i]).toString());
+                        stack.push(getDebugSymbolFromAddress(elements[i]).toString());
                     }
                     event["stack"] = stack;
                 }

@@ -44,4 +44,4 @@ class Counter:
             return tuple(self._values)
 
         def __repr__(self):
-            return f"Group({','.join(self._names)})"
+            return f"Group({', '.join(self._names)})"
