@@ -138,10 +138,17 @@ class ScriptLoader {
     }
 }
 
-const loader = new ScriptLoader();
+
+////////////////////////////////////////////////////////////////////////
+// local variables
+////////////////////////////////////////////////////////////////////////
+
+const scriptLoader = new ScriptLoader();
+const emitterWorker = new EmitterWorker();
+const debugSymbolAddressCache: { [key: string]: DebugSymbol; } = {};
 
 rpc.exports = {
-    loadScripts: loader.load.bind(loader),
+    loadScripts: scriptLoader.load.bind(scriptLoader),
 };
 
 
@@ -155,8 +162,6 @@ import { AndroidHelper } from "./lib/android";
 import { ObjCHelper } from "./lib/objc";
 import { IOSHelper } from "./lib/ios";
 
-
-const emitterWorker = new EmitterWorker();
 const emitter = new Emitter();
 const log = new Log();
 const cHelper = new CHelper();
@@ -164,7 +169,6 @@ const javaHelper = new JavaHelper();
 const androidHelper = new AndroidHelper();
 const objCHelper = new ObjCHelper();
 const iosHelper = new IOSHelper();
-const debugSymbolAddressCache: { [key: string]: DebugSymbol; } = {};
 
 
 declare global {

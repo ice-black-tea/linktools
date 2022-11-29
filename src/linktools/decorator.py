@@ -59,7 +59,7 @@ def entry_point(
                 code = fn(*args, **kwargs) or 0
             except SystemExit:
                 raise
-            except (KeyboardInterrupt, *known_errors) as e:
+            except (KeyboardInterrupt, EOFError, *known_errors) as e:
                 error_type, error_message = e.__class__.__name__, str(e).strip()
                 _logger.error(f"{error_type}: {error_message}" if error_message else error_type)
                 code = 1
