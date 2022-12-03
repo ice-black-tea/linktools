@@ -28,6 +28,7 @@
 """
 import json
 import subprocess
+import sys
 
 from linktools import tools, logger
 from linktools.argparser import ArgumentParser
@@ -76,11 +77,11 @@ def main():
     elif args.daemon:
         process = tools[tool_name].popen(
             *tool_args,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        return process.call(daemon=True)
+        return process.call_as_daemon()
 
     else:
         process = tools[tool_name].popen(*tool_args)

@@ -8,6 +8,7 @@ import subprocess
 from typing import AnyStr
 
 from .._logging import get_logger
+from .._environ import environ
 
 _logger = get_logger("utils.subprocess")
 
@@ -23,7 +24,10 @@ class Popen(subprocess.Popen):
             kwargs["stdout"] = subprocess.PIPE
             kwargs["stderr"] = subprocess.PIPE
         if "cwd" not in kwargs:
-            kwargs["cwd"] = os.getcwd()
+            try:
+                kwargs["cwd"] = os.getcwd()
+            except FileNotFoundError:
+                kwargs["cwd"] = environ.resource.get_temp_dir()
         if kwargs.get("shell", False):
             raise ValueError("shell argument is not allowed.")
         if "append_env" in kwargs:
@@ -32,18 +36,24 @@ class Popen(subprocess.Popen):
             env.update(kwargs.pop("append_env"))
             kwargs["env"] = env
 
-        super().__init__([str(arg) for arg in args], **kwargs)
-        _logger.debug(f"Exec cmdline: {' '.join(self.args)}")
+        args = [str(arg) for arg in args]
+        _logger.debug(f"Exec cmdline: {' '.join(args)}")
 
-    def call(self, timeout: float = None, daemon: bool = False) -> int:
+        super().__init__(args, **kwargs)
+
+    def call(self, timeout: float = None) -> int:
         with self:
             try:
-                return self.wait(timeout=timeout or .1 if daemon else timeout)
-            except Exception as e:
-                if daemon and isinstance(e, subprocess.TimeoutExpired):
-                    return 0
+                return self.wait(timeout=timeout)
+            except Exception:
                 self.kill()
                 raise
+
+    def call_as_daemon(self, timeout: float = None) -> int:
+        try:
+            return self.wait(timeout=timeout or .1)
+        except subprocess.TimeoutExpired:
+            return 0
 
     def check_call(self, timeout: float = None) -> int:
         with self:
