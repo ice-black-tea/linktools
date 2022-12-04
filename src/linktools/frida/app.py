@@ -449,11 +449,7 @@ class FridaApplication(FridaScriptHandler):
             if environ.debug \
             else self._internal_script.source
 
-        script = FridaScript(
-            session,
-            session.create_script(source)
-        )
-
+        script = FridaScript(session, session.create_script(source))
         script.add_message_handler(self)
         script.add_destroyed_handler(self)
 

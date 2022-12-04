@@ -221,7 +221,7 @@ Object.defineProperties(globalThis, {
     },
     ignoreError: {
         enumerable: false,
-        value: function <T>(fn: () => T, defautValue: T = undefined): T {
+        value: function <T>(fn: () => T, defautValue: T = void 0): T {
             try {
                 return fn();
             } catch (e) {
@@ -232,7 +232,7 @@ Object.defineProperties(globalThis, {
     },
     parseBoolean: {
         enumerable: false,
-        value: function (value: string | boolean, defaultValue: boolean = undefined) {
+        value: function (value: string | boolean, defaultValue: boolean = void 0) {
             if (typeof (value) === "boolean") {
                 return value;
             }
@@ -262,12 +262,17 @@ Object.defineProperties(globalThis, {
             if (!(obj instanceof Object)) {
                 return obj;
             }
-            if (Array.isArray(obj) || javaHelper.isJavaArray(obj)) {
+            if (Array.isArray(obj)) {
                 let result = [];
                 for (let i = 0; i < obj.length; i++) {
                     result.push(pretty2Json(obj[i]));
                 }
                 return result;
+            }
+            if (Java.available) {
+                if (javaHelper.isJavaObject(obj)) {
+                    return javaHelper.classClass.toString.apply(obj);
+                }
             }
             return ignoreError(() => obj.toString());
         }
@@ -276,7 +281,7 @@ Object.defineProperties(globalThis, {
         enumerable: false,
         value: function(pointer: NativePointer): DebugSymbol {
             const key = pointer.toString();
-            if (debugSymbolAddressCache[key] === undefined) {
+            if (debugSymbolAddressCache[key] === void 0) {
                 debugSymbolAddressCache[key] = DebugSymbol.fromAddress(pointer);
             }
             return debugSymbolAddressCache[key];

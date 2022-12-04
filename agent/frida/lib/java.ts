@@ -148,7 +148,7 @@ export class JavaHelper {
                 return method;
             }
         }
-        return void 0; 
+        return void 0;
     }
 
     /**
@@ -433,15 +433,30 @@ export class JavaHelper {
         };
     }
 
+    isJavaObject(obj: any): boolean {
+        if (obj instanceof Object) {
+            if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
+                const javaClass = obj.class;
+                if (javaClass.hasOwnProperty("getName") && javaClass.getName() != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * 判断对象是否为java数组
      * @param obj java对象
      * @returns obj为java数组，则返回为true，否则为false
      */
     isJavaArray(obj: any): boolean {
-        if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
-            if (obj.class.hasOwnProperty("isArray") && obj.class.isArray()) {
-                return true;
+        if (obj instanceof Object) {
+            if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
+                const javaClass = obj.class;
+                if (javaClass.hasOwnProperty("isArray") && javaClass.isArray()) {
+                    return true;
+                }
             }
         }
         return false;
