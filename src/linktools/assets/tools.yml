@@ -180,7 +180,7 @@ GENERAL_TOOL_CHROMEDRIVER:
       - else: ~
 
 GENERAL_TOOL_SIB:
-  version: 1.2.5
+  version: 1.2.8
   download_url:
     case:
       - when: {system: darwin}

@@ -74,13 +74,12 @@ class IOSArgumentParser(ArgumentParser):
 
             offset = 1
             for i in range(len(devices)):
-                try:
-                    udid = devices[i].udid
-                    name = Device(devices[0].udid, usbmux).name
-                except Exception:
-                    udid = ""
-                    name = ""
-                table.add_row(str(i + offset), udid, name)
+                device = devices[i]
+                table.add_row(
+                    str(i + offset),
+                    utils.ignore_error(lambda: device.udid),
+                    utils.ignore_error(lambda: Device(device.udid, usbmux).name),
+                )
 
             console = get_console()
             console.print(table)

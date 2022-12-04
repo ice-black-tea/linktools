@@ -60,7 +60,6 @@ class AndroidArgumentParser(ArgumentParser):
         @parse_handler
         def parse_device():
             devices = Adb.devices(alive=True)
-
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
 
@@ -70,15 +69,16 @@ class AndroidArgumentParser(ArgumentParser):
             table = Table(show_lines=True)
             table.add_column("Index", justify="right", style="cyan", no_wrap=True)
             table.add_column("Serial", style="magenta")
-            table.add_column("Name", style="magenta")
+            table.add_column("Model", style="magenta")
 
             offset = 1
             for i in range(len(devices)):
-                try:
-                    name = Device(devices[i]).get_prop("ro.product.name", timeout=1)
-                except:
-                    name = ""
-                table.add_row(str(i + offset), devices[i], name)
+                device = Device(devices[i])
+                table.add_row(
+                    str(i + offset),
+                    devices[i],
+                    utils.ignore_error(lambda: device.get_prop("ro.product.model", timeout=1)) or "",
+                )
 
             console = get_console()
             console.print(table)

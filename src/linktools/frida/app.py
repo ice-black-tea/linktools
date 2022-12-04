@@ -15,6 +15,7 @@ from typing import Optional, Union, Dict, Collection, Callable, Any
 
 import _frida
 import frida
+from frida.core import Session, Script
 
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
@@ -24,35 +25,11 @@ from .. import utils, resource, get_logger, environ
 _logger = get_logger("frida.app")
 
 
-class FridaReactor(utils.Reactor):
+class FridaSession(utils.get_derived_type(Session)):  # proxy for frida.core.Session
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.io_cancellable = frida.Cancellable()
-        # self.ui_cancellable = frida.Cancellable()
-        # self._ui_cancellable_fd = self.ui_cancellable.get_pollfd()
+    __super__: Session
 
-    def cancel_io(self):
-        self.io_cancellable.cancel()
-
-    # def _run(self):
-    #     super()._run()
-    #     self.ui_cancellable.cancel()
-
-    # def __del__(self):
-    #     self._ui_cancellable_fd.release()
-
-    def _work(self, fn):
-        with self.io_cancellable:
-            try:
-                fn()
-            except frida.OperationCancelledError:
-                pass
-
-
-class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for frida.core.Session
-
-    def __init__(self, session: frida.core.Session, name: str = None):
+    def __init__(self, session: Session, name: str = None):
         super().__init__(session)
         self._name: str = name or ""
         self._scripts: [FridaScript] = []
@@ -73,6 +50,12 @@ class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for fri
     def script(self) -> Optional["FridaScript"]:
         return self._scripts[0] if self._scripts else None
 
+    @property
+    def is_detached(self) -> bool:
+        if hasattr(self.__super__, "is_detached"):
+            return self.__super__.is_detached
+        return False
+
     def append(self, script: "FridaScript"):
         if script not in self._scripts:
             self._scripts.append(script)
@@ -90,9 +73,9 @@ class FridaSession(utils.get_derived_type(frida.core.Session)):  # proxy for fri
     __str__ = __repr__
 
 
-class FridaScript(utils.get_derived_type(frida.core.Script)):  # proxy for frida.core.Script
+class FridaScript(utils.get_derived_type(Script)):  # proxy for frida.core.Script
 
-    def __init__(self, session: FridaSession, script: frida.core.Script):
+    def __init__(self, session: FridaSession, script: Script):
         super().__init__(script)
         self._session: FridaSession = session
         self._message_handler = None
@@ -282,7 +265,7 @@ class FridaApplication(FridaScriptHandler):
         self._device = device
 
         self._cb_spawn_added = lambda spawn: threading.Thread(target=self.on_spawn_added, args=(spawn,)).start()
-        self._cb_spawn_removed = lambda spawn: self._reactor.schedule(self.on_spawn_removed)
+        self._cb_spawn_removed = lambda spawn: self._reactor.schedule(lambda: self.on_spawn_removed(spawn))
         self._cb_child_added = lambda child: self._reactor.schedule(lambda: self.on_child_added(child))
         self._cb_child_removed = lambda child: self._reactor.schedule(lambda: self.on_child_removed(child))
         self._cb_output = lambda pid, fd, data: self._reactor.schedule(lambda: self.on_output(pid, fd, data))
@@ -291,7 +274,7 @@ class FridaApplication(FridaScriptHandler):
         self._last_error = None
         self._stop_request = utils.InterruptableEvent()
         self._finished = utils.InterruptableEvent()
-        self._reactor = FridaReactor(
+        self._reactor = utils.Reactor(
             on_stop=self._on_stop,
             on_error=self._on_error
         )
@@ -310,7 +293,6 @@ class FridaApplication(FridaScriptHandler):
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
-        self._logger = logger
 
         self._event_counter = Counter()
 
@@ -385,12 +367,12 @@ class FridaApplication(FridaScriptHandler):
     @property
     def sessions(self) -> Dict[int, FridaSession]:
         with self._lock:
-            return {k: v for k, v in self._sessions.items() if not v.is_detached}
+            return {pid: session for pid, session in self._sessions.items() if not session.is_detached}
 
     @property
     def scripts(self) -> Dict[int, FridaScript]:
         with self._lock:
-            return {k: v.script for k, v in self._sessions.items() if not v.is_detached}
+            return {pid: session.script for pid, session in self._sessions.items() if not session.is_detached}
 
     def schedule(self, fn: Callable[[], any], delay: float = None):
         self._reactor.schedule(fn, delay)
@@ -449,7 +431,7 @@ class FridaApplication(FridaScriptHandler):
             if environ.debug \
             else self._internal_script.source
 
-        script = FridaScript(session, session.create_script(source))
+        script = FridaScript(session, session.create_script(source, runtime="v8"))
         script.add_message_handler(self)
         script.add_destroyed_handler(self)
 
