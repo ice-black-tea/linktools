@@ -40,7 +40,7 @@ from filelock import FileLock
 from rich.progress import BarColumn, DownloadColumn, Progress, \
     TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn, TextColumn
 
-from .utils import TimeoutMeter, get_md5, ignore_error
+from .utils import TimeoutMeter, get_md5, ignore_error, split_version
 from .._environ import resource, config, tools
 from .._logging import get_logger, LogColumn
 from ..decorator import cached_property
@@ -358,9 +358,6 @@ class NotFoundError(Exception):
 def get_chrome_driver(version: str):
     chrome_driver = tools["chromedriver80"]
     base_url = chrome_driver.config.get("base_url")
-
-    def split_version(v):
-        return tuple(int(i) for i in v.split("."))
 
     versions = split_version(version)
     if versions[0] >= 70:

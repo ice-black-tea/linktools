@@ -64,8 +64,8 @@ class AndroidFridaServer(FridaServer):
 
         # 接下来新开一个进程运行frida server，并且输出一下是否出错
         self._device.sudo(
-            " ".join([
-                self._device.get_safe_command(self._environ.remote_path),
+            self._device.get_safe_command([
+                self._environ.remote_path,
                 "-d", "fs-binaries",
                 "-l", f"0.0.0.0:{self._remote_port}",
                 "-D", "&"

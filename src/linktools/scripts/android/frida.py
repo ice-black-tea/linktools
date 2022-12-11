@@ -26,7 +26,6 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
 from linktools import utils, logger
 from linktools.android import AdbError
 from linktools.argparser import range_type
@@ -81,10 +80,13 @@ def main():
 
         def on_spawn_added(self, spawn):
             logger.debug(f"{spawn} added")
-            if device.extract_package(spawn.identifier) == package:
-                self.load_script(spawn.pid, resume=True)
+            if device.extract_package(spawn.identifier) != package:
+                try:
+                    self.device.resume(spawn.pid)
+                except Exception as e:
+                    logger.error(f"{e}")
             else:
-                self.device.resume(spawn.pid)
+                self.load_script(spawn.pid, resume=True)
 
         def on_session_detached(self, session, reason, crash) -> None:
             logger.info(f"{session} detached, reason={reason}")

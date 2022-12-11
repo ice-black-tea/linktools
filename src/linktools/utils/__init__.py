@@ -35,6 +35,7 @@ from .utils import (
     get_md5, get_sha1, get_sha256, make_uuid, gzip_compress,
     read_file, write_file,
     get_lan_ip, get_wan_ip,
+    split_version,
 )
 
 from .proxy import (
@@ -43,6 +44,7 @@ from .proxy import (
 
 from .subprocess import (
     Popen,
+    list2cmdline,
 )
 
 from .url import (

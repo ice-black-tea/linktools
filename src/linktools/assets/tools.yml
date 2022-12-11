@@ -113,25 +113,48 @@ GENERAL_TOOL_FASTBOOT:
         then: platform-tools/fastboot.exe
       - else: ~
 
-GENERAL_TOOL_AAPT:
+GENERAL_TOOL_AAPT: &GENERAL_TOOL_AAPT
   cmdline: aapt
-  version: v0.2-4913185
+  version: r33
+  version_name: android-13
   download_url:
     case:
       - when: {system: darwin}
-        then: https://dl.androidaapt.com/aapt-macos.zip
+        then: https://dl.google.com/android/repository/build-tools_{version}-macosx.zip
       - when: {system: linux}
-        then: https://dl.androidaapt.com/aapt-linux.zip
+        then: https://dl.google.com/android/repository/build-tools_{version}-linux.zip
       - when: {system: windows}
-        then: https://dl.androidaapt.com/aapt-windows.zip
+        then: https://dl.google.com/android/repository/build-tools_{version}-windows.zip
       - else: ~
-  unpack_path: aapt-{version}
+  unpack_path: build-tools-{version}
   target_path:
     case:
       - when: {system: [darwin, linux]}
-        then: aapt
+        then: "{version_name}/aapt"
       - when: {system: windows}
-        then: aapt.exe
+        then: "{version_name}/aapt.exe"
+      - else: ~
+
+GENERAL_TOOL_APKSIGNER:
+  <<: *GENERAL_TOOL_AAPT
+  cmdline: apksigner
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: "{version_name}/apksigner"
+      - when: {system: windows}
+        then: "{version_name}/apksigner.bat"
+      - else: ~
+
+GENERAL_TOOL_ZIPALIGN:
+  <<: *GENERAL_TOOL_AAPT
+  cmdline: zipalign
+  target_path:
+    case:
+      - when: { system: [darwin, linux] }
+        then: "{version_name}/zipalign"
+      - when: { system: windows }
+        then: "{version_name}/zipalign.exe"
       - else: ~
 
 GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX

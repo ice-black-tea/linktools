@@ -431,7 +431,10 @@ class FridaApplication(FridaScriptHandler):
             if environ.debug \
             else self._internal_script.source
 
-        script = FridaScript(session, session.create_script(source, runtime="v8"))
+        script_kwargs = {}
+        if utils.split_version(frida.__version__) < (14,):
+            script_kwargs["runtime"] = "v8"
+        script = FridaScript(session, session.create_script(source, **script_kwargs))
         script.add_message_handler(self)
         script.add_destroyed_handler(self)
 

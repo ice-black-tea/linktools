@@ -72,10 +72,13 @@ def main():
 
         def on_spawn_added(self, spawn):
             logger.debug(f"{spawn} added")
-            if spawn.identifier == bundle_id:
-                self.load_script(spawn.pid, resume=True)
+            if spawn.identifier != bundle_id:
+                try:
+                    self.device.resume(spawn.pid)
+                except Exception as e:
+                    logger.error(f"{e}")
             else:
-                self.device.resume(spawn.pid)
+                self.load_script(spawn.pid, resume=True)
 
         def on_session_detached(self, session, reason, crash) -> None:
             logger.info(f"{session} detached, reason={reason}")

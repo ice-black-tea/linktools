@@ -12,6 +12,8 @@ from .._environ import environ
 
 _logger = get_logger("utils.subprocess")
 
+list2cmdline = subprocess.list2cmdline
+
 
 class Popen(subprocess.Popen):
 

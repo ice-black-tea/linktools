@@ -34,7 +34,7 @@ from linktools.ios import Device, MuxError
 
 @entry_point(known_errors=(MuxError,))
 def main():
-    parser = IOSArgumentParser(description="connect to ssh server (iOS need jailbreak)")
+    parser = IOSArgumentParser(description="OpenSSH remote login client (iOS device need jailbreak)")
 
     parser.add_argument("-u", "--user", action="store", default="root",
                         help="iOS ssh user (default: root)")

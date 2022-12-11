@@ -520,16 +520,13 @@ class Device(object):
             temp = result
 
     @classmethod
-    def get_safe_command(cls, cmd: str) -> str:
+    def get_safe_command(cls, seq: [str]) -> str:
         """
         用双引号把命令包起来
-        :param cmd: 原命令
+        :param seq: 原命令
         :return: 双引号包起来的命令
         """
-        cmd = cmd \
-            .replace("\\", "\\\\") \
-            .replace('\"', '\\\"')
-        return "\"" + cmd + "\""
+        return utils.list2cmdline(seq)
 
     @classmethod
     def get_storage_path(cls, *paths: [str]) -> str:
