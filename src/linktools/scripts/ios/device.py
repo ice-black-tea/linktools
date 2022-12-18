@@ -7,15 +7,15 @@
 # Product   : PyCharm
 # Project   : link
 
-from linktools import tools
-from linktools.argparser.ios import IOSArgumentParser
-from linktools.decorator import entry_point
-from linktools.ios import MuxError
+from argparse import ArgumentParser
+from typing import Optional
+
+from linktools import utils, tools
 
 
-@entry_point(known_errors=(MuxError,))
-def main():
-    general_commands = [
+class Script(utils.IOSScript):
+
+    GENERAL_COMMANDS = [
         "version",
         "list",
         "parse",
@@ -23,21 +23,27 @@ def main():
         "wait-for-device",
     ]
 
-    parser = IOSArgumentParser(description="tidevice wrapper")
-    parser.add_argument('device_args', nargs='...', help="tidevice args")
-    args, extra = parser.parse_known_args()
+    def _get_description(self) -> str:
+        return "tidevice wrapper"
 
-    device_args = [*extra, *args.device_args]
-    if not extra:
-        if args.device_args and args.device_args[0] not in general_commands:
-            device = args.parse_device()
-            device_args = ["--socket", device.usbmux.address, "-u", device.udid, *device_args]
-            process = tools["tidevice"].popen(*device_args, capture_output=False)
-            return process.call()
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument('device_args', nargs='...', help="tidevice args")
 
-    process = tools["tidevice"].popen(*device_args, capture_output=False)
-    return process.call()
+    def _run(self, args: [str]) -> Optional[int]:
+        args, extra = self.argument_parser.parse_known_args(args)
+
+        device_args = [*extra, *args.device_args]
+        if not extra:
+            if args.device_args and args.device_args[0] not in self.GENERAL_COMMANDS:
+                device = args.parse_device()
+                device_args = ["--socket", device.usbmux.address, "-u", device.udid, *device_args]
+                process = tools["tidevice"].popen(*device_args, capture_output=False)
+                return process.call()
+
+        process = tools["tidevice"].popen(*device_args, capture_output=False)
+        return process.call()
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

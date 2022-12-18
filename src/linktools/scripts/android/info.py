@@ -26,11 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+from argparse import ArgumentParser
+from typing import Optional
 
-from linktools import logger
-from linktools.android import AdbError, Device
-from linktools.argparser.android import AndroidArgumentParser
-from linktools.decorator import entry_point
+from linktools import logger, utils
+from linktools.android import Device
 
 props = (
     "ro.product.manufacturer",
@@ -71,34 +71,42 @@ cmds = (
 )
 
 
-@entry_point(known_errors=(AdbError,))
-def main():
-    parser = AndroidArgumentParser(description='fetch device information')
-    parser.add_argument('agent_args', nargs='...', help="agent args")
-    args = parser.parse_args()
-    device: Device = args.parse_device()
+class Script(utils.AndroidScript):
 
-    logger.info(f"Property", style="red")
-    for prop in props:
-        logger.info(
-            f"{prop}: {device.get_prop(prop)}",
-            indent=2
-        )
+    def _get_description(self) -> str:
+        return "fetch device information"
 
-    logger.info(f"File", style="red")
-    for file in files:
-        logger.info(
-            f"{file}: {device.shell('cat', file, ignore_errors=True).strip()}",
-            indent=2
-        )
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument('agent_args', nargs='...', help="agent args")
 
-    logger.info(f"Cmdline", style="red")
-    for cmd in cmds:
-        logger.info(
-            f"{cmd[0]}: {device.shell(*cmd[1], ignore_errors=True).strip()}",
-            indent=2
-        )
+    def _run(self, args: [str]) -> Optional[int]:
+        args = self.argument_parser.parse_args(args)
+        device: Device = args.parse_device()
+
+        logger.info(f"Property", style="red")
+        for prop in props:
+            logger.info(
+                f"{prop}: {device.get_prop(prop)}",
+                indent=2
+            )
+
+        logger.info(f"File", style="red")
+        for file in files:
+            logger.info(
+                f"{file}: {device.shell('cat', file, ignore_errors=True).strip()}",
+                indent=2
+            )
+
+        logger.info(f"Cmdline", style="red")
+        for cmd in cmds:
+            logger.info(
+                f"{cmd[0]}: {device.shell(*cmd[1], ignore_errors=True).strip()}",
+                indent=2
+            )
+
+        return
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

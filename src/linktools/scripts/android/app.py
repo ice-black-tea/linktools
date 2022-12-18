@@ -26,12 +26,12 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+from argparse import ArgumentParser
+from typing import Optional
 
 from linktools import utils, logger
-from linktools.android import AdbError, Package, Permission, \
+from linktools.android import Package, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
-from linktools.argparser.android import AndroidArgumentParser
-from linktools.decorator import entry_point
 
 
 class PrintLevel:
@@ -224,82 +224,88 @@ class PackagePrinter:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 
-@entry_point(known_errors=(AdbError,))
-def main():
-    parser = AndroidArgumentParser(description='fetch application info')
+class Script(utils.AndroidScript):
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('-t', '--top', action='store_true', default=False,
-                       help='fetch current running app only')
-    group.add_argument('-a', '--all', action='store_true', default=False,
-                       help='fetch all apps')
-    group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
-                       help='fetch target apps only')
-    group.add_argument('-u', '--uids', metavar="uid", action='store', nargs='+', type=int, default=None,
-                       help='fetch apps with specified uids only')
-    group.add_argument('--system', action='store_true', default=False,
-                       help='fetch system apps only')
-    group.add_argument('--non-system', action='store_true', default=False,
-                       help='fetch non-system apps only')
+    def _get_description(self) -> str:
+        return "fetch application info"
 
-    parser.add_argument('--simple', action='store_true', default=False,
-                        help='display simple info only')
-    parser.add_argument('--dangerous', action='store_true', default=False,
-                        help='display dangerous permissions and components only')
-    parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
-                        choices=['name', 'appName', 'userId', 'sourceDir',
-                                 'enabled', 'system', 'debuggable', 'allowBackup'],
-                        help='order by target field')
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('-t', '--top', action='store_true', default=False,
+                           help='fetch current running app only')
+        group.add_argument('-a', '--all', action='store_true', default=False,
+                           help='fetch all apps')
+        group.add_argument('-p', '--packages', metavar="pkg", action='store', nargs='+', default=None,
+                           help='fetch target apps only')
+        group.add_argument('-u', '--uids', metavar="uid", action='store', nargs='+', type=int, default=None,
+                           help='fetch apps with specified uids only')
+        group.add_argument('--system', action='store_true', default=False,
+                           help='fetch system apps only')
+        group.add_argument('--non-system', action='store_true', default=False,
+                           help='fetch non-system apps only')
 
-    args = parser.parse_args()
-    device = args.parse_device()
+        parser.add_argument('--simple', action='store_true', default=False,
+                            help='display simple info only')
+        parser.add_argument('--dangerous', action='store_true', default=False,
+                            help='display dangerous permissions and components only')
+        parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
+                            choices=['name', 'appName', 'userId', 'sourceDir',
+                                     'enabled', 'system', 'debuggable', 'allowBackup'],
+                            help='order by target field')
 
-    if not utils.is_empty(args.packages):
-        packages = device.get_packages(*args.packages, simple=args.simple)
-    elif not utils.is_empty(args.uids):
-        packages = device.get_packages_for_uid(*args.uids, simple=args.simple)
-    elif args.system:
-        packages = device.get_packages(system=True, simple=args.simple)
-    elif args.non_system:
-        packages = device.get_packages(system=False, simple=args.simple)
-    elif args.all:
-        packages = device.get_packages(simple=args.simple)
-    else:
-        packages = device.get_packages(device.get_current_package(), simple=args.simple)
+    def _run(self, args: [str]) -> Optional[int]:
+        args = self.argument_parser.parse_args(args)
+        device = args.parse_device()
 
-    if not utils.is_empty(args.order_by):
-        packages = sorted(packages, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])
+        if not utils.is_empty(args.packages):
+            packages = device.get_packages(*args.packages, simple=args.simple)
+        elif not utils.is_empty(args.uids):
+            packages = device.get_packages_for_uid(*args.uids, simple=args.simple)
+        elif args.system:
+            packages = device.get_packages(system=True, simple=args.simple)
+        elif args.non_system:
+            packages = device.get_packages(system=False, simple=args.simple)
+        elif args.all:
+            packages = device.get_packages(simple=args.simple)
+        else:
+            packages = device.get_packages(device.get_current_package(), simple=args.simple)
 
-    min_level = PrintLevel.min
-    if args.dangerous:
-        min_level = PrintLevel.dangerous_normal
-    stream = PrintStream(min_level=min_level)
+        if not utils.is_empty(args.order_by):
+            packages = sorted(packages, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])
 
-    for package in packages:
-        printer = PackagePrinter(stream, package)
-        if not args.dangerous:
-            printer.print_package()
-            printer.print_requested_permissions()
-            printer.print_permissions()
-            printer.print_activities()
-            printer.print_services()
-            printer.print_receivers()
-            printer.print_providers()
-            continue
+        min_level = PrintLevel.min
+        if args.dangerous:
+            min_level = PrintLevel.dangerous_normal
+        stream = PrintStream(min_level=min_level)
 
-        if package.is_dangerous():
-            printer.print_package()
-            if package.has_dangerous_permission():
+        for package in packages:
+            printer = PackagePrinter(stream, package)
+            if not args.dangerous:
+                printer.print_package()
+                printer.print_requested_permissions()
                 printer.print_permissions()
-            if package.has_dangerous_activity():
                 printer.print_activities()
-            if package.has_dangerous_service():
                 printer.print_services()
-            if package.has_dangerous_receiver():
                 printer.print_receivers()
-            if package.has_dangerous_provider():
                 printer.print_providers()
+                continue
+
+            if package.is_dangerous():
+                printer.print_package()
+                if package.has_dangerous_permission():
+                    printer.print_permissions()
+                if package.has_dangerous_activity():
+                    printer.print_activities()
+                if package.has_dangerous_service():
+                    printer.print_services()
+                if package.has_dangerous_receiver():
+                    printer.print_receivers()
+                if package.has_dangerous_provider():
+                    printer.print_providers()
+
+        return
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

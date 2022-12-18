@@ -35,6 +35,26 @@ from types import ModuleType
 from setuptools import find_packages
 
 
+class ConsoleScripts(list):
+
+    def append_script(self, script_name, module_name):
+        self.append("{script_name} = {module_name}:script.main".format(
+            script_name=script_name.replace("_", "-"),
+            module_name=module_name,
+        ))
+
+    def extend_modules(self, *path, module_prefix, script_prefix):
+        scripts_path = get_path("src", *path)
+        for _, module_name, _ in pkgutil.iter_modules([scripts_path]):
+            if not module_name.startswith("_"):
+                self.append("{script_prefix}-{script_name} = {module_prefix}.{module_name}:script.main".format(
+                    script_prefix=script_prefix,
+                    script_name=module_name.replace("_", "-"),
+                    module_prefix=module_prefix,
+                    module_name=module_name
+                ))
+
+
 if __name__ == '__main__':
     get_path = functools.partial(
         os.path.join,
@@ -50,23 +70,22 @@ if __name__ == '__main__':
     with open(description_path, "r") as fd:
         description = fd.read()
 
-
-    def extend_scripts(script_module, script_prefix):
-        scripts_path = get_path("src", "linktools", "scripts", script_module)
-        for _, module_name, _ in pkgutil.iter_modules([scripts_path]):
-            if not module_name.startswith("_"):
-                scripts.append("{script_prefix}-{script_name} = {module_prefix}.{module_name}:main".format(
-                    script_prefix=script_prefix,
-                    script_name=module_name.replace("_", "-"),
-                    module_prefix=f"linktools.scripts.{script_module}",
-                    module_name=module_name
-                ))
-
-
-    scripts = []
-    extend_scripts(script_module="common", script_prefix="ct")
-    extend_scripts(script_module="android", script_prefix="at")
-    extend_scripts(script_module="ios", script_prefix="it")
+    scripts = ConsoleScripts()
+    scripts.append_script("lt", "linktools.__main__")
+    scripts.extend_modules(
+        "linktools", "scripts", "common",
+        script_prefix="ct",
+        module_prefix=f"linktools.scripts.common"
+    )
+    scripts.extend_modules(
+        "linktools", "scripts", "android",
+        script_prefix="at",
+        module_prefix=f"linktools.scripts.common")
+    scripts.extend_modules(
+        "linktools", "scripts", "ios",
+        script_prefix="it",
+        module_prefix=f"linktools.scripts.common"
+    )
 
     setup(
         name=getattr(version, "__name__"),

@@ -26,21 +26,29 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from linktools.android import AdbError
-from linktools.argparser.android import AndroidArgumentParser
-from linktools.decorator import entry_point
+from argparse import ArgumentParser
+from typing import Optional
+
+from linktools import utils
 
 
-@entry_point(known_errors=(AdbError,))
-def main():
-    parser = AndroidArgumentParser(description='used for debugging android-tools.apk')
-    parser.add_argument('-p', '--privilege', action='store_true', default=False,
-                        help='run with root privilege')
-    parser.add_argument('agent_args', nargs='...', help="agent args")
-    args = parser.parse_args()
-    device = args.parse_device()
-    device.call_agent(*args.agent_args, privilege=args.privilege, capture_output=False)
+class Script(utils.AndroidScript):
+
+    def _get_description(self) -> str:
+        return "used for debugging android-tools.apk"
+
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument('-p', '--privilege', action='store_true', default=False,
+                            help='run with root privilege')
+        parser.add_argument('agent_args', nargs='...', help="agent args")
+
+    def _run(self, args: [str]) -> Optional[int]:
+        args = self.argument_parser.parse_args(args)
+        device = args.parse_device()
+        device.call_agent(*args.agent_args, privilege=args.privilege, capture_output=False)
+        return
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

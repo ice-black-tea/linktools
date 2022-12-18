@@ -90,7 +90,7 @@ class Environ:
 
         return Resource(
             os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "assets")
+                os.path.join(os.path.dirname(__file__))
             )
         )
 

@@ -7,32 +7,39 @@
 # Product   : PyCharm
 # Project   : link
 import os
-import sys
+from argparse import ArgumentParser
+from typing import Optional
 
 from linktools import utils, tools
-from linktools.decorator import entry_point
 
 
-@entry_point(known_errors=(NotImplementedError,))
-def main():
+class Script(utils.ConsoleScript):
 
-    if tools.system in ["darwin", "linux"]:
-        bash_path = "/bin/bash"
-        if "SHELL" in os.environ:
-            bash_path = os.environ["SHELL"]
-    elif tools.system in ["windows"]:
-        bash_path = "C:\\WINDOWS\\system32\\cmd.exe"
-        if "ComSpec" in os.environ:
-            bash_path = os.environ["ComSpec"]
-    else:
-        raise NotImplementedError(f"unsupported system {tools.system}")
+    def _get_description(self) -> str:
+        return "shell wrapper"
 
-    if not os.path.exists(bash_path):
-        raise NotImplementedError(f"file {bash_path} does not exist")
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        pass
 
-    process = utils.Popen(bash_path, *sys.argv[1:])
-    return process.call()
+    def _run(self, args: [str]) -> Optional[int]:
+        if tools.system in ["darwin", "linux"]:
+            bash_path = "/bin/bash"
+            if "SHELL" in os.environ:
+                bash_path = os.environ["SHELL"]
+        elif tools.system in ["windows"]:
+            bash_path = "C:\\WINDOWS\\system32\\cmd.exe"
+            if "ComSpec" in os.environ:
+                bash_path = os.environ["ComSpec"]
+        else:
+            raise NotImplementedError(f"unsupported system {tools.system}")
+
+        if not os.path.exists(bash_path):
+            raise NotImplementedError(f"file {bash_path} does not exist")
+
+        process = utils.Popen(bash_path, *args)
+        return process.call()
 
 
+script = Script()
 if __name__ == "__main__":
-    main()
+    script.main()

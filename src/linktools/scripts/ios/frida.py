@@ -26,113 +26,121 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+from argparse import ArgumentParser
+from typing import Optional
 
-from linktools import logger, utils
-from linktools.argparser.ios import IOSArgumentParser
-from linktools.decorator import entry_point
+from linktools import logger, utils, environ
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
-from linktools.ios import MuxError
 
 
-@entry_point(show_log_time=True, known_errors=(MuxError,))
-def main():
-    parser = IOSArgumentParser(description="easy to use frida")
-    parser.add_argument("-b", "--bundle-id", action="store", default=None,
-                        help="target bundle id (default: frontmost application)")
-    parser.add_argument("--spawn", action="store_true", default=False,
-                        help="inject after spawn (default: false)")
+class Script(utils.IOSScript):
 
-    parser.add_argument("-P", "--parameters", metavar=("KEY", "VALUE"),
-                        action="append", nargs=2, dest="user_parameters", default=[],
-                        help="user script parameters")
+    def _initialize_config(self):
+        environ.show_log_time = True
+        environ.show_log_level = True
 
-    parser.add_argument("-l", "--load", metavar="SCRIPT",
-                        action="append", dest="user_scripts", default=[],
-                        type=lambda o: FridaScriptFile(o),
-                        help="load user script")
-    parser.add_argument("-e", "--eval", metavar="CODE", action="append", dest="user_scripts",
-                        type=lambda o: FridaEvalCode(o),
-                        help="evaluate code")
-    parser.add_argument("-c", "--codeshare", metavar="URL", action="append", dest="user_scripts",
-                        type=lambda o: FridaShareScript(o, cached=False, load=True),
-                        help="load share script url")
+    def _get_description(self) -> str:
+        return "easy to use frida"
 
-    parser.add_argument("-a", "--auto-start", action="store_true", default=False,
-                        help="automatically start when all processes exits")
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument("-b", "--bundle-id", action="store", default=None,
+                            help="target bundle id (default: frontmost application)")
+        parser.add_argument("--spawn", action="store_true", default=False,
+                            help="inject after spawn (default: false)")
 
-    args = parser.parse_args()
-    device = args.parse_device()
-    bundle_id = args.bundle_id
+        parser.add_argument("-P", "--parameters", metavar=("KEY", "VALUE"),
+                            action="append", nargs=2, dest="user_parameters", default=[],
+                            help="user script parameters")
 
-    user_parameters = {p[0]: p[1] for p in args.user_parameters}
-    user_scripts = args.user_scripts
+        parser.add_argument("-l", "--load", metavar="SCRIPT",
+                            action="append", dest="user_scripts", default=[],
+                            type=lambda o: FridaScriptFile(o),
+                            help="load user script")
+        parser.add_argument("-e", "--eval", metavar="CODE", action="append", dest="user_scripts",
+                            type=lambda o: FridaEvalCode(o),
+                            help="evaluate code")
+        parser.add_argument("-c", "--codeshare", metavar="URL", action="append", dest="user_scripts",
+                            type=lambda o: FridaShareScript(o, cached=False, load=True),
+                            help="load share script url")
 
-    class Application(FridaApplication):
+        parser.add_argument("-a", "--auto-start", action="store_true", default=False,
+                            help="automatically start when all processes exits")
 
-        def on_spawn_added(self, spawn):
-            logger.debug(f"{spawn} added")
-            if spawn.identifier != bundle_id:
-                try:
-                    self.device.resume(spawn.pid)
-                except Exception as e:
-                    logger.error(f"{e}")
-            else:
-                self.load_script(spawn.pid, resume=True)
+    def _run(self, args: [str]) -> Optional[int]:
+        args = self.argument_parser.parse_args(args)
+        device = args.parse_device()
+        bundle_id = args.bundle_id
 
-        def on_session_detached(self, session, reason, crash) -> None:
-            logger.info(f"{session} detached, reason={reason}")
-            if reason in ("connection-terminated", "device-lost"):
-                self.stop()
-            elif len(self._sessions) == 0:
-                if args.auto_start:
-                    app.load_script(app.device.spawn(bundle_id), resume=True)
+        user_parameters = {p[0]: p[1] for p in args.user_parameters}
+        user_scripts = args.user_scripts
 
-    with IOSFridaServer(device=device) as server:
+        class Application(FridaApplication):
 
-        app = Application(
-            server,
-            user_parameters=user_parameters,
-            user_scripts=user_scripts,
-            enable_spawn_gating=True
-        )
+            def on_spawn_added(self, spawn):
+                logger.debug(f"{spawn} added")
+                if spawn.identifier != bundle_id:
+                    try:
+                        self.device.resume(spawn.pid)
+                    except Exception as e:
+                        logger.error(f"{e}")
+                else:
+                    self.load_script(spawn.pid, resume=True)
 
-        # 如果没有填包名，则找到顶层应用
-        if utils.is_empty(bundle_id):
-            target_app = app.device.get_frontmost_application()
-            if target_app is None:
-                logger.error("Unknown frontmost application")
-                return
-            bundle_id = target_app.identifier
+            def on_session_detached(self, session, reason, crash) -> None:
+                logger.info(f"{session} detached, reason={reason}")
+                if reason in ("connection-terminated", "device-lost"):
+                    self.stop()
+                elif len(self._sessions) == 0:
+                    if args.auto_start:
+                        app.load_script(app.device.spawn(bundle_id), resume=True)
 
-        target_pids = set()
+        with IOSFridaServer(device=device) as server:
 
-        if args.spawn:
-            # 打开进程后注入
-            app.load_script(app.device.spawn(bundle_id), resume=True)
+            app = Application(
+                server,
+                user_parameters=user_parameters,
+                user_scripts=user_scripts,
+                enable_spawn_gating=True
+            )
 
-        # 匹配正在运行的进程
-        else:
-            # 匹配所有app
-            for target_app in app.device.enumerate_applications():
-                if target_app.pid > 0 and target_app.identifier == bundle_id:
-                    target_pids.add(target_app.pid)
+            # 如果没有填包名，则找到顶层应用
+            if utils.is_empty(bundle_id):
+                target_app = app.device.get_frontmost_application()
+                if target_app is None:
+                    logger.error("Unknown frontmost application")
+                    return
+                bundle_id = target_app.identifier
 
-            # 匹配所有进程
-            for target_process in app.device.enumerate_processes():
-                if target_process.pid > 0 and target_process.name == bundle_id:
-                    target_pids.add(target_process.pid)
+            target_pids = set()
 
-            if len(target_pids) > 0:
-                # 进程存在，直接注入
-                for pid in target_pids:
-                    app.load_script(pid)
-            elif args.auto_start:
-                # 进程不存在，打开进程后注入
+            if args.spawn:
+                # 打开进程后注入
                 app.load_script(app.device.spawn(bundle_id), resume=True)
 
-        app.run()
+            # 匹配正在运行的进程
+            else:
+                # 匹配所有app
+                for target_app in app.device.enumerate_applications():
+                    if target_app.pid > 0 and target_app.identifier == bundle_id:
+                        target_pids.add(target_app.pid)
+
+                # 匹配所有进程
+                for target_process in app.device.enumerate_processes():
+                    if target_process.pid > 0 and target_process.name == bundle_id:
+                        target_pids.add(target_process.pid)
+
+                if len(target_pids) > 0:
+                    # 进程存在，直接注入
+                    for pid in target_pids:
+                        app.load_script(pid)
+                elif args.auto_start:
+                    # 进程不存在，打开进程后注入
+                    app.load_script(app.device.spawn(bundle_id), resume=True)
+
+            app.run()
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

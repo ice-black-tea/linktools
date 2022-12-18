@@ -27,50 +27,11 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import functools
-import logging
 import threading
-import traceback
+from types import GenericAlias
 from typing import Tuple, Type, Any, TypeVar, Callable
 
-from ._logging import get_logger, LogHandler
-from ._environ import environ
-
-_logger = get_logger("decorator")
 _T = TypeVar('_T')
-
-
-def entry_point(
-        show_log_time: bool = False,
-        show_log_level: bool = True,
-        known_errors: Tuple[Type[BaseException]] = (),
-):
-    def decorator(fn):
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            try:
-                environ.show_log_time = show_log_time
-                environ.show_log_level = show_log_level
-                logging.basicConfig(
-                    level=logging.INFO,
-                    format="%(message)s",
-                    datefmt="[%X]",
-                    handlers=[LogHandler()]
-                )
-                code = fn(*args, **kwargs) or 0
-            except SystemExit:
-                raise
-            except (KeyboardInterrupt, EOFError, *known_errors) as e:
-                error_type, error_message = e.__class__.__name__, str(e).strip()
-                _logger.error(f"{error_type}: {error_message}" if error_message else error_type)
-                code = 1
-            except:
-                _logger.error(traceback.format_exc())
-                code = 1
-            exit(code)
-
-        return wrapper
-
-    return decorator
 
 
 def singleton(cls: Type[_T]) -> Callable[..., _T]:
@@ -117,43 +78,68 @@ def synchronized(lock=None):
     return decorator
 
 
-# noinspection PyPep8Naming
-class cached_property(object):
-    _missing = object()
+class cached_property:
+    __missing__ = object()
 
-    def __init__(self, func, name=None, doc=None):
-        self.__name__ = name or func.__name__
-        self.__module__ = func.__module__
-        self.__doc__ = doc or func.__doc__
+    def __init__(self, func):
         self.func = func
+        self.attrname = None
+        self.__doc__ = func.__doc__
+        self.lock = None
 
-    def __get__(self, obj, owner):
-        if obj is None:
+    def __set_name__(self, owner, name):
+        if self.attrname is None:
+            self.attrname = name
+        elif name != self.attrname:
+            raise TypeError(
+                "Cannot assign the same cached_property to two different names "
+                f"({self.attrname!r} and {name!r})."
+            )
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
             return self
-        value = obj.__dict__.get(self.__name__, cached_property._missing)
-        if value is cached_property._missing:
-            value = self.func(obj)
-            obj.__dict__[self.__name__] = value
-        return value
+        if self.attrname is None:
+            raise TypeError(
+                "Cannot use cached_property instance without calling __set_name__ on it.")
+        try:
+            cache = instance.__dict__
+        except AttributeError:  # not all objects have __dict__ (e.g. class defines slots)
+            msg = (
+                f"No '__dict__' attribute on {type(instance).__name__!r} "
+                f"instance to cache {self.attrname!r} property."
+            )
+            raise TypeError(msg) from None
+        val = cache.get(self.attrname, self.__missing__)
+        if val is self.__missing__:
+            try:
+                if self.lock:
+                    self.lock.acquire()
+
+                # check if another thread filled cache while we awaited lock
+                val = cache.get(self.attrname, self.__missing__)
+                if val is self.__missing__:
+                    val = self.func(instance)
+                    try:
+                        cache[self.attrname] = val
+                    except TypeError:
+                        msg = (
+                            f"The '__dict__' attribute on {type(instance).__name__!r} instance "
+                            f"does not support item assignment for caching {self.attrname!r} property."
+                        )
+                        raise TypeError(msg) from None
+
+            finally:
+                if self.lock:
+                    self.lock.release()
+
+        return val
+
+    __class_getitem__ = classmethod(GenericAlias)
 
 
-# noinspection PyPep8Naming
-class locked_cached_property(object):
-    _missing = object()
+class locked_cached_property(cached_property):
 
     def __init__(self, func, name=None, doc=None):
-        self.__name__ = name or func.__name__
-        self.__module__ = func.__module__
-        self.__doc__ = doc or func.__doc__
-        self.func = func
+        super().__init__(func)
         self.lock = threading.RLock()
-
-    def __get__(self, obj, type=None):
-        if obj is None:
-            return self
-        with self.lock:
-            value = obj.__dict__.get(self.__name__, locked_cached_property._missing)
-            if value is locked_cached_property._missing:
-                value = self.func(obj)
-                obj.__dict__[self.__name__] = value
-            return value

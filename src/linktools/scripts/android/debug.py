@@ -26,36 +26,42 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+from argparse import ArgumentParser
+from typing import Optional
+
 from linktools import utils
-from linktools.android import AdbError
-from linktools.argparser.android import AndroidArgumentParser
-from linktools.decorator import entry_point
 
 
-@entry_point(known_errors=(AdbError,))
-def main():
-    parser = AndroidArgumentParser(description='debugger')
-    parser.add_argument('package', action='store', default=None,
-                        help='regular expression')
-    parser.add_argument('activity', action='store', default=None,
-                        help='regular expression')
-    parser.add_argument('-p', '--port', action='store', type=int, default=8701,
-                        help='fetch all apps')
+class Script(utils.AndroidScript):
 
-    args = parser.parse_args()
-    device = args.parse_device()
+    def _get_description(self) -> str:
+        return "debugger"
 
-    device.shell("am", "force-stop", args.package, output_to_logger=True)
-    device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), output_to_logger=True)
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument('package', action='store', default=None,
+                            help='regular expression')
+        parser.add_argument('activity', action='store', default=None,
+                            help='regular expression')
+        parser.add_argument('-p', '--port', action='store', type=int, default=8701,
+                            help='fetch all apps')
 
-    pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
-    device.forward(f"tcp:{args.port}", f"jdwp:{pid}", output_to_logger=True)
+    def _run(self, args: [str]) -> Optional[int]:
+        args = self.argument_parser.parse_args(args)
+        device = args.parse_device()
 
-    data = input("jdb connect? [Y/n]: ").strip()
-    if data in ["", "Y", "y"]:
-        process = utils.Popen("jdb", "-connect", "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
-        process.call()
+        device.shell("am", "force-stop", args.package, output_to_logger=True)
+        device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), output_to_logger=True)
+
+        pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
+        device.forward(f"tcp:{args.port}", f"jdwp:{pid}", output_to_logger=True)
+
+        data = input("jdb connect? [Y/n]: ").strip()
+        if data in ["", "Y", "y"]:
+            process = utils.Popen("jdb", "-connect",
+                                  "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
+            return process.call()
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

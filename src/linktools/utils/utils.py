@@ -330,3 +330,13 @@ def get_wan_ip() -> Optional[str]:
 
 def split_version(version: str) -> Tuple[int, ...]:
     return tuple(int(i, 0) for i in version.split("."))
+
+
+def range_type(min: int, max: int):
+    def wrapper(o):
+        value = int(o)
+        if min <= value <= max:
+            return value
+        raise ValueError("value not in range %s-%s" % (min, max))
+
+    return wrapper

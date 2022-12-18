@@ -31,6 +31,8 @@ import os
 import re
 import shutil
 import zipfile
+from argparse import ArgumentParser
+from typing import Optional
 
 import lief
 import magic
@@ -39,8 +41,6 @@ from rich.highlighter import NullHighlighter
 from rich.text import Text
 
 from linktools import utils, logger
-from linktools.argparser import ArgumentParser
-from linktools.decorator import entry_point
 
 pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)
 
@@ -191,31 +191,37 @@ class GrepMatcher:
         return out
 
 
-@entry_point()
-def main():
-    parser = ArgumentParser(description='match files with regular expression')
+class Script(utils.ConsoleScript):
 
-    parser.add_argument('-i', '--ignore-case', action='store_true', default=False,
-                        help='ignore case')
-    parser.add_argument('pattern', action='store', default=None,
-                        help='regular expression')
-    parser.add_argument('files', metavar="file", action='store', nargs='*', default=None,
-                        help='target files path')
+    def _get_description(self) -> str:
+        return "match files with regular expression"
 
-    args = parser.parse_args()
+    def _add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument('-i', '--ignore-case', action='store_true', default=False,
+                            help='ignore case')
+        parser.add_argument('pattern', action='store', default=None,
+                            help='regular expression')
+        parser.add_argument('files', metavar="file", action='store', nargs='*', default=None,
+                            help='target files path')
 
-    flags = 0
-    if args.ignore_case:
-        flags = flags | re.I
-    pattern = re.compile(bytes(args.pattern, encoding="utf8"), flags=flags)
+    def _run(self, args: [str]) -> Optional[int]:
+        args = self.argument_parser.parse_args(args)
 
-    if utils.is_empty(args.files):
-        args.files = ["."]
+        flags = 0
+        if args.ignore_case:
+            flags = flags | re.I
+        pattern = re.compile(bytes(args.pattern, encoding="utf8"), flags=flags)
 
-    lief.logging.disable()
-    for file in args.files:
-        GrepMatcher(pattern).match(file)
+        if utils.is_empty(args.files):
+            args.files = ["."]
+
+        lief.logging.disable()
+        for file in args.files:
+            GrepMatcher(pattern).match(file)
+
+        return
 
 
+script = Script()
 if __name__ == '__main__':
-    main()
+    script.main()

@@ -36,6 +36,7 @@ from .utils import (
     read_file, write_file,
     get_lan_ip, get_wan_ip,
     split_version,
+    range_type,
 )
 
 from .proxy import (
@@ -55,4 +56,10 @@ from .url import (
 
 from .reactor import (
     Reactor,
+)
+
+from .script import (
+    ConsoleScript,
+    AndroidScript,
+    IOSScript,
 )
