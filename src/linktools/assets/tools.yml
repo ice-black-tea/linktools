@@ -214,7 +214,13 @@ GENERAL_TOOL_SIB:
         then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_windows_x86_64.tar.gz
       - else: ~
   unpack_path: sib-{version}
-  target_path: sib
+  target_path:
+    case:
+      - when: { system: [ darwin, linux ] }
+        then: sib
+      - when: { system: windows }
+        then: sib.exe
+      - else: ~
 
 GENERAL_TOOL_IPATOOL:
   version: 1.1.4
