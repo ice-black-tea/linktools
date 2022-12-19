@@ -26,13 +26,19 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-import functools
 import os
 import pkgutil
 from distutils.core import setup
 from types import ModuleType
 
 from setuptools import find_packages
+
+
+def get_path(*paths):
+    return os.path.join(
+        os.path.abspath(os.path.dirname(__file__)),
+        *paths
+    )
 
 
 class ConsoleScripts(list):
@@ -44,7 +50,7 @@ class ConsoleScripts(list):
         ))
 
     def extend_modules(self, *path, module_prefix, script_prefix):
-        scripts_path = get_path("src", *path)
+        scripts_path = get_path(*path)
         for _, module_name, _ in pkgutil.iter_modules([scripts_path]):
             if not module_name.startswith("_"):
                 self.append("{script_prefix}-{script_name} = {module_prefix}.{module_name}:script.main".format(
@@ -56,10 +62,6 @@ class ConsoleScripts(list):
 
 
 if __name__ == '__main__':
-    get_path = functools.partial(
-        os.path.join,
-        os.path.abspath(os.path.dirname(__file__)),
-    )
 
     version = ModuleType("version")
     version_path = get_path("src", "linktools", "version.py")
@@ -73,18 +75,18 @@ if __name__ == '__main__':
     scripts = ConsoleScripts()
     scripts.append_script("lt", "linktools.__main__")
     scripts.extend_modules(
-        "linktools", "scripts", "common",
+        "src", "linktools", "scripts", "common",
         script_prefix="ct",
         module_prefix=f"linktools.scripts.common"
     )
     scripts.extend_modules(
-        "linktools", "scripts", "android",
+        "src", "linktools", "scripts", "android",
         script_prefix="at",
-        module_prefix=f"linktools.scripts.common")
+        module_prefix=f"linktools.scripts.android")
     scripts.extend_modules(
-        "linktools", "scripts", "ios",
+        "src", "linktools", "scripts", "ios",
         script_prefix="it",
-        module_prefix=f"linktools.scripts.common"
+        module_prefix=f"linktools.scripts.ios"
     )
 
     setup(

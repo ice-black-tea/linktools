@@ -29,7 +29,6 @@
 import importlib
 import os
 import pkgutil
-import sys
 from argparse import ArgumentParser
 from typing import Optional
 
@@ -55,7 +54,7 @@ class Script(utils.ConsoleScript):
 
         console = get_console()
         console.print(self._walk_scripts(
-            Tree("📂 scripts"),
+            Tree(Panel.fit(f"📂 scripts")),
             environ.resource.get_script_path(),
             "linktools.scripts"
         ))
@@ -67,7 +66,7 @@ class Script(utils.ConsoleScript):
             dir_entry: os.DirEntry = dir_entry
             if dir_entry.is_dir() and not dir_entry.name.startswith("_"):
                 self._walk_scripts(
-                    node.add(f"📂 {dir_entry.name}"),
+                    node.add(Panel.fit(f"📂 {dir_entry.name}")),
                     os.path.join(path, dir_entry.name),
                     f"{prefix}.{dir_entry.name}"
                 )
@@ -77,8 +76,7 @@ class Script(utils.ConsoleScript):
             script = getattr(module, "script")
             if script and isinstance(script, utils.ConsoleScript):
                 node.add(Group(
-                    f"🐍 [bold red]{name}[/bold red]: {script.description}",
-                    Panel.fit(f"Usage: {sys.executable} -m {prefix}.{name}", border_style="red"),
+                    Panel.fit(f"🐍 [bold red]{name}[/bold red]: {script.description}", border_style="red"),
                 ))
 
         return node
