@@ -31,7 +31,7 @@ import pkgutil
 from distutils.core import setup
 from types import ModuleType
 
-from setuptools import find_packages
+from setuptools import find_namespace_packages
 
 
 def get_path(*paths):
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
 
         include_package_data=True,
-        packages=find_packages("src"),
+        packages=find_namespace_packages("src"),
         package_dir={'': 'src'},
 
         entry_points={"console_scripts": scripts},
