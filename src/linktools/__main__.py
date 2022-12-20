@@ -30,7 +30,7 @@ import importlib
 import os
 import pkgutil
 from argparse import ArgumentParser
-from typing import Optional, Generator, Any
+from typing import Optional
 
 from rich import get_console
 from rich.tree import Tree
@@ -62,7 +62,7 @@ class Script(utils.ConsoleScript):
 
         return
 
-    def _walk_scripts(self, path: str, prefix: str) -> Generator[tuple[str, utils.ConsoleScript], Any, None]:
+    def _walk_scripts(self, path: str, prefix: str):
         for entry in sorted(os.scandir(path), key=lambda o: o.name):
             entry: os.DirEntry = entry
             if entry.is_dir() and not entry.name.startswith("_"):
