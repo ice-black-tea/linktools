@@ -34,7 +34,7 @@ import threading
 import time
 import uuid
 from collections.abc import Iterable
-from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar, Tuple
+from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
 from urllib.request import urlopen
 
 _T = TypeVar('_T')
@@ -317,7 +317,8 @@ def get_lan_ip() -> Optional[str]:
     except:
         return None
     finally:
-        s.close()
+        if s is not None:
+            ignore_error(s.close)
 
 
 def get_wan_ip() -> Optional[str]:
@@ -328,7 +329,7 @@ def get_wan_ip() -> Optional[str]:
         return None
 
 
-def split_version(version: str) -> Tuple[int, ...]:
+def split_version(version: str) -> [int, ...]:
     return tuple(int(i, 0) for i in version.split("."))
 
 

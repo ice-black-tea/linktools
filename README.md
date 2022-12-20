@@ -23,16 +23,9 @@ linktools[frida]：集成frida hook框架，支持android、ios hook
 linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
 ```
 
-### 配置环境变量（可选）
-
-下载的工具和其他缓存会默认存储在“~/.linktools/”目录下，可通过配置以下修改默认存储位置
-
-```python
-SETTING_DATA_PATH = "/Users/admin/.linktools/data"
-SETTING_TEMP_PATH = "/Users/admin/.linktools/temp"
-```
-
 ## 相关功能
+
+![scripts](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/imgs/scripts.png)
 
 ### 通用功能（脚本前缀为ct-）
 

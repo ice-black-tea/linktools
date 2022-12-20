@@ -30,15 +30,13 @@ import importlib
 import os
 import pkgutil
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, Generator, Any
 
 from rich import get_console
-from rich.console import Group
-from rich.panel import Panel
 from rich.tree import Tree
 
 from . import utils
-from ._environ import environ
+from ._environ import resource
 
 
 class Script(utils.ConsoleScript):
@@ -50,36 +48,38 @@ class Script(utils.ConsoleScript):
         pass
 
     def _run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        self.argument_parser.parse_args(args)
+
+        path = resource.get_script_path()
+        prefix = "linktools.scripts"
+
+        tree = Tree(f"📂 scripts")
+        for module, script in self._walk_scripts(path, prefix):
+            tree.add(f"🐍 [bold red]{module}[/bold red]: {script.description}")
 
         console = get_console()
-        console.print(self._walk_scripts(
-            Tree(Panel.fit(f"📂 scripts")),
-            environ.resource.get_script_path(),
-            "linktools.scripts"
-        ))
+        console.print(tree)
 
         return
 
-    def _walk_scripts(self, node: Tree, path: str, prefix: str):
-        for dir_entry in sorted(os.scandir(path), key=lambda entry: entry.name):
-            dir_entry: os.DirEntry = dir_entry
-            if dir_entry.is_dir() and not dir_entry.name.startswith("_"):
-                self._walk_scripts(
-                    node.add(Panel.fit(f"📂 {dir_entry.name}")),
-                    os.path.join(path, dir_entry.name),
-                    f"{prefix}.{dir_entry.name}"
+    def _walk_scripts(self, path: str, prefix: str) -> Generator[tuple[str, utils.ConsoleScript], Any, None]:
+        for entry in sorted(os.scandir(path), key=lambda o: o.name):
+            entry: os.DirEntry = entry
+            if entry.is_dir() and not entry.name.startswith("_"):
+                yield from self._walk_scripts(
+                    os.path.join(path, entry.name),
+                    f"{prefix}.{entry.name}"
                 )
 
         for _, name, is_pkg in sorted(pkgutil.walk_packages(path=[path]), key=lambda i: i[1]):
-            module = importlib.import_module(f"{prefix}.{name}")
-            script = getattr(module, "script")
-            if script and isinstance(script, utils.ConsoleScript):
-                node.add(Group(
-                    Panel.fit(f"🐍 [bold red]{name}[/bold red]: {script.description}", border_style="red"),
-                ))
-
-        return node
+            if not is_pkg:
+                try:
+                    module = importlib.import_module(f"{prefix}.{name}")
+                    script = getattr(module, "script")
+                    if script and isinstance(script, utils.ConsoleScript):
+                        yield f"{prefix}.{name}", script
+                except Exception as e:
+                    self.logger.debug(f"import {prefix}.{name} error, skip: {e}")
 
 
 script = Script()

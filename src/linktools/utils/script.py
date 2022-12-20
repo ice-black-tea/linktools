@@ -35,7 +35,7 @@ import sys
 import traceback
 from abc import ABC
 from argparse import ArgumentParser, Action, SUPPRESS
-from typing import Tuple, Type, Optional, Callable
+from typing import Tuple, Type, Optional
 
 from rich import get_console
 from rich.prompt import IntPrompt
@@ -49,6 +49,7 @@ from ..version import __version__
 
 
 class ConsoleScript(abc.ABC):
+
     logger: logging.Logger = cached_property(lambda self: self._get_logger())
     description: str = cached_property(lambda self: self._get_description())
     argument_parser: ArgumentParser = cached_property(lambda self: self._create_argument_parser())

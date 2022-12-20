@@ -28,13 +28,12 @@
 """
 import functools
 import threading
-from types import GenericAlias
-from typing import Tuple, Type, Any, TypeVar, Callable
+import typing
 
-_T = TypeVar('_T')
+_T = typing.TypeVar('_T')
 
 
-def singleton(cls: Type[_T]) -> Callable[..., _T]:
+def singleton(cls: typing.Type[_T]) -> typing.Callable[..., _T]:
     instances = {}
 
     @functools.wraps(cls)
@@ -46,8 +45,8 @@ def singleton(cls: Type[_T]) -> Callable[..., _T]:
     return wrapper
 
 
-def try_except(errors: Tuple[Type[BaseException]] = (Exception,), default: Any = None):
-    def decorator(fn: Callable[..., _T]) -> Callable[..., _T]:
+def try_except(errors: typing.Tuple[typing.Type[BaseException]] = (Exception,), default: typing.Any = None):
+    def decorator(fn: typing.Callable[..., _T]) -> typing.Callable[..., _T]:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs) -> _T:
             try:
@@ -64,7 +63,7 @@ def synchronized(lock=None):
     if lock is None:
         lock = threading.Lock()
 
-    def decorator(fn: Callable[..., _T]) -> Callable[..., _T]:
+    def decorator(fn: typing.Callable[..., _T]) -> typing.Callable[..., _T]:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs) -> _T:
             lock.acquire()
@@ -85,7 +84,7 @@ class cached_property:
         self.func = func
         self.attrname = None
         self.__doc__ = func.__doc__
-        self.lock = None
+        self.lock = threading.RLock()
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
@@ -112,10 +111,7 @@ class cached_property:
             raise TypeError(msg) from None
         val = cache.get(self.attrname, self.__missing__)
         if val is self.__missing__:
-            try:
-                if self.lock:
-                    self.lock.acquire()
-
+            with self.lock:
                 # check if another thread filled cache while we awaited lock
                 val = cache.get(self.attrname, self.__missing__)
                 if val is self.__missing__:
@@ -129,17 +125,8 @@ class cached_property:
                         )
                         raise TypeError(msg) from None
 
-            finally:
-                if self.lock:
-                    self.lock.release()
-
         return val
-
-    __class_getitem__ = classmethod(GenericAlias)
 
 
 class locked_cached_property(cached_property):
-
-    def __init__(self, func, name=None, doc=None):
-        super().__init__(func)
-        self.lock = threading.RLock()
+    pass
