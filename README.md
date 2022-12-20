@@ -25,7 +25,7 @@ linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
 
 ## 相关功能
 
-![scripts](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/imgs/scripts.png)
+![scripts](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/imgs/scripts.jpg)
 
 ### 通用功能（脚本前缀为ct-）
 
