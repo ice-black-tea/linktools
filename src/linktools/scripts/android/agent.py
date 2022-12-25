@@ -35,7 +35,8 @@ from linktools.android import AdbError
 
 class Script(utils.AndroidScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "used for debugging android-tools.apk"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

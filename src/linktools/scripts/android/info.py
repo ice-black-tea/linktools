@@ -30,7 +30,6 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import logger, utils
-from linktools.android import Device
 
 props = (
     "ro.product.manufacturer",
@@ -73,7 +72,8 @@ cmds = (
 
 class Script(utils.AndroidScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "fetch device information"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

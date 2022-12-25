@@ -35,7 +35,8 @@ from linktools.frida.android import AndroidFridaServer
 
 class Script(utils.AndroidScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "easy to use frida"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

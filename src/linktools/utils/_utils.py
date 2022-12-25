@@ -40,22 +40,27 @@ from urllib.request import urlopen
 _T = TypeVar('_T')
 
 
-class TimeoutMeter:
+class Timeout:
 
     def __init__(self, timeout: Union[float, None]):
         self._deadline = None
         self._timeout = timeout
         self.reset()
 
-    def reset(self) -> None:
-        if self._timeout is not None and self._timeout >= 0:
-            self._deadline = time.time() + self._timeout
-
-    def get(self) -> Union[float, None]:
+    @property
+    def remain(self) -> Union[float, None]:
         timeout = None
         if self._deadline is not None:
             timeout = max(self._deadline - time.time(), 0)
         return timeout
+
+    @property
+    def deadline(self):
+        return self._deadline
+
+    def reset(self) -> None:
+        if self._timeout is not None and self._timeout >= 0:
+            self._deadline = time.time() + self._timeout
 
     def check(self) -> "bool":
         if self._deadline is not None:
@@ -72,9 +77,9 @@ class InterruptableEvent(threading.Event):
     def wait(self, timeout=None):
         interval = 1
         wait = super().wait
-        meter = TimeoutMeter(timeout)
+        timeout = Timeout(timeout)
         while True:
-            t = meter.get()
+            t = timeout.remain
             if t is None:
                 t = interval
             elif t <= 0:

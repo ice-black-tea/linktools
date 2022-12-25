@@ -36,7 +36,11 @@ from linktools.frida.ios import IOSFridaServer
 
 class Script(utils.IOSScript):
 
-    def _get_description(self) -> str:
+    def _main_init(self):
+        environ.show_log_time = True
+
+    @property
+    def _description(self) -> str:
         return "easy to use frida"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
@@ -139,5 +143,4 @@ class Script(utils.IOSScript):
 
 script = Script()
 if __name__ == '__main__':
-    environ.show_log_time = True
     script.main()

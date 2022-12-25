@@ -426,15 +426,15 @@ class Device(object):
         获取顶层包名
         :return: 顶层包名
         """
-        timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
+        timeout = utils.Timeout(kwargs.pop("timeout", None))
         if self.uid < 10000:
             args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1", ]
-            out = self.shell(*args, timeout=timeout_meter.get(), **kwargs)
+            out = self.shell(*args, timeout=timeout, **kwargs)
             items = out.splitlines()[-1].split()
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0].rstrip()
         # use agent instead of dumpsys
-        out = self.call_agent("common", "--top-package", timeout=timeout_meter.get(), **kwargs)
+        out = self.call_agent("common", "--top-package", timeout=timeout, **kwargs)
         if not utils.is_empty(out):
             return out
         raise AdbError("can not fetch top package")
@@ -456,13 +456,13 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
+        timeout = utils.Timeout(kwargs.pop("timeout", None))
         if self.uid < 10000:
-            out = self.shell("pm", "path", package, timeout=timeout_meter.get(), **kwargs)
+            out = self.shell("pm", "path", package, timeout=timeout, **kwargs)
             match = re.search(r"^.*package:[ ]*(.*)[\s\S]*$", out)
             if match is not None:
                 return match.group(1).strip()
-        obj = self.get_packages(package, simple=True, timeout=timeout_meter.get(), **kwargs)
+        obj = self.get_packages(package, simple=True, timeout=timeout, **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     def get_package(self, package_name: str, **kwargs) -> Optional[Package]:

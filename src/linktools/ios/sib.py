@@ -6,7 +6,7 @@ import subprocess
 from subprocess import TimeoutExpired
 from typing import Any, AnyStr
 
-from .. import utils, tools, ToolExecError, environ
+from .. import utils, tools, ToolExecError
 from .._logging import get_logger
 from ..decorator import cached_property
 
@@ -153,8 +153,8 @@ class Device(object):
             "proxy",
             "--local-port", local_port,
             "--remote-port", remote_port,
-            stdout=None if environ.debug else subprocess.DEVNULL,
-            stderr=None if environ.debug else subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,  # None if environ.debug else subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,  # None if environ.debug else subprocess.DEVNULL,
             stdin=subprocess.PIPE,
         )
         process.call_as_daemon(timeout=1)

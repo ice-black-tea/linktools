@@ -74,6 +74,10 @@ class Environ:
 
     @show_log_time.setter
     def show_log_time(self, value: bool):
+        from linktools import LogHandler
+        handler = LogHandler.get_instance()
+        if handler:
+            handler.show_time = value
         self.config["__SHOW_LOG_TIME__"] = value
 
     @property
@@ -82,6 +86,10 @@ class Environ:
 
     @show_log_level.setter
     def show_log_level(self, value: bool):
+        from linktools import LogHandler
+        handler = LogHandler.get_instance()
+        if handler:
+            handler.show_level = value
         self.config["__SHOW_LOG_LEVEL__"] = value
 
     @classmethod

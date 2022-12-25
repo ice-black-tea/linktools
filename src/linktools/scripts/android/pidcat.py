@@ -22,7 +22,7 @@ limitations under the License.
 import re
 import sys
 from argparse import ArgumentParser
-from subprocess import PIPE, DEVNULL
+from subprocess import PIPE
 from typing import Optional
 
 from linktools import utils
@@ -57,7 +57,8 @@ def get_char_width(char):
 
 class Script(utils.AndroidScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "Filter logcat by package name"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

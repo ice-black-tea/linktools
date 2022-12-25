@@ -37,7 +37,8 @@ from linktools import utils, logger
 
 class Script(utils.AndroidScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "common intent action"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

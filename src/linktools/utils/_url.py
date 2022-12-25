@@ -40,7 +40,7 @@ from filelock import FileLock
 from rich.progress import BarColumn, DownloadColumn, Progress, \
     TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn, TextColumn
 
-from ._utils import TimeoutMeter, get_md5, ignore_error, split_version
+from ._utils import Timeout, get_md5, ignore_error, split_version
 from .._environ import resource, config, tools
 from .._logging import get_logger, LogColumn
 from ..decorator import cached_property
@@ -139,7 +139,7 @@ class DownloadContext:
     def __exit__(self, *args, **kwargs):
         self._db.__exit__(*args, **kwargs)
 
-    def download(self, timeout_meter: TimeoutMeter):
+    def download(self, timeout: Timeout):
         _logger.debug(f"Download file to temp path {self.file_path}")
 
         initial = 0
@@ -177,7 +177,7 @@ class DownloadContext:
 
             with open(self.file_path, 'ab') as fp:
                 offset = 0
-                for data in fn(timeout_meter.get()):
+                for data in fn(timeout.remain):
                     advance = len(data)
                     offset += advance
                     fp.write(data)
@@ -271,10 +271,10 @@ class UrlFile:
 
         lock = self._lock
         target_path = self._file_path
-        timeout_meter = TimeoutMeter(timeout)
+        timeout = Timeout(timeout)
 
         try:
-            lock.acquire(timeout=timeout_meter.get(), poll_interval=1)
+            lock.acquire(timeout=timeout.remain, poll_interval=1)
 
             if not os.path.exists(self._root_path):
                 os.makedirs(self._root_path)
@@ -298,7 +298,7 @@ class UrlFile:
 
                     # 开始下载
                     context.completed = False
-                    context.download(timeout_meter)
+                    context.download(timeout)
                     context.completed = True
 
                 if save_dir:
@@ -313,7 +313,7 @@ class UrlFile:
                     os.rename(self._file_path, target_path)
 
                     # 把文件移动到指定目录之后，就可以清理缓存文件了
-                    self.clear(timeout=timeout_meter.get())
+                    self.clear(timeout=timeout.remain)
 
         except DownloadError as e:
             raise e

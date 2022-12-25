@@ -118,6 +118,22 @@ class LogHandler(RichHandler):
             # highlighter=NullHighlighter()
         )
 
+    @property
+    def show_level(self):
+        return self._log_render.show_level
+
+    @show_level.setter
+    def show_level(self, value: bool):
+        self._log_render.show_level = value
+
+    @property
+    def show_time(self):
+        return self._log_render.show_time
+
+    @show_time.setter
+    def show_time(self, value: bool):
+        self._log_render.show_time = value
+
     def get_level_text(self, record: logging.LogRecord) -> Text:
         level_name = record.levelname
         level_no = record.levelno
@@ -139,29 +155,8 @@ class LogHandler(RichHandler):
 
         return message_text
 
-
-class LogColumn(ProgressColumn):
-
-    def __init__(self, table_column: Optional[Column] = None):
-        super().__init__(table_column=table_column or Column(no_wrap=True))
-        self._log_handler = self._get_log_handler()
-
-    def render(self, task: Task) -> Union[str, Text]:
-        if not self._log_handler:
-            return ""
-        result = Text()
-        if environ.show_log_time:
-            date_format = None
-            if self._log_handler.formatter:
-                date_format = self._log_handler.formatter.datefmt
-            result.append(_config.get_time_text(format=date_format))
-            result.append(" ")
-        if environ.show_log_level:
-            result.append(_config.get_level_text(logging.WARNING))
-        return result
-
     @classmethod
-    def _get_log_handler(cls) -> Optional[LogHandler]:
+    def get_instance(cls) -> Optional["LogHandler"]:
         c = get_logger()
         while c:
             if c.handlers:
@@ -173,6 +168,27 @@ class LogColumn(ProgressColumn):
             else:
                 c = c.parent
         return None
+
+
+class LogColumn(ProgressColumn):
+
+    def __init__(self, table_column: Optional[Column] = None):
+        super().__init__(table_column=table_column or Column(no_wrap=True))
+        self._log_handler = LogHandler.get_instance()
+
+    def render(self, task: Task) -> Union[str, Text]:
+        if not self._log_handler:
+            return ""
+        result = Text()
+        if self._log_handler.show_time:
+            date_format = None
+            if self._log_handler.formatter:
+                date_format = self._log_handler.formatter.datefmt
+            result.append(_config.get_time_text(format=date_format))
+            result.append(" ")
+        if self._log_handler.show_level:
+            result.append(_config.get_level_text(logging.WARNING))
+        return result
 
 
 def get_logger(name: str = None, prefix=module_name) -> "Logger":
@@ -189,20 +205,20 @@ class Logger(logging.Logger):
         msg = str(msg)
         msg += ''.join([str(i) for i in args])
 
-        extra = kwargs.get("extra") or {}
-        self._move_args(kwargs, extra, "style")
-        self._move_args(kwargs, extra, "indent")
-        self._move_args(kwargs, extra, "markup")
-        self._move_args(kwargs, extra, "highlighter")
-        kwargs["extra"] = extra
+        extra = kwargs["extra"] = kwargs.get("extra") or {}
+        self._move_args(
+            kwargs, extra,
+            "style", "indent", "markup", "highlighter"
+        )
 
         return super()._log(level, msg, None, **kwargs)
 
     @classmethod
-    def _move_args(cls, from_, to_, key):
-        value = from_.pop(key, None)
-        if value is not None:
-            to_[key] = value
+    def _move_args(cls, from_, to_, *keys):
+        for key in keys:
+            value = from_.pop(key, None)
+            if value is not None:
+                to_[key] = value
 
 
 _config = LogConfig()

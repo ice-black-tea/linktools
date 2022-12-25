@@ -41,7 +41,8 @@ from ._environ import resource
 
 class Script(utils.ConsoleScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "linktools toolkit"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

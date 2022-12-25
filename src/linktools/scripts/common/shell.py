@@ -15,7 +15,8 @@ from linktools import utils, tools
 
 class Script(utils.ConsoleScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "shell wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

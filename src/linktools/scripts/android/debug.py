@@ -34,7 +34,8 @@ from linktools import utils
 
 class Script(utils.AndroidScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "debugger"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

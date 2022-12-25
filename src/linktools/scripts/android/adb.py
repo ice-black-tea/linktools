@@ -48,7 +48,8 @@ class Script(utils.AndroidScript):
         "reconnect",
     ]
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "adb wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

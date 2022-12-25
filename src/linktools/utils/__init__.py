@@ -28,7 +28,7 @@
 """
 
 from ._utils import (
-    TimeoutMeter, InterruptableEvent, ignore_error,
+    Timeout, InterruptableEvent, ignore_error,
     cast, int, bool,
     is_contain, is_empty,
     get_item, pop_item, get_list_item,

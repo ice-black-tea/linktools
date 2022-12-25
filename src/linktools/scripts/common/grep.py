@@ -193,7 +193,8 @@ class GrepMatcher:
 
 class Script(utils.ConsoleScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "match files with regular expression"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

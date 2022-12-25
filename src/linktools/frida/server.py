@@ -64,11 +64,13 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
 
         _logger.info("Start frida server ...")
         self._start()
-        for i in range(10):
-            time.sleep(0.5)
+
+        timeout = utils.Timeout(10)
+        while timeout.check():
             if self.is_running:
                 _logger.info("Frida server is running ...")
                 return True
+            time.sleep(min(timeout.remain, 0.5))
 
         raise frida.ServerNotRunningError("Frida server failed to run ...")
 

@@ -14,7 +14,8 @@ class Script(utils.IOSScript):
 
     REMOTE_PATH_PREFIX = "@"
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "OpenSSH secure file copy (iOS device need jailbreak)"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

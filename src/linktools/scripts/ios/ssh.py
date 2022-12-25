@@ -34,7 +34,8 @@ from linktools import utils
 
 class Script(utils.IOSScript):
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "OpenSSH remote login client (iOS device need jailbreak)"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:

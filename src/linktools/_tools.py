@@ -333,7 +333,7 @@ class Tool(metaclass=Meta):
             self,
             *args: [Any],
             input: AnyStr = None,
-            timeout: float = None,
+            timeout: Union[float, utils.Timeout] = None,
             ignore_errors: bool = False,
             output_to_logger: bool = False,
     ) -> str:
@@ -347,15 +347,13 @@ class Tool(metaclass=Meta):
         :return: 返回stdout输出内容
         """
 
+        process = self.popen(*args, capture_output=True)
+
         out, err = None, None
-        process = self.popen(
-            *args,
-            capture_output=True
-        )
         try:
             out, err = process.communicate(
                 input=input,
-                timeout=timeout,
+                timeout=timeout.remain if isinstance(timeout, utils.Timeout) else timeout,
             )
         except subprocess.TimeoutExpired:
             pass
@@ -391,7 +389,7 @@ class Tool(metaclass=Meta):
         return out
 
     def __repr__(self):
-        return f"<GeneralTool {self.name}>"
+        return f"<Tool {self.name}>"
 
 
 class ToolContainer(object):

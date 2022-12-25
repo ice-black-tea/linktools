@@ -37,7 +37,8 @@ from linktools import utils, tools, logger
 class Script(utils.ConsoleScript):
     tool_names = sorted([tool.name for tool in iter(tools)])
 
-    def _get_description(self) -> str:
+    @property
+    def _description(self) -> str:
         return "tools wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
