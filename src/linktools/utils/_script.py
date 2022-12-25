@@ -41,7 +41,7 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from . import utils
+from ._utils import ignore_error
 from .._environ import environ
 from .._logging import LogHandler, get_logger
 from ..decorator import cached_property
@@ -49,14 +49,18 @@ from ..version import __version__
 
 
 class ConsoleScript(abc.ABC):
-
     logger: logging.Logger = cached_property(lambda self: self._get_logger())
     description: str = cached_property(lambda self: self._get_description())
     argument_parser: ArgumentParser = cached_property(lambda self: self._create_argument_parser())
     known_errors: Tuple[Type[BaseException]] = cached_property(lambda self: self._get_known_errors())
 
     def main(self, *args, **kwargs):
-        self._initialize()
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[LogHandler()]
+        )
         self._exit(
             self.run(*args, **kwargs)
         )
@@ -104,22 +108,6 @@ class ConsoleScript(abc.ABC):
                 self.logger.error(traceback.format_exc())
 
         return exit_code
-
-    def _initialize(self):
-        self._initialize_config()
-        self._initialize_log()
-
-    def _initialize_config(self):
-        environ.show_log_time = False
-        environ.show_log_level = True
-
-    def _initialize_log(self):
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[LogHandler()]
-        )
 
     def _create_argument_parser(self):
         parser = ArgumentParser(description=self.description, conflict_handler="resolve")
@@ -184,11 +172,11 @@ class AndroidScript(ConsoleScript, ABC):
         def parse_handler(fn):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
-                serial = fn(*args, **kwargs)
-                if serial is not None:
+                device = fn(*args, **kwargs)
+                if device is not None:
                     with open(cache_path, "wt+") as fd:
-                        fd.write(serial)
-                return Device(serial)
+                        fd.write(device.id)
+                return device
 
             return wrapper
 
@@ -208,11 +196,10 @@ class AndroidScript(ConsoleScript, ABC):
 
             offset = 1
             for i in range(len(devices)):
-                device = Device(devices[i])
                 table.add_row(
                     str(i + offset),
-                    devices[i],
-                    utils.ignore_error(lambda: device.get_prop("ro.product.model", timeout=1)) or "",
+                    devices[i].id,
+                    ignore_error(lambda: devices[i].get_prop("ro.product.model", timeout=1)) or "",
                 )
 
             console = get_console()
@@ -230,7 +217,7 @@ class AndroidScript(ConsoleScript, ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return str(values)
+                    return Device(str(values))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -239,7 +226,7 @@ class AndroidScript(ConsoleScript, ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return Adb.exec("-d", "get-serialno").strip(" \r\n")
+                    return Device(Adb.exec("-d", "get-serialno").strip(" \r\n"))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -248,23 +235,7 @@ class AndroidScript(ConsoleScript, ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return Adb.exec("-e", "get-serialno").strip(" \r\n")
-
-                setattr(namespace, self.dest, wrapper)
-
-        class IndexAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                @parse_handler
-                def wrapper():
-                    index = int(values)
-                    devices = Adb.devices(alive=True)
-                    if utils.is_empty(devices):
-                        raise AdbError("no devices/emulators found")
-                    if not 0 < index <= len(devices):
-                        raise AdbError("index %d out of range %d~%d" % (index, 1, len(devices)))
-                    index = index - 1
-                    return devices[index]
+                    return Device(Adb.exec("-e", "get-serialno").strip(" \r\n"))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -277,9 +248,9 @@ class AndroidScript(ConsoleScript, ABC):
                     if addr.find(":") < 0:
                         addr = addr + ":5555"
                     devices = Adb.devices()
-                    if addr not in devices:
+                    if addr not in [device.id for device in devices]:
                         Adb.exec("connect", addr, output_to_logger=True)
-                    return addr
+                    return Device(addr)
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -292,7 +263,7 @@ class AndroidScript(ConsoleScript, ABC):
                         with open(cache_path, "rt") as fd:
                             result = fd.read().strip()
                             if len(result) > 0:
-                                return result
+                                return Device(result)
                     raise AdbError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
@@ -304,8 +275,6 @@ class AndroidScript(ConsoleScript, ABC):
                            help="use USB device (adb -d option)")
         group.add_argument("-e", "--emulator", dest="parse_device", nargs=0, const=True, action=EmulatorAction,
                            help="use TCP/IP device (adb -e option)")
-        group.add_argument("-i", "--index", metavar="INDEX", dest="parse_device", action=IndexAction,
-                           help="use device with given index")
         group.add_argument("-c", "--connect", metavar="IP[:PORT]", dest="parse_device", action=ConnectAction,
                            help="use device with TCP/IP")
         group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
@@ -315,36 +284,35 @@ class AndroidScript(ConsoleScript, ABC):
 class IOSScript(ConsoleScript, ABC):
 
     def _get_known_errors(self) -> Tuple[Type[BaseException]]:
-        from linktools.ios import MuxError
-        return MuxError,
+        from linktools.ios import SibError
+        return SibError,
 
     def _add_base_arguments(self, parser: ArgumentParser):
         super()._add_base_arguments(parser)
 
-        from linktools.ios import Usbmux, Device, MuxError
+        from linktools.ios import Sib, SibError, Device
 
         cache_path = environ.resource.get_temp_path("cache", "device", "ios", create_parent=True)
 
         def parse_handler(fn):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
-                udid = fn(*args, **kwargs)
-                if udid is not None:
+                device = fn(*args, **kwargs)
+                if device is not None:
                     with open(cache_path, "wt+") as fd:
-                        fd.write(udid)
-                return Device(udid)
+                        fd.write(device.id)
+                return device
 
             return wrapper
 
         @parse_handler
         def parse_device():
-            usbmux = Usbmux.get_default()
-            devices = usbmux.device_list()
+            devices = Sib.devices()
             if len(devices) == 0:
-                raise MuxError("no devices/emulators found")
+                raise SibError("no devices/emulators found")
 
             if len(devices) == 1:
-                return devices[0].udid
+                return devices[0]
 
             table = Table(show_lines=True)
             table.add_column("Index", justify="right", style="cyan", no_wrap=True)
@@ -353,11 +321,10 @@ class IOSScript(ConsoleScript, ABC):
 
             offset = 1
             for i in range(len(devices)):
-                device = devices[i]
                 table.add_row(
                     str(i + offset),
-                    utils.ignore_error(lambda: device.udid),
-                    utils.ignore_error(lambda: Device(device.udid, usbmux).name),
+                    ignore_error(lambda: devices[i].id),
+                    ignore_error(lambda: devices[i].name),
                 )
 
             console = get_console()
@@ -368,31 +335,14 @@ class IOSScript(ConsoleScript, ABC):
             choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
             index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
 
-            return devices[index - offset].udid
+            return devices[index - offset]
 
         class UdidAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return str(values)
-
-                setattr(namespace, self.dest, wrapper)
-
-        class IndexAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                @parse_handler
-                def wrapper():
-                    index = int(values)
-                    usbmux = Usbmux.get_default()
-                    devices = usbmux.device_list()
-                    if utils.is_empty(devices):
-                        raise MuxError("no devices/emulators found")
-                    if not 0 < index <= len(devices):
-                        raise MuxError("index %d out of range %d~%d" % (index, 1, len(devices)))
-                    index = index - 1
-                    return devices[index].udid
+                    return Device(str(values))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -405,23 +355,14 @@ class IOSScript(ConsoleScript, ABC):
                         with open(cache_path, "rt") as fd:
                             result = fd.read().strip()
                             if len(result) > 0:
-                                return result
-                    raise MuxError("no device used last time")
+                                return Device(result)
+                    raise SibError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
 
-        class UsbmuxdAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                Usbmux.set_default(Usbmux(str(values)))
-
         group = parser.add_argument_group(title="device optional arguments")
-        _group = group.add_mutually_exclusive_group()
-        _group.add_argument("-u", "--udid", metavar="UDID", dest="parse_device", action=UdidAction,
-                            help="specify unique device identifier", default=parse_device)
-        _group.add_argument("-i", "--index", metavar="INDEX", dest="parse_device", action=IndexAction,
-                            help="use device with given index")
-        _group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
-                            help="use last device")
-        group.add_argument("--socket", metavar="SOCKET", action=UsbmuxdAction,
-                           help="usbmuxd listen address, host:port or local-path")
+        group = group.add_mutually_exclusive_group()
+        group.add_argument("-u", "--udid", metavar="UDID", dest="parse_device", action=UdidAction,
+                           help="specify unique device identifier", default=parse_device)
+        group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
+                           help="use last device")

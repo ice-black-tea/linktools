@@ -36,10 +36,6 @@ from linktools.frida.android import AndroidFridaServer
 
 class Script(utils.AndroidScript):
 
-    def _initialize_config(self):
-        environ.show_log_time = True
-        environ.show_log_level = True
-
     def _get_description(self) -> str:
         return "easy to use frida"
 
@@ -154,4 +150,5 @@ class Script(utils.AndroidScript):
 
 script = Script()
 if __name__ == '__main__':
+    environ.show_log_time = True
     script.main()

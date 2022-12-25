@@ -8,4 +8,4 @@
 # Project   : link
 
 from .ipa import IPA, IPAError
-from .device import Device, Usbmux, MuxError
+from .sib import SibError, Sib, Device

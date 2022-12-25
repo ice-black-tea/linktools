@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import abc
 import functools
 import threading
 import time
@@ -36,6 +37,19 @@ from typing import Callable
 from .._logging import get_logger
 
 _logger = get_logger("utils.common")
+
+
+class Stoppable(abc.ABC):
+
+    @abc.abstractmethod
+    def stop(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.stop()
 
 
 class Reactor(object):
@@ -60,7 +74,7 @@ class Reactor(object):
         with self._lock:
             self._running = True
         self._worker = threading.Thread(target=self._run)
-        self._worker.setDaemon(True)
+        self._worker.daemon = True
         self._worker.start()
 
     def _run(self):

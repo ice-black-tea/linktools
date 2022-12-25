@@ -30,7 +30,6 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils
-from linktools.ios import Device
 
 
 class Script(utils.IOSScript):
@@ -49,7 +48,7 @@ class Script(utils.IOSScript):
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
-        device: Device = args.parse_device()
+        device = args.parse_device()
 
         with device.forward(args.local_port, args.port):
             ssh_args = [

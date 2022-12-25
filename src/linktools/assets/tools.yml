@@ -203,7 +203,7 @@ GENERAL_TOOL_CHROMEDRIVER:
       - else: ~
 
 GENERAL_TOOL_SIB:
-  version: 1.2.8
+  version: 1.3.5
   download_url:
     case:
       - when: {system: darwin}
@@ -231,3 +231,16 @@ GENERAL_TOOL_IPATOOL:
       - else: ~
   unpack_path: ipatool-{version}
   target_path: ipatool
+
+GENERAL_TOOL_GHIDRA:
+  version: 10.2.2
+  version_date: 20221115
+  download_url: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_{version}_build/ghidra_{version}_PUBLIC_{version_date}.zip
+  unpack_path: ghidra-{version}
+  target_path:
+    case:
+      - when: {system: [darwin, linux]}
+        then: ghidra_{version}_PUBLIC/ghidraRun
+      - when: {system: windows}
+        then: ghidra_{version}_PUBLIC/ghidraRun.bat
+      - else: ~

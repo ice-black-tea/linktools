@@ -32,7 +32,7 @@ import re
 from typing import Optional, Any, AnyStr
 
 from .struct import Package, UnixSocket, InetSocket
-from .. import utils, resource, tools, config, get_logger
+from .. import utils, resource, tools, config, get_logger, ToolExecError
 from ..decorator import cached_property
 from ..version import __name__ as module_name
 
@@ -40,16 +40,14 @@ _logger = get_logger("android.adb")
 
 
 class AdbError(Exception):
-
-    def __init__(self, message: str):
-        super().__init__(message.rstrip("\r\n"))
+    pass
 
 
 class Adb(object):
-    _alive_status = ["bootloader", "device", "recovery", "sideload"]
+    _ALIVE_STATUS = ("bootloader", "device", "recovery", "sideload")
 
     @classmethod
-    def devices(cls, alive: bool = None) -> [str]:
+    def devices(cls, alive: bool = None) -> ["Device"]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
@@ -63,9 +61,9 @@ class Adb(object):
             if len(splits) >= 2:
                 device, status = splits
                 if alive is None:
-                    devices.append(device)
-                elif alive == (status in cls._alive_status):
-                    devices.append(device)
+                    devices.append(Device(device))
+                elif alive == (status in cls._ALIVE_STATUS):
+                    devices.append(Device(device))
 
         return devices
 
@@ -74,69 +72,50 @@ class Adb(object):
         return tools["adb"].popen(*args, **kwargs)
 
     @classmethod
-    def exec(cls, *args: [Any], input: AnyStr = None, timeout: float = None, ignore_errors: bool = False,
-             capture_output: bool = True, output_to_logger: bool = False, **kwargs) -> str:
+    def exec(
+            cls,
+            *args: [Any],
+            input: AnyStr = None,
+            timeout: float = None,
+            ignore_errors: bool = False,
+            output_to_logger: bool = False
+    ) -> str:
         """
         执行命令
         :param args: 命令
         :param input: 输入
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
-        :param capture_output: 捕获输出，默认为True
         :param output_to_logger: 把输出打印到logger中
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
-        if output_to_logger:
-            if not capture_output:
-                capture_output = True
-                _logger.warning("output_to_logger argument needs to be used with capture_output argument")
-
-        process = cls.popen(
-            *args,
-            capture_output=capture_output,
-            **kwargs
-        )
-        out, err = process.communicate(
-            input=input,
-            timeout=timeout,
-            ignore_errors=ignore_errors
-        )
-
-        if output_to_logger:
-            if out:
-                message = out.decode(errors="ignore") if isinstance(out, bytes) else out
-                _logger.info(message.rstrip())
-            if err:
-                message = err.decode(errors="ignore") if isinstance(err, bytes) else err
-                _logger.error(message.rstrip())
-
-        if not ignore_errors and process.returncode != 0 and not utils.is_empty(err):
-            err = err.decode(errors='ignore')
-            if not utils.is_empty(err):
-                raise AdbError(err)
-
-        return out.decode(errors='ignore') if out is not None else ""
+        try:
+            return tools["adb"].exec(
+                *args,
+                input=input,
+                timeout=timeout,
+                ignore_errors=ignore_errors,
+                output_to_logger=output_to_logger,
+            )
+        except ToolExecError as e:
+            raise AdbError(e)
 
 
 class Device(object):
 
-    def __init__(self, device_id: str = None):
+    def __init__(self, id: str = None):
         """
-        :param device_id: 设备号
+        :param id: 设备号
         """
-        if device_id is None:
+        if id is None:
             devices = Adb.devices(alive=True)
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
             elif len(devices) > 1:
                 raise AdbError("more than one device/emulator")
-            self._device_id = next(iter(devices))
+            self._id = devices[0]._id
         else:
-            self._device_id = device_id
-
-    @property
-    def config(self) -> dict:
-        return config["ANDROID_TOOL_BRIDGE_APK"]
+            self._id = id
 
     @cached_property
     def id(self) -> str:
@@ -144,7 +123,7 @@ class Device(object):
         获取设备号
         :return: 设备号
         """
-        return self._device_id
+        return self._id
 
     @cached_property
     def abi(self) -> str:
@@ -249,64 +228,98 @@ class Device(object):
         """
         return self.exec("pull", src, dst, **kwargs)
 
-    def forward(self, *args, **kwargs) -> str:
+    def forward(self, local: str, remote: str):
         """
         端口转发
-        :return: adb输出结果
+        :param local: 本地端口
+        :param remote: 远程端口
+        :return: 可关闭对象
         """
-        return self.exec("forward", *args, **kwargs)
 
-    def reverse(self, *args, **kwargs) -> str:
+        result = self.exec("forward", local, remote)
+        if local == "tcp:0":
+            local = f"tcp:{result}"
+
+        _local = local.split(":", maxsplit=1)
+        _remote = remote.split(":", maxsplit=1)
+
+        # noinspection PyPropertyDefinition,PyMethodParameters
+        class Stoppable(utils.Stoppable):
+            local = property(fget=lambda _: _local)
+            remote = property(fget=lambda _: _remote)
+
+            def stop(_):
+                self.exec("forward", "--remove", local, ignore_errors=True)
+
+        return Stoppable()
+
+    def reverse(self, remote: str, local: str) -> utils.Stoppable:
         """
         端口转发
-        :return: adb输出结果
+        :param remote: 远程端口
+        :param local: 本地端口
+        :return: 可关闭对象
         """
-        return self.exec("reverse", *args, **kwargs)
 
-    def call_agent(self, *args: [str], **kwargs) -> str:
+        result = self.exec("reverse", remote, local)
+        if remote == "tcp:0":
+            remote = f"tcp:{result}"
+
+        _local = local.split(":", maxsplit=1)
+        _remote = remote.split(":", maxsplit=1)
+
+        # noinspection PyPropertyDefinition,PyMethodParameters
+        class Stoppable(utils.Stoppable):
+            local = property(fget=lambda _: _local)
+            remote = property(fget=lambda _: _remote)
+
+            def stop(_):
+                self.exec("reverse", "--remove", remote, ignore_errors=True)
+
+        return Stoppable()
+
+    def redirect(self, address: str = None, port: int = 8080) -> utils.Stoppable:
         """
-        调用辅助apk功能
-        :param args: 参数
-        :return: 输出结果
+        将手机流量重定向到本地指定端口
+        :param address: 本地监听地址，不填默认本机
+        :param port: 本地监听端口
+        :return: 重定向对象
         """
-        apk_name = self.config["name"]
-        apk_md5 = self.config["md5"]
-        main_class = self.config["main"]
-        start_flag = f"__start_flag_{apk_md5}__"
-        end_flag = f"__end_flag_{apk_md5}__"
 
-        apk_path = resource.get_asset_path(apk_name)
-        target_dir = self.get_storage_path("apk", apk_md5)
-        target_path = self.get_storage_path("apk", apk_md5, apk_name)
+        remote_port = None
 
-        capture_output = kwargs.setdefault("capture_output", True)
+        if not address:
+            # 如果没有指定目标地址，则通过reverse端口访问
+            remote_port = self.exec("reverse", f"tcp:0", f"tcp:{port}").strip()
+            destination = f"127.0.0.1:{remote_port}"
+            _logger.debug(f"Not found redirect address, use {destination} instead")
+        else:
+            # 指定了目标地址那就直接用目标地址
+            destination = f"{address}:{port}"
+            _logger.debug(f"Found redirect address {destination}")
 
-        # check apk path
-        if not self.is_file_exist(target_path):
-            self.shell("rm", "-rf", target_dir)
-            self.push(apk_path, target_path)
-            if not self.is_file_exist(target_path):
-                raise AdbError("%s does not exist" % target_path)
-        # set flag if necessary
-        if capture_output:
-            args = ["--start-flag", start_flag, "--end-flag", end_flag, *args]
-        # call apk
-        result = self.shell(
-            "CLASSPATH=%s" % target_path,
-            "app_process", "/", main_class, *args,
-            **kwargs
+        # 配置iptables规则，首先清除之前的规则，然后再把流量转发到目标端口上
+        self.sudo("iptables", "-t", "nat", "-F")
+        self.sudo(
+            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp",
+            "-o", "lo", "-j", "RETURN"  # 忽略localhost
         )
-        # parse flag if necessary
-        if capture_output:
-            begin = result.find(start_flag)
-            end = result.rfind(end_flag)
-            if begin >= 0 and end >= 0:
-                begin = begin + len(start_flag)
-                result = result[begin: end]
-            elif begin >= 0:
-                begin = begin + len(start_flag)
-                raise AdbError(result[begin:])
-        return result
+        self.sudo(
+            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp",
+            "-j", "DNAT", "--to-destination", destination
+        )
+
+        # noinspection PyMethodParameters
+        class Stoppable(utils.Stoppable):
+
+            def stop(_):
+                # 清空iptables -t nat配置
+                self.sudo("iptables", "-t", "nat", "-F", ignore_errors=True)
+                # 如果占用reverse端口，则释放端口
+                if remote_port:
+                    self.exec("reverse", "--remove", f"tcp:{remote_port}", ignore_errors=True)
+
+        return Stoppable()
 
     def get_prop(self, prop: str, **kwargs) -> str:
         """
@@ -314,8 +327,6 @@ class Device(object):
         :param prop: 属性名
         :return: 属性值
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         return self.shell("getprop", prop, **kwargs).rstrip()
 
     def set_prop(self, prop: str, value: str, **kwargs) -> str:
@@ -352,19 +363,69 @@ class Device(object):
         :param path: 文件路径
         :return: 是否存在
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
         out = self.shell(*args, **kwargs)
         return utils.bool(utils.int(out, default=0), default=False)
+
+    @property
+    def agent_info(self) -> dict:
+        return config["ANDROID_TOOL_BRIDGE_APK"]
+
+    def init_agent(self):
+        """
+        初始化agent
+        :return: agent路径
+        """
+        apk_name = self.agent_info["name"]
+        apk_md5 = self.agent_info["md5"]
+
+        apk_path = resource.get_asset_path(apk_name)
+        target_dir = self.get_storage_path("apk", apk_md5)
+        target_path = self.get_storage_path("apk", apk_md5, apk_name)
+
+        # check apk path
+        if not self.is_file_exist(target_path):
+            self.shell("rm", "-rf", target_dir)
+            self.push(apk_path, target_path)
+            if not self.is_file_exist(target_path):
+                raise AdbError("%s does not exist" % target_path)
+
+        return target_path
+
+    def call_agent(self, *args: [str], **kwargs) -> str:
+        """
+        调用辅助apk功能
+        :param args: 参数
+        :return: 输出结果
+        """
+        apk_md5 = self.agent_info["md5"]
+        main_class = self.agent_info["main"]
+        start_flag = f"__start_flag_{apk_md5}__"
+        end_flag = f"__end_flag_{apk_md5}__"
+
+        # call apk
+        args = ["--start-flag", start_flag, "--end-flag", end_flag, *args]
+        result = self.shell(
+            "CLASSPATH=%s" % self.init_agent(),
+            "app_process", "/", main_class, *args,
+            **kwargs
+        )
+
+        begin = result.find(start_flag)
+        end = result.rfind(end_flag)
+        if begin >= 0 and end >= 0:
+            begin = begin + len(start_flag)
+            result = result[begin: end]
+        elif begin >= 0:
+            begin = begin + len(start_flag)
+            raise AdbError(result[begin:])
+        return result
 
     def get_current_package(self, **kwargs) -> str:
         """
         获取顶层包名
         :return: 顶层包名
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
             args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1", ]
@@ -383,8 +444,6 @@ class Device(object):
         获取顶层activity名
         :return: 顶层activity名
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1"]
         result = self.shell(*args, **kwargs)
         items = result.splitlines()[-1].split()
@@ -397,8 +456,6 @@ class Device(object):
         获取apk路径
         :return: apk路径
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         timeout_meter = utils.TimeoutMeter(kwargs.pop("timeout", None))
         if self.uid < 10000:
             out = self.shell("pm", "path", package, timeout=timeout_meter.get(), **kwargs)
@@ -414,8 +471,6 @@ class Device(object):
         :param package_name: 包名
         :return: 包信息
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         args = ["package", "--packages", package_name]
         objs = json.loads(self.call_agent(*args, **kwargs))
         return Package(objs[0]) if len(objs) > 0 else None
@@ -428,8 +483,6 @@ class Device(object):
         :param simple: 只获取基本信息
         :return: 包信息
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         result = []
         agent_args = ["package"]
         if not utils.is_empty(package_names):
@@ -453,8 +506,6 @@ class Device(object):
         :param simple: 只获取基本信息
         :return: 包信息
         """
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         result = []
         agent_args = ["package"]
         if not utils.is_empty(uids):
@@ -496,8 +547,6 @@ class Device(object):
         return self._get_sockets(UnixSocket, "--unix-sock", **kwargs)
 
     def _get_sockets(self, type, command, **kwargs):
-        self._set_default(kwargs, capture_output=True, output_to_logger=False)
-
         result = []
         agent_args = ["network", command]
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
@@ -564,64 +613,5 @@ class Device(object):
             return match.group(0)
         return package_name
 
-    @classmethod
-    def _set_default(cls, kwargs: dict, **_kwargs: Any):
-        for key, value in _kwargs.items():
-            if key in kwargs and kwargs[key] != value:
-                _logger.warning(f"Invalid argument {key}={kwargs[key]}, ignored!", stack_info=True)
-            kwargs[key] = value
-
-    def redirect(self, address: str = None, port: int = 8080):
-        """
-        将手机流量重定向到本地指定端口
-        :param address: 本地监听地址，不填默认本机
-        :param port: 本地监听端口
-        :return: 重定向对象
-        """
-        return _Redirect(self, address, port)
-
     def __repr__(self):
-        return f"AdbDevice<{self.id}>"
-
-
-class _Redirect:
-
-    def __init__(self, device: "Device", address: str, port: int):
-        self.device = device
-        self.target_address = address
-        self.target_port = port
-        self.remote_port = None
-
-    def start(self):
-        if not self.target_address:
-            # 如果没有指定目标地址，则通过reverse端口访问
-            self.remote_port = self.device.exec("reverse", f"tcp:0", f"tcp:{self.target_port}").strip()
-            destination = f"127.0.0.1:{self.remote_port}"
-            _logger.debug(f"Not found redirect address, use {destination} instead")
-        else:
-            # 指定了目标地址那就直接用目标地址
-            destination = f"{self.target_address}:{self.target_port}"
-            _logger.debug(f"Found redirect address {destination}")
-        # 排除localhost
-        self.device.sudo(
-            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-o", "lo", "-j", "RETURN"
-        )
-        # 转发流量
-        self.device.sudo(
-            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "-j", "DNAT", "--to-destination", destination
-        )
-
-    def stop(self):
-        # 清空iptables -t nat配置
-        self.device.sudo("iptables", "-t", "nat", "-F", ignore_errors=True)
-        # 如果占用reverse端口，则释放端口
-        if self.remote_port:
-            self.device.exec("reverse", "--remove", f"tcp:{self.remote_port}", ignore_errors=True)
-
-    def __enter__(self):
-        self.stop()
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
+        return f"AndroidDevice<{self.id}>"

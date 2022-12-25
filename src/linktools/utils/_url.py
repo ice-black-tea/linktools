@@ -40,7 +40,7 @@ from filelock import FileLock
 from rich.progress import BarColumn, DownloadColumn, Progress, \
     TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn, TextColumn
 
-from .utils import TimeoutMeter, get_md5, ignore_error, split_version
+from ._utils import TimeoutMeter, get_md5, ignore_error, split_version
 from .._environ import resource, config, tools
 from .._logging import get_logger, LogColumn
 from ..decorator import cached_property
@@ -121,13 +121,13 @@ class DownloadContextVar(property):
 
 
 class DownloadContext:
-    url: str = DownloadContextVar("url")
-    user_agent: str = DownloadContextVar("user_agent")
-    headers: dict = DownloadContextVar("headers")
-    file_path: str = DownloadContextVar("file_path")
-    file_size: int = DownloadContextVar("file_size")
-    file_name: str = DownloadContextVar("file_name")
-    completed: bool = DownloadContextVar("completed", False)
+    url: str = DownloadContextVar("Url")
+    user_agent: str = DownloadContextVar("UserAgent")
+    headers: dict = DownloadContextVar("Headers")
+    file_path: str = DownloadContextVar("FilePath")
+    file_size: int = DownloadContextVar("FileSize")
+    file_name: str = DownloadContextVar("FileName")
+    completed: bool = DownloadContextVar("IsCompleted", False)
 
     def __init__(self, path: str):
         self._db = shelve.open(path)

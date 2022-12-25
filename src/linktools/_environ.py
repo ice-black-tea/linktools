@@ -32,7 +32,7 @@ import pathlib
 
 import yaml
 
-from .utils.proxy import lazy_load
+from .utils import lazy_load
 from .version import __name__ as module_name
 
 
@@ -133,9 +133,9 @@ class Environ:
 
     @classmethod
     def _create_default_tools(cls):
-        from ._tools import GeneralTools
+        from ._tools import ToolContainer
 
-        tools = GeneralTools()
+        tools = ToolContainer()
 
         # set environment variable
         index = 0

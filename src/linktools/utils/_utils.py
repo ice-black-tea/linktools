@@ -33,8 +33,8 @@ import socket
 import threading
 import time
 import uuid
-from collections.abc import Iterable
-from typing import Union, Sized, Callable, Optional, Type, Any, List, TypeVar
+from collections.abc import Iterable, Sized
+from typing import Union, Callable, Optional, Type, Any, List, TypeVar
 from urllib.request import urlopen
 
 _T = TypeVar('_T')

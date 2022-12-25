@@ -29,7 +29,8 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils
+from linktools import utils, resource
+from linktools.android import AdbError
 
 
 class Script(utils.AndroidScript):
@@ -45,8 +46,16 @@ class Script(utils.AndroidScript):
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
-        device.call_agent(*args.agent_args, privilege=args.privilege, capture_output=False)
-        return
+        adb_args = [
+            "CLASSPATH=%s" % device.init_agent(),
+            "app_process", "/", device.agent_info["main"],
+            *args.agent_args
+        ]
+        adb_args = ["shell", *adb_args] \
+            if not args.privilege or device.uid == 0 \
+            else ["shell", "su", "-c", *adb_args]
+        process = device.popen(*adb_args)
+        return process.call()
 
 
 script = Script()

@@ -12,13 +12,13 @@ import lzma
 import os
 import shutil
 import subprocess
-from typing import Collection
+from typing import Optional
 
 import frida
 
-from ..android import adb
-from .. import resource, config, utils, get_logger
 from .server import FridaServer
+from .. import resource, config, utils, get_logger
+from ..android import adb
 
 _logger = get_logger("frida.server.android")
 
@@ -33,6 +33,7 @@ class AndroidFridaServer(FridaServer):
         self._device = device or adb.Device()
         self._local_port = local_port
         self._remote_port = remote_port
+        self._forward: Optional[utils.Stoppable] = None
         self._environ = self.Environ(device.abi, frida.__version__)
 
     @property
@@ -44,7 +45,7 @@ class AndroidFridaServer(FridaServer):
         return self._remote_port
 
     @classmethod
-    def setup(cls, abis: Collection[str] = ("arm", "arm64", "x86_64", "x86"), version: str = frida.__version__):
+    def setup(cls, abis: [str] = ("arm", "arm64", "x86_64", "x86"), version: str = frida.__version__):
         for abi in abis:
             env = cls.Environ(abi, version)
             env.prepare()
@@ -60,7 +61,7 @@ class AndroidFridaServer(FridaServer):
             self._device.sudo("chmod", "755", self._environ.remote_path, output_to_logger=True)
 
         # 转发端口
-        self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
+        self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
 
         # 接下来新开一个进程运行frida server，并且输出一下是否出错
         self._device.sudo(
@@ -70,7 +71,6 @@ class AndroidFridaServer(FridaServer):
                 "-l", f"0.0.0.0:{self._remote_port}",
                 "-D", "&"
             ]),
-            stdin=subprocess.PIPE,
             ignore_errors=True,
             output_to_logger=True,
         )
@@ -84,7 +84,7 @@ class AndroidFridaServer(FridaServer):
                     self.kill(process.pid)
         finally:
             # 把转发端口给移除了，不然会一直占用这个端口
-            self._device.forward("--remove", f"tcp:{self._local_port}", ignore_errors=True)
+            self._forward.stop()
 
     class Environ:
 

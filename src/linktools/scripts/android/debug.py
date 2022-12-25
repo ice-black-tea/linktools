@@ -53,13 +53,12 @@ class Script(utils.AndroidScript):
         device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), output_to_logger=True)
 
         pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
-        device.forward(f"tcp:{args.port}", f"jdwp:{pid}", output_to_logger=True)
-
-        data = input("jdb connect? [Y/n]: ").strip()
-        if data in ["", "Y", "y"]:
-            process = utils.Popen("jdb", "-connect",
-                                  "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
-            return process.call()
+        with device.forward(f"tcp:{args.port}", f"jdwp:{pid}"):
+            data = input("jdb connect? [Y/n]: ").strip()
+            if data in ["", "Y", "y"]:
+                process = utils.Popen("jdb", "-connect",
+                                      "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
+                return process.call()
 
 
 script = Script()

@@ -26,7 +26,7 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
         self._device = device or Device()
         self._local_port = local_port
         self._remote_port = remote_port
-        self._thread = None
+        self._forward = None
 
     @property
     def local_port(self):
@@ -37,11 +37,10 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
         return self._remote_port
 
     def _start(self):
-        self._thread = self._device.forward(self._local_port, self._remote_port)
-        self._thread.start()
+        if self._forward is None:
+            self._forward = self._device.forward(self._local_port, self._remote_port)
 
     def _stop(self):
         if self._thread is not None:
-            utils.ignore_error(self._thread.stop)
-            utils.ignore_error(self._thread.join, 5)
-            self._thread = None
+            utils.ignore_error(self._forward.stop)
+            self._forward = None

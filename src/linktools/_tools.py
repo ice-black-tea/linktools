@@ -30,9 +30,10 @@
 import os
 import platform
 import shutil
+import subprocess
 import sys
 import warnings
-from typing import Dict, Union, Mapping, Iterator, Any
+from typing import Dict, Union, Mapping, Iterator, Any, AnyStr
 
 from . import utils
 from ._environ import resource, config
@@ -182,7 +183,11 @@ class Meta(type):
         return lambda self: self.config.get(key)
 
 
-class GeneralTool(metaclass=Meta):
+class ToolExecError(Exception):
+    pass
+
+
+class Tool(metaclass=Meta):
     __default__: Dict
     __parser__: Parser
 
@@ -199,7 +204,7 @@ class GeneralTool(metaclass=Meta):
     exists: bool = property(lambda self: self.dummy_path or os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: None if self.dummy_path else os.path.dirname(self.absolute_path))
 
-    def __init__(self, container: "GeneralTools", cfg: Union[dict, str], **kwargs):
+    def __init__(self, container: "ToolContainer", cfg: Union[dict, str], **kwargs):
         self.__container = container
         self.__config = cfg
 
@@ -270,7 +275,7 @@ class GeneralTool(metaclass=Meta):
         return cfg
 
     def copy(self, **kwargs):
-        return GeneralTool(self.__container, self.__config, **kwargs)
+        return Tool(self.__container, self.__config, **kwargs)
 
     def prepare(self) -> None:
         # download and unzip file
@@ -324,11 +329,72 @@ class GeneralTool(metaclass=Meta):
 
         return utils.Popen(*[*executable_cmdline, *args], **kwargs)
 
+    def exec(
+            self,
+            *args: [Any],
+            input: AnyStr = None,
+            timeout: float = None,
+            ignore_errors: bool = False,
+            output_to_logger: bool = False,
+    ) -> str:
+        """
+        执行命令
+        :param args: 命令
+        :param input: 输入
+        :param timeout: 超时时间
+        :param ignore_errors: 忽略错误，报错不会抛异常
+        :param output_to_logger: 把输出打印到logger中
+        :return: 返回stdout输出内容
+        """
+
+        out, err = None, None
+        process = self.popen(
+            *args,
+            capture_output=True
+        )
+        try:
+            out, err = process.communicate(
+                input=input,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            pass
+        finally:
+            process.kill()
+
+        if isinstance(out, bytes):
+            out = out.decode(errors="ignore")
+            out = out.strip()
+        elif isinstance(out, str):
+            out = out.strip()
+        else:
+            out = ""
+
+        if isinstance(err, bytes):
+            err = err.decode(errors="ignore")
+            err = err.strip()
+        elif isinstance(err, str):
+            err = err.strip()
+        else:
+            err = ""
+
+        if output_to_logger:
+            if out:
+                _logger.info(out)
+            if err:
+                _logger.error(err)
+
+        if not ignore_errors and process.returncode != 0:
+            if err:
+                raise ToolExecError(err)
+
+        return out
+
     def __repr__(self):
         return f"<GeneralTool {self.name}>"
 
 
-class GeneralTools(object):
+class ToolContainer(object):
     system: str = property(lambda self: self.config["system"])
     processor: str = property(lambda self: self.config["processor"])
     architecture: str = property(lambda self: self.config["architecture"])
@@ -340,21 +406,21 @@ class GeneralTools(object):
         self.config.setdefault("architecture", platform.architecture()[0].lower())
 
     @cached_property
-    def items(self) -> Mapping[str, GeneralTool]:
+    def items(self) -> Mapping[str, Tool]:
         items = {}
         for key, value in config.get_namespace("GENERAL_TOOL_").items():
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue
             name = value.setdefault("name", key)
-            items[name] = GeneralTool(self, value)
+            items[name] = Tool(self, value)
         return items
 
-    def __iter__(self) -> Iterator[GeneralTool]:
+    def __iter__(self) -> Iterator[Tool]:
         return iter(self.items.values())
 
-    def __getitem__(self, item) -> Union[GeneralTool, None]:
+    def __getitem__(self, item) -> Union[Tool, None]:
         return self.items[item] if item in self.items else None
 
-    def __getattr__(self, item) -> Union[GeneralTool, None]:
+    def __getattr__(self, item) -> Union[Tool, None]:
         return self.items[item] if item in self.items else None

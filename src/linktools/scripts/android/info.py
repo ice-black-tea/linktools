@@ -81,7 +81,7 @@ class Script(utils.AndroidScript):
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
-        device: Device = args.parse_device()
+        device = args.parse_device()
 
         logger.info(f"Property", style="red")
         for prop in props:

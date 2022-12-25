@@ -7,8 +7,9 @@ import os
 import subprocess
 from typing import AnyStr
 
-from .._logging import get_logger
+from . import _utils as utils
 from .._environ import environ
+from .._logging import get_logger
 
 _logger = get_logger("utils.subprocess")
 
@@ -67,28 +68,3 @@ class Popen(subprocess.Popen):
             except:
                 self.kill()
                 raise
-
-    def communicate(self, input: AnyStr = None, timeout: float = None, ignore_errors=False) -> (AnyStr, AnyStr):
-        """
-        执行命令，简单包装了一下communicate
-        :param input:
-        :param timeout:
-        :param ignore_errors:
-        :return: out, err
-        """
-
-        out, err = None, None
-        try:
-            out, err = super().communicate(
-                input=input,
-                timeout=timeout,
-            )
-        except Exception as e:
-            if ignore_errors:
-                _logger.debug(f"Ignore error: {e}")
-            else:
-                raise e
-        finally:
-            self.kill()
-
-        return out, err

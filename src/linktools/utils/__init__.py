@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .utils import (
+from ._utils import (
     TimeoutMeter, InterruptableEvent, ignore_error,
     cast, int, bool,
     is_contain, is_empty,
@@ -39,26 +39,27 @@ from .utils import (
     range_type,
 )
 
-from .proxy import (
+from ._proxy import (
     get_derived_type, lazy_load, lazy_raise,
 )
 
-from .subprocess import (
+from ._subprocess import (
     Popen,
     list2cmdline,
 )
 
-from .url import (
+from ._url import (
     make_url, cookie_to_dict, guess_file_name, user_agent,
     DownloadError, UrlFile,
     NotFoundError, get_chrome_driver,
 )
 
-from .reactor import (
+from ._reactor import (
+    Stoppable,
     Reactor,
 )
 
-from .script import (
+from ._script import (
     ConsoleScript,
     AndroidScript,
     IOSScript,

@@ -231,7 +231,7 @@ class Script(utils.AndroidScript):
                 return None
 
         if sys.stdin.isatty():
-            adb = device.popen(*adb_command, stdin=PIPE, stdout=PIPE, capture_output=False)
+            adb = device.popen(*adb_command, stdin=PIPE, stdout=PIPE)
         else:
             adb = FakeStdinProcess()
         pids = set()
@@ -287,7 +287,7 @@ class Script(utils.AndroidScript):
         def tag_in_tags_regex(tag, tags):
             return any(re.match(r'^' + t + r'$', tag) for t in map(str.strip, tags))
 
-        for line in device.shell("ps", stdout=PIPE, stderr=DEVNULL, capture_output=False).splitlines():
+        for line in device.shell("ps").splitlines():
             pid_match = PID_LINE.match(line.strip())
             if pid_match is not None:
                 pid = pid_match.group(1)
@@ -296,7 +296,7 @@ class Script(utils.AndroidScript):
                     seen_pids = True
                     pids.add(pid)
 
-        for line in device.shell("ps", "-A", stdout=PIPE, stderr=DEVNULL, capture_output=False).splitlines():
+        for line in device.shell("ps", "-A").splitlines():
             pid_match = PID_LINE.match(line.strip())
             if pid_match is not None:
                 pid = pid_match.group(1)
