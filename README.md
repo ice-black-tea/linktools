@@ -18,7 +18,6 @@ python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
 额外的依赖包以及相应功能如下：
 ```
 linktools[requests]：下载时使用requests包，并且支持socks5代理
-linktools[tidevice]：通过淘宝的tidevice管理ios设备
 linktools[frida]：集成frida hook框架，支持android、ios hook
 linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
 ```
