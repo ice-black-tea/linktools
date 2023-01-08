@@ -47,9 +47,9 @@ class _Proxy(object):
         object.__setattr__(self, "_Proxy__fn", fn or self.__missing__)
         object.__setattr__(self, "_Proxy__object", obj or self.__missing__)
         if name is not None:
-            object.__setattr__(self, '__custom_name__', name)
+            object.__setattr__(self, "__custom_name__", name)
         if __doc__ is not None:
-            object.__setattr__(self, '__doc__', __doc__)
+            object.__setattr__(self, "__doc__", __doc__)
 
     @_default_cls_attr('name', str, __name__)
     def __name__(self):

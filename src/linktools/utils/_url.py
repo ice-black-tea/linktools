@@ -94,8 +94,8 @@ def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:
 
 def cookie_to_dict(cookie: str) -> Dict[str, str]:
     cookies = {}
-    for item in cookie.split(';'):
-        key_value = item.split('=', 1)
+    for item in cookie.split(";"):
+        key_value = item.split("=", 1)
         cookies[key_value[0].strip()] = key_value[1].strip() if len(key_value) > 1 else ''
     return cookies
 

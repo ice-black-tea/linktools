@@ -11,7 +11,7 @@ from .. import logger
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(message)s',
+    format="%(message)s",
 )
 
 logger.info("initialize android frida server ...")

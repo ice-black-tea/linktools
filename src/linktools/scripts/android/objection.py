@@ -37,7 +37,7 @@ class Script(utils.AndroidScript):
 
     @property
     def _description(self) -> str:
-        return "easy to use frida"
+        return "easy to use objection"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,

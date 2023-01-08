@@ -37,7 +37,7 @@ from collections.abc import Iterable, Sized
 from typing import Union, Callable, Optional, Type, Any, List, TypeVar
 from urllib.request import urlopen
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 
 class Timeout:
@@ -271,7 +271,7 @@ def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T]
 
 def get_md5(data: Union[str, bytes]) -> str:
     if type(data) == str:
-        data = bytes(data, 'utf8')
+        data = bytes(data, "utf8")
     m = hashlib.md5()
     m.update(data)
     return m.hexdigest()
@@ -279,7 +279,7 @@ def get_md5(data: Union[str, bytes]) -> str:
 
 def get_sha1(data: Union[str, bytes]) -> str:
     if type(data) == str:
-        data = bytes(data, 'utf8')
+        data = bytes(data, "utf8")
     s1 = hashlib.sha1()
     s1.update(data)
     return s1.hexdigest()
@@ -287,7 +287,7 @@ def get_sha1(data: Union[str, bytes]) -> str:
 
 def get_sha256(data: Union[str, bytes]) -> str:
     if type(data) == str:
-        data = bytes(data, 'utf8')
+        data = bytes(data, "utf8")
     s1 = hashlib.sha256()
     s1.update(data)
     return s1.hexdigest()
@@ -299,17 +299,17 @@ def make_uuid() -> str:
 
 def gzip_compress(data: Union[str, bytes]) -> bytes:
     if type(data) == str:
-        data = bytes(data, 'utf8')
+        data = bytes(data, "utf8")
     return gzip.compress(data)
 
 
 def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
-    with open(path, 'rb' if binary else 'r') as f:
+    with open(path, "rb" if binary else 'r') as f:
         return f.read()
 
 
 def write_file(path: str, data: [str, bytes]) -> None:
-    with open(path, 'wb' if isinstance(data, bytes) else 'w') as f:
+    with open(path, "wb" if isinstance(data, bytes) else "w") as f:
         f.write(data)
 
 
@@ -317,7 +317,7 @@ def get_lan_ip() -> Optional[str]:
     s = None
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80))
+        s.connect(("8.8.8.8", 80))
         return s.getsockname()[0]
     except:
         return None

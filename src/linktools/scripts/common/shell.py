@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-# Author    : HuJi <jihu.hj@alibaba-inc.com>
-# Datetime  : 2021/12/16 3:23 下午
-# User      : huji
-# Product   : PyCharm
-# Project   : link
+import getpass
 import os
+import pwd
+import shutil
 from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, tools
+
+_shell_path = None
+if tools.system in ["darwin", "linux"]:
+    _shell_path = pwd.getpwnam(getpass.getuser()).pw_shell
+    if "SHELL" in os.environ:
+        _shell_path = os.environ["SHELL"]
+elif tools.system in ["windows"]:
+    _shell_path = shutil.which("powershell") or shutil.which("cmd")
+    if "ComSpec" in os.environ:
+        _shell_path = os.environ["ComSpec"]
 
 
 class Script(utils.ConsoleScript):
@@ -20,24 +28,18 @@ class Script(utils.ConsoleScript):
         return "shell wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        pass
+        parser.add_argument("-c", "--command", action="store", default=None, help="shell args")
 
     def _run(self, args: [str]) -> Optional[int]:
-        if tools.system in ["darwin", "linux"]:
-            bash_path = "/bin/bash"
-            if "SHELL" in os.environ:
-                bash_path = os.environ["SHELL"]
-        elif tools.system in ["windows"]:
-            bash_path = "C:\\WINDOWS\\system32\\cmd.exe"
-            if "ComSpec" in os.environ:
-                bash_path = os.environ["ComSpec"]
-        else:
+        args = self.argument_parser.parse_args()
+        if args.command:
+            process = utils.Popen(args.command, shell=True)
+            return process.call()
+
+        if not os.path.exists(_shell_path):
             raise NotImplementedError(f"unsupported system {tools.system}")
 
-        if not os.path.exists(bash_path):
-            raise NotImplementedError(f"file {bash_path} does not exist")
-
-        process = utils.Popen(bash_path, *args)
+        process = utils.Popen(_shell_path)
         return process.call()
 
 

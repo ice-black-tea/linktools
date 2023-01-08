@@ -37,7 +37,7 @@ class Script(utils.IOSScript):
 
     @property
     def _description(self) -> str:
-        return "easy to use frida"
+        return "easy to use objection"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,

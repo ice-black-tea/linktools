@@ -29,8 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, resource
-from linktools.android import AdbError
+from linktools import utils
 
 
 class Script(utils.AndroidScript):
@@ -40,9 +39,9 @@ class Script(utils.AndroidScript):
         return "used for debugging android-tools.apk"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument('-p', '--privilege', action='store_true', default=False,
-                            help='run with root privilege')
-        parser.add_argument('agent_args', nargs='...', help="agent args")
+        parser.add_argument("-p", "--privilege", action="store_true", default=False,
+                            help="run with root privilege")
+        parser.add_argument("agent_args", nargs="...", help="agent args")
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
@@ -60,5 +59,5 @@ class Script(utils.AndroidScript):
 
 
 script = Script()
-if __name__ == '__main__':
+if __name__ == "__main__":
     script.main()

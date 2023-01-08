@@ -49,22 +49,23 @@ from ..version import __version__
 
 
 class ConsoleScript(abc.ABC):
-    logger: logging.Logger = cached_property(lambda self: self._logger)
-    description: str = cached_property(lambda self: self._description)
+    logger: logging.Logger = property(lambda self: self._logger)
+    description: str = property(lambda self: self._description)
     argument_parser: ArgumentParser = cached_property(lambda self: self._create_argument_parser())
-    known_errors: Tuple[Type[BaseException]] = cached_property(lambda self: self._known_errors)
+    known_errors: Tuple[Type[BaseException]] = property(lambda self: self._known_errors)
 
     def main(self, *args, **kwargs) -> None:
-        self._main_init()
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[LogHandler()]
-        )
-        ret = self.run(*args, **kwargs)
-        self._main_deinit()
-        exit(ret)
+        try:
+            self._main_init()
+            logging.basicConfig(
+                level=logging.INFO,
+                format="%(message)s",
+                datefmt="[%X]",
+                handlers=[LogHandler()]
+            )
+            exit(self(*args, **kwargs))
+        finally:
+            self._main_deinit()
 
     def _main_init(self):
         pass
@@ -93,9 +94,9 @@ class ConsoleScript(abc.ABC):
     def _run(self, args: [str]) -> Optional[int]:
         pass
 
-    def run(self, args: [str] = None) -> int:
+    def __call__(self, args: [str] = None) -> int:
         try:
-            args = args or sys.argv[1:]
+            args = args if args is not None else sys.argv[1:]
             exit_code = self._run(args) or 0
 
         except SystemExit as e:
@@ -138,13 +139,13 @@ class ConsoleScript(abc.ABC):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 if option_string in self.option_strings:
-                    environ.show_log_time = not option_string.startswith('--no-')
+                    environ.show_log_time = not option_string.startswith("--no-")
 
         class LogLevelAction(BooleanOptionalAction):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 if option_string in self.option_strings:
-                    environ.show_log_level = not option_string.startswith('--no-')
+                    environ.show_log_level = not option_string.startswith("--no-")
 
         parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 

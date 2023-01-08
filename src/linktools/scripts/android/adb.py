@@ -53,7 +53,7 @@ class Script(utils.AndroidScript):
         return "adb wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument('adb_args', nargs='...', help="adb args")
+        parser.add_argument("adb_args", nargs="...", help="adb args")
 
     def _run(self, args: [str]) -> Optional[int]:
         args, extra = self.argument_parser.parse_known_args(args)
@@ -70,5 +70,5 @@ class Script(utils.AndroidScript):
 
 
 script = Script()
-if __name__ == '__main__':
+if __name__ == "__main__":
     script.main()

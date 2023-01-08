@@ -200,18 +200,19 @@ def get_logger(name: str = None, prefix=module_name) -> "Logger":
 
 class Logger(logging.Logger):
 
-    # noinspection PyTypeChecker, PyProtectedMember
+    _EMPTY_ARGS = tuple()
+
     def _log(self, level, msg, args, **kwargs):
         msg = str(msg)
         msg += ''.join([str(i) for i in args])
 
-        extra = kwargs["extra"] = kwargs.get("extra") or {}
+        kwargs["extra"] = kwargs.get("extra") or {}
         self._move_args(
-            kwargs, extra,
+            kwargs, kwargs["extra"],
             "style", "indent", "markup", "highlighter"
         )
 
-        return super()._log(level, msg, None, **kwargs)
+        return super()._log(level, msg, self._EMPTY_ARGS, **kwargs)
 
     @classmethod
     def _move_args(cls, from_, to_, *keys):
@@ -222,5 +223,5 @@ class Logger(logging.Logger):
 
 
 _config = LogConfig()
-_manager = logging.Manager(logging.getLogger())
+_manager = logging.Manager(logging.root)
 _manager.setLoggerClass(Logger)

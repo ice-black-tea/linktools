@@ -21,9 +21,9 @@ class Popen(subprocess.Popen):
     def __init__(self, *args, **kwargs):
         capture_output = kwargs.pop("capture_output", False)
         if capture_output is True:
-            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
-                raise ValueError('stdout and stderr arguments may not be used '
-                                 'with capture_output.')
+            if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
+                raise ValueError("stdout and stderr arguments may not be used "
+                                 "with capture_output.")
             kwargs["stdout"] = subprocess.PIPE
             kwargs["stderr"] = subprocess.PIPE
         if "cwd" not in kwargs:
@@ -31,8 +31,6 @@ class Popen(subprocess.Popen):
                 kwargs["cwd"] = os.getcwd()
             except FileNotFoundError:
                 kwargs["cwd"] = environ.resource.get_temp_dir()
-        if kwargs.get("shell", False):
-            raise ValueError("shell argument is not allowed.")
         if "append_env" in kwargs:
             env = os.environ.copy()
             env.update(kwargs.pop("env", {}))
