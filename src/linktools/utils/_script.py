@@ -34,7 +34,7 @@ import os
 import sys
 import traceback
 from abc import ABC
-from argparse import ArgumentParser, Action, BooleanOptionalAction
+from argparse import ArgumentParser, Action, SUPPRESS
 from typing import Tuple, Type, Optional
 
 from rich import get_console
@@ -124,6 +124,7 @@ class ConsoleScript(abc.ABC):
         return parser
 
     def _add_base_arguments(self, parser: ArgumentParser):
+
         class VerboseAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
@@ -134,6 +135,11 @@ class ConsoleScript(abc.ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 environ.debug = True
                 environ.logger.setLevel(logging.DEBUG)
+
+        class BooleanOptionalAction(Action):
+
+            def format_usage(self):
+                return ' | '.join(self.option_strings)
 
         class LogTimeAction(BooleanOptionalAction):
 
@@ -150,14 +156,16 @@ class ConsoleScript(abc.ABC):
         parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 
         group = parser.add_argument_group(title="log arguments")
-        group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True,
+        group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
-        group.add_argument("--debug", action=DebugAction, nargs=0, const=True,
+        group.add_argument("--debug", action=DebugAction, nargs=0, const=True, dest=SUPPRESS,
                            help="enable debug mode and increase log verbosity")
 
         if LogHandler.get_instance():
-            group.add_argument("--log-time", action=LogTimeAction, help="show log time")
-            group.add_argument("--log-level", action=LogLevelAction, help="show log level")
+            group.add_argument("--log-time", "--no-log-time", action=LogTimeAction, nargs=0, dest=SUPPRESS,
+                               help="show log time")
+            group.add_argument("--log-level", "--no-log-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
+                               help="show log level")
 
 
 class AndroidScript(ConsoleScript, ABC):
