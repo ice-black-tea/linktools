@@ -256,11 +256,10 @@ class FridaApplication(FridaScriptHandler):
             self,
             device: Union[frida.core.Device, "FridaServer"],
             user_parameters: Dict[str, any] = None,
-            user_scripts: Collection[Union[str, FridaUserScript]] = None,
+            user_scripts: Collection[FridaUserScript] = None,
             enable_spawn_gating: bool = False,
             enable_child_gating: bool = False,
             eternalize: str = False,
-            logger=_logger,
     ):
         self._device = device
 
@@ -288,7 +287,7 @@ class FridaApplication(FridaScriptHandler):
         self._internal_debug_script = FridaScriptFile(resource.get_asset_path("frida.js"))
 
         self._user_parameters = user_parameters or {}
-        self._user_scripts = [FridaScriptFile(o) if isinstance(o, str) else o for o in (user_scripts or tuple())]
+        self._user_scripts = user_scripts or tuple()
 
         self._enable_spawn_gating = enable_spawn_gating
         self._enable_child_gating = enable_child_gating
@@ -368,11 +367,6 @@ class FridaApplication(FridaScriptHandler):
     def sessions(self) -> Dict[int, FridaSession]:
         with self._lock:
             return {pid: session for pid, session in self._sessions.items() if not session.is_detached}
-
-    @property
-    def scripts(self) -> Dict[int, FridaScript]:
-        with self._lock:
-            return {pid: session.script for pid, session in self._sessions.items() if not session.is_detached}
 
     def schedule(self, fn: Callable[[], any], delay: float = None):
         self._reactor.schedule(fn, delay)
