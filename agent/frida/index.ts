@@ -271,7 +271,7 @@ Object.defineProperties(globalThis, {
             }
             if (Java.available) {
                 if (javaHelper.isJavaObject(obj)) {
-                    return javaHelper.classClass.toString.apply(obj);
+                    return javaHelper.objectClass.toString.apply(obj);
                 }
             }
             return ignoreError(() => obj.toString());

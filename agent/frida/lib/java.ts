@@ -34,6 +34,10 @@ export class JavaHelper {
         "androidx.",
     ]
 
+    get objectClass(): Java.Wrapper {
+        return Java.use("java.lang.Object");
+    }
+
     get classClass(): Java.Wrapper {
         return Java.use("java.lang.Class");
     }
@@ -433,11 +437,19 @@ export class JavaHelper {
         };
     }
 
+    /**
+     * 判断对象是不是java对象
+     * @param obj js对象
+     * @returns obj为java对象，则返回为true，否则为false
+     */
     isJavaObject(obj: any): boolean {
         if (obj instanceof Object) {
             if (obj.hasOwnProperty("class") && obj.class instanceof Object) {
                 const javaClass = obj.class;
-                if (javaClass.hasOwnProperty("getName") && javaClass.getName() != null) {
+                if (javaClass.hasOwnProperty("getName") &&
+                    javaClass.hasOwnProperty("getDeclaredClasses") &&
+                    javaClass.hasOwnProperty("getDeclaredFields") &&
+                    javaClass.hasOwnProperty("getDeclaredMethods")) {
                     return true;
                 }
             }
@@ -447,7 +459,7 @@ export class JavaHelper {
 
     /**
      * 判断对象是否为java数组
-     * @param obj java对象
+     * @param obj js对象
      * @returns obj为java数组，则返回为true，否则为false
      */
     isJavaArray(obj: any): boolean {
@@ -490,7 +502,7 @@ export class JavaHelper {
      * @param name java枚举名称
      * @returns java枚举值
      */
-    getEnumValue<T extends Java.Members<T> = {}>(
+    getJavaEnumValue<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
         name: string
     ): Java.Wrapper<T> {
