@@ -43,9 +43,6 @@ class Resource(object):
     def get_asset_path(self, *paths: [str]):
         return self._get_path(self._root_path, "assets", *paths, create=False, create_parent=False)
 
-    def get_script_path(self, *paths: [str]):
-        return self._get_path(self._root_path, "scripts", *paths, create=False, create_parent=False)
-
     def get_data_path(self, *paths: [str], create_parent: bool = False):
         return self._get_path(self._data_path, *paths, create=False, create_parent=create_parent)
 

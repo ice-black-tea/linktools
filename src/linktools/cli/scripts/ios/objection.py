@@ -30,14 +30,14 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, logger, resource, environ
+from linktools.cli import IOSScript
 from linktools.frida.ios import IOSFridaServer
 
 
-class Script(utils.IOSScript):
-
-    @property
-    def _description(self) -> str:
-        return "easy to use objection"
+class Script(IOSScript):
+    """
+    Easy to use objection (require iOS device jailbreak)
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,

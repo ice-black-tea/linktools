@@ -9,9 +9,13 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, tools
+from linktools.cli import ConsoleScript
 
 
-class Script(utils.ConsoleScript):
+class Script(ConsoleScript):
+    """
+    Shell with environment variables already initialized
+    """
 
     def __init__(self):
         self._shell_path = None
@@ -26,10 +30,6 @@ class Script(utils.ConsoleScript):
             self._shell_path = shutil.which("powershell") or shutil.which("cmd")
             if "ComSpec" in os.environ:
                 self._shell_path = os.environ["ComSpec"]
-
-    @property
-    def _description(self) -> str:
-        return f"shell wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-c", "--command", action="store", default=None, help="shell args")

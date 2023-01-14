@@ -30,14 +30,14 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, logger, resource, environ
+from linktools.cli import AndroidScript
 from linktools.frida.android import AndroidFridaServer
 
 
-class Script(utils.AndroidScript):
-
-    @property
-    def _description(self) -> str:
-        return "easy to use objection"
+class Script(AndroidScript):
+    """
+    Easy to use objection (require Android device rooted)
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,

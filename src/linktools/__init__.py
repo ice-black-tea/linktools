@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .version import __name__, __version__, __author__, __email__, __url__
+from .version import __name__, __version__, __author__, __email__, __url__, __description__
 
 from . import utils
 from . import decorator

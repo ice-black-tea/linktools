@@ -32,25 +32,26 @@ import functools
 import logging
 import os
 import sys
+import textwrap
 import traceback
 from abc import ABC
-from argparse import ArgumentParser, Action, SUPPRESS
+from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
 from typing import Tuple, Type, Optional
 
 from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from ._utils import ignore_error
 from .._environ import environ
 from .._logging import LogHandler, get_logger
 from ..decorator import cached_property
-from ..version import __version__
+from ..utils import ignore_error
+from ..version import __version__, __description__
 
 
 class ConsoleScript(abc.ABC):
     logger: logging.Logger = property(lambda self: self._logger)
-    description: str = property(lambda self: self._description)
+    description: str = cached_property(lambda self: textwrap.dedent((self.__doc__ or "").strip()))
     argument_parser: ArgumentParser = cached_property(lambda self: self._create_argument_parser())
     known_errors: Tuple[Type[BaseException]] = property(lambda self: self._known_errors)
 
@@ -76,11 +77,6 @@ class ConsoleScript(abc.ABC):
     @property
     def _logger(self) -> logging.Logger:
         return get_logger()
-
-    @property
-    @abc.abstractmethod
-    def _description(self) -> str:
-        pass
 
     @property
     def _known_errors(self) -> Tuple[Type[BaseException]]:
@@ -118,9 +114,20 @@ class ConsoleScript(abc.ABC):
         return exit_code
 
     def _create_argument_parser(self):
-        parser = ArgumentParser(description=self.description, conflict_handler="resolve")
+
+        description = self.description.strip()
+        if description:
+            description += os.linesep + os.linesep
+        description += __description__
+
+        parser = ArgumentParser(
+            formatter_class=RawDescriptionHelpFormatter,
+            description=description,
+            conflict_handler="resolve"
+        )
         self._add_base_arguments(parser)
         self._add_arguments(parser)
+
         return parser
 
     def _add_base_arguments(self, parser: ArgumentParser):
@@ -162,9 +169,9 @@ class ConsoleScript(abc.ABC):
                            help="enable debug mode and increase log verbosity")
 
         if LogHandler.get_instance():
-            group.add_argument("--log-time", "--no-log-time", action=LogTimeAction, nargs=0, dest=SUPPRESS,
+            group.add_argument("--time", "--no-time", action=LogTimeAction, nargs=0, dest=SUPPRESS,
                                help="show log time")
-            group.add_argument("--log-level", "--no-log-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
+            group.add_argument("--level", "--no-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
                                help="show log level")
 
 

@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : at_adb.py
-@time    : 2019/03/04
+@file    : ssh.py 
+@time    : 2022/11/27
 @site    :  
 @software: PyCharm 
 
@@ -30,45 +30,36 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils
-from linktools.android import Adb
+from linktools.cli import IOSScript
 
 
-class Script(utils.AndroidScript):
-
-    GENERAL_COMMANDS = [
-        "devices",
-        "help",
-        "version",
-        "connect",
-        "disconnect",
-        "keygen",
-        "wait-for-",
-        "start-server",
-        "kill-server",
-        "reconnect",
-    ]
-
-    @property
-    def _description(self) -> str:
-        return "adb wrapper"
+class Script(IOSScript):
+    """
+    OpenSSH remote login client (require iOS device jailbreak)
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("adb_args", nargs="...", help="adb args")
+        parser.add_argument("-u", "--user", action="store", default="root",
+                            help="iOS ssh user (default: root)")
+        parser.add_argument("-p", "--port", action="store", type=int, default=22,
+                            help="iOS ssh port (default: 22)")
+        parser.add_argument("-l", "--local-port", action="store", type=int, default=2222,
+                            help="local listening port (default: 2222)")
+        parser.add_argument('ssh_args', nargs='...', help="ssh args")
 
     def _run(self, args: [str]) -> Optional[int]:
-        args, extra = self.argument_parser.parse_known_args(args)
+        args = self.argument_parser.parse_args(args)
+        device = args.parse_device()
 
-        adb_args = [*extra, *args.adb_args]
-        if not extra:
-            if args.adb_args and args.adb_args[0] not in self.GENERAL_COMMANDS:
-                device = args.parse_device()
-                process = device.popen(*adb_args, capture_output=False)
-                return process.call()
-
-        process = Adb.popen(*adb_args, capture_output=False)
-        return process.call()
+        with device.forward(args.local_port, args.port):
+            ssh_args = [
+                "ssh", f"{args.user}@127.0.0.1",
+                "-p", args.local_port,
+                *args.ssh_args
+            ]
+            return utils.Popen(*ssh_args).call()
 
 
 script = Script()
-if __name__ == "__main__":
+if __name__ == '__main__':
     script.main()

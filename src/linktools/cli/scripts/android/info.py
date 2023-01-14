@@ -29,7 +29,8 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import logger, utils
+from linktools import logger
+from linktools.cli import AndroidScript
 
 props = (
     "ro.product.manufacturer",
@@ -70,11 +71,10 @@ cmds = (
 )
 
 
-class Script(utils.AndroidScript):
-
-    @property
-    def _description(self) -> str:
-        return "fetch device information"
+class Script(AndroidScript):
+    """
+    Fetch device information
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('agent_args', nargs='...', help="agent args")

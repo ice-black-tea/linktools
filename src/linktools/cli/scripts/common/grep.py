@@ -41,6 +41,7 @@ from rich.highlighter import NullHighlighter
 from rich.text import Text
 
 from linktools import utils, logger
+from linktools.cli import ConsoleScript
 
 pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)
 
@@ -191,11 +192,10 @@ class GrepMatcher:
         return out
 
 
-class Script(utils.ConsoleScript):
-
-    @property
-    def _description(self) -> str:
-        return "match files with regular expression"
+class Script(ConsoleScript):
+    """
+    Match files with regular expression
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('-i', '--ignore-case', action='store_true', default=False,

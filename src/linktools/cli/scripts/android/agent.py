@@ -29,14 +29,13 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils
+from linktools.cli import AndroidScript
 
 
-class Script(utils.AndroidScript):
-
-    @property
-    def _description(self) -> str:
-        return "used for debugging android-tools.apk"
+class Script(AndroidScript):
+    """
+    Debug android-tools.apk
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--privilege", action="store_true", default=False,

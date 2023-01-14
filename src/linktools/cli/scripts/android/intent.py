@@ -33,13 +33,13 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, logger
+from linktools.cli import AndroidScript
 
 
-class Script(utils.AndroidScript):
-
-    @property
-    def _description(self) -> str:
-        return "common intent action"
+class Script(AndroidScript):
+    """
+    Common intent actions
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group(required=True)

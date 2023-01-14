@@ -4,23 +4,22 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils
+from linktools.cli import IOSScript
 from linktools.ios import Sib
 
 
-class Script(utils.IOSScript):
+class Script(IOSScript):
+    """
+    Sib that supports multiple devices
+    """
 
-    GENERAL_COMMANDS = [
+    _GENERAL_COMMANDS = [
         "completion",
         "devices",
         "help",
         "version",
         "remote",
     ]
-
-    @property
-    def _description(self) -> str:
-        return "sib wrapper"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('sib_args', nargs='...', help="sib args")
@@ -30,7 +29,7 @@ class Script(utils.IOSScript):
 
         sib_args = [*extra, *args.sib_args]
         if not extra:
-            if args.sib_args and args.sib_args[0] not in self.GENERAL_COMMANDS:
+            if args.sib_args and args.sib_args[0] not in self._GENERAL_COMMANDS:
                 device = args.parse_device()
                 process = device.popen(*sib_args, capture_output=False)
                 return process.call()

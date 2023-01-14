@@ -1,5 +1,5 @@
 recursive-include src/linktools/assets *
-recursive-include src/linktools/scripts *.py
+recursive-include src/linktools/cli/scripts *.py
 
 global-exclude .DS_Store
 global-exclude *.pyc

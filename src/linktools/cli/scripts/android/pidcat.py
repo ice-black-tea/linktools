@@ -25,7 +25,7 @@ from argparse import ArgumentParser
 from subprocess import PIPE
 from typing import Optional
 
-from linktools import utils
+from linktools.cli import AndroidScript
 
 __version__ = '2.1.0'
 
@@ -55,11 +55,10 @@ def get_char_width(char):
     return 1
 
 
-class Script(utils.AndroidScript):
-
-    @property
-    def _description(self) -> str:
-        return "Filter logcat by package name"
+class Script(AndroidScript):
+    """
+    Filter logcat by package name
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('package', nargs='*', help='application package name(s)')

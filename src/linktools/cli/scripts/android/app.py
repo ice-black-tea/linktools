@@ -32,6 +32,7 @@ from typing import Optional
 from linktools import utils, logger
 from linktools.android import Package, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
+from linktools.cli import AndroidScript
 
 
 class PrintLevel:
@@ -224,11 +225,10 @@ class PackagePrinter:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 
-class Script(utils.AndroidScript):
-
-    @property
-    def _description(self) -> str:
-        return "fetch application info"
+class Script(AndroidScript):
+    """
+    Fetch application info
+    """
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()

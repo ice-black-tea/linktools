@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : version.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : __init__.py.py 
+@time    : 2023/01/14
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -27,15 +27,4 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__name__ = "linktools"
-__version__ = "0.7.2"
-__author__ = "Hu Ji"
-__email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/Zelda/tree/master"
-__description__ = f"""\
-    ___       __   __              __    
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \\/ //_/ __/ __ \\/ __ \\/ / ___/  linktools toolkit
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @{__author__} 
-/_/_/_/ /_/_/|_|\\__/\\____/\\____/_/____/  
-"""
+from ._script import ConsoleScript, AndroidScript, IOSScript

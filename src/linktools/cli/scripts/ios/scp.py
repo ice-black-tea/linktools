@@ -8,15 +8,15 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils
+from linktools.cli import IOSScript
 
 
-class Script(utils.IOSScript):
+class Script(IOSScript):
+    """
+    OpenSSH secure file copy (require iOS device jailbreak)
+    """
 
-    REMOTE_PATH_PREFIX = "@"
-
-    @property
-    def _description(self) -> str:
-        return "OpenSSH secure file copy (iOS device need jailbreak)"
+    _REMOTE_PATH_PREFIX = "@"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--user", action="store", default="root",
@@ -26,7 +26,7 @@ class Script(utils.IOSScript):
         parser.add_argument("-l", "--local-port", action="store", type=int, default=2222,
                             help="local listening port (default: 2222)")
         parser.add_argument("scp_args", nargs="...",
-                            help=f"scp args, remote path needs to be prefixed with \"{self.REMOTE_PATH_PREFIX}\"")
+                            help=f"scp args, remote path needs to be prefixed with \"{self._REMOTE_PATH_PREFIX}\"")
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
@@ -34,8 +34,8 @@ class Script(utils.IOSScript):
 
         scp_args = []
         for arg in args.scp_args:
-            if arg.startswith(self.REMOTE_PATH_PREFIX):
-                arg = f"{args.user}@127.0.0.1:{arg[len(self.REMOTE_PATH_PREFIX):]}"
+            if arg.startswith(self._REMOTE_PATH_PREFIX):
+                arg = f"{args.user}@127.0.0.1:{arg[len(self._REMOTE_PATH_PREFIX):]}"
             scp_args.append(arg)
 
         with device.forward(args.local_port, args.port):

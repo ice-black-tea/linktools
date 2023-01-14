@@ -58,9 +58,3 @@ from ._reactor import (
     Stoppable,
     Reactor,
 )
-
-from ._script import (
-    ConsoleScript,
-    AndroidScript,
-    IOSScript,
-)

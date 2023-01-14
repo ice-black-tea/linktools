@@ -120,13 +120,11 @@ class FridaEvalCode(FridaUserScript):
 
 class FridaShareScript(FridaUserScript):
 
-    def __init__(self, url: str, cached: bool = False, trusted: bool = False, load: bool = False):
+    def __init__(self, url: str, cached: bool = False, trusted: bool = False):
         super().__init__()
         self._url = url
         self._cached = cached
         self._trusted = trusted
-        if load:
-            self.load()
 
     @property
     def filename(self):

@@ -75,18 +75,18 @@ if __name__ == '__main__':
     scripts = ConsoleScripts()
     scripts.append_script("lt", "linktools.__main__")
     scripts.extend_modules(
-        "src", "linktools", "scripts", "common",
+        "src", "linktools", "cli", "scripts", "common",
         script_prefix="ct",
-        module_prefix=f"linktools.scripts.common"
+        module_prefix=f"linktools.cli.scripts.common"
     )
     scripts.extend_modules(
-        "src", "linktools", "scripts", "android",
+        "src", "linktools", "cli", "scripts", "android",
         script_prefix="at",
-        module_prefix=f"linktools.scripts.android")
+        module_prefix=f"linktools.cli.scripts.android")
     scripts.extend_modules(
-        "src", "linktools", "scripts", "ios",
+        "src", "linktools", "cli", "scripts", "ios",
         script_prefix="it",
-        module_prefix=f"linktools.scripts.ios"
+        module_prefix=f"linktools.cli.scripts.ios"
     )
 
     setup(

@@ -31,15 +31,16 @@ import subprocess
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, tools, logger
+from linktools import tools, logger
+from linktools.cli import ConsoleScript
 
 
-class Script(utils.ConsoleScript):
-    tool_names = sorted([tool.name for tool in iter(tools)])
+class Script(ConsoleScript):
+    """
+    Tools downloaded from the web
+    """
 
-    @property
-    def _description(self) -> str:
-        return "tools wrapper"
+    _TOOL_NAMES = sorted([tool.name for tool in iter(tools)])
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
@@ -51,11 +52,11 @@ class Script(utils.ConsoleScript):
                            help='clear tool files')
         group.add_argument('-d', '--daemon', action='store_true', default=False,
                            help='execute tools as a daemon')
-        parser.add_argument('tool', nargs='...', choices=self.tool_names)
+        parser.add_argument('tool', nargs='...', choices=self._TOOL_NAMES)
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
-        if len(args.tool) == 0 or args.tool[0] not in self.tool_names:
+        if len(args.tool) == 0 or args.tool[0] not in self._TOOL_NAMES:
             self.argument_parser.print_help()
             return -1
 

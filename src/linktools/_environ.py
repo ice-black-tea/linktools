@@ -39,7 +39,8 @@ from .version import __name__ as module_name
 class Environ:
 
     def __init__(self):
-        self._resource = lazy_load(self._create_default_resource)
+        self._root_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+        self._resource = lazy_load(self._create_default_resource, self._root_path)
         self._config = lazy_load(self._create_default_config)
         self._logger = lazy_load(self._create_default_logger)
         self._tools = lazy_load(self._create_default_tools)
@@ -61,6 +62,10 @@ class Environ:
         return self._tools
 
     @property
+    def root_path(self):
+        return self._root_path
+
+    @property
     def debug(self) -> bool:
         return self.config.get("__DEBUG__", False)
 
@@ -74,7 +79,7 @@ class Environ:
 
     @show_log_time.setter
     def show_log_time(self, value: bool):
-        from linktools import LogHandler
+        from ._logging import LogHandler
         handler = LogHandler.get_instance()
         if handler:
             handler.show_time = value
@@ -86,21 +91,17 @@ class Environ:
 
     @show_log_level.setter
     def show_log_level(self, value: bool):
-        from linktools import LogHandler
+        from ._logging import LogHandler
         handler = LogHandler.get_instance()
         if handler:
             handler.show_level = value
         self.config["__SHOW_LOG_LEVEL__"] = value
 
     @classmethod
-    def _create_default_resource(cls):
+    def _create_default_resource(cls, root_path: str):
         from ._resource import Resource
 
-        return Resource(
-            os.path.abspath(
-                os.path.join(os.path.dirname(__file__))
-            )
-        )
+        return Resource(root_path)
 
     @classmethod
     def _create_default_config(cls):

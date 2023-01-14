@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : ssh.py 
-@time    : 2022/11/27
+@file    : at_debug.py
+@time    : 2019/04/22
 @site    :  
 @software: PyCharm 
 
@@ -30,34 +30,40 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils
+from linktools.cli import AndroidScript
 
 
-class Script(utils.IOSScript):
+class Script(AndroidScript):
+    """
+    Debug app by jdb
+    """
 
     @property
     def _description(self) -> str:
-        return "OpenSSH remote login client (iOS device need jailbreak)"
+        return "debugger"
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("-u", "--user", action="store", default="root",
-                            help="iOS ssh user (default: root)")
-        parser.add_argument("-p", "--port", action="store", type=int, default=22,
-                            help="iOS ssh port (default: 22)")
-        parser.add_argument("-l", "--local-port", action="store", type=int, default=2222,
-                            help="local listening port (default: 2222)")
-        parser.add_argument('ssh_args', nargs='...', help="ssh args")
+        parser.add_argument('package', action='store', default=None,
+                            help='regular expression')
+        parser.add_argument('activity', action='store', default=None,
+                            help='regular expression')
+        parser.add_argument('-p', '--port', action='store', type=int, default=8701,
+                            help='fetch all apps')
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 
-        with device.forward(args.local_port, args.port):
-            ssh_args = [
-                "ssh", f"{args.user}@127.0.0.1",
-                "-p", args.local_port,
-                *args.ssh_args
-            ]
-            return utils.Popen(*ssh_args).call()
+        device.shell("am", "force-stop", args.package, output_to_logger=True)
+        device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), output_to_logger=True)
+
+        pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
+        with device.forward(f"tcp:{args.port}", f"jdwp:{pid}"):
+            data = input("jdb connect? [Y/n]: ").strip()
+            if data in ["", "Y", "y"]:
+                process = utils.Popen("jdb", "-connect",
+                                      "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
+                return process.call()
 
 
 script = Script()
