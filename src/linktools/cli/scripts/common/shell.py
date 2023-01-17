@@ -32,7 +32,7 @@ class Script(ConsoleScript):
                 self._shell_path = os.environ["ComSpec"]
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("-c", "--command", action="store", default=None, help="shell args")
+        parser.add_argument("-c", "--command", action="store", default=None, help="shell command")
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args()

@@ -34,7 +34,7 @@ class AndroidFridaServer(FridaServer):
         self._local_port = local_port
         self._remote_port = remote_port
         self._forward: Optional[utils.Stoppable] = None
-        self._environ = self.Environ(device.abi, frida.__version__)
+        self._environ = self.Environ(self._device.abi, frida.__version__)
 
     @property
     def local_port(self):

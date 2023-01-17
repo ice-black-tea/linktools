@@ -24,139 +24,212 @@ linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
 
 ## 相关功能
 
-![scripts](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/imgs/scripts.jpg)
+```
+$ python3 -m linktools
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+📎 All commands
+├── 📖 common
+│   ├── 👉 ct-grep: Match files with regular expression
+│   ├── 👉 ct-shell: Shell with environment variables already initialized
+│   └── 👉 ct-tools: Tools downloaded from the web
+├── 📖 android
+│   ├── 👉 at-adb: Adb that supports multiple devices
+│   ├── 👉 at-agent: Debug android-tools.apk
+│   ├── 👉 at-app: Fetch application info
+│   ├── 👉 at-debug: Debug app by jdb
+│   ├── 👉 at-frida: Easy to use frida (require Android device rooted)
+│   ├── 👉 at-info: Fetch device information
+│   ├── 👉 at-intent: Common intent actions
+│   ├── 👉 at-objection: Easy to use objection (require Android device rooted)
+│   ├── 👉 at-pidcat: Filter logcat by package name
+│   └── 👉 at-top: Fetch current running app's basic information
+└── 📖 ios
+    ├── 👉 it-frida: Easy to use frida (require iOS device jailbreak)
+    ├── 👉 it-objection: Easy to use objection (require iOS device jailbreak)
+    ├── 👉 it-scp: OpenSSH secure file copy (require iOS device jailbreak)
+    ├── 👉 it-sib: Sib that supports multiple devices
+    └── 👉 it-ssh: OpenSSH remote login client (require iOS device jailbreak)
+```
 
 ### 通用功能（脚本前缀为ct-）
 
-#### 🙋 ct-grep
+#### 👉 ct-grep
 
 <details>
 <summary>类似linux中的grep，正则匹配文件内容 ，额外添加解析zip、elf等格等功能</summary>
 
-```bash
-$ ct-grep -h
-usage: ct-grep [-h] [--version] [-v] [-i] pattern [file ...]
+```
+$ usage: ct-grep [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-i] pattern [file ...]
 
-match files with regular expression
+Match files with regular expression
+
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
 
 positional arguments:
-  pattern            regular expression
-  file               target files path
+  pattern              regular expression
+  file                 target files path
 
-optional arguments:
-  -h, --help         show this help message and exit
-  --version          show program's version number and exit
-  -v, --verbose      increase log verbosity
-  -i, --ignore-case  ignore case
+options:
+  -h, --help           show this help message and exit
+  --version            show program's version number and exit
+  -i, --ignore-case    ignore case
+
+log arguments:
+  --verbose            increase log verbosity
+  --debug              enable debug mode and increase log verbosity
+  --time, --no-time    show log time
+  --level, --no-level  show log level
 ```
 
 </details>
 
-#### 🙋 ct-tools
+#### 👉 ct-tools
 
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
 声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/linktools/assets/tools.yml)查看
 
-```bash
-$ ct-tools -h
-usage: ct-tools [-h] [--version] [-v] [-c | --download | --clear | -d] ...
+```
+$ usage: ct-tools [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c | --download | --clear | -d] ...
 
-tools wrapper
+Tools downloaded from the web
+
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
 
 positional arguments:
-  {aapt,adb,apktool,appcrawler,baksmali,chromedriver,chromedriver80,compact_dex_converter,dex2jar,fastboot,jadx,jadx-gui,jar2dex,java,java8,mipay_extract,smali,tidevice,vdex_extractor}
+  {aapt,adb,apksigner,apktool,appcrawler,baksmali,chromedriver,dex2jar,fastboot,ghidra,ipatool,jadx,jadx-gui,jar2dex,java,sib,smali,tidevice,uber-apk-signer,zipalign}
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
   -c, --config          show the config of tool
   --download            download tool files
   --clear               clear tool files
   -d, --daemon          execute tools as a daemon
+
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
 ```
 
 </details>
 
-#### 🙋 ct-shell
+#### 👉 ct-shell
 
 <details>
 <summary>已初始化常用工具环境变量的bash（mac/linux）、cmd（windows）</summary>
 
-```bash
-$ ct-shell -c env
-HOME=/Users/huji
-HOMEBREW_NO_AUTO_UPDATE=true
-LANG=zh_CN.UTF-8
-PATH=xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx:xxx
-PWD=/Users/huji/Desktop
-SECURITYSESSIONID=186a6
-SHELL=/usr/local/bin/fish
-SHLVL=2
-USER=huji
+```
+$ ct-shell -h
+usage: ct-shell [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c COMMAND]
+
+Shell with environment variables already initialized
+
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  -c COMMAND, --command COMMAND
+                        shell command
+
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
 ```
 
 </details>
 
 ### android相关功能（脚本前缀为at-）
 
-#### 🙋 at-adb
+#### 👉 at-adb
 
 <details>
 <summary>若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机</summary>
 
-```bash
+```
 $ at-adb -h
-usage: at-adb [-h] [--version] [-v]
-              [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
-              ...
+usage: at-adb [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l] ...
 
-adb wrapper
+Adb that supports multiple devices
+
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
 
 positional arguments:
   adb_args              adb args
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
   -d, --device          use USB device (adb -d option)
   -e, --emulator        use TCP/IP device (adb -e option)
-  -i INDEX, --index INDEX
-                        use device with given index
   -c IP[:PORT], --connect IP[:PORT]
                         use device with TCP/IP
   -l, --last            use last device
-
 ```
 
 </details>
 
-#### 🙋 at-pidcat
+#### 👉 at-pidcat
 
 <details>
 <summary>集成了pidcat，并且修复了中文字符宽度问题，原项目链接：https://github.com/JakeWharton/pidcat</summary>
 
-```bash
-$ at-pidcat -h
-usage: at-pidcat [-h] [--verbose] [-s SERIAL | -d | -e | --index INDEX | --connect IP[:PORT] | --last] [-w N] [-l {V,D,I,W,E,F,v,d,i,w,e,f}] [--color-gc]
-                 [--always-display-tags] [--top] [-c] [-t TAG] [-i IGNORED_TAG] [-v] [-a]
+```
+$ at-pidcat -h                                                                                                                                      ░▒▓ ✔  12:34:18
+usage: at-pidcat [-h] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | --connect IP[:PORT] | --last] [-w N]
+                 [-l {V,D,I,W,E,F,v,d,i,w,e,f}] [--color-gc] [--always-display-tags] [--top] [-c] [-t TAG] [-i IGNORED_TAG] [-v] [-a]
                  [package ...]
 
 Filter logcat by package name
 
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
 positional arguments:
   package               application package name(s)
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  --verbose             increase log verbosity
   -w N, --tag-width N   width of log tag
   -l {V,D,I,W,E,F,v,d,i,w,e,f}, --min-level {V,D,I,W,E,F,v,d,i,w,e,f}
                         minimum level to be displayed
@@ -171,47 +244,62 @@ optional arguments:
   -v, --version         print the version number and exit
   -a, --all             print all log messages
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
   -d, --device          use USB device (adb -d option)
   -e, --emulator        use TCP/IP device (adb -e option)
-  --index INDEX         use device with given index
   --connect IP[:PORT]   use device with TCP/IP
   --last                use last device
 ```
 
 </details>
 
-#### 🙋 at-top
+#### 👉 at-top
 
 <details>
 <summary>显示顶层应用信息、获取顶层应用apk、截屏等</summary>
 
-```bash
-$ at-top -h
-usage: at-top [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l] [-p | -a | --path | --kill | --apk [DEST] | --screen [DEST]]
+```
+$ at-top -h                                                                                                                                         ░▒▓ ✔  12:35:00
+usage: at-top [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l]
+              [-p | -a | --path | --kill | --apk [DEST] | --screen [DEST]]
 
-show current running app's basic information
+Fetch current running app's basic information
 
-optional arguments:
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
-  -p, --package         show current running package name
-  -a, --activity        show current running activity name
-  --path                show current running package path
-  --kill                kill current running package
-  --apk [DEST]          pull current running apk file
+  -p, --package         show current package name
+  -a, --activity        show current activity name
+  --path                show current apk path
+  --kill                kill current package
+  --apk [DEST]          pull current apk file
   --screen [DEST]       capture screen and pull file
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
   -d, --device          use USB device (adb -d option)
   -e, --emulator        use TCP/IP device (adb -e option)
-  -i INDEX, --index INDEX
-                        use device with given index
   -c IP[:PORT], --connect IP[:PORT]
                         use device with TCP/IP
   -l, --last            use last device
@@ -219,22 +307,27 @@ adb optional arguments:
 
 </details>
 
-#### 🙋 at-inetnt
+#### 👉 at-inetnt
 
 <details>
 <summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
 
-```bash
-$ at-intent -h
-usage: at-intent [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l]
+```
+$ at-intent -h                                                                                                                                      ░▒▓ ✔  12:35:32
+usage: at-intent [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l]
                  (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --install PATH | --browser URL)
 
-common intent action
+Common intent actions
 
-optional arguments:
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
   --setting             start setting activity
   --setting-dev         start development setting activity
   --setting-dev2        start development setting activity
@@ -244,13 +337,17 @@ optional arguments:
   --install PATH        install apk file (need '/data/local/tmp' write permission)
   --browser URL         start browser activity and jump to url (need scheme, such as https://antiy.cn)
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
   -d, --device          use USB device (adb -d option)
   -e, --emulator        use TCP/IP device (adb -e option)
-  -i INDEX, --index INDEX
-                        use device with given index
   -c IP[:PORT], --connect IP[:PORT]
                         use device with TCP/IP
   -l, --last            use last device
@@ -258,40 +355,51 @@ adb optional arguments:
 
 </details>
 
-#### 🙋 at-app
+#### 👉 at-app
 
 <details>
 <summary>通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确</summary>
 
-```bash
-$ at-app -h
-usage: at-app [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l] (-a | -t | -p pkg [pkg ...] | --system | --non-system) [-b] [-dang]
-              [-o field [field ...]]
+```
+$ at-app -h                                                                                                                                         ░▒▓ ✔  12:36:09
+usage: at-app [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l] [-t | -a | -p pkg [pkg ...] |
+              -u uid [uid ...] | --system | --non-system] [--simple] [--dangerous] [-o field [field ...]]
 
-fetch application info
+Fetch application info
 
-optional arguments:
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
-  -a, --all             fetch all apps
   -t, --top             fetch current running app only
+  -a, --all             fetch all apps
   -p pkg [pkg ...], --packages pkg [pkg ...]
                         fetch target apps only
+  -u uid [uid ...], --uids uid [uid ...]
+                        fetch apps with specified uids only
   --system              fetch system apps only
   --non-system          fetch non-system apps only
-  -b, --basic-info      display basic info only
-  -dang, --dangerous    display dangerous permissions and components only
+  --simple              display simple info only
+  --dangerous           display dangerous permissions and components only
   -o field [field ...], --order-by field [field ...]
                         order by target field
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
   -d, --device          use USB device (adb -d option)
   -e, --emulator        use TCP/IP device (adb -e option)
-  -i INDEX, --index INDEX
-                        use device with given index
   -c IP[:PORT], --connect IP[:PORT]
                         use device with TCP/IP
   -l, --last            use last device
@@ -303,7 +411,7 @@ adb optional arguments:
 
 </details>
 
-#### 🙋 at-frida
+#### 👉 at-frida
 
 <details>
 <summary>该功能旨在方便使用frida，可自动下载server，支持加载远程脚本，并内置了常用功能</summary>
@@ -314,19 +422,24 @@ adb optional arguments:
 3. 监听js文件变化，实时加载
 4. 注入了内置脚本，封装常用功能，如：过ssl pinning
 
-```bash
-$ at-frida -h
-usage: at-frida [-h] [--version] [-v] [-s SERIAL | --device | --emulator | -i INDEX | --connect IP[:PORT] | --last] [-p PACKAGE] [--spawn] [-P KEY VALUE] [-l SCRIPT] [-e CODE] [-c URL] [--redirect-address ADDRESS]
-                [--redirect-port ADDRESS] [-a] [-d]
+```
+$ at-frida -h                                                                                                                                       ░▒▓ ✔  12:36:48
+usage: at-frida [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | --emulator | --connect IP[:PORT] | --last]
+                [-p PACKAGE] [--spawn] [-P KEY VALUE] [-l SCRIPT] [-e CODE] [-c URL] [--redirect-address ADDRESS] [--redirect-port PORT] [-a]
 
-easy to use frida
+Easy to use frida (require Android device rooted)
 
-optional arguments:
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
   -p PACKAGE, --package PACKAGE
-                        target package (default: current running package)
+                        target package (default: frontmost application)
   --spawn               inject after spawn (default: false)
   -P KEY VALUE, --parameters KEY VALUE
                         user script parameters
@@ -337,81 +450,159 @@ optional arguments:
                         load share script url
   --redirect-address ADDRESS
                         redirect traffic to target address (default: localhost)
-  --redirect-port ADDRESS
-                        redirect traffic to target port (default: 8080)
+  --redirect-port PORT  redirect traffic to target port (default: 8080)
   -a, --auto-start      automatically start when all processes exits
-  -d, --debug           enable debug mode
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
-  --device              use USB device (adb -d option)
+  -d, --device          use USB device (adb -d option)
   --emulator            use TCP/IP device (adb -e option)
-  -i INDEX, --index INDEX
-                        use device with given index
   --connect IP[:PORT]   use device with TCP/IP
   --last                use last device
 ```
 
 **1) 以命令行方式运行**
 
-如 [android.js](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/frida-agent/test/android.js) 文件：
-
-```javascript
-
-Java.perform(function () {
-    AndroidHelper.bypassSslPinning();
-
-    // [*] Hook method: java.lang.Integer Integer.valueOf(int)
-    JavaHelper.hookMethod("java.lang.Integer", "valueOf", ["int"], function(obj, args) {
-        return this.apply(obj, args);
-    });
-
-    // [*] Hook method: java.lang.Integer Integer.valueOf(int)
-    // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String)
-    // [*] Hook method: java.lang.Integer Integer.valueOf(java.lang.String, int)
-    JavaHelper.hookMethods("java.lang.Integer", "valueOf", function(obj, args) {
-        return this.apply(obj, args);
-    });
-
-    // [*] Hook method: int Integer.undefined()
-    // [*] Hook method: void Integer.Integer(int)
-    // [*] Hook method: void Integer.Integer(java.lang.String)
-    // [*] Hook method: int Integer.bitCount(int)
-    // [*] ...
-    // [*] Hook method: long Integer.longValue()
-    // [*] Hook method: short Integer.shortValue()
-    JavaHelper.hookClass("java.lang.Integer", function(obj, args) {
-        return this.apply(obj, args);
-    });
-
-    // hook HashMap.put, print stack and args
-    JavaHelper.hookMethods("java.util.HashMap", "put", JavaHelper.getHookImpl({printStack: false, printArgs: true}));
-
-    // hook HashMap.put, print stack and args
-    var HashMap = Java.use("java.util.HashMap");
-    HashMap.put.implementation = function() {
-        var ret = JavaHelper.callMethod(this, arguments); // HashMap.put.call(this, arguments)
-        JavaHelper.printStack();
-        JavaHelper.printArguments(arguments, ret);
-        return ret;
-    }
-});
-```
+比如要加载 [https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js) 脚本：
 
 在终端中运行
 ```bash
-$ at-frida -l android.js
+$ at-frida -c https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js
+```
+
+输出如下：
+```
+[15:24:09]  I  Download ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js)
+[15:24:11]  W  java.js ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1,704/513 bytes ? 100% eta 0:00:00
+[15:24:13]  I  Load trusted ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js)
+[15:24:14]  I  Start frida server ...
+[15:24:15]  I  Frida server is running ...
+[15:24:18]  I  Load ScriptFile(filename=/Users/huji/Projects/Zelda/src/linktools/assets/frida.min.js)
+[15:24:19]  I  Session(pid=32087, name=口碑) attached
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$300()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$600()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.decode(java.lang.String)
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.encode(java.lang.String)
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.encode(java.lang.String, java.lang.String)
+[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.fromFile(java.io.File)
+[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.fromParts(java.lang.String, java.lang.String, java.lang.String)
+[15:24:19]  I  Hook method: boolean android.net.Uri.isAllowed(char, java.lang.String)
+[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.parse(java.lang.String)
+[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.withAppendedPath(android.net.Uri, java.lang.String)
+[15:24:19]  I  Hook method: void android.net.Uri.writeToParcel(android.os.Parcel, android.net.Uri)
+[15:24:19]  I  Hook method: android.net.Uri$Builder android.net.Uri.buildUpon()
+[15:24:19]  I  Hook method: void android.net.Uri.checkContentUriWithoutPermission(java.lang.String, int)
+[15:24:19]  I  Hook method: void android.net.Uri.checkFileUriExposed(java.lang.String)
+[15:24:19]  I  Hook method: int android.net.Uri.compareTo(android.net.Uri)
+[15:24:19]  I  Hook method: int android.net.Uri.compareTo(java.lang.Object)
+[15:24:19]  I  Hook method: boolean android.net.Uri.equals(java.lang.Object)
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getAuthority()
+[15:24:19]  I  Hook method: boolean android.net.Uri.getBooleanQueryParameter(java.lang.String, boolean)
+[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.getCanonicalUri()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedAuthority()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedFragment()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedPath()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedQuery()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedSchemeSpecificPart()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedUserInfo()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getFragment()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getHost()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getLastPathSegment()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getPath()
+[15:24:19]  I  Hook method: java.util.List android.net.Uri.getPathSegments()
+[15:24:19]  I  Hook method: int android.net.Uri.getPort()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getQuery()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getQueryParameter(java.lang.String)
+[15:24:19]  I  Hook method: java.util.Set android.net.Uri.getQueryParameterNames()
+[15:24:19]  I  Hook method: java.util.List android.net.Uri.getQueryParameters(java.lang.String)
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getScheme()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getSchemeSpecificPart()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getUserInfo()
+[15:24:19]  I  Hook method: int android.net.Uri.hashCode()
+[15:24:19]  I  Hook method: boolean android.net.Uri.isAbsolute()
+[15:24:19]  I  Hook method: boolean android.net.Uri.isHierarchical()
+[15:24:19]  I  Hook method: boolean android.net.Uri.isOpaque()
+[15:24:19]  I  Hook method: boolean android.net.Uri.isPathPrefixMatch(android.net.Uri)
+[15:24:19]  I  Hook method: boolean android.net.Uri.isRelative()
+[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.normalizeScheme()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.toSafeString()
+[15:24:19]  I  Hook method: java.lang.String android.net.Uri.toString()
+[15:24:27]  I  Script(pid=32087, name=马赛克) event count=1 in the Group(pid, method):
+               {
+                 "event_type": "测试",
+                 "event_args": "测试参数",
+                 "class_name": "android.net.Uri",
+                 "method_name": "void android.net.Uri.writeToParcel(android.os.Parcel, android.net.Uri)",
+                 "method_simple_name": "writeToParcel",
+                 "args": [
+                   "android.os.Parcel@b660fca",
+                   null
+                 ],
+                 "error": null,
+                 "stack": [
+                   "android.net.Uri.writeToParcel(Native Method)",
+                   "android.content.Intent.writeToParcel(Intent.java:10840)",
+                   "android.app.IActivityManager$Stub$Proxy.bindIsolatedService(IActivityManager.java:6210)",
+                   "android.app.ContextImpl.bindServiceCommon(ContextImpl.java:1843)",
+                   "android.app.ContextImpl.bindService(ContextImpl.java:1759)",
+                   "android.content.ContextWrapper.bindService(ContextWrapper.java:767)",
+                   "马赛克.RemoteGetterHelper.asyncBindService(SourceFile:124)",
+                   "马赛克.RemoteGetterHelper.initRemoteGetterAndWait(SourceFile:70)",
+                   "马赛克.NetworkProxy.initDelegateInstance(SourceFile:99)",
+                   "马赛克.NetworkProxy.getConnection(SourceFile:51)",
+                   "马赛克.ANetwork.<init>(SourceFile:50)",
+                   "马赛克.DownloadTask.run(SourceFile:130)",
+                   "java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)",
+                   "java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)",
+                   "java.lang.Thread.run(Thread.java:923)"
+                 ]
+[15:24:27]  I  Script(pid=32087, name=马赛克) event count=2 in the Group(pid, method):
+               {
+                 "event_type": "测试",
+                 "event_args": "测试参数",
+                 "class_name": "android.net.Uri",
+                 "method_name": "void android.net.Uri.writeToParcel(android.os.Parcel, android.net.Uri)",
+                 "method_simple_name": "writeToParcel",
+                 "args": [
+                   "android.os.Parcel@36941ab",
+                   null
+                 ],
+                 "error": null,
+                 "stack": [
+                   "android.net.Uri.writeToParcel(Native Method)",
+                   "android.content.Intent.writeToParcel(Intent.java:10840)",
+                   "android.app.IActivityManager$Stub$Proxy.bindIsolatedService(IActivityManager.java:6210)",
+                   "android.app.ContextImpl.bindServiceCommon(ContextImpl.java:1843)",
+                   "android.app.ContextImpl.bindService(ContextImpl.java:1759)",
+                   "android.content.ContextWrapper.bindService(ContextWrapper.java:767)",
+                   "马赛克.bindRemoteService(SourceFile:737)",
+                   "马赛克.asyncGetRemoteService(SourceFile:642)",
+                   "马赛克$2.run(SourceFile:112)",
+                   "java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)",
+                   "java.util.concurrent.FutureTask.run(FutureTask.java:266)",
+                   "java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:301)",
+                   "java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)",
+                   "java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)",
+                   "java.lang.Thread.run(Thread.java:923)"
+                 ]
+               }
 ```
 
 **2) 当然也可以使用python方式调用**
 
-如android.py文件：
+执行如下python脚本即可自动开启frida-server，并将js代码注入到指定进程中，若需要同时注入子进程，按[src/linktools/cli/scripts/android/frida.py](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/src/linktools/cli/scripts/android/frida.py) 重写 FridaApplication 的 on_spawn_added 方法即可
 
 ```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import logging
 from linktools.frida import FridaApplication, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
@@ -425,6 +616,8 @@ Java.perform(function () {
 
 if __name__ == "__main__":
 
+    logging.basicConfig(level=logging.INFO)
+
     with AndroidFridaServer() as server:
 
         app = FridaApplication(
@@ -434,161 +627,50 @@ if __name__ == "__main__":
         )
 
         for target_app in app.device.enumerate_applications():
-            if target_app.identifier == "com.topjohnwu.magisk":
+            if target_app.pid > 0 and target_app.identifier == "com.topjohnwu.magisk":
                 app.load_script(target_app.pid)
 
         app.run()
 ```
 
-在终端中运行
-```bash
-$ python3 android.py
-```
-
-**3) 输出效果**
-
-![frida](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/imgs/frida.png)
-
-**4) 内置js使用方式**
-
-内置JavaHelper类的成员函数
-
-```javascript
-/**
- * 获取java类的类对象
- * :param className:    java类名
- * :param classloader:  java类所在的classLoader，若不填则遍历所有classloader
- * :return:             类对象
- */
-function findClass(className, classloader) {}
-
-/**
- * hook指定方法对象
- * :param clazz:        java类名/类对象
- * :param method:       java方法名/方法对象
- * :param signatures:   java方法签名，为null表示不设置签名
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
- */
-function hookMethod(clazz, method, signatures, impl) {}
-
-/**
- * hook指定方法名的所有重载
- * :param clazz:        java类名/类对象
- * :param method:       java方法名
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
- */
-function hookMethods(clazz, methodName, impl) {}
-
-/**
- * hook指定类的所有构造方法
- * @param clazz java类名/类对象
- * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
- */
-function hookAllConstructors(clazz, impl) {}
-
-/**
- * hook指定类的所有成员方法
- * @param clazz java类名/类对象
- * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
- */
-function hookAllMethods(clazz, impl) {}
-
-/**
- * hook指定类的所有方法
- * :param clazz:        java类名/类对象
- * :param impl:         hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
- */
-function hookClass(clazz, impl) {}
-
-/**
- * 根据当前栈调用原java方法
- * :param obj:          java对象
- * :param args:         java参数
- * :return:             java方法返回值
- */
-function callMethod(obj, args) {}
-
-/**
- * 获取hook实现，调用原方法并展示栈和返回值
- * :param options:      hook选项，如：{stack: true, args: true, thread: true}
- * :return:             hook实现
- */
-function getEventImpl(options) {}
-
-/**
- * 获取当前java栈
- * :param printStack:   是否展示栈，默认为true
- * :param printArgs:    是否展示参数，默认为true
- * :return:             java栈对象
- */
-function getStackTrace() {}
-
-/**
- * 打印当前栈
- */
-function printStack() {}
-
-/**
- * 打印当前参数和返回值
- * :param args:         参数
- * :param ret:          返回值
- */
-function printArguments(args, ret) {}
-```
-
-hook native方法
-```javascript
-// xxxxxx为方法名
-Interceptor.attach(Module.findExportByName(null, 'xxxxxx'), {
-    onEnter: function (args) {
-        send("xxxxxx called from:\\n" +
-            Thread.backtrace(this.context, Backtracer.ACCURATE)
-                .map(DebugSymbol.fromAddress).join("\\n"));
-    },
-    onLeave: function (retval) {
-        send("xxxxxx retval: " + retval);
-    }
-});
-```
-
-调用native方法
-```javascript
-// 如 CallStack callStack("ABCDEFG", 10);
-var CallStackPtr = Module.findExportByName(null, '_ZN7android9CallStackC1EPKci');
-var CallStack = new NativeFunction(CallStackPtr, 'pointer', ['pointer', 'pointer', 'int']);
-var callStack = Memory.alloc(1000);
-var logtag = Memory.allocUtf8String("ABCDEFG");
-CallStack(callStack, logtag, 10);
-```
-
 </details>
 
-#### 🙋 at-agent
+#### 👉 at-agent
 
 <details>
 <summary>测试android-tools.apk时使用</summary>
 
-```bash
+```
 $ at-agent -h
-usage: at-agent [-h] [--version] [-v] [-s SERIAL | -d | -e | -i INDEX | -c IP[:PORT] | -l] ...
+usage: at-agent [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l] [-p] ...
 
-used for debugging android-tools.apk
+Debug android-tools.apk
+
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
 
 positional arguments:
   agent_args            agent args
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
+  -p, --privilege       run with root privilege
 
-adb optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+adb arguments:
   -s SERIAL, --serial SERIAL
                         use device with given serial (adb -s option)
   -d, --device          use USB device (adb -d option)
   -e, --emulator        use TCP/IP device (adb -e option)
-  -i INDEX, --index INDEX
-                        use device with given index
   -c IP[:PORT], --connect IP[:PORT]
                         use device with TCP/IP
   -l, --last            use last device
@@ -598,21 +680,27 @@ adb optional arguments:
 
 ### ios相关功能（脚本前缀为it-）
 
-#### 🙋 it-frida
+#### 👉 it-frida
 
 <details>
 <summary>该功能旨在方便使用frida，支持加载远程脚本，内置了常用功能</summary>
 
-```bash
-$ it-frida -h
-usage: it-frida [-h] [--version] [-v] [-u UDID | -i INDEX | --last] [--socket SOCKET] [-b BUNDLE_ID] [--spawn] [-P KEY VALUE] [-l SCRIPT] [-e CODE] [-c URL] [-a] [-d]
+```
+$ it-frida -h                                                                                                                                       ░▒▓ ✔  12:37:52
+usage: it-frida [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-u UDID | --connect IP:PORT | --last] [-b BUNDLE_ID] [--spawn]
+                [-P KEY VALUE] [-l SCRIPT] [-e CODE] [-c URL] [-a]
 
-easy to use frida
+Easy to use frida (require iOS device jailbreak)
 
-optional arguments:
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  -v, --verbose         increase log verbosity
   -b BUNDLE_ID, --bundle-id BUNDLE_ID
                         target bundle id (default: frontmost application)
   --spawn               inject after spawn (default: false)
@@ -624,14 +712,17 @@ optional arguments:
   -c URL, --codeshare URL
                         load share script url
   -a, --auto-start      automatically start when all processes exits
-  -d, --debug           debug mode
 
-device optional arguments:
+log arguments:
+  --verbose             increase log verbosity
+  --debug               enable debug mode and increase log verbosity
+  --time, --no-time     show log time
+  --level, --no-level   show log level
+
+sib arguments:
   -u UDID, --udid UDID  specify unique device identifier
-  -i INDEX, --index INDEX
-                        use device with given index
+  --connect IP:PORT     use device with TCP/IP
   --last                use last device
-  --socket SOCKET       usbmuxd listen address, host:port or local-path
 ```
 
 </details>

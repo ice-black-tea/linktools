@@ -657,7 +657,7 @@ class FridaApplication(FridaScriptHandler):
         :param payload: 上述例子的{trace: "xxx"}
         :param data: 上述例子的null
         """
-        _logger.debug(f"{script} send, payload={payload}")
+        _logger.info(f"{script} send, payload={payload}")
 
     def on_session_attached(self, session: FridaSession):
         """
