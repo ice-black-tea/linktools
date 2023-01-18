@@ -29,13 +29,12 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, environ
-from linktools.cli import AndroidScript
+from linktools import utils, logger, environ, cli
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
 
-class Script(AndroidScript):
+class Command(cli.AndroidCommand):
     """
     Easy to use frida (require Android device rooted)
     """
@@ -154,6 +153,6 @@ class Script(AndroidScript):
                 app.run()
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

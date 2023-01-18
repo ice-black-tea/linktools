@@ -7,11 +7,10 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils
-from linktools.cli import IOSScript
+from linktools import utils, cli
 
 
-class Script(IOSScript):
+class Command(cli.IOSCommand):
     """
     OpenSSH secure file copy (require iOS device jailbreak)
     """
@@ -46,6 +45,6 @@ class Script(IOSScript):
             return utils.Popen(*scp_args).call()
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

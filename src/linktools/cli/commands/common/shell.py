@@ -8,11 +8,10 @@ import shutil
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, tools
-from linktools.cli import ConsoleScript
+from linktools import utils, tools, cli
 
 
-class Script(ConsoleScript):
+class Command(cli.Command):
     """
     Shell with environment variables already initialized
     """
@@ -47,6 +46,6 @@ class Script(ConsoleScript):
         return process.call()
 
 
-script = Script()
+command = Command()
 if __name__ == "__main__":
-    script.main()
+    command.main()

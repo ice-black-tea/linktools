@@ -27,4 +27,5 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from ._script import ConsoleScript, AndroidScript, IOSScript
+from ._cli import get_commands
+from ._command import Command, AndroidCommand, IOSCommand

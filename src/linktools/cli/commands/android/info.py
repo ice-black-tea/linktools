@@ -29,8 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import logger
-from linktools.cli import AndroidScript
+from linktools import logger, cli
 
 props = (
     "ro.product.manufacturer",
@@ -71,7 +70,7 @@ cmds = (
 )
 
 
-class Script(AndroidScript):
+class Command(cli.AndroidCommand):
     """
     Fetch device information
     """
@@ -107,6 +106,6 @@ class Script(AndroidScript):
         return
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

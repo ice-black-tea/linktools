@@ -294,7 +294,7 @@ class Tool(metaclass=Meta):
                 os.remove(temp_path)
             else:
                 _logger.debug("Move tool to {}".format(self.absolute_path))
-                os.rename(temp_path, self.absolute_path)
+                shutil.move(temp_path, self.absolute_path)
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):

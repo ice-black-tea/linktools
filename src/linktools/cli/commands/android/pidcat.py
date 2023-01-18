@@ -25,7 +25,7 @@ from argparse import ArgumentParser
 from subprocess import PIPE
 from typing import Optional
 
-from linktools.cli import AndroidScript
+from linktools import cli
 
 __version__ = '2.1.0'
 
@@ -55,7 +55,7 @@ def get_char_width(char):
     return 1
 
 
-class Script(AndroidScript):
+class Command(cli.AndroidCommand):
     """
     Filter logcat by package name
     """
@@ -394,6 +394,6 @@ class Script(AndroidScript):
             print(linebuf)
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

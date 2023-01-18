@@ -4,11 +4,11 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools.cli import IOSScript
+from linktools import cli
 from linktools.ios import Sib
 
 
-class Script(IOSScript):
+class Command(cli.IOSCommand):
     """
     Sib that supports multiple devices
     """
@@ -38,6 +38,6 @@ class Script(IOSScript):
         return process.call()
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

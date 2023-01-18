@@ -29,11 +29,10 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils
-from linktools.cli import AndroidScript
+from linktools import utils, cli
 
 
-class Script(AndroidScript):
+class Command(cli.AndroidCommand):
     """
     Debug app by jdb
     """
@@ -66,6 +65,6 @@ class Script(AndroidScript):
                 return process.call()
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

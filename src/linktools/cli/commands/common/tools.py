@@ -31,11 +31,10 @@ import subprocess
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import tools, logger
-from linktools.cli import ConsoleScript
+from linktools import tools, logger, cli
 
 
-class Script(ConsoleScript):
+class Command(cli.Command):
     """
     Tools downloaded from the web
     """
@@ -92,6 +91,6 @@ class Script(ConsoleScript):
             return process.call()
 
 
-script = Script()
+command = Command()
 if __name__ == "__main__":
-    script.main()
+    command.main()

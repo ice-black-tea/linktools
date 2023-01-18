@@ -49,7 +49,7 @@ from ..utils import ignore_error
 from ..version import __version__, __description__
 
 
-class ConsoleScript(abc.ABC):
+class Command(abc.ABC):
     logger: logging.Logger = property(lambda self: self._logger)
     description: str = cached_property(lambda self: textwrap.dedent((self.__doc__ or "").strip()))
     argument_parser: ArgumentParser = cached_property(lambda self: self._create_argument_parser())
@@ -175,7 +175,7 @@ class ConsoleScript(abc.ABC):
                                help="show log level")
 
 
-class AndroidScript(ConsoleScript, ABC):
+class AndroidCommand(Command, ABC):
 
     @property
     def _known_errors(self) -> Tuple[Type[BaseException]]:
@@ -300,7 +300,7 @@ class AndroidScript(ConsoleScript, ABC):
                            help="use last device")
 
 
-class IOSScript(ConsoleScript, ABC):
+class IOSCommand(Command, ABC):
 
     @property
     def _known_errors(self) -> Tuple[Type[BaseException]]:

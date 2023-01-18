@@ -40,8 +40,7 @@ from rich import get_console
 from rich.highlighter import NullHighlighter
 from rich.text import Text
 
-from linktools import utils, logger
-from linktools.cli import ConsoleScript
+from linktools import utils, logger, cli
 
 pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)
 
@@ -192,7 +191,7 @@ class GrepMatcher:
         return out
 
 
-class Script(ConsoleScript):
+class Command(cli.Command):
     """
     Match files with regular expression
     """
@@ -223,6 +222,6 @@ class Script(ConsoleScript):
         return
 
 
-script = Script()
-if __name__ == '__main__':
-    script.main()
+command = Command()
+if __name__ == "__main__":
+    command.main()

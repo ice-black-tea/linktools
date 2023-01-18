@@ -485,7 +485,7 @@ $ at-frida -c https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent
 [15:24:14]  I  Start frida server ...
 [15:24:15]  I  Frida server is running ...
 [15:24:18]  I  Load ScriptFile(filename=/Users/huji/Projects/Zelda/src/linktools/assets/frida.min.js)
-[15:24:19]  I  Session(pid=32087, name=口碑) attached
+[15:24:19]  I  Session(pid=32087, name=马赛克) attached
 [15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$300()
 [15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$600()
 [15:24:19]  I  Hook method: java.lang.String android.net.Uri.decode(java.lang.String)

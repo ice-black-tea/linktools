@@ -44,25 +44,28 @@ def get_path(*paths):
 class ConsoleScripts(list):
 
     def append_script(self, script_name, module_name):
-        self.append("{script_name} = {module_name}:script.main".format(
+        self.append("{script_name} = {module_name}:command.main".format(
             script_name=script_name.replace("_", "-"),
             module_name=module_name,
         ))
 
-    def extend_modules(self, *path, module_prefix, script_prefix):
+    def append_module(self, *path, module_prefix, script_prefix):
         scripts_path = get_path(*path)
         for _, module_name, _ in pkgutil.iter_modules([scripts_path]):
             if not module_name.startswith("_"):
-                self.append("{script_prefix}-{script_name} = {module_prefix}.{module_name}:script.main".format(
-                    script_prefix=script_prefix,
-                    script_name=module_name.replace("_", "-"),
-                    module_prefix=module_prefix,
-                    module_name=module_name
-                ))
+                self.append_script(
+                    "{script_prefix}-{script_name}".format(
+                        script_prefix=script_prefix,
+                        script_name=module_name.replace("_", "-")
+                    ),
+                    "{module_prefix}.{module_name}".format(
+                        module_prefix=module_prefix,
+                        module_name=module_name
+                    )
+                )
 
 
 if __name__ == '__main__':
-
     version = ModuleType("version")
     version_path = get_path("src", "linktools", "version.py")
     with open(version_path, mode="rb") as fd:
@@ -74,19 +77,19 @@ if __name__ == '__main__':
 
     scripts = ConsoleScripts()
     scripts.append_script("lt", "linktools.__main__")
-    scripts.extend_modules(
-        "src", "linktools", "cli", "scripts", "common",
+    scripts.append_module(
+        "src", "linktools", "cli", "commands", "common",
         script_prefix="ct",
-        module_prefix=f"linktools.cli.scripts.common"
+        module_prefix=f"linktools.cli.commands.common"
     )
-    scripts.extend_modules(
-        "src", "linktools", "cli", "scripts", "android",
+    scripts.append_module(
+        "src", "linktools", "cli", "commands", "android",
         script_prefix="at",
-        module_prefix=f"linktools.cli.scripts.android")
-    scripts.extend_modules(
-        "src", "linktools", "cli", "scripts", "ios",
+        module_prefix=f"linktools.cli.commands.android")
+    scripts.append_module(
+        "src", "linktools", "cli", "commands", "ios",
         script_prefix="it",
-        module_prefix=f"linktools.cli.scripts.ios"
+        module_prefix=f"linktools.cli.commands.ios"
     )
 
     setup(

@@ -3,8 +3,8 @@
 
 """
 @author  : Hu Ji
-@file    : at_call_agent.py
-@time    : 2018/12/02
+@file    : at_adb.py
+@time    : 2019/03/04
 @site    :  
 @software: PyCharm 
 
@@ -29,34 +29,45 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools.cli import AndroidScript
+from linktools import cli
+from linktools.android import Adb
 
 
-class Script(AndroidScript):
+class Command(cli.AndroidCommand):
     """
-    Debug android-tools.apk
+    Adb that supports multiple devices
     """
+
+    _GENERAL_COMMANDS = [
+        "devices",
+        "help",
+        "version",
+        "connect",
+        "disconnect",
+        "keygen",
+        "wait-for-",
+        "start-server",
+        "kill-server",
+        "reconnect",
+    ]
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("-p", "--privilege", action="store_true", default=False,
-                            help="run with root privilege")
-        parser.add_argument("agent_args", nargs="...", help="agent args")
+        parser.add_argument("adb_args", nargs="...", help="adb args")
 
     def _run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
-        device = args.parse_device()
-        adb_args = [
-            "CLASSPATH=%s" % device.init_agent(),
-            "app_process", "/", device.agent_info["main"],
-            *args.agent_args
-        ]
-        adb_args = ["shell", *adb_args] \
-            if not args.privilege or device.uid == 0 \
-            else ["shell", "su", "-c", *adb_args]
-        process = device.popen(*adb_args)
+        args, extra = self.argument_parser.parse_known_args(args)
+
+        adb_args = [*extra, *args.adb_args]
+        if not extra:
+            if args.adb_args and args.adb_args[0] not in self._GENERAL_COMMANDS:
+                device = args.parse_device()
+                process = device.popen(*adb_args, capture_output=False)
+                return process.call()
+
+        process = Adb.popen(*adb_args, capture_output=False)
         return process.call()
 
 
-script = Script()
+command = Command()
 if __name__ == "__main__":
-    script.main()
+    command.main()
