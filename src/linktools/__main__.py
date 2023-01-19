@@ -43,14 +43,14 @@ class Command(cli.Command):
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         sub_parsers = parser.add_subparsers()
-        for catalog in self._commands:
+        for category, commands in cli.get_commands().items():
             parser = sub_parsers.add_parser(
-                catalog.name,
-                description=catalog.description
+                category.name,
+                description=category.description
             )
             parser.set_defaults(help=parser.print_help)
             catalog_parser = parser.add_subparsers()
-            for command in self._commands[catalog]:
+            for command in commands:
                 parser = catalog_parser.add_parser(
                     command.name,
                     help=command.description,
@@ -68,10 +68,10 @@ class Command(cli.Command):
             return args.help()
 
         tree = Tree("📎 All commands")
-        for catalog in self._commands:
-            node = tree.add(f"📖 {catalog}")
-            for command in self._commands[catalog]:
-                node.add(f"👉 {command.catalog.prefix}[bold red]{command.name}[/bold red]: {command.description}")
+        for category, commands in cli.get_commands().items():
+            node = tree.add(f"📖 {category}")
+            for command in commands:
+                node.add(f"👉 {command.category.prefix}[bold red]{command.name}[/bold red]: {command.description}")
 
         console = get_console()
         console.print(__description__, highlight=False)

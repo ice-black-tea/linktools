@@ -4,7 +4,6 @@ jar: &JAR
   executable_cmdline: [java, -jar, "{absolute_path}"]
 
 py: &PY
-  dummy_path: true
   executable_cmdline: [python, -m, "{name}"]
 
 GENERAL_TOOL_BAKSMALI:

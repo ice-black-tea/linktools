@@ -164,7 +164,7 @@ class FridaShareScript(FridaUserScript):
             if len(source_lines) > line_count:
                 source_summary += "... ..."
 
-            table = Table(title=f"Shared script", show_lines=True)
+            table = Table(show_lines=True)
             table.add_column("Property", justify="right", style="cyan", no_wrap=True)
             table.add_column("Content", style="magenta")
             table.add_row("Url", self._url)

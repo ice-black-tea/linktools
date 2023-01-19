@@ -3,7 +3,6 @@
 
 import getpass
 import os
-import pwd
 import shutil
 from argparse import ArgumentParser
 from typing import Optional
@@ -20,6 +19,7 @@ class Command(cli.Command):
         self._shell_path = None
         if tools.system in ["darwin", "linux"]:
             try:
+                import pwd
                 self._shell_path = pwd.getpwnam(getpass.getuser()).pw_shell
             except:
                 self._shell_path = shutil.which("bash") or shutil.which("sh")
@@ -34,12 +34,12 @@ class Command(cli.Command):
         parser.add_argument("-c", "--command", action="store", default=None, help="shell command")
 
     def _run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args()
+        args = self.argument_parser.parse_args(args)
         if args.command:
             process = utils.Popen(args.command, shell=True)
             return process.call()
 
-        if not os.path.exists(self._shell_path):
+        if not self._shell_path or not os.path.exists(self._shell_path):
             raise NotImplementedError(f"unsupported system {tools.system}")
 
         process = utils.Popen(self._shell_path)

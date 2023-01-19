@@ -194,15 +194,15 @@ class Tool(metaclass=Meta):
     name: str = Var(default="")
     version: str = Var(default="")
     download_url: str = Var(default="")
-    dummy_path: bool = Var(default=False)
+    target_path: bool = Var(default="")
     root_path: str = Var(default="")
     unpack_path: str = Var(default="")
     absolute_path: str = Var(default="")
     executable: bool = Var(default=True)
     executable_cmdline: tuple = Var(default=[])
 
-    exists: bool = property(lambda self: self.dummy_path or os.path.exists(self.absolute_path))
-    dirname: bool = property(lambda self: None if self.dummy_path else os.path.dirname(self.absolute_path))
+    exists: bool = property(lambda self: not self.target_path or os.path.exists(self.absolute_path))
+    dirname: bool = property(lambda self: None if not self.target_path else os.path.dirname(self.absolute_path))
 
     def __init__(self, container: "ToolContainer", cfg: Union[dict, str], **kwargs):
         self.__container = container
