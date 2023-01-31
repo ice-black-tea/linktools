@@ -278,11 +278,12 @@ class Device(object):
 
         return Stoppable()
 
-    def redirect(self, address: str = None, port: int = 8080) -> utils.Stoppable:
+    def redirect(self, address: str = None, port: int = 8080, uid: int = None) -> utils.Stoppable:
         """
         将手机流量重定向到本地指定端口
         :param address: 本地监听地址，不填默认本机
         :param port: 本地监听端口
+        :param uid: 监听目标uid
         :return: 重定向对象
         """
 
@@ -300,14 +301,13 @@ class Device(object):
 
         # 配置iptables规则，首先清除之前的规则，然后再把流量转发到目标端口上
         self.sudo("iptables", "-t", "nat", "-F")
-        self.sudo(
-            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp",
-            "-o", "lo", "-j", "RETURN"  # 忽略localhost
-        )
-        self.sudo(
-            "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp",
-            "-j", "DNAT", "--to-destination", destination
-        )
+
+        args = ["-A", "OUTPUT", "-p", "tcp"]  # 添加一条tcp协议的转发规则
+        args += ["!", "-o", "lo"]  # 过滤localhost
+        if uid is not None:
+            args += ["-m", "owner", "--uid-owner", uid]  # 指定要重定向流量的uid
+        args += ["-j", "DNAT", "--to-destination", destination]  # 转发到指定端口
+        self.sudo("iptables", "-t", "nat", *args)
 
         # noinspection PyMethodParameters
         class Stoppable(utils.Stoppable):

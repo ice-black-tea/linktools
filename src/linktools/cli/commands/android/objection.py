@@ -90,7 +90,11 @@ class Command(cli.AndroidCommand):
 
             if args.redirect_address or args.redirect_port:
                 # 如果需要重定向到本地端口
-                with device.redirect(args.redirect_address, args.redirect_port or 8080):
+                address = args.redirect_address
+                port = args.redirect_port or 8080
+                info = device.get_package(package)
+                uid = info.user_id if info else None
+                with device.redirect(address, port, uid):
                     return utils.Popen(*objection_args).call()
             else:
                 return utils.Popen(*objection_args).call()

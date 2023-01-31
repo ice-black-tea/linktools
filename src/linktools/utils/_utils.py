@@ -68,6 +68,9 @@ class Timeout:
                 return False
         return True
 
+    def __repr__(self):
+        return f"Timeout(timeout={self._timeout})"
+
 
 class InterruptableEvent(threading.Event):
     """
