@@ -48,6 +48,7 @@ class ConsoleScripts(list):
             script_name=script_name.replace("_", "-"),
             module_name=module_name,
         ))
+        return self
 
     def append_module(self, *path, module_prefix, script_prefix):
         scripts_path = get_path(*path)
@@ -63,33 +64,60 @@ class ConsoleScripts(list):
                         module_name=module_name
                     )
                 )
+        return self
 
 
 if __name__ == '__main__':
     version = ModuleType("version")
-    version_path = get_path("src", "linktools", "version.py")
-    with open(version_path, mode="rb") as fd:
+    with open(get_path("src", "linktools", "version.py"), mode="rb") as fd:
         exec(compile(fd.read(), "version", "exec"), version.__dict__)
 
-    description_path = get_path("README.md")
-    with open(description_path, "r") as fd:
+    with open(get_path("README.md"), "r") as fd:
         description = fd.read()
 
-    scripts = ConsoleScripts()
-    scripts.append_script("lt", "linktools.__main__")
-    scripts.append_module(
+    install_requires = [
+        "rich",
+        "pyyaml",
+        "filelock>=3.4.0",
+    ]
+    extras_require = {
+        "requests": [
+            "requests[socks]",
+        ],
+        "frida": [
+            "frida>=15.0.0",
+        ],
+        "objection": [
+            "objection",
+        ],
+        "lief": [
+            "lief>0.10.1",
+            "python-magic; platform_system==\"Linux\"",
+            "python-magic-bin; platform_system==\"Darwin\"",
+            "python-magic-bin; platform_system==\"Windows\"",
+        ]
+    }
+
+    all_requires = []
+    for requires in extras_require.values():
+        all_requires.extend(requires)
+    extras_require["all"] = all_requires
+
+    scripts = ConsoleScripts().append_script(
+        script_name="lt",
+        module_name="linktools.__main__",
+    ).append_module(
         "src", "linktools", "cli", "commands", "common",
         script_prefix="ct",
-        module_prefix=f"linktools.cli.commands.common"
-    )
-    scripts.append_module(
+        module_prefix=f"linktools.cli.commands.common",
+    ).append_module(
         "src", "linktools", "cli", "commands", "android",
         script_prefix="at",
-        module_prefix=f"linktools.cli.commands.android")
-    scripts.append_module(
+        module_prefix=f"linktools.cli.commands.android",
+    ).append_module(
         "src", "linktools", "cli", "commands", "ios",
         script_prefix="it",
-        module_prefix=f"linktools.cli.commands.ios"
+        module_prefix=f"linktools.cli.commands.ios",
     )
 
     setup(
@@ -98,8 +126,9 @@ if __name__ == '__main__':
         version=getattr(version, "__version__"),
         author_email=getattr(version, "__email__"),
         url=getattr(version, "__url__"),
+        license="Apache 2.0",
 
-        description=getattr(version, "__name__"),
+        description=getattr(version, "__summary__"),
         long_description=description,
         long_description_content_type='text/markdown',
 
@@ -107,5 +136,8 @@ if __name__ == '__main__':
         packages=find_namespace_packages("src"),
         package_dir={'': 'src'},
 
+        python_requires=">=3.6",
+        install_requires=install_requires,
+        extras_require=extras_require,
         entry_points={"console_scripts": scripts},
     )
