@@ -47,7 +47,6 @@ from ._subprocess import (
     Popen,
     list2cmdline,
 )
-
 from ._url import (
     make_url, cookie_to_dict, guess_file_name, user_agent,
     DownloadError, UrlFile,
@@ -58,3 +57,20 @@ from ._reactor import (
     Stoppable,
     Reactor,
 )
+
+from ._port import (
+    is_port_free,
+    pick_free_port,
+    NoFreePortFoundError,
+)
+
+from ._asyncio import (
+    get_event_loop_thread,
+)
+
+try:
+    from ._ssh import (
+        SSHClient
+    )
+except ImportError as e:
+    SSHClient = lazy_raise(e)

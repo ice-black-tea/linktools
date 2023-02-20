@@ -75,27 +75,24 @@ class Adb(object):
     def exec(
             cls,
             *args: [Any],
-            input: AnyStr = None,
             timeout: float = None,
             ignore_errors: bool = False,
-            output_to_logger: bool = False
+            log_output: bool = False
     ) -> str:
         """
         执行命令
         :param args: 命令
-        :param input: 输入
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
-        :param output_to_logger: 把输出打印到logger中
+        :param log_output: 把输出打印到logger中
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
         try:
             return tools["adb"].exec(
                 *args,
-                input=input,
                 timeout=timeout,
                 ignore_errors=ignore_errors,
-                output_to_logger=output_to_logger,
+                log_output=log_output,
             )
         except ToolExecError as e:
             raise AdbError(e)
@@ -142,7 +139,7 @@ class Device(object):
             return "x86"
         raise AdbError("unknown abi: %s" % result)
 
-    @property
+    @cached_property
     def uid(self) -> int:
         """
         获取shell的uid

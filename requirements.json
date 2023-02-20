@@ -1,0 +1,27 @@
+{
+  "install_requires": [
+    "rich",
+    "pyyaml",
+    "filelock>=3.4.0"
+  ],
+  "extras_require": {
+    "requests": [
+      "requests[socks]"
+    ],
+    "frida": [
+      "frida>=15.0.0"
+    ],
+    "objection": [
+      "objection"
+    ],
+    "lief": [
+      "lief>0.10.1",
+      "python-magic; platform_system==\"Linux\"",
+      "python-magic-bin; platform_system==\"Darwin\"",
+      "python-magic-bin; platform_system==\"Windows\""
+    ],
+    "ssh": [
+      "paramiko"
+    ]
+  }
+}

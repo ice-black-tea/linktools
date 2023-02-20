@@ -202,15 +202,15 @@ GENERAL_TOOL_CHROMEDRIVER:
       - else: ~
 
 GENERAL_TOOL_SIB:
-  version: 1.3.7
+  version: 1.3.7-20230220
   download_url:
     case:
       - when: {system: darwin}
-        then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_macosx_x86_64.tar.gz
+        then: https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_macosx_x86_64.tar.gz
       - when: {system: linux}
-        then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_linux_x86_64.tar.gz
+        then: https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_linux_x86_64.tar.gz
       - when: {system: windows}
-        then: https://github.com/SonicCloudOrg/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_windows_x86_64.tar.gz
+        then: https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_windows_x86_64.tar.gz
       - else: ~
   unpack_path: sib-{version}
   target_path:

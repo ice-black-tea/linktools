@@ -332,61 +332,41 @@ class Tool(metaclass=Meta):
     def exec(
             self,
             *args: [Any],
-            input: AnyStr = None,
             timeout: Union[float, utils.Timeout] = None,
             ignore_errors: bool = False,
-            output_to_logger: bool = False,
+            log_output: bool = False,
     ) -> str:
         """
         执行命令
         :param args: 命令
-        :param input: 输入
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
-        :param output_to_logger: 把输出打印到logger中
+        :param log_output: 把输出打印到logger中
         :return: 返回stdout输出内容
         """
-
         process = self.popen(*args, capture_output=True)
 
-        out, err = None, None
         try:
-            out, err = process.communicate(
-                input=input,
-                timeout=timeout.remain if isinstance(timeout, utils.Timeout) else timeout,
-            )
-        except subprocess.TimeoutExpired:
-            pass
+            out, err = process.run(timeout, log_stdout=log_output, log_stderr=log_output)
+            if not ignore_errors and process.poll() not in (0, None):
+                if isinstance(err, bytes):
+                    err = err.decode(errors="ignore")
+                    err = err.strip()
+                elif isinstance(err, str):
+                    err = err.strip()
+                if err:
+                    raise Exception(err)
+
+            if isinstance(out, bytes):
+                out = out.decode(errors="ignore")
+                out = out.strip()
+            elif isinstance(out, str):
+                out = out.strip()
+
+            return out or ""
+
         finally:
             process.kill()
-
-        if isinstance(out, bytes):
-            out = out.decode(errors="ignore")
-            out = out.strip()
-        elif isinstance(out, str):
-            out = out.strip()
-        else:
-            out = ""
-
-        if isinstance(err, bytes):
-            err = err.decode(errors="ignore")
-            err = err.strip()
-        elif isinstance(err, str):
-            err = err.strip()
-        else:
-            err = ""
-
-        if output_to_logger:
-            if out:
-                _logger.info(out)
-            if err:
-                _logger.error(err)
-
-        if not ignore_errors and process.returncode != 0:
-            if err:
-                raise ToolExecError(err)
-
-        return out
 
     def __repr__(self):
         return f"<Tool {self.name}>"

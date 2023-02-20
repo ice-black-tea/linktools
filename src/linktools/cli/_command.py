@@ -101,7 +101,10 @@ class Command(abc.ABC):
         except (KeyboardInterrupt, EOFError, *self.known_errors) as e:
             exit_code = 1
             error_type, error_message = e.__class__.__name__, str(e).strip()
-            self.logger.error(f"{error_type}: {error_message}" if error_message else error_type)
+            self.logger.error(
+                f"{error_type}: {error_message}" if error_message else error_type,
+                exc_info=True if environ.debug else None,
+            )
 
         except:
             exit_code = 1
@@ -268,7 +271,7 @@ class AndroidCommand(Command, ABC):
                         addr = addr + ":5555"
                     devices = Adb.devices()
                     if addr not in [device.id for device in devices]:
-                        Adb.exec("connect", addr, output_to_logger=True)
+                        Adb.exec("connect", addr, log_output=True)
                     return Device(addr)
 
                 setattr(namespace, self.dest, wrapper)
@@ -386,7 +389,7 @@ class IOSCommand(Command, ABC):
                 def wrapper():
                     address = str(values)
                     host, port = address.split(":", maxsplit=1)
-                    Sib.exec("remote", "connect", "--host", host, "--port", port, output_to_logger=True)
+                    Sib.exec("remote", "connect", "--host", host, "--port", port, log_output=True)
                     for device in Sib.devices():
                         if address == device.address:
                             return device

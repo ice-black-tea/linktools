@@ -64,32 +64,32 @@ class Command(cli.AndroidCommand):
         if "--setting" in sys.argv:
             device.shell("am", "start", "--user", "0",
                          "-a", "android.settings.SETTINGS",
-                         output_to_logger=True)
+                         log_output=True)
         elif "--setting-dev" in sys.argv:
             device.shell("am", "start", "--user", "0",
                          "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
-                         output_to_logger=True)
+                         log_output=True)
         elif "--setting-dev2" in sys.argv:
             device.shell("am", "start", "--user", "0",
                          "-a", "android.intent.action.View",
                          "com.android.settings/com.android.settings.DevelopmentSettings",
-                         output_to_logger=True)
+                         log_output=True)
         elif "--setting-app" in sys.argv:
             package = args.package if not utils.is_empty(args.package) else device.get_current_package()
             device.shell("am", "start", "--user", "0",
                          "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                          "-d", "package:%s" % package,
-                         output_to_logger=True)
+                         log_output=True)
         elif "--setting-cert" in sys.argv:
             remote_path = device.get_data_path("cert", os.path.basename(args.path))
             device.push(args.path, remote_path,
-                        output_to_logger=True)
+                        log_output=True)
             device.shell("am", "start", "--user", "0",
                          "-n", "com.android.certinstaller/.CertInstallerMain",
                          "-a", "android.intent.action.VIEW",
                          "-t", "application/x-x509-ca-cert",
                          "-d", "file://%s" % remote_path,
-                         output_to_logger=True)
+                         log_output=True)
         elif "--install" in sys.argv:
             apk_path = args.path
 
@@ -103,26 +103,26 @@ class Command(cli.AndroidCommand):
             try:
                 logger.info(f"Push file to remote: {remote_path}")
                 device.push(apk_path, remote_path,
-                            output_to_logger=True)
+                            log_output=True)
                 if device.uid >= 10000:
                     device.shell("am", "start", "--user", "0",
                                  "-a", "android.intent.action.VIEW",
                                  "-t", "application/vnd.android.package-archive",
                                  "-d", "file://%s" % remote_path,
-                                 output_to_logger=True)
+                                 log_output=True)
                 else:
                     device.shell("pm", "install", "--user", "0",
                                  "-r", "-t", "-d", "-f", remote_path,
-                                 output_to_logger=True)
+                                 log_output=True)
             finally:
                 logger.debug(f"Clear remote file: {remote_path}")
-                device.shell("rm", remote_path, output_to_logger=True)
+                device.shell("rm", remote_path, log_output=True)
 
         elif "--browser" in sys.argv:
             device.shell("am", "start", "--user", "0",
                          "-a", "android.intent.action.VIEW",
                          "-d", args.url,
-                         output_to_logger=True)
+                         log_output=True)
 
         return
 

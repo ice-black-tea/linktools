@@ -3,8 +3,9 @@
 
 import json
 import subprocess
+import time
 from subprocess import TimeoutExpired
-from typing import Any, AnyStr
+from typing import Any
 
 from .. import utils, tools, ToolExecError
 from .._logging import get_logger
@@ -45,24 +46,22 @@ class Sib(object):
         return tools["sib"].popen(*args, **kwargs)
 
     @classmethod
-    def exec(cls, *args: [Any], input: AnyStr = None, timeout: float = None,
-             ignore_errors: bool = False, output_to_logger: bool = False) -> str:
+    def exec(cls, *args: [Any], timeout: float = None,
+             ignore_errors: bool = False, log_output: bool = False) -> str:
         """
         执行命令
         :param args: 命令
-        :param input: 输入
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
-        :param output_to_logger: 把输出打印到logger中
+        :param log_output: 把输出打印到logger中
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
         try:
             return tools["sib"].exec(
                 *args,
-                input=input,
                 timeout=timeout,
                 ignore_errors=ignore_errors,
-                output_to_logger=output_to_logger,
+                log_output=log_output,
             )
         except ToolExecError as e:
             raise SibError(e)
@@ -129,7 +128,7 @@ class Device(object):
         :param args: 命令行参数
         :return: 打开的进程
         """
-        args = [*args, "--udid", self.id]
+        args = ["--udid", self.id, *args]
         return Sib.popen(*args, **kwargs)
 
     def exec(self, *args: [Any], **kwargs) -> str:
@@ -138,7 +137,7 @@ class Device(object):
         :param args: 命令行参数
         :return: sib输出结果
         """
-        args = [*args, "--udid", self.id]
+        args = ["--udid", self.id, *args]
         return Sib.exec(*args, **kwargs)
 
     def install(self, path: str, **kwargs) -> str:
@@ -147,17 +146,24 @@ class Device(object):
     def uninstall(self, bundle_id: str, **kwargs) -> str:
         return self.exec("app", "uninstall", "--bundleId", bundle_id, **kwargs)
 
-    def forward(self, local_port: int, remote_port: int) -> utils.Stoppable:
-
+    def forward(self, local_port: int, remote_port: int):
         process = self.popen(
             "proxy",
             "--local-port", local_port,
             "--remote-port", remote_port,
-            stdout=subprocess.DEVNULL,  # None if environ.debug else subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,  # None if environ.debug else subprocess.DEVNULL,
-            stdin=subprocess.PIPE,
+            bufsize=0,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        process.call_as_daemon(timeout=1)
+
+        for i in range(10):
+            if process.poll() is not None:
+                break
+            out, err = process.run(timeout=1, log_stderr=True)
+            if out and b"Listen on:" in out:
+                time.sleep(.1)
+                _logger.debug(f"Capture sib proxy process output: {out}")
+                break
 
         class Stoppable(utils.Stoppable):
 

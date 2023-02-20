@@ -27,9 +27,13 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, Tuple, Type
 
-from linktools import utils, cli
+import paramiko
+from paramiko.ssh_exception import SSHException
+
+from linktools import cli, utils
+from linktools.ios import Device
 
 
 class Command(cli.IOSCommand):
@@ -37,26 +41,29 @@ class Command(cli.IOSCommand):
     OpenSSH remote login client (require iOS device jailbreak)
     """
 
+    @property
+    def _known_errors(self) -> Tuple[Type[BaseException]]:
+        return super()._known_errors + tuple([SSHException])
+
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--user", action="store", default="root",
                             help="iOS ssh user (default: root)")
         parser.add_argument("-p", "--port", action="store", type=int, default=22,
                             help="iOS ssh port (default: 22)")
-        parser.add_argument("-l", "--local-port", action="store", type=int, default=2222,
-                            help="local listening port (default: 2222)")
         parser.add_argument('ssh_args', nargs='...', help="ssh args")
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
-        device = args.parse_device()
+        device: Device = args.parse_device()
 
-        with device.forward(args.local_port, args.port):
-            ssh_args = [
-                "ssh", f"{args.user}@127.0.0.1",
-                "-p", args.local_port,
-                *args.ssh_args
-            ]
-            return utils.Popen(*ssh_args).call()
+        local_port = 2222
+        with device.forward(local_port, args.port):
+            with utils.SSHClient() as client:
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.connect("localhost", port=local_port, username=args.user)
+                client.open_shell(*args.ssh_args)
+
+        return 0
 
 
 command = Command()

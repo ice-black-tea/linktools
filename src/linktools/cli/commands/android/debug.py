@@ -53,8 +53,8 @@ class Command(cli.AndroidCommand):
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 
-        device.shell("am", "force-stop", args.package, output_to_logger=True)
-        device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), output_to_logger=True)
+        device.shell("am", "force-stop", args.package, log_output=True)
+        device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), log_output=True)
 
         pid = utils.int(device.shell("top", "-n", "1", "|", "grep", args.package).split()[0])
         with device.forward(f"tcp:{args.port}", f"jdwp:{pid}"):

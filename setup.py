@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import json
 import os
 import pkgutil
 from distutils.core import setup
@@ -75,33 +76,14 @@ if __name__ == '__main__':
     with open(get_path("README.md"), "r") as fd:
         description = fd.read()
 
-    install_requires = [
-        "rich",
-        "pyyaml",
-        "filelock>=3.4.0",
-    ]
-    extras_require = {
-        "requests": [
-            "requests[socks]",
-        ],
-        "frida": [
-            "frida>=15.0.0",
-        ],
-        "objection": [
-            "objection",
-        ],
-        "lief": [
-            "lief>0.10.1",
-            "python-magic; platform_system==\"Linux\"",
-            "python-magic-bin; platform_system==\"Darwin\"",
-            "python-magic-bin; platform_system==\"Windows\"",
-        ]
-    }
-
-    all_requires = []
-    for requires in extras_require.values():
-        all_requires.extend(requires)
-    extras_require["all"] = all_requires
+    with open(get_path("requirements.json")) as fd:
+        data = json.load(fd)
+        install_requires = data.get("install_requires")
+        extras_require = data.get("extras_require")
+        all_requires = []
+        for requires in extras_require.values():
+            all_requires.extend(requires)
+        extras_require["all"] = all_requires
 
     scripts = ConsoleScripts().append_script(
         script_name="lt",
