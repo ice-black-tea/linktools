@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import asyncio
+
+import errno
 import os
-import queue
 import subprocess
 import threading
-from typing import Union, AnyStr, IO, Tuple, Callable, Optional
+from typing import Union, AnyStr, Tuple, Optional
 
-from . import Timeout
-from ._asyncio import get_event_loop_thread
+from . import Timeout, ignore_error
 from .._environ import environ
 from .._logging import get_logger
 
@@ -87,32 +86,27 @@ class Popen(subprocess.Popen):
         if self.poll() is not None:
             return None, None
 
-        class Buffer:
+        class Output:
 
-            def __init__(self, io: IO[AnyStr]):
-                self._io = io
-                self._queue = queue.Queue() if io is not None else None
+            def __init__(self, fd):
+                self._fd = fd
+                self._data = None
 
             @property
-            def io(self):
-                return self._io
+            def fd(self):
+                return self._fd
 
-            def read(self) -> AnyStr:
-                buffer = None
-                if self._queue is not None:
-                    while not self._queue.empty():
-                        data = self._queue.get_nowait()
-                        if buffer is not None:
-                            buffer += data
-                        else:
-                            buffer = data
-                return buffer
+            @property
+            def data(self):
+                return self._data
 
             def __call__(self, data: AnyStr):
-                if self._queue:
-                    self._queue.put(data)
+                if self._data is not None:
+                    self._data += data
+                else:
+                    self._data = data
 
-        class OutBuffer(Buffer):
+        class Stdout(Output):
 
             def __call__(self, data: AnyStr):
                 super().__call__(data)
@@ -123,7 +117,7 @@ class Popen(subprocess.Popen):
                     if data:
                         _logger.info(data.rstrip())
 
-        class ErrBuffer(Buffer):
+        class Stderr(Output):
 
             def __call__(self, data: AnyStr):
                 super().__call__(data)
@@ -134,55 +128,41 @@ class Popen(subprocess.Popen):
                     if data:
                         _logger.error(data.rstrip())
 
-        async def check_alive():
-            while self.poll() is None and not cancel_event.is_set():
-                await asyncio.sleep(.1)
-
-        async def iter_lines(io: IO[AnyStr], callback: Callable[[AnyStr], None]):
+        def handle_output(output: Output):
             try:
-                loop = asyncio.get_running_loop()
-                stream_reader = asyncio.StreamReader()
-                stream_reader_protocol = asyncio.StreamReaderProtocol(stream_reader)
-                await loop.connect_read_pipe(lambda: stream_reader_protocol, io)
-                while not stream_reader.at_eof():
-                    data = await stream_reader.readline()
-                    callback(data)
-            except Exception as e:
-                _logger.debug(f"Read stream error: {e}")
+                with os.fdopen(output.fd) as fd:
+                    for data in iter(fd.readline, ""):
+                        output(data)
+            except OSError as e:
+                if e.errno != errno.EBADF:
+                    _logger.debug(f"Handle output error: {e}")
 
-        async def handle_output():
-            try:
-                tasks = []
-                if out_buffer.io:
-                    tasks.append(iter_lines(out_buffer.io, out_buffer))
-                if err_buffer.io:
-                    tasks.append(iter_lines(err_buffer.io, err_buffer))
-                if tasks:
-                    tasks.append(check_alive())
-                    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-                    if pending:
-                        for task in pending:
-                            task.cancel()
-                        await asyncio.wait(pending, return_when=asyncio.ALL_COMPLETED)
-            except Exception as e:
-                _logger.debug(f"Read stream error: {e}")
-            finally:
-                finish_event.set()
-
-        cancel_event = threading.Event()
-        finish_event = threading.Event()
-
-        out_buffer = OutBuffer(self.stdout)
-        err_buffer = ErrBuffer(self.stderr)
+        threads = []
+        stdout = stderr = None
 
         try:
-            thread = get_event_loop_thread()
-            thread.call_task_soon(handle_output())
+            if self.stdout:
+                stdout = Stdout(os.dup(self.stdout.fileno()))
+                threads.append(threading.Thread(target=handle_output, args=(stdout,)))
+
+            if self.stderr:
+                stderr = Stderr(os.dup(self.stdout.fileno()))
+                threads.append(threading.Thread(target=handle_output, args=(stderr,)))
+
+            for thread in threads:
+                thread.start()
             self.wait(timeout.remain if isinstance(timeout, Timeout) else timeout)
+
         except subprocess.TimeoutExpired:
             pass
-        finally:
-            cancel_event.set()
-            finish_event.wait()
 
-        return out_buffer.read(), err_buffer.read()
+        finally:
+            if stdout:
+                ignore_error(os.close, stdout.fd)
+            if stderr:
+                ignore_error(os.close, stderr.fd)
+            for thread in threads:
+                thread.join()
+
+        return stdout.data if stdout else None, \
+               stderr.data if stderr else None
