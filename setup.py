@@ -73,10 +73,10 @@ if __name__ == '__main__':
     with open(get_path("src", "linktools", "version.py"), mode="rb") as fd:
         exec(compile(fd.read(), "version", "exec"), version.__dict__)
 
-    with open(get_path("README.md"), "r") as fd:
+    with open(get_path("README.md"), "rt", encoding="utf-8") as fd:
         description = fd.read()
 
-    with open(get_path("requirements.json")) as fd:
+    with open(get_path("requirements.json"), "rt", encoding="utf-8") as fd:
         data = json.load(fd)
         install_requires = data.get("install_requires")
         extras_require = data.get("extras_require")
