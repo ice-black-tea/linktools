@@ -24,13 +24,6 @@ GENERAL_TOOL_APKTOOL:
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
   target_path: apktool-{version}.jar
 
-GENERAL_TOOL_UBER_APK_SIGNER:
-  <<: *JAR
-  name: uber-apk-signer
-  version: 1.2.1
-  download_url: https://github.com/patrickfav/uber-apk-signer/releases/download/v{version}/uber-apk-signer-{version}.jar
-  target_path: uber-apk-signer-{version}.jar
-
 GENERAL_TOOL_APPCRAWLER:
   <<: *JAR
   cmdline: appcrawler
@@ -157,7 +150,7 @@ GENERAL_TOOL_ZIPALIGN:
       - else: ~
 
 GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
-  version: 1.4.5
+  version: 1.4.6
   download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
   unpack_path: jadx-{version}
   target_path:
