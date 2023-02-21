@@ -55,7 +55,7 @@ class Command(cli.IOSCommand):
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 
-        with IOSFridaServer(device=device) as server:
+        with IOSFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 
             objection_args = ["objection"]
             if environ.debug:

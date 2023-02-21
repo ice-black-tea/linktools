@@ -11,7 +11,6 @@ import fnmatch
 import lzma
 import os
 import shutil
-import subprocess
 from typing import Optional
 
 import frida
@@ -36,6 +35,11 @@ class AndroidFridaServer(FridaServer):
         self._forward: Optional[utils.Stoppable] = None
         self._environ = self.Environ(self._device.abi, frida.__version__)
 
+        self._server_prefix = "fs-ln-"
+        self._server_name = f"{self._server_prefix}-{utils.make_uuid()}"
+        self._server_dir = self._device.get_data_path("fs-ln")
+        self._server_path = self._device.get_data_path("fs-ln", self._server_name)
+
     @property
     def local_port(self):
         return self._local_port
@@ -51,37 +55,45 @@ class AndroidFridaServer(FridaServer):
             env.prepare()
 
     def _start(self):
+
         # 先下载frida server，然后把server推送到设备上
         if not self._device.is_file_exist(self._environ.remote_path):
             self._environ.prepare()
             _logger.info(f"Push frida server to remote: {self._environ.remote_path}")
             temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
-            self._device.push(self._environ.local_path, temp_path, output_to_logger=True)
-            self._device.sudo("mv", temp_path, self._environ.remote_path, output_to_logger=True)
-            self._device.sudo("chmod", "755", self._environ.remote_path, output_to_logger=True)
+            self._device.push(self._environ.local_path, temp_path, log_output=True)
+            self._device.sudo("mv", temp_path, self._environ.remote_path, log_output=True)
+            self._device.sudo("chmod", "755", self._environ.remote_path, log_output=True)
 
         # 转发端口
         self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
 
+        # 创建软链
+        self._device.sudo("mkdir", "-p", self._server_dir)
+        self._device.sudo("ln", "-s", self._environ.remote_path, self._server_path)
+
         # 接下来新开一个进程运行frida server，并且输出一下是否出错
         self._device.sudo(
             self._device.get_safe_command([
-                self._environ.remote_path,
+                self._server_path,
                 "-d", "fs-binaries",
                 "-l", f"0.0.0.0:{self._remote_port}",
                 "-D", "&"
             ]),
             ignore_errors=True,
-            output_to_logger=True,
+            log_output=True,
         )
 
     def _stop(self):
         try:
+            # 删除软连接
+            self._device.sudo("rm", self._server_path, ignore_errors=True)
             # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
-            process_name_lc = f"*{self._environ.remote_name}*".lower()
+            process_name_lc = f"{self._server_prefix}*".lower()
             for process in self.enumerate_processes():
                 if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
-                    self.kill(process.pid)
+                    _logger.debug(f"Find frida server process({process.name}:{process.pid}), kill it")
+                    self._device.sudo("kill", "-9", process.pid, ignore_errors=True)
         finally:
             # 把转发端口给移除了，不然会一直占用这个端口
             self._forward.stop()

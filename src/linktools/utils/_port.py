@@ -52,7 +52,7 @@ def bind(port: int, socket_type: socket.SocketKind, socket_proto: int):
             continue
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(('localhost', port))
+            sock.bind(('', port))
             if socket_type == socket.SOCK_STREAM:
                 sock.listen(1)
             port = sock.getsockname()[1]
@@ -71,11 +71,11 @@ def is_port_free(port: int):
     Returns:
       boolean, whether it is free to use for both TCP and UDP
     """
-    return bind(port, socket.SOCK_STREAM, socket.IPPROTO_TCP) and \
-           bind(port, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    return bind(port, socket.SOCK_STREAM, socket.IPPROTO_TCP) is not None and \
+           bind(port, socket.SOCK_DGRAM, socket.IPPROTO_UDP) is not None
 
 
-def pick_free_port(ports: [int] = range(50000, 55000)):
+def pick_unused_port(ports: [int] = range(50000, 55000)):
     for port in ports:
         if is_port_free(port):
             return port

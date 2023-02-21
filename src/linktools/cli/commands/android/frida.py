@@ -103,7 +103,7 @@ class Command(cli.AndroidCommand):
                     if args.auto_start:
                         app.load_script(app.device.spawn(package), resume=True)
 
-        with AndroidFridaServer(device=device) as server:
+        with AndroidFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 
             app = Application(
                 server,

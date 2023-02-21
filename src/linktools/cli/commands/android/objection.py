@@ -62,7 +62,7 @@ class Command(cli.AndroidCommand):
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 
-        with AndroidFridaServer(device=device) as server:
+        with AndroidFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 
             objection_args = ["objection"]
             if environ.debug:

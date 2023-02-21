@@ -96,7 +96,7 @@ class Command(cli.IOSCommand):
                     if args.auto_start:
                         app.load_script(app.device.spawn(bundle_id), resume=True)
 
-        with IOSFridaServer(device=device) as server:
+        with IOSFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 
             app = Application(
                 server,

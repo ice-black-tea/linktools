@@ -60,7 +60,7 @@ from ._reactor import (
 
 from ._port import (
     is_port_free,
-    pick_free_port,
+    pick_unused_port,
     NoFreePortFoundError,
 )
 
