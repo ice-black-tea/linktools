@@ -21,7 +21,8 @@
       "python-magic-bin; platform_system==\"Windows\""
     ],
     "ssh": [
-      "paramiko"
+      "paramiko",
+      "scp"
     ]
   }
 }

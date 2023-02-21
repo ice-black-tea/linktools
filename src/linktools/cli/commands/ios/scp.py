@@ -1,13 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-# Datetime  : 2022/12/8 17:05
-# Author    : HuJi <jihu.hj@alibaba-inc.com>
-
+import os
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, Tuple, Type
+
+import paramiko
+from paramiko.ssh_exception import SSHException
 
 from linktools import utils, cli
+from linktools.ios import Device
+
+_REMOTE_PATH_PREFIX = "@"
+
+
+class SCPFile(os.PathLike):
+    path: str = property(fget=lambda self: self._path)
+    is_local: bool = property(fget=lambda self: not self._is_remote)
+    is_remote: bool = property(fget=lambda self: self._is_remote)
+
+    def __init__(self, path: str):
+        if path.startswith(_REMOTE_PATH_PREFIX):
+            self._is_remote = True
+            self._path = path[len(_REMOTE_PATH_PREFIX):]
+        else:
+            self._is_remote = False
+            self._path = os.path.abspath(os.path.expanduser(path))
+
+    def __fspath__(self):
+        return self._path
 
 
 class Command(cli.IOSCommand):
@@ -15,7 +36,9 @@ class Command(cli.IOSCommand):
     OpenSSH secure file copy (require iOS device jailbreak)
     """
 
-    _REMOTE_PATH_PREFIX = "@"
+    @property
+    def _known_errors(self) -> Tuple[Type[BaseException]]:
+        return super()._known_errors + tuple([NotImplementedError, SSHException])
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--user", action="store", default="root",
@@ -24,25 +47,31 @@ class Command(cli.IOSCommand):
                             help="iOS ssh port (default: 22)")
         parser.add_argument("-l", "--local-port", action="store", type=int, default=2222,
                             help="local listening port (default: 2222)")
-        parser.add_argument("scp_args", nargs="...",
-                            help=f"scp args, remote path needs to be prefixed with \"{self._REMOTE_PATH_PREFIX}\"")
+
+        parser.add_argument("source", action="store", type=SCPFile, default=None,
+                            help=f"source file path, remote path needs to be prefixed with \"{_REMOTE_PATH_PREFIX}\"")
+        parser.add_argument("target", action='store', type=SCPFile, default=None,
+                            help=f"target file path, remote path needs to be prefixed with \"{_REMOTE_PATH_PREFIX}\"")
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
-        device = args.parse_device()
+        device: Device = args.parse_device()
 
-        scp_args = []
-        for arg in args.scp_args:
-            if arg.startswith(self._REMOTE_PATH_PREFIX):
-                arg = f"{args.user}@127.0.0.1:{arg[len(self._REMOTE_PATH_PREFIX):]}"
-            scp_args.append(arg)
+        local_port = 2222
+        with device.forward(local_port, args.port):
+            with utils.SSHClient() as client:
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.connect_with_pwd("localhost", port=local_port, username=args.user)
+                if args.source.is_remote and args.target.is_local:
+                    client.get_file(args.source.path, args.target.path)
+                elif args.source.is_local and args.target.is_remote:
+                    client.put_file(args.source.path, args.target.path)
+                elif args.source.is_remote and args.target.is_remote:
+                    raise NotImplementedError("It does not support copying files between remote files")
+                elif args.source.is_local and args.target.is_local:
+                    raise NotImplementedError("It does not support copying files between local files")
 
-        with device.forward(args.local_port, args.port):
-            scp_args = [
-                "scp", "-P", args.local_port,
-                *scp_args
-            ]
-            return utils.Popen(*scp_args).call()
+        return None
 
 
 command = Command()

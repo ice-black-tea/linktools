@@ -37,12 +37,10 @@ from typing import Dict, Union, List, Tuple
 from urllib import parse
 
 from filelock import FileLock
-from rich.progress import BarColumn, DownloadColumn, Progress, \
-    TaskProgressColumn, TimeRemainingColumn, TransferSpeedColumn, TextColumn
 
 from ._utils import Timeout, get_md5, ignore_error, split_version
 from .._environ import resource, config, tools
-from .._logging import get_logger, LogColumn
+from .._logging import get_logger, create_log_progress
 from ..decorator import cached_property
 
 _logger = get_logger("utils.url")
@@ -154,16 +152,6 @@ class DownloadContext:
             "Range": f"bytes={initial}-",
         }
 
-        progress = Progress(
-            LogColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-            TaskProgressColumn(),
-            TextColumn("eta"),
-            TimeRemainingColumn(),
-        )
 
         try:
             import requests
@@ -171,7 +159,7 @@ class DownloadContext:
         except ModuleNotFoundError:
             fn = self._download_with_urllib
 
-        with progress:
+        with create_log_progress() as progress:
             task_id = progress.add_task(self.file_name, total=0)
             progress.advance(task_id, initial)
 

@@ -60,7 +60,7 @@ class Command(cli.IOSCommand):
         with device.forward(local_port, args.port):
             with utils.SSHClient() as client:
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                client.connect("localhost", port=local_port, username=args.user)
+                client.connect_with_pwd("localhost", port=local_port, username=args.user)
                 client.open_shell(*args.ssh_args)
 
         return 0

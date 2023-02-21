@@ -34,7 +34,9 @@ from typing import Optional, Union
 
 from rich.console import ConsoleRenderable
 from rich.logging import RichHandler
-from rich.progress import ProgressColumn, Task
+from rich.progress import Task, \
+    Progress, ProgressColumn, \
+    TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn, TaskProgressColumn, TimeRemainingColumn
 from rich.table import Column
 from rich.text import Text
 
@@ -176,7 +178,7 @@ class LogColumn(ProgressColumn):
         super().__init__(table_column=table_column or Column(no_wrap=True))
         self._log_handler = LogHandler.get_instance()
 
-    def render(self, task: Task) -> Union[str, Text]:
+    def render(self, task: Task = None) -> Union[str, Text]:
         if not self._log_handler:
             return ""
         result = Text()
@@ -191,6 +193,19 @@ class LogColumn(ProgressColumn):
         return result
 
 
+def create_log_progress():
+    return Progress(
+        LogColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TaskProgressColumn(),
+        TextColumn("eta"),
+        TimeRemainingColumn(),
+    )
+
+
 def get_logger(name: str = None, prefix=module_name) -> "Logger":
     if prefix:
         name = f"{prefix}.{name}" if name else prefix
@@ -199,7 +214,6 @@ def get_logger(name: str = None, prefix=module_name) -> "Logger":
 
 
 class Logger(logging.Logger):
-
     _EMPTY_ARGS = tuple()
 
     def _log(self, level, msg, args, **kwargs):

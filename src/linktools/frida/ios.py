@@ -11,7 +11,7 @@ import frida
 
 from .server import FridaServer
 from .. import get_logger, utils
-from ..ios.device import Device
+from ..ios import Device
 
 _logger = get_logger("frida.server.ios")
 

@@ -1,46 +1,57 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import functools
+import contextlib
 import sys
 import threading
 from socket import socket
 
 import paramiko
-from paramiko.ssh_exception import AuthenticationException
+from paramiko.ssh_exception import AuthenticationException, SSHException
 from rich import get_console
 from rich.prompt import Prompt
+from scp import SCPClient
 
 from . import list2cmdline
 from ._utils import ignore_error
-from .._logging import get_logger
+from .._logging import get_logger, create_log_progress
 
 _logger = get_logger("utils.ssh")
 
 
 class SSHClient(paramiko.SSHClient):
 
-    def connect_with_password(self, hostname, *, username=None, password=None, **kwargs):
+    def connect_with_pwd(self, hostname, port=22, username=None, password=None, **kwargs):
         try:
             super().connect(
                 hostname,
+                port=port,
                 username=username,
                 password=password,
                 **kwargs
             )
-        except AuthenticationException:
+        except SSHException:
+
             if password is not None:
+                raise
+
+            transport = self.get_transport()
+            if transport is None:
+                raise
+            elif not transport.is_alive():
+                raise
+            elif transport.is_authenticated():
                 raise
 
             auth_exception = None
             for i in range(3):
                 console = get_console()
                 password = Prompt.ask(
-                    f"{username}@{self.get_transport().hostname}'s password",
+                    f"{username}@{hostname}'s password",
                     console=console,
                     password=True
                 )
                 try:
-                    self.get_transport().auth_password(username, password)
+                    transport.auth_password(username, password)
                     auth_exception = None
                     break
                 except AuthenticationException as e:
@@ -139,3 +150,31 @@ class SSHClient(paramiko.SSHClient):
             if len(data) == 0:
                 break
             channel.send(data.encode())
+
+    def get_file(self, remote_path: str, local_path: str):
+        with self._open_scp() as scp:
+            return scp.get(remote_path, local_path, recursive=True)
+
+    def put_file(self, local_path: str, remote_path: str):
+        with self._open_scp() as scp:
+            return scp.put(local_path, remote_path, recursive=True)
+
+    @contextlib.contextmanager
+    def _open_scp(self):
+
+        with create_log_progress() as progress:
+            task_id = progress.add_task("", total=0)
+            progress.advance(task_id, 0)
+
+            def update_progress(filename, size, sent):
+                if isinstance(filename, bytes):
+                    filename = filename.decode()
+                progress.update(
+                    task_id,
+                    completed=sent,
+                    description=filename,
+                    total=size
+                )
+
+            with SCPClient(self.get_transport(), progress=update_progress) as scp:
+                yield scp
