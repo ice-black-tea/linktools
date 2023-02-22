@@ -38,7 +38,7 @@ class Command(cli.IOSCommand):
 
     @property
     def _known_errors(self) -> Tuple[Type[BaseException]]:
-        return super()._known_errors + tuple([NotImplementedError, SSHException])
+        return super()._known_errors + tuple([NotImplementedError, FileNotFoundError, SSHException])
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--user", action="store", default="root",

@@ -146,7 +146,7 @@ class Popen(subprocess.Popen):
                 threads.append(threading.Thread(target=handle_output, args=(stdout,)))
 
             if self.stderr:
-                stderr = Stderr(os.dup(self.stdout.fileno()))
+                stderr = Stderr(os.dup(self.stderr.fileno()))
                 threads.append(threading.Thread(target=handle_output, args=(stderr,)))
 
             for thread in threads:
@@ -157,10 +157,12 @@ class Popen(subprocess.Popen):
             pass
 
         finally:
-            if stdout:
-                ignore_error(os.close, stdout.fd)
-            if stderr:
-                ignore_error(os.close, stderr.fd)
+            if self.poll() is None:
+                if stdout:
+                    ignore_error(os.close, stdout.fd)
+                if stderr:
+                    ignore_error(os.close, stderr.fd)
+
             for thread in threads:
                 thread.join()
 

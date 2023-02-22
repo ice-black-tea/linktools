@@ -151,7 +151,8 @@ class Device(object):
             "proxy",
             "--local-port", local_port,
             "--remote-port", remote_port,
-            bufsize=0,
+            text=True,
+            bufsize=1,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -160,10 +161,13 @@ class Device(object):
             if process.poll() is not None:
                 break
             out, err = process.run(timeout=1, log_stderr=True)
-            if out and b"Listen on:" in out:
-                time.sleep(.1)
-                _logger.debug(f"Capture sib proxy process output: {out}")
-                break
+            if out:
+                if isinstance(out, bytes):
+                    out = out.decode(errors="ignore")
+                if "Listen on:" in out:
+                    time.sleep(.1)
+                    _logger.debug(f"Capture sib proxy process output: {out.rstrip()}")
+                    break
 
         class Stoppable(utils.Stoppable):
 
