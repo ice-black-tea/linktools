@@ -2,6 +2,13 @@
 
 
 /**
+ * types
+ */
+type Options = { [name: string]: any; }
+type Implementation = ((args: any[]) => any);
+type ImplementationOrOptions = Implementation | Options;
+
+/**
  *  用于方便调用frida的ObjC方法
  */
 export class CHelper {
@@ -32,6 +39,18 @@ export class CHelper {
 
     /**
      * hook指定函数名
+     * @param moduleName 模块名称
+     * @param exportName 函数名
+     * @param options hook选项，如：{stack: true, args: true, thread: true}
+     * @returns InvocationListener，可用于取消hook
+     */
+    hookFunctionWithOptions(moduleName: string | null, exportName: string, options: Options): InvocationListener {
+        return this.hookFunctionWithCallbacks(moduleName, exportName, this.getEventImpl(options));
+    }
+
+    /**
+     * hook指定函数名
+     * @param moduleName 模块名称
      * @param exportName 函数名
      * @param callbacks hook回调
      * @returns InvocationListener，可用于取消hook
@@ -69,6 +88,7 @@ export class CHelper {
 
     /**
      * hook指定函数名
+     * @param moduleName 模块名称
      * @param exportName 函数名
      * @param retType 返回值类型
      * @param argTypes 参数类型
@@ -80,11 +100,14 @@ export class CHelper {
         exportName: string,
         retType: RetType,
         argTypes: ArgTypes,
-        impl: (args: any[]) => any
+        impl: ImplementationOrOptions
     ): void {
         const func = this.getExportFunction(moduleName, exportName, retType, argTypes);
         if (func === null) {
             throw Error("cannot find " + exportName);
+        }
+        if (!isFunction(impl)) {
+            impl = this.getEventImpl(impl);
         }
 
         const callbackArgTypes: any = argTypes;
@@ -120,7 +143,7 @@ export class CHelper {
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
      */
-    getEventImpl(options: any): InvocationListenerCallbacks & ((args: any[]) => any) {
+    getEventImpl(options: Options): InvocationListenerCallbacks & Implementation {
         const opts = new function () {
             this.method = true;
             this.thread = false;

@@ -68,6 +68,27 @@ class Log {
     ERROR = 4;
     private $level = this.INFO;
 
+    constructor() {
+        const createFn = (function (fn) {
+            return function () {
+                var message = "";
+                for (var i = 0; i < arguments.length; i++) {
+                    if (i > 0) {
+                        message += " ";
+                    }
+                    message += arguments[i];
+                }
+                fn(message);
+            }
+        });
+
+        console.debug = createFn(this.d.bind(this));
+        console.info = createFn(this.i.bind(this));
+        console.warn = createFn(this.w.bind(this));
+        console.error = createFn(this.e.bind(this));
+        console.log = createFn(this.i.bind(this));
+    }
+
     get level(): number {
         return this.$level;
     }
@@ -180,6 +201,7 @@ declare global {
     const ObjCHelper: ObjCHelper;
     const IOSHelper: IOSHelper;
     const parameters: Parameters;
+    function isFunction(obj: any): boolean;
     function ignoreError<T>(fn: () => T): T;
     function ignoreError<T>(fn: () => T, defautValue: T): T;
     function parseBoolean(value: string | boolean);
@@ -218,6 +240,12 @@ Object.defineProperties(globalThis, {
     IOSHelper: {
         enumerable: true,
         value: iosHelper
+    },
+    isFunction: {
+        enumerable: false,
+        value: function (obj: any): boolean {
+            return Object.prototype.toString.call(obj) === "[object Function]"
+        }
     },
     ignoreError: {
         enumerable: false,
@@ -279,7 +307,7 @@ Object.defineProperties(globalThis, {
     },
     getDebugSymbolFromAddress: {
         enumerable: false,
-        value: function(pointer: NativePointer): DebugSymbol {
+        value: function (pointer: NativePointer): DebugSymbol {
             const key = pointer.toString();
             if (debugSymbolAddressCache[key] === void 0) {
                 debugSymbolAddressCache[key] = DebugSymbol.fromAddress(pointer);

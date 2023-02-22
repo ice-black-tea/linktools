@@ -46,10 +46,12 @@ class Command(cli.IOSCommand):
         return super()._known_errors + tuple([SSHException])
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("-u", "--user", action="store", default="root",
-                            help="iOS ssh user (default: root)")
+        parser.add_argument("-u", "--username", action="store", default="root",
+                            help="iOS ssh username (default: root)")
         parser.add_argument("-p", "--port", action="store", type=int, default=22,
                             help="iOS ssh port (default: 22)")
+        parser.add_argument("--password", action="store",
+                            help="iOS ssh password")
         parser.add_argument('ssh_args', nargs='...', help="ssh args")
 
     def _run(self, args: [str]) -> Optional[int]:
@@ -60,7 +62,7 @@ class Command(cli.IOSCommand):
         with device.forward(local_port, args.port):
             with utils.SSHClient() as client:
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                client.connect_with_pwd("localhost", port=local_port, username=args.user)
+                client.connect_with_pwd("localhost", port=local_port, username=args.username, password=args.password)
                 client.open_shell(*args.ssh_args)
 
         return 0

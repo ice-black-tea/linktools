@@ -36,7 +36,7 @@ class AndroidFridaServer(FridaServer):
         self._environ = self.Environ(self._device.abi, frida.__version__)
 
         self._server_prefix = "fs-ln-"
-        self._server_name = f"{self._server_prefix}-{utils.make_uuid()}"
+        self._server_name = f"{self._server_prefix}{utils.make_uuid()}"
         self._server_dir = self._device.get_data_path("fs-ln")
         self._server_path = self._device.get_data_path("fs-ln", self._server_name)
 
@@ -68,21 +68,25 @@ class AndroidFridaServer(FridaServer):
         # 转发端口
         self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
 
-        # 创建软链
-        self._device.sudo("mkdir", "-p", self._server_dir)
-        self._device.sudo("ln", "-s", self._environ.remote_path, self._server_path)
+        try:
+            # 创建软链
+            self._device.sudo("mkdir", "-p", self._server_dir)
+            self._device.sudo("ln", "-s", self._environ.remote_path, self._server_path)
 
-        # 接下来新开一个进程运行frida server，并且输出一下是否出错
-        self._device.sudo(
-            self._device.get_safe_command([
-                self._server_path,
-                "-d", "fs-binaries",
-                "-l", f"0.0.0.0:{self._remote_port}",
-                "-D", "&"
-            ]),
-            ignore_errors=True,
-            log_output=True,
-        )
+            # 接下来新开一个进程运行frida server，并且输出一下是否出错
+            self._device.sudo(
+                self._device.get_safe_command([
+                    self._server_path,
+                    "-d", "fs-binaries",
+                    "-l", f"0.0.0.0:{self._remote_port}",
+                    "-D", "&"
+                ]),
+                ignore_errors=True,
+                log_output=True,
+            )
+        finally:
+            # 删除软连接
+            self._device.sudo("rm", self._server_path, ignore_errors=True)
 
     def _stop(self):
         try:

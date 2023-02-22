@@ -23,6 +23,14 @@
 
 
 /**
+ * types
+ */
+type Options = { [name: string]: any; }
+type Implementation<T extends Java.Members<T>> = ((obj: Java.Wrapper<T>, args: any[]) => any);
+type ImplementationOrOptions<T extends Java.Members<T>> = Implementation<T> | Options;
+
+
+/**
  *  用于方便调用frida的java方法
  */
 export class JavaHelper {
@@ -199,7 +207,7 @@ export class JavaHelper {
      */
     private $hookMethod<T extends Java.Members<T> = {}>(
         method: Java.Method<T>,
-        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+        impl: ImplementationOrOptions<T> = null
     ): void {
         if (impl != null) {
             const proxy = new Proxy(method, {
@@ -209,6 +217,9 @@ export class JavaHelper {
                     return target.apply(obj, args);
                 }
             });
+            if (!isFunction(impl)) {
+                impl = this.getEventImpl(impl);
+            }
             method.implementation = function () {
                 return impl.call(proxy, this, Array.prototype.slice.call(arguments));
             };
@@ -230,7 +241,7 @@ export class JavaHelper {
         clazz: string | Java.Wrapper<T>,
         method: string | Java.Method<T>,
         signatures: (string | Java.Wrapper<T>)[],
-        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+        impl: ImplementationOrOptions<T> = null
     ): void {
         var targetMethod: any = method;
         if (typeof (targetMethod) === "string") {
@@ -265,13 +276,13 @@ export class JavaHelper {
     /**
      * hook指定方法名的所有重载
      * @param clazz java类名/类对象
-     * @param method java方法名
+     * @param methodName java方法名
      * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, args); }
      */
     hookMethods<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
         methodName: string,
-        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+        impl: ImplementationOrOptions<T> = null
     ): void {
         var targetClass: any = clazz;
         if (typeof (targetClass) === "string") {
@@ -300,7 +311,7 @@ export class JavaHelper {
      */
     hookAllConstructors<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
-        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+        impl: ImplementationOrOptions<T> = null
     ): void {
         var targetClass: any = clazz;
         if (typeof (targetClass) === "string") {
@@ -325,7 +336,7 @@ export class JavaHelper {
      */
     hookAllMethods<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
-        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+        impl: ImplementationOrOptions<T> = null
     ): void {
         var targetClass: any = clazz;
         if (typeof (targetClass) === "string") {
@@ -364,7 +375,7 @@ export class JavaHelper {
      */
     hookClass<T extends Java.Members<T> = {}>(
         clazz: string | Java.Wrapper<T>,
-        impl: (obj: Java.Wrapper<T>, args: any[]) => any = null
+        impl: ImplementationOrOptions<T> = null
     ): void {
         var targetClass: any = clazz;
         if (typeof (targetClass) === "string") {
@@ -379,7 +390,7 @@ export class JavaHelper {
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
      */
-    getEventImpl<T extends Java.Members<T> = {}>(options: any): (obj: Java.Wrapper<T>, args: any[]) => any {
+    getEventImpl<T extends Java.Members<T> = {}>(options: Options): Implementation<T> {
         const javaHelperThis = this;
 
         const opts = new function () {
@@ -524,8 +535,6 @@ export class JavaHelper {
 
     /**
      * 获取当前java栈
-     * @param printStack 是否展示栈，默认为true
-     * @param printArgs 是否展示参数，默认为true
      * @returns java栈对象
      */
     getStackTrace<T extends Java.Members<T> = {}>(): Java.Wrapper<T>[] {

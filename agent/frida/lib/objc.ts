@@ -1,5 +1,13 @@
 // https://github.com/frida/frida-objc-bridge/blob/main/index.js
 
+
+/**
+ * types
+ */
+type Options = { [name: string]: any; }
+type Implementation = (obj: any, args: any[]) => any;
+type ImplementationOrOptions = Implementation | Options;
+
 /**
  *  用于方便调用frida的ObjC方法
  */
@@ -9,7 +17,7 @@ export class ObjCHelper {
      * 为method添加properties
      * @param method 方法对象
      */
-    private $fixMethod(clazz: ObjC.Object, method: ObjC.ObjectMethod): void {
+    private $defineMethodProperties(clazz: ObjC.Object, method: ObjC.ObjectMethod): void {
         const implementation = method["origImplementation"] || method.implementation;
         const className = clazz.toString();
         const methodName = ObjC.selectorAsString(method.selector);
@@ -56,8 +64,11 @@ export class ObjCHelper {
      * @param method 方法对象
      * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, sel, args); }
      */
-    private $hookMethod(method: ObjC.ObjectMethod, impl: (obj: any, args: any[]) => any = null): void {
+    private $hookMethod(method: ObjC.ObjectMethod, impl: ImplementationOrOptions = null): void {
         if (impl != null) {
+            if (!isFunction(impl)) {
+                impl = this.getEventImpl(impl);
+            }
             method.implementation = ObjC.implement(method, function () {
                 const self = this;
                 const args = Array.prototype.slice.call(arguments);
@@ -87,13 +98,15 @@ export class ObjCHelper {
 
     /**
      * 获取hook实现，调用原方法并发送调用事件
-     * @param options hook选项，如：{stack: true, args: true, thread: true}
+     * @param clazz 类对象
+     * @param method 方法对象
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, sel, args); }
      * @returns hook实现
      */
     hookMethod(
         clazz: string | ObjC.Object,
         method: string | ObjC.ObjectMethod,
-        impl: (obj: ObjC.Object, args: any[]) => any = null
+        impl: ImplementationOrOptions = null
     ): void {
         var targetClass: any = clazz;
         if (typeof (targetClass) === "string") {
@@ -109,19 +122,21 @@ export class ObjCHelper {
         if (targetMethod === void 0) {
             throw Error("cannot find method \"" + method + "\" in class \"" + targetClass + "\"");
         }
-        this.$fixMethod(targetClass, targetMethod);
+        this.$defineMethodProperties(targetClass, targetMethod);
         this.$hookMethod(targetMethod, impl);
     }
 
     /**
      * 获取hook实现，调用原方法并发送调用事件
-     * @param options hook选项，如：{stack: true, args: true, thread: true}
+     * @param clazz 类对象
+     * @param name 方法名（模糊匹配）
+     * @param impl hook实现，如调用原函数： function(obj, args) { return this(obj, sel, args); }
      * @returns hook实现
      */
     hookMethods(
         clazz: string | ObjC.Object,
         name: string,
-        impl: (obj: ObjC.Object, args: any[]) => any = null
+        impl: ImplementationOrOptions = null
     ): void {
         var targetClass: any = clazz;
         if (typeof (targetClass) === "string") {
@@ -135,7 +150,7 @@ export class ObjCHelper {
             const method = targetClass.$ownMethods[i];
             if (method.indexOf(name) >= 0) {
                 const targetMethod = targetClass[method];
-                this.$fixMethod(targetClass, targetMethod);
+                this.$defineMethodProperties(targetClass, targetMethod);
                 this.$hookMethod(targetMethod, impl);
             }
         }
@@ -146,7 +161,7 @@ export class ObjCHelper {
      * @param options hook选项，如：{stack: true, args: true, thread: true}
      * @returns hook实现
      */
-    getEventImpl(options: any): (obj: any, args: any[]) => any {
+    getEventImpl(options: Options): Implementation {
         const self = this;
 
         const opts = new function () {
