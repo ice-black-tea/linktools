@@ -30,10 +30,9 @@
 import os
 import platform
 import shutil
-import subprocess
 import sys
 import warnings
-from typing import Dict, Union, Mapping, Iterator, Any, AnyStr
+from typing import Dict, Union, Mapping, Iterator, Any
 
 from . import utils
 from ._environ import resource, config

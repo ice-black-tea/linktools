@@ -3,17 +3,71 @@
 
 import errno
 import os
+import queue
 import subprocess
 import threading
-from typing import Union, AnyStr, Tuple, Optional
+from typing import Union, AnyStr, Tuple, Optional, IO
 
-from . import Timeout, ignore_error
+from . import Timeout
 from .._environ import environ
 from .._logging import get_logger
+from ..decorator import cached_property
 
 _logger = get_logger("utils.subprocess")
 
 list2cmdline = subprocess.list2cmdline
+
+
+class Output:
+    FLAG_STDOUT = 1
+    FLAG_STDERR = 2
+
+    def __init__(self, stdout: IO[AnyStr], stderr: IO[AnyStr]):
+        self._queue = queue.Queue()
+        self._stdout_thread = None
+        self._stderr_thread = None
+        if stdout:
+            self._stdout_thread = threading.Thread(
+                target=self._iter_lines,
+                args=(self.FLAG_STDOUT, os.dup(stdout.fileno()),)
+            )
+            self._stdout_thread.daemon = True
+            self._stdout_thread.start()
+        if stderr:
+            self._stderr_thread = threading.Thread(
+                target=self._iter_lines,
+                args=(self.FLAG_STDERR, os.dup(stderr.fileno()),)
+            )
+            self._stderr_thread.daemon = True
+            self._stderr_thread.start()
+
+    def _iter_lines(self, flag, fd):
+        try:
+            with os.fdopen(fd) as fd:
+                for data in iter(fd.readline, ""):
+                    self._queue.put((flag, data))
+        except OSError as e:
+            if e.errno != errno.EBADF:
+                _logger.debug(f"Handle output error: {e}")
+        finally:
+            self._queue.put((None, None))
+
+    def read_lines(self, timeout: Union[float, Timeout] = None):
+        if not isinstance(timeout, Timeout):
+            timeout = Timeout(timeout)
+        while True:
+            try:
+                flag, data = self._queue.get(timeout=timeout.remain)
+                if flag is None:
+                    if self._stdout_thread and self._stdout_thread.is_alive():
+                        pass
+                    elif self._stderr_thread and self._stderr_thread.is_alive():
+                        pass
+                    else:
+                        break
+                yield flag, data
+            except queue.Empty:
+                break
 
 
 class Popen(subprocess.Popen):
@@ -73,6 +127,10 @@ class Popen(subprocess.Popen):
                 self.kill()
                 raise
 
+    @cached_property
+    def _output(self):
+        return Output(self.stdout, self.stderr)
+
     def run(self, timeout: Union[float, Timeout] = None, log_stdout: bool = False, log_stderr: bool = False) \
             -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
         """
@@ -86,85 +144,30 @@ class Popen(subprocess.Popen):
         if self.poll() is not None:
             return None, None
 
-        class Output:
-
-            def __init__(self, fd):
-                self._fd = fd
-                self._data = None
-
-            @property
-            def fd(self):
-                return self._fd
-
-            @property
-            def data(self):
-                return self._data
-
-            def __call__(self, data: AnyStr):
-                if self._data is not None:
-                    self._data += data
-                else:
-                    self._data = data
-
-        class Stdout(Output):
-
-            def __call__(self, data: AnyStr):
-                super().__call__(data)
-                if log_stdout:
-                    if isinstance(data, bytes):
-                        data = data.decode(errors="ignore")
-                    data = data.rstrip()
-                    if data:
-                        _logger.info(data.rstrip())
-
-        class Stderr(Output):
-
-            def __call__(self, data: AnyStr):
-                super().__call__(data)
-                if log_stderr:
-                    if isinstance(data, bytes):
-                        data = data.decode(errors="ignore")
-                    data = data.rstrip()
-                    if data:
-                        _logger.error(data.rstrip())
-
-        def handle_output(output: Output):
-            try:
-                with os.fdopen(output.fd) as fd:
-                    for data in iter(fd.readline, ""):
-                        output(data)
-            except OSError as e:
-                if e.errno != errno.EBADF:
-                    _logger.debug(f"Handle output error: {e}")
-
-        threads = []
-        stdout = stderr = None
+        out = err = None
 
         try:
-            if self.stdout:
-                stdout = Stdout(os.dup(self.stdout.fileno()))
-                threads.append(threading.Thread(target=handle_output, args=(stdout,)))
-
-            if self.stderr:
-                stderr = Stderr(os.dup(self.stderr.fileno()))
-                threads.append(threading.Thread(target=handle_output, args=(stderr,)))
-
-            for thread in threads:
-                thread.start()
-            self.wait(timeout.remain if isinstance(timeout, Timeout) else timeout)
-
+            if self.stdout is None and self.stderr is None:
+                self.wait(timeout.remain if isinstance(timeout, Timeout) else timeout)
+                return out, err
         except subprocess.TimeoutExpired:
             pass
 
-        finally:
-            if self.poll() is None:
-                if stdout:
-                    ignore_error(os.close, stdout.fd)
-                if stderr:
-                    ignore_error(os.close, stderr.fd)
+        for flag, data in self._output.read_lines(timeout):
+            if flag == self._output.FLAG_STDOUT:
+                out = data if out is None else out + data
+                if log_stdout:
+                    data = data.decode(errors="ignore") if isinstance(data, bytes) else data
+                    data = data.rstrip()
+                    if data:
+                        _logger.info(data)
 
-            for thread in threads:
-                thread.join()
+            elif flag == self._output.FLAG_STDERR:
+                err = data if err is None else err + data
+                if log_stderr:
+                    data = data.decode(errors="ignore") if isinstance(data, bytes) else data
+                    data = data.rstrip()
+                    if data:
+                        _logger.error(data)
 
-        return stdout.data if stdout else None, \
-               stderr.data if stderr else None
+        return out, err

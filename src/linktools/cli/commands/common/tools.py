@@ -43,15 +43,18 @@ class Command(cli.Command):
 
     def _add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
-        group.add_argument('-c', '--config', action='store_true', default=False,
-                           help='show the config of tool')
-        group.add_argument('--download', action='store_true', default=False,
-                           help='download tool files')
-        group.add_argument('--clear', action='store_true', default=False,
-                           help='clear tool files')
-        group.add_argument('-d', '--daemon', action='store_true', default=False,
-                           help='execute tools as a daemon')
-        parser.add_argument('tool', nargs='...', choices=self._TOOL_NAMES)
+        parser.add_argument("--set", metavar=("KEY", "VALUE"),
+                            action="append", nargs=2, dest="configs", default=[],
+                            help="set the config of tool")
+        group.add_argument("-c", "--config", action="store_true", default=False,
+                           help="show the config of tool")
+        group.add_argument("--download", action="store_true", default=False,
+                           help="download tool files")
+        group.add_argument("--clear", action="store_true", default=False,
+                           help="clear tool files")
+        group.add_argument("-d", "--daemon", action="store_true", default=False,
+                           help="execute tools as a daemon")
+        parser.add_argument("tool", nargs="...", choices=self._TOOL_NAMES)
 
     def _run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
@@ -61,24 +64,25 @@ class Command(cli.Command):
 
         tool_name = args.tool[0]
         tool_args = args.tool[1:]
+        tool = tools[tool_name].copy(**{k: v for k, v in args.configs})
 
         if args.config:
-            logger.info(json.dumps(tools[tool_name].config, indent=2, ensure_ascii=False))
+            logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))
             return 0
 
         elif args.download:
-            if not tools[tool_name].exists:
-                tools[tool_name].prepare()
-            logger.info(f"Download tool files success: {tools[tool_name].absolute_path}")
+            if not tool.exists:
+                tool.prepare()
+            logger.info(f"Download tool files success: {tool.absolute_path}")
             return 0
 
         elif args.clear:
-            tools[tool_name].clear()
+            tool.clear()
             logger.info(f"Clear tool files success")
             return 0
 
         elif args.daemon:
-            process = tools[tool_name].popen(
+            process = tool.popen(
                 *tool_args,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
@@ -87,7 +91,7 @@ class Command(cli.Command):
             return process.call_as_daemon()
 
         else:
-            process = tools[tool_name].popen(*tool_args)
+            process = tool.popen(*tool_args)
             return process.call()
 
 
