@@ -29,30 +29,32 @@ class Output:
         if stdout:
             self._stdout_thread = threading.Thread(
                 target=self._iter_lines,
-                args=(self.FLAG_STDOUT, os.dup(stdout.fileno()),)
+                args=(stdout, self.FLAG_STDOUT,)
             )
             self._stdout_thread.daemon = True
             self._stdout_thread.start()
         if stderr:
             self._stderr_thread = threading.Thread(
                 target=self._iter_lines,
-                args=(self.FLAG_STDERR, os.dup(stderr.fileno()),)
+                args=(stderr, self.FLAG_STDERR,)
             )
             self._stderr_thread.daemon = True
             self._stderr_thread.start()
 
-    def _iter_lines(self, flag, fd):
+    def _iter_lines(self, io: IO[AnyStr], flag: int):
         try:
-            with os.fdopen(fd) as fd:
-                for data in iter(fd.readline, ""):
-                    self._queue.put((flag, data))
+            while True:
+                data = io.readline()
+                if not data:
+                    break
+                self._queue.put((flag, data))
         except OSError as e:
             if e.errno != errno.EBADF:
                 _logger.debug(f"Handle output error: {e}")
         finally:
             self._queue.put((None, None))
 
-    def read_lines(self, timeout: Union[float, Timeout] = None):
+    def get_lines(self, timeout: Union[float, Timeout] = None):
         if not isinstance(timeout, Timeout):
             timeout = Timeout(timeout)
         while True:
@@ -127,10 +129,6 @@ class Popen(subprocess.Popen):
                 self.kill()
                 raise
 
-    @cached_property
-    def _output(self):
-        return Output(self.stdout, self.stderr)
-
     def run(self, timeout: Union[float, Timeout] = None, log_stdout: bool = False, log_stderr: bool = False) \
             -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
         """
@@ -149,11 +147,11 @@ class Popen(subprocess.Popen):
         try:
             if self.stdout is None and self.stderr is None:
                 self.wait(timeout.remain if isinstance(timeout, Timeout) else timeout)
-                return out, err
+
         except subprocess.TimeoutExpired:
             pass
 
-        for flag, data in self._output.read_lines(timeout):
+        for flag, data in self._output.get_lines(timeout):
             if flag == self._output.FLAG_STDOUT:
                 out = data if out is None else out + data
                 if log_stdout:
@@ -171,3 +169,7 @@ class Popen(subprocess.Popen):
                         _logger.error(data)
 
         return out, err
+
+    @cached_property
+    def _output(self):
+        return Output(self.stdout, self.stderr)

@@ -84,12 +84,17 @@ class SSHClient(paramiko.SSHClient):
 
         else:
             chan = self.invoke_shell()
+            shell = self._windows_shell
+
             try:
                 import termios
                 import tty
-                self._posix_shell(chan)
+                shell = self._posix_shell
             except ImportError:
-                self._windows_shell(chan)
+                pass
+
+            try:
+                shell(chan)
             finally:
                 ignore_error(chan.close)
 
@@ -136,20 +141,26 @@ class SSHClient(paramiko.SSHClient):
 
         def write_all(sock):
             while True:
-                data = sock.recv(1024)
-                if not data:
+                try:
+                    data = sock.recv(1024)
+                    if not data:
+                        sys.stdout.flush()
+                        break
+                    sys.stdout.write(data.decode())
                     sys.stdout.flush()
+                except OSError:
                     break
-                sys.stdout.write(data.decode())
-                sys.stdout.flush()
 
         writer = threading.Thread(target=write_all, args=(channel,))
         writer.start()
         while True:
-            data = sys.stdin.read(1)
-            if len(data) == 0:
+            try:
+                data = sys.stdin.read(1)
+                if len(data) == 0:
+                    break
+                channel.send(data.encode())
+            except OSError:
                 break
-            channel.send(data.encode())
 
     def get_file(self, remote_path: str, local_path: str):
         with self._open_scp() as scp:
