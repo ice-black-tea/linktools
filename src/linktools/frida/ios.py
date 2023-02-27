@@ -41,6 +41,6 @@ class IOSFridaServer(FridaServer):  # proxy for frida.core.Device
             self._forward = self._device.forward(self._local_port, self._remote_port)
 
     def _stop(self):
-        if self._thread is not None:
+        if self._forward is not None:
             utils.ignore_error(self._forward.stop)
             self._forward = None
