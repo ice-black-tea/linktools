@@ -54,9 +54,7 @@ class Output:
         finally:
             self._queue.put((None, None))
 
-    def get_lines(self, timeout: Union[float, Timeout] = None):
-        if not isinstance(timeout, Timeout):
-            timeout = Timeout(timeout)
+    def get_lines(self, timeout: Timeout):
         while True:
             try:
                 flag, data = self._queue.get(timeout=timeout.remain)
@@ -66,6 +64,11 @@ class Output:
                     elif self._stderr_thread and self._stderr_thread.is_alive():
                         pass
                     else:
+                        # 线程都结束了，需要把剩余的数据都消费完
+                        while not self._queue.empty():
+                            flag, data = self._queue.get_nowait()
+                            if flag is not None:
+                                yield flag, data
                         break
                 yield flag, data
             except queue.Empty:
@@ -144,29 +147,33 @@ class Popen(subprocess.Popen):
 
         out = err = None
 
-        try:
-            if self.stdout is None and self.stderr is None:
-                self.wait(timeout.remain if isinstance(timeout, Timeout) else timeout)
+        if not isinstance(timeout, Timeout):
+            timeout = Timeout(timeout)
 
-        except subprocess.TimeoutExpired:
-            pass
+        if self.stdout or self.stderr:
 
-        for flag, data in self._output.get_lines(timeout):
-            if flag == self._output.FLAG_STDOUT:
-                out = data if out is None else out + data
-                if log_stdout:
-                    data = data.decode(errors="ignore") if isinstance(data, bytes) else data
-                    data = data.rstrip()
-                    if data:
-                        _logger.info(data)
+            for flag, data in self._output.get_lines(timeout):
+                if flag == self._output.FLAG_STDOUT:
+                    out = data if out is None else out + data
+                    if log_stdout:
+                        data = data.decode(errors="ignore") if isinstance(data, bytes) else data
+                        data = data.rstrip()
+                        if data:
+                            _logger.info(data)
 
-            elif flag == self._output.FLAG_STDERR:
-                err = data if err is None else err + data
-                if log_stderr:
-                    data = data.decode(errors="ignore") if isinstance(data, bytes) else data
-                    data = data.rstrip()
-                    if data:
-                        _logger.error(data)
+                elif flag == self._output.FLAG_STDERR:
+                    err = data if err is None else err + data
+                    if log_stderr:
+                        data = data.decode(errors="ignore") if isinstance(data, bytes) else data
+                        data = data.rstrip()
+                        if data:
+                            _logger.error(data)
+        else:
+
+            try:
+                self.wait(timeout.remain)
+            except subprocess.TimeoutExpired:
+                pass
 
         return out, err
 

@@ -29,7 +29,7 @@
 
 import json
 import re
-from typing import Optional, Any, AnyStr
+from typing import Optional, Any
 
 from .struct import Package, UnixSocket, InetSocket
 from .. import utils, resource, tools, config, get_logger, ToolExecError
@@ -146,7 +146,7 @@ class Device(object):
         :return: uid
         """
         default = -1
-        out = self.shell("echo", "-n", "${USER_ID}")
+        out = self.shell("id", "-u")
         uid = utils.int(out, default=default)
         if uid != default:
             return uid
@@ -593,7 +593,6 @@ class Device(object):
         :param paths: 文件名
         :return: 路径
         """
-        ""
         return "/data/local/tmp/%s" % (
             "/".join([cls.get_safe_path(o) for o in paths])
         )
