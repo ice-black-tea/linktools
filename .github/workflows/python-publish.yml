@@ -30,6 +30,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install wheel
+    - name: Get previous tag
+      id: previoustag
+      uses: "WyriHaximus/github-action-get-previous-tag@v1"
     - name: Replace version
       run: ver=${{ steps.previoustag.outputs.tag }} && new_ver=${ver:1} && sed -i "s/__RELEASE_VERSION__/${new_ver}/g" src/linktools/version.py
     - name: Build package
