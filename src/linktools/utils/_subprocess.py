@@ -19,29 +19,33 @@ list2cmdline = subprocess.list2cmdline
 
 
 class Output:
-    FLAG_STDOUT = 1
-    FLAG_STDERR = 2
+    STDOUT = 1
+    STDERR = 2
 
     def __init__(self, stdout: IO[AnyStr], stderr: IO[AnyStr]):
         self._queue = queue.Queue()
+        self._stdout_finished = None
         self._stdout_thread = None
+        self._stderr_finished = None
         self._stderr_thread = None
         if stdout:
+            self._stdout_finished = threading.Event()
             self._stdout_thread = threading.Thread(
                 target=self._iter_lines,
-                args=(stdout, self.FLAG_STDOUT,)
+                args=(stdout, self.STDOUT, self._stdout_finished,)
             )
             self._stdout_thread.daemon = True
             self._stdout_thread.start()
         if stderr:
+            self._stderr_finished = threading.Event()
             self._stderr_thread = threading.Thread(
                 target=self._iter_lines,
-                args=(stderr, self.FLAG_STDERR,)
+                args=(stderr, self.STDERR, self._stderr_finished,)
             )
             self._stderr_thread.daemon = True
             self._stderr_thread.start()
 
-    def _iter_lines(self, io: IO[AnyStr], flag: int):
+    def _iter_lines(self, io: IO[AnyStr], flag: int, event: threading.Event):
         try:
             while True:
                 data = io.readline()
@@ -52,25 +56,26 @@ class Output:
             if e.errno != errno.EBADF:
                 _logger.debug(f"Handle output error: {e}")
         finally:
+            event.set()
             self._queue.put((None, None))
 
     def get_lines(self, timeout: Timeout):
         while True:
             try:
                 flag, data = self._queue.get(timeout=timeout.remain)
-                if flag is None:
-                    if self._stdout_thread and self._stdout_thread.is_alive():
-                        pass
-                    elif self._stderr_thread and self._stderr_thread.is_alive():
-                        pass
-                    else:
-                        # 线程都结束了，需要把剩余的数据都消费完
-                        while not self._queue.empty():
-                            flag, data = self._queue.get_nowait()
-                            if flag is not None:
-                                yield flag, data
-                        break
-                yield flag, data
+                if flag is not None:
+                    yield flag, data
+                elif self._stdout_finished and not self._stdout_finished.is_set():
+                    pass
+                elif self._stderr_finished and not self._stderr_finished.is_set():
+                    pass
+                else:
+                    # 线程都结束了，需要把剩余的数据都消费完
+                    while not self._queue.empty():
+                        flag, data = self._queue.get_nowait()
+                        if flag is not None:
+                            yield flag, data
+                    break
             except queue.Empty:
                 break
 
@@ -153,7 +158,7 @@ class Popen(subprocess.Popen):
         if self.stdout or self.stderr:
 
             for flag, data in self._output.get_lines(timeout):
-                if flag == self._output.FLAG_STDOUT:
+                if flag == self._output.STDOUT:
                     out = data if out is None else out + data
                     if log_stdout:
                         data = data.decode(errors="ignore") if isinstance(data, bytes) else data
@@ -161,7 +166,7 @@ class Popen(subprocess.Popen):
                         if data:
                             _logger.info(data)
 
-                elif flag == self._output.FLAG_STDERR:
+                elif flag == self._output.STDERR:
                     err = data if err is None else err + data
                     if log_stderr:
                         data = data.decode(errors="ignore") if isinstance(data, bytes) else data
