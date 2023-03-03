@@ -28,11 +28,7 @@
 """
 
 __version__ = "__RELEASE_VERSION__"
-if not __version__.startswith("__"):
-    prefix = "v"
-    if __version__.startswith(prefix):
-        __version__ = __version__[len(prefix):]
-else:
+if not __version__[:1].isdigit():
     __version__ = "0.0.1-debug"
 
 __name__ = "linktools"

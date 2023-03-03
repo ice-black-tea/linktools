@@ -108,7 +108,7 @@ class Popen(subprocess.Popen):
             kwargs["env"] = env
 
         args = [str(arg) for arg in args]
-        _logger.debug(f"Exec cmdline: {' '.join(args)}")
+        _logger.debug(f"Exec cmdline: {list2cmdline(args)}")
 
         super().__init__(args, **kwargs)
 
