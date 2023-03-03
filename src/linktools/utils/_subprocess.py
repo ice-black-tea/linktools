@@ -45,6 +45,14 @@ class Output:
             self._stderr_thread.daemon = True
             self._stderr_thread.start()
 
+    @property
+    def is_alive(self):
+        if self._stdout_finished and not self._stdout_finished.is_set():
+            return True
+        if self._stderr_finished and not self._stderr_finished.is_set():
+            return True
+        return False
+
     def _iter_lines(self, io: IO[AnyStr], flag: int, event: threading.Event):
         try:
             while True:
@@ -60,24 +68,22 @@ class Output:
             self._queue.put((None, None))
 
     def get_lines(self, timeout: Timeout):
-        while True:
+        while self.is_alive:
             try:
                 flag, data = self._queue.get(timeout=timeout.remain)
                 if flag is not None:
                     yield flag, data
-                elif self._stdout_finished and not self._stdout_finished.is_set():
-                    pass
-                elif self._stderr_finished and not self._stderr_finished.is_set():
-                    pass
-                else:
-                    # 线程都结束了，需要把剩余的数据都消费完
-                    while not self._queue.empty():
-                        flag, data = self._queue.get_nowait()
-                        if flag is not None:
-                            yield flag, data
-                    break
             except queue.Empty:
                 break
+
+        try:
+            # 需要把剩余可消费的数据消费完
+            while not self._queue.empty():
+                flag, data = self._queue.get_nowait()
+                if flag is not None:
+                    yield flag, data
+        except queue.Empty:
+            pass
 
 
 class Popen(subprocess.Popen):
