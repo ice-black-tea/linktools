@@ -19,7 +19,7 @@ from frida.core import Session, Script
 
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
-from .utils import Counter
+from ._utils import Counter
 from .. import utils, resource, get_logger, environ
 
 _logger = get_logger("frida.app")
@@ -75,6 +75,8 @@ class FridaSession(utils.get_derived_type(Session)):  # proxy for frida.core.Ses
 
 class FridaScript(utils.get_derived_type(Script)):  # proxy for frida.core.Script
 
+    __super__: Script
+
     def __init__(self, session: FridaSession, script: Script):
         super().__init__(script)
         self._session: FridaSession = session
@@ -85,6 +87,12 @@ class FridaScript(utils.get_derived_type(Script)):  # proxy for frida.core.Scrip
     @property
     def session(self) -> FridaSession:
         return self._session
+
+    @property
+    def exports_sync(self):
+        if hasattr(self.__super__, "exports_sync"):
+            return self.__super__.exports_sync
+        return self.__super__.exports
 
     def add_message_handler(self, handler: "FridaScriptHandler"):
         self.remove_message_handler()
@@ -426,7 +434,7 @@ class FridaApplication(FridaScriptHandler):
             else self._internal_script.source
 
         script_kwargs = {}
-        if utils.split_version(frida.__version__) < (14,):
+        if utils.parse_version(frida.__version__) < (14,):
             script_kwargs["runtime"] = "v8"
         script = FridaScript(session, session.create_script(source, **script_kwargs))
         script.add_message_handler(self)
@@ -434,7 +442,7 @@ class FridaApplication(FridaScriptHandler):
 
         try:
             script.load()
-            script.exports.load_scripts(self._load_script_files(), self._user_parameters)
+            script.exports_sync.load_scripts(self._load_script_files(), self._user_parameters)
         finally:
             if resume:
                 utils.ignore_error(self.device.resume, pid)

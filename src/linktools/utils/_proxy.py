@@ -8,7 +8,7 @@ import functools
 from typing import TypeVar, Type, Callable
 
 
-# Code stolen from celery.local.Proxy.
+# Code stolen from celery.local.Proxy: https://github.com/celery/celery/blob/main/celery/local.py
 
 def _default_cls_attr(name, type_, cls_value):
     # Proxy uses properties to forward the standard
@@ -274,15 +274,15 @@ def get_derived_type(t: Type[_T]) -> Type[_T]:
 
     import subprocess
 
-    class Wrapper(get_derived_type(subprocess.Popen)):
+    class Popen(get_derived_type(subprocess.Popen)):
         __super__: subprocess.Popen
 
         def communicate(self, *args, **kwargs):
             out, err = self.__super__.communicate(*args, **kwargs)
-            return out, 'fake error!!!'
+            return 'fake out!!!', 'fake error!!!'
 
-    popen = Wrapper(subprocess.Popen(["/usr/bin/git", "status"]))
-    print(popen.communicate())  # (None, 'fake error!!!')
+    process = Popen(subprocess.Popen(["/usr/bin/git", "status"]))
+    print(process.communicate())  # ('fake out!!!', 'fake error!!!')
 
     :param t: 需要委托的类型
     :return: 同参数t，需要委托的类型

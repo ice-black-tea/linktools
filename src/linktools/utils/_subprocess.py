@@ -70,20 +70,22 @@ class Output:
     def get_lines(self, timeout: Timeout):
         while self.is_alive:
             try:
-                flag, data = self._queue.get(timeout=timeout.remain)
+                # 给个1秒超时时间防止有多个线程消费的时候死锁
+                flag, data = self._queue.get(timeout=min(timeout.remain or 1, 1))
+                if flag is not None:
+                    yield flag, data
+            except queue.Empty:
+                if not timeout.check():
+                    break
+
+        while True:
+            try:
+                # 需要把剩余可消费的数据消费完
+                flag, data = self._queue.get_nowait()
                 if flag is not None:
                     yield flag, data
             except queue.Empty:
                 break
-
-        try:
-            # 需要把剩余可消费的数据消费完
-            while not self._queue.empty():
-                flag, data = self._queue.get_nowait()
-                if flag is not None:
-                    yield flag, data
-        except queue.Empty:
-            pass
 
 
 class Popen(subprocess.Popen):
@@ -143,7 +145,7 @@ class Popen(subprocess.Popen):
                 self.kill()
                 raise
 
-    def run(self, timeout: Union[float, Timeout] = None, log_stdout: bool = False, log_stderr: bool = False) \
+    def exec(self, timeout: Union[float, Timeout] = None, log_stdout: bool = False, log_stderr: bool = False) \
             -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
         """
         执行命令
@@ -152,9 +154,6 @@ class Popen(subprocess.Popen):
         :param log_stderr: 把输出打印到logger中
         :return: 返回stdout输出内容
         """
-
-        if self.poll() is not None:
-            return None, None
 
         out = err = None
 

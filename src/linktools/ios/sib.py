@@ -160,7 +160,7 @@ class Device(object):
         for i in range(10):
             if process.poll() is not None:
                 break
-            out, err = process.run(timeout=1, log_stderr=True)
+            out, err = process.exec(timeout=1, log_stderr=True)
             if out:
                 if isinstance(out, bytes):
                     out = out.decode(errors="ignore")

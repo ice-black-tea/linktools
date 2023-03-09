@@ -346,7 +346,7 @@ class Tool(metaclass=Meta):
         process = self.popen(*args, capture_output=True)
 
         try:
-            out, err = process.run(timeout, log_stdout=log_output, log_stderr=log_output)
+            out, err = process.exec(timeout, log_stdout=log_output, log_stderr=log_output)
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):
                     err = err.decode(errors="ignore")

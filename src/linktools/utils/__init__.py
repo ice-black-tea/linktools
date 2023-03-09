@@ -35,7 +35,7 @@ from ._utils import (
     get_md5, get_sha1, get_sha256, make_uuid, gzip_compress,
     read_file, write_file,
     get_lan_ip, get_wan_ip,
-    split_version,
+    parse_version,
     range_type,
 )
 

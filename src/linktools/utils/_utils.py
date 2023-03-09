@@ -29,6 +29,7 @@
 import gzip
 import hashlib
 import random
+import re
 import socket
 import threading
 import time
@@ -337,8 +338,17 @@ def get_wan_ip() -> Optional[str]:
         return None
 
 
-def split_version(version: str) -> [int, ...]:
-    return tuple(int(i, 0) for i in version.split("."))
+def parse_version(version: str) -> [int, ...]:
+    result = []
+    for x in version.split("."):
+        if x.isdigit():
+            result.append(int(x))
+        else:
+            match = re.match(r"^\d+", x)
+            if not match:
+                break
+            result.append(int(match.group(0)))
+    return tuple(result)
 
 
 def range_type(min: int, max: int):

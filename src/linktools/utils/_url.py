@@ -38,7 +38,7 @@ from urllib import parse
 
 from filelock import FileLock
 
-from ._utils import Timeout, get_md5, ignore_error, split_version
+from ._utils import Timeout, get_md5, ignore_error, parse_version
 from .._environ import resource, config, tools
 from .._logging import get_logger, create_log_progress
 from ..decorator import cached_property
@@ -347,7 +347,7 @@ def get_chrome_driver(version: str):
     chrome_driver = tools["chromedriver80"]
     base_url = chrome_driver.config.get("base_url")
 
-    versions = split_version(version)
+    versions = parse_version(version)
     if versions[0] >= 70:
         file = UrlFile(f"{base_url}/LATEST_RELEASE_{versions[0]}")
         with open(file.save(), "rt") as fd:
@@ -358,7 +358,7 @@ def get_chrome_driver(version: str):
         version_map = json.load(fd)
 
     for key, value in version_map.items():
-        if versions[0] == split_version(value)[0]:
+        if versions[0] == parse_version(value)[0]:
             return chrome_driver.copy(version=key)
 
     raise NotFoundError(version)
