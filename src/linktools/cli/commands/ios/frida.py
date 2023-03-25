@@ -39,10 +39,10 @@ class Command(cli.IOSCommand):
     Easy to use frida (require iOS device jailbreak)
     """
 
-    def _main_init(self):
+    def on_main_init(self):
         environ.show_log_time = True
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,
                             help="target bundle id (default: frontmost application)")
         parser.add_argument("--spawn", action="store_true", default=False,
@@ -66,7 +66,7 @@ class Command(cli.IOSCommand):
         parser.add_argument("-a", "--auto-start", action="store_true", default=False,
                             help="automatically start when all processes exits")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
         bundle_id = args.bundle_id

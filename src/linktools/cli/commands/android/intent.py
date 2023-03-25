@@ -40,7 +40,7 @@ class Command(cli.AndroidCommand):
     Common intent actions
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('--setting', dest='package', action='store_true',
                            help='start setting activity')
@@ -57,7 +57,7 @@ class Command(cli.AndroidCommand):
         group.add_argument('--browser', dest='url', action='store', default="",
                            help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 

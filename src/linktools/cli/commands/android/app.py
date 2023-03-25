@@ -229,7 +229,7 @@ class Command(cli.AndroidCommand):
     Fetch application info
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
         group.add_argument('-t', '--top', action='store_true', default=False,
                            help='fetch current running app only')
@@ -253,7 +253,7 @@ class Command(cli.AndroidCommand):
                                      'enabled', 'system', 'debuggable', 'allowBackup'],
                             help='order by target field')
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 

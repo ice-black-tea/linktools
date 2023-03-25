@@ -43,7 +43,7 @@ class _Proxy(object):
         if fn is None and obj is None:
             raise ValueError('fn and obj arguments may not be "None" at the same time')
         elif fn is not None and obj is not None:
-            raise ValueError('fn and obj arguments may not be specified at the same tim')
+            raise ValueError('fn and obj arguments may not be specified at the same time')
         object.__setattr__(self, "_Proxy__fn", fn or self.__missing__)
         object.__setattr__(self, "_Proxy__object", obj or self.__missing__)
         if name is not None:

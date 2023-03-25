@@ -41,7 +41,7 @@ class Command(cli.AndroidCommand):
     def _description(self) -> str:
         return "debugger"
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('package', action='store', default=None,
                             help='regular expression')
         parser.add_argument('activity', action='store', default=None,
@@ -49,7 +49,7 @@ class Command(cli.AndroidCommand):
         parser.add_argument('-p', '--port', action='store', type=int, default=8701,
                             help='fetch all apps')
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 

@@ -60,7 +60,7 @@ class Command(cli.AndroidCommand):
     Filter logcat by package name
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('package', nargs='*', help='application package name(s)')
         parser.add_argument('-w', '--tag-width', metavar='N', dest='tag_width', type=int, default=23,
                             help='width of log tag')
@@ -81,7 +81,7 @@ class Command(cli.AndroidCommand):
         parser.add_argument('-a', '--all', dest='all', action='store_true', default=False,
                             help='print all log messages')
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
         package = args.package

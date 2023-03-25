@@ -69,6 +69,10 @@ class Timeout:
                 return False
         return True
 
+    def ensure(self) -> None:
+        if not self.check():
+            raise TimeoutError()
+
     def __repr__(self):
         return f"Timeout(timeout={self._timeout})"
 

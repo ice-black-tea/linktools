@@ -196,7 +196,7 @@ class Command(cli.Command):
     Match files with regular expression
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('-i', '--ignore-case', action='store_true', default=False,
                             help='ignore case')
         parser.add_argument('pattern', action='store', default=None,
@@ -204,7 +204,7 @@ class Command(cli.Command):
         parser.add_argument('files', metavar="file", action='store', nargs='*', default=None,
                             help='target files path')
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
 
         flags = 0

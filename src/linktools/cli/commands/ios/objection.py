@@ -38,7 +38,7 @@ class Command(cli.IOSCommand):
     Easy to use objection (require iOS device jailbreak)
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,
                             help="target bundle id (default: frontmost application)")
         parser.add_argument("-s", "--startup-command", action="append", default=[],
@@ -51,7 +51,7 @@ class Command(cli.IOSCommand):
         parser.add_argument("-P", "--plugin-folder", action="store", default=resource.get_asset_path("objection"),
                             help="The folder to load plugins from.")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 

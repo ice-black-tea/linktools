@@ -37,12 +37,12 @@ class Command(cli.AndroidCommand):
     Debug android-tools.apk
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--privilege", action="store_true", default=False,
                             help="run with root privilege")
         parser.add_argument("agent_args", nargs="...", help="agent args")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
         adb_args = [

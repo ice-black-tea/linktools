@@ -40,7 +40,7 @@ class Command(cli.AndroidCommand):
     Fetch current running app's basic information
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
         group.add_argument('-p', '--package', action='store_const', const=True, default=False,
                            help='show current package name')
@@ -55,7 +55,7 @@ class Command(cli.AndroidCommand):
         group.add_argument('--screen', metavar='DEST', action='store', type=str, nargs='?', default=".",
                            help='capture screen and pull file')
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 

@@ -20,7 +20,7 @@ GENERAL_TOOL_SMALI:
 
 GENERAL_TOOL_APKTOOL:
   <<: *JAR
-  version: 2.6.1
+  version: 2.7.0
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
   target_path: apktool-{version}.jar
 

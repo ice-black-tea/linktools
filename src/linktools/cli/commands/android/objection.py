@@ -38,7 +38,7 @@ class Command(cli.AndroidCommand):
     Easy to use objection (require Android device rooted)
     """
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,
                             help="target package (default: frontmost application)")
         parser.add_argument("-s", "--startup-command", action="append", default=[],
@@ -58,7 +58,7 @@ class Command(cli.AndroidCommand):
                             type=utils.range_type(1, 65536),
                             help="redirect traffic to target port (default: 8080)")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 

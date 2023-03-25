@@ -51,10 +51,10 @@ class Command(cli.AndroidCommand):
         "reconnect",
     ]
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("adb_args", nargs="...", help="adb args")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args, extra = self.argument_parser.parse_known_args(args)
 
         adb_args = [*extra, *args.adb_args]

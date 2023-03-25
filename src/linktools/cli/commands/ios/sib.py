@@ -21,10 +21,10 @@ class Command(cli.IOSCommand):
         "remote",
     ]
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('sib_args', nargs='...', help="sib args")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args, extra = self.argument_parser.parse_known_args(args)
 
         sib_args = [*extra, *args.sib_args]

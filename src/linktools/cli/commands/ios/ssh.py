@@ -42,10 +42,10 @@ class Command(cli.IOSCommand):
     """
 
     @property
-    def _known_errors(self) -> Tuple[Type[BaseException]]:
-        return super()._known_errors + tuple([SSHException])
+    def known_errors(self) -> Tuple[Type[BaseException]]:
+        return super().known_errors + tuple([SSHException])
 
-    def _add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--username", action="store", default="root",
                             help="iOS ssh username (default: root)")
         parser.add_argument("-p", "--port", action="store", type=int, default=22,
@@ -54,7 +54,7 @@ class Command(cli.IOSCommand):
                             help="iOS ssh password")
         parser.add_argument('ssh_args', nargs='...', help="ssh args")
 
-    def _run(self, args: [str]) -> Optional[int]:
+    def run(self, args: [str]) -> Optional[int]:
         args = self.argument_parser.parse_args(args)
         device: Device = args.parse_device()
 
