@@ -35,11 +35,14 @@ _T = typing.TypeVar('_T')
 
 def singleton(cls: typing.Type[_T]) -> typing.Callable[..., _T]:
     instances = {}
+    lock = threading.RLock()
 
     @functools.wraps(cls)
     def wrapper(*args, **kwargs):
         if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
+            with lock:
+                if cls not in instances:
+                    instances[cls] = cls(*args, **kwargs)
         return instances[cls]
 
     return wrapper

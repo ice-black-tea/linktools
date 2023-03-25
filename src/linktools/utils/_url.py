@@ -41,29 +41,34 @@ from filelock import FileLock
 from ._utils import Timeout, get_md5, ignore_error, parse_version
 from .._environ import resource, config, tools
 from .._logging import get_logger, create_log_progress
-from ..decorator import cached_property
+from ..decorator import cached_property, singleton
+from ..references.fake_useragent import UserAgent, VERSION as FAKE_USERAGENT_VERSION
 
 _logger = get_logger("utils.url")
-_user_agent = None
 
 DataType = Union[str, int, float]
 QueryType = Union[DataType, List[DataType], Tuple[DataType]]
 
 
+@singleton
+class _UserAgent(UserAgent):
+
+    def __init__(self):
+        super().__init__(
+            path=resource.get_asset_path(f"fake_useragent_{FAKE_USERAGENT_VERSION}.json")
+        )
+
+
 def user_agent(style=None) -> str:
     try:
-        from ..references.fake_useragent import UserAgent, VERSION
 
-        global _user_agent
-        if (not _user_agent) and style:
-            _user_agent = UserAgent(
-                path=resource.get_asset_path(f"fake_useragent_{VERSION}.json")
-            )
+        user_agent = _UserAgent()
 
         if style:
-            return _user_agent[style]
+            print(user_agent[style])
+            return user_agent[style]
 
-        return _user_agent.random
+        return user_agent.random
 
     except Exception as e:
         _logger.debug(f"fetch user agent error: {e}")
@@ -151,7 +156,6 @@ class DownloadContext:
             "User-Agent": self.user_agent,
             "Range": f"bytes={initial}-",
         }
-
 
         try:
             import requests

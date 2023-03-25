@@ -83,17 +83,18 @@ class Command(abc.ABC):
             description=description,
             conflict_handler="resolve"
         )
+        self.add_log_arguments(parser)
         self.add_base_arguments(parser)
         self.add_arguments(parser)
 
         return parser
 
-    def add_base_arguments(self, parser: ArgumentParser):
+    def add_log_arguments(self, parser: ArgumentParser):
 
         class VerboseAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
-                environ.logger.setLevel(logging.DEBUG)
+                logging.root.setLevel(logging.DEBUG)
 
         class DebugAction(Action):
 
@@ -118,8 +119,6 @@ class Command(abc.ABC):
                 if option_string in self.option_strings:
                     environ.show_log_level = not option_string.startswith("--no-")
 
-        parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
-
         group = parser.add_argument_group(title="log arguments")
         group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
@@ -131,6 +130,9 @@ class Command(abc.ABC):
                                help="show log time")
             group.add_argument("--level", "--no-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
                                help="show log level")
+
+    def add_base_arguments(self, parser: ArgumentParser):
+        parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 
     def main(self, *args, **kwargs) -> None:
         try:
