@@ -32,11 +32,10 @@ import re
 from typing import Optional, Any
 
 from .struct import Package, UnixSocket, InetSocket
-from .. import utils, resource, tools, config, get_logger, ToolExecError
+from .. import utils, ToolExecError, environ
 from ..decorator import cached_property
-from ..version import __name__ as module_name
 
-_logger = get_logger("android.adb")
+_logger = environ.get_logger("android.adb")
 
 
 class AdbError(Exception):
@@ -69,7 +68,7 @@ class Adb(object):
 
     @classmethod
     def popen(cls, *args: [Any], **kwargs) -> utils.Popen:
-        return tools["adb"].popen(*args, **kwargs)
+        return environ.get_tool("adb").popen(*args, **kwargs)
 
     @classmethod
     def exec(
@@ -88,7 +87,7 @@ class Adb(object):
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
         try:
-            return tools["adb"].exec(
+            return environ.get_tool("adb").exec(
                 *args,
                 timeout=timeout,
                 ignore_errors=ignore_errors,
@@ -366,7 +365,7 @@ class Device(object):
 
     @property
     def agent_info(self) -> dict:
-        return config["ANDROID_TOOL_BRIDGE_APK"]
+        return environ.get_config("ANDROID_TOOL_BRIDGE_APK")
 
     def init_agent(self):
         """
@@ -376,7 +375,7 @@ class Device(object):
         apk_name = self.agent_info["name"]
         apk_md5 = self.agent_info["md5"]
 
-        apk_path = resource.get_asset_path(apk_name)
+        apk_path = environ.get_asset_path(apk_name)
         target_dir = self.get_storage_path("apk", apk_md5)
         target_path = self.get_storage_path("apk", apk_md5, apk_name)
 
@@ -582,7 +581,7 @@ class Device(object):
         :return: 路径
         """
         return "/sdcard/%s/%s" % (
-            module_name,
+            environ.name,
             "/".join([cls.get_safe_path(o) for o in paths])
         )
 

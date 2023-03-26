@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import logger, cli
+from linktools import environ, cli
 
 props = (
     "ro.product.manufacturer",
@@ -82,23 +82,23 @@ class Command(cli.AndroidCommand):
         args = self.argument_parser.parse_args(args)
         device = args.parse_device()
 
-        logger.info(f"Property", style="red")
+        environ.logger.info(f"Property", style="red")
         for prop in props:
-            logger.info(
+            environ.logger.info(
                 f"{prop}: {device.get_prop(prop)}",
                 indent=2
             )
 
-        logger.info(f"File", style="red")
+        environ.logger.info(f"File", style="red")
         for file in files:
-            logger.info(
+            environ.logger.info(
                 f"{file}: {device.shell('cat', file, ignore_errors=True).strip()}",
                 indent=2
             )
 
-        logger.info(f"Cmdline", style="red")
+        environ.logger.info(f"Cmdline", style="red")
         for cmd in cmds:
-            logger.info(
+            environ.logger.info(
                 f"{cmd[0]}: {device.shell(*cmd[1], ignore_errors=True).strip()}",
                 indent=2
             )

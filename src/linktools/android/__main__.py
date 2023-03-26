@@ -6,12 +6,12 @@
 
 import logging
 
-from .. import tools, logger
+from .. import environ
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(message)s',
 )
 
-logger.info("initialize adb ...")
-tools["adb"].prepare()
+environ.get_logger().info("initialize adb ...")
+environ.get_tool("adb").prepare()

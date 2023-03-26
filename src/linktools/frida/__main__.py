@@ -7,12 +7,12 @@
 import logging
 
 from .android import AndroidFridaServer
-from .. import logger
+from .. import environ
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
 )
 
-logger.info("initialize android frida server ...")
+environ.get_logger().info("initialize android frida server ...")
 AndroidFridaServer.setup(abis=["arm", "arm64"])

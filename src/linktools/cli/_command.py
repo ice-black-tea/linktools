@@ -42,18 +42,21 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from .._environ import environ
-from .._logging import LogHandler, get_logger
+from .._environ import Environ, environ
+from .._logging import LogHandler
 from ..decorator import cached_property
 from ..utils import ignore_error
-from ..version import __version__, __description__
 
 
 class Command(abc.ABC):
 
     @property
+    def environ(self) -> Environ:
+        return environ
+
+    @property
     def logger(self) -> logging.Logger:
-        return get_logger()
+        return self.environ.logger
 
     @cached_property
     def description(self) -> str:
@@ -74,22 +77,21 @@ class Command(abc.ABC):
     def create_argument_parser(self):
 
         description = self.description.strip()
-        if description:
+        if description and self.environ.description:
             description += os.linesep + os.linesep
-        description += __description__
+            description += self.environ.description
 
         parser = ArgumentParser(
             formatter_class=RawDescriptionHelpFormatter,
             description=description,
             conflict_handler="resolve"
         )
-        self.add_log_arguments(parser)
         self.add_base_arguments(parser)
         self.add_arguments(parser)
 
         return parser
 
-    def add_log_arguments(self, parser: ArgumentParser):
+    def add_base_arguments(self, parser: ArgumentParser):
 
         class VerboseAction(Action):
 
@@ -119,6 +121,8 @@ class Command(abc.ABC):
                 if option_string in self.option_strings:
                     environ.show_log_level = not option_string.startswith("--no-")
 
+        parser.add_argument("--version", action="version", version=self.environ.version)
+
         group = parser.add_argument_group(title="log arguments")
         group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
@@ -130,9 +134,6 @@ class Command(abc.ABC):
                                help="show log time")
             group.add_argument("--level", "--no-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
                                help="show log level")
-
-    def add_base_arguments(self, parser: ArgumentParser):
-        parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 
     def main(self, *args, **kwargs) -> None:
         try:
@@ -195,7 +196,7 @@ class AndroidCommand(Command, ABC):
         super().add_base_arguments(parser)
 
         from linktools.android import Adb, Device, AdbError
-        cache_path = environ.resource.get_temp_path("cache", "device", "android", create_parent=True)
+        cache_path = environ.get_temp_path("cache", "device", "android", create_parent=True)
 
         def parse_handler(fn):
             @functools.wraps(fn)
@@ -320,7 +321,7 @@ class IOSCommand(Command, ABC):
         super().add_base_arguments(parser)
 
         from linktools.ios import Sib, SibError, Device
-        cache_path = environ.resource.get_temp_path("cache", "device", "ios", create_parent=True)
+        cache_path = environ.get_temp_path("cache", "device", "ios", create_parent=True)
 
         def parse_handler(fn):
             @functools.wraps(fn)

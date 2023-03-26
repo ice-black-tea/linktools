@@ -39,7 +39,7 @@ from typing import Optional, Union, Callable, IO, Any, Mapping, Dict
 class Config(dict):
 
     def __init__(self, defaults: Optional[dict] = None):
-        dict.__init__(self, defaults or {})
+        super().__init__(defaults or {})
 
     def from_envvar(self, variable_name: str, silent: bool = False) -> bool:
         rv = os.environ.get(variable_name)
@@ -95,17 +95,3 @@ class Config(dict):
             if key.isupper():
                 self[key] = value
         return True
-
-    def get_namespace(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
-        rv = {}
-        for k, v in self.items():
-            if not k.startswith(namespace):
-                continue
-            if trim_namespace:
-                key = k[len(namespace):]
-            else:
-                key = k
-            if lowercase:
-                key = key.lower()
-            rv[key] = v
-        return rv

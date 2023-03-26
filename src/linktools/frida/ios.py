@@ -10,10 +10,10 @@
 import frida
 
 from .server import FridaServer
-from .. import get_logger, utils
+from .. import utils, environ
 from ..ios import Device
 
-_logger = get_logger("frida.server.ios")
+_logger = environ.get_logger("frida.server.ios")
 
 
 class IOSFridaServer(FridaServer):  # proxy for frida.core.Device

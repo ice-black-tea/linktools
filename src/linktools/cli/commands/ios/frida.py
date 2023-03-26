@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import logger, utils, environ, cli
+from linktools import utils, environ, cli
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
 
@@ -79,17 +79,17 @@ class Command(cli.IOSCommand):
         class Application(FridaApplication):
 
             def on_spawn_added(self, spawn):
-                logger.debug(f"{spawn} added")
+                environ.logger.debug(f"{spawn} added")
                 if spawn.identifier != bundle_id:
                     try:
                         self.device.resume(spawn.pid)
                     except Exception as e:
-                        logger.error(f"{e}")
+                        environ.logger.error(f"{e}")
                 else:
                     self.load_script(spawn.pid, resume=True)
 
             def on_session_detached(self, session, reason, crash) -> None:
-                logger.info(f"{session} detached, reason={reason}")
+                environ.logger.info(f"{session} detached, reason={reason}")
                 if reason in ("connection-terminated", "device-lost"):
                     self.stop()
                 elif len(self._sessions) == 0:
@@ -109,7 +109,7 @@ class Command(cli.IOSCommand):
             if utils.is_empty(bundle_id):
                 target_app = app.device.get_frontmost_application()
                 if target_app is None:
-                    logger.error("Unknown frontmost application")
+                    environ.logger.error("Unknown frontmost application")
                     return
                 bundle_id = target_app.identifier
 

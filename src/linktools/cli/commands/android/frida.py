@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, environ, cli
+from linktools import utils, environ, cli
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
@@ -86,17 +86,17 @@ class Command(cli.AndroidCommand):
         class Application(FridaApplication):
 
             def on_spawn_added(self, spawn):
-                logger.debug(f"{spawn} added")
+                environ.logger.debug(f"{spawn} added")
                 if device.extract_package(spawn.identifier) != package:
                     try:
                         self.device.resume(spawn.pid)
                     except Exception as e:
-                        logger.error(f"{e}")
+                        environ.logger.error(f"{e}")
                 else:
                     self.load_script(spawn.pid, resume=True)
 
             def on_session_detached(self, session, reason, crash) -> None:
-                logger.info(f"{session} detached, reason={reason}")
+                environ.logger.info(f"{session} detached, reason={reason}")
                 if reason in ("connection-terminated", "device-lost"):
                     self.stop()
                 elif len(self._sessions) == 0:
@@ -116,7 +116,7 @@ class Command(cli.AndroidCommand):
             if utils.is_empty(package):
                 target_app = app.device.get_frontmost_application()
                 if target_app is None:
-                    logger.error("Unknown frontmost application")
+                    environ.logger.error("Unknown frontmost application")
                     return
                 package = target_app.identifier
 

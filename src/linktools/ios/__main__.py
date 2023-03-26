@@ -6,12 +6,12 @@
 
 import logging
 
-from .. import tools, logger
+from .. import environ
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(message)s',
 )
 
-logger.info("initialize sib ...")
-tools["sib"].prepare()
+environ.get_logger().info("initialize sib ...")
+environ.get_tool("sib").prepare()

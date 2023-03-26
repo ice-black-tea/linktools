@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, resource, environ, cli
+from linktools import utils, environ, cli
 from linktools.frida.ios import IOSFridaServer
 
 
@@ -48,7 +48,7 @@ class Command(cli.IOSCommand):
                                  "newline, that will run before the repl polls the device for information.")
         parser.add_argument("-S", "--startup-script", action="store",
                             help="A script to import and run before the repl polls the device for information.")
-        parser.add_argument("-P", "--plugin-folder", action="store", default=resource.get_asset_path("objection"),
+        parser.add_argument("-P", "--plugin-folder", action="store", default=environ.get_asset_path("objection"),
                             help="The folder to load plugins from.")
 
     def run(self, args: [str]) -> Optional[int]:
@@ -66,7 +66,7 @@ class Command(cli.IOSCommand):
             if utils.is_empty(bundle_id):
                 target_app = server.get_frontmost_application()
                 if target_app is None:
-                    logger.error("Unknown frontmost application")
+                    environ.logger.error("Unknown frontmost application")
                     return 1
                 bundle_id = target_app.identifier
             objection_args += ["-g", bundle_id]

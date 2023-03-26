@@ -41,7 +41,6 @@ from rich.table import Column
 from rich.text import Text
 
 from ._environ import environ
-from .version import __name__ as module_name
 
 
 class LogConfig:
@@ -159,7 +158,7 @@ class LogHandler(RichHandler):
 
     @classmethod
     def get_instance(cls) -> Optional["LogHandler"]:
-        c = get_logger()
+        c = environ.get_logger()
         while c:
             if c.handlers:
                 for handler in c.handlers:
@@ -206,7 +205,7 @@ def create_log_progress():
     )
 
 
-def get_logger(name: str = None, prefix=module_name) -> "Logger":
+def get_logger(name: str = None, prefix: str = None) -> "Logger":
     if prefix:
         name = f"{prefix}.{name}" if name else prefix
     logger = _manager.getLogger(name)

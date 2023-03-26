@@ -39,12 +39,12 @@ from urllib import parse
 from filelock import FileLock
 
 from ._utils import Timeout, get_md5, ignore_error, parse_version
-from .._environ import resource, config, tools
-from .._logging import get_logger, create_log_progress
+from .._environ import environ
+from .._logging import create_log_progress
 from ..decorator import cached_property, singleton
 from ..references.fake_useragent import UserAgent, VERSION as FAKE_USERAGENT_VERSION
 
-_logger = get_logger("utils.url")
+_logger = environ.get_logger("utils.url")
 
 DataType = Union[str, int, float]
 QueryType = Union[DataType, List[DataType], Tuple[DataType]]
@@ -55,7 +55,7 @@ class _UserAgent(UserAgent):
 
     def __init__(self):
         super().__init__(
-            path=resource.get_asset_path(f"fake_useragent_{FAKE_USERAGENT_VERSION}.json")
+            path=environ.get_asset_path(f"fake_useragent_{FAKE_USERAGENT_VERSION}.json")
         )
 
 
@@ -73,7 +73,7 @@ def user_agent(style=None) -> str:
     except Exception as e:
         _logger.debug(f"fetch user agent error: {e}")
 
-    return config["SETTING_DOWNLOAD_USER_AGENT"]
+    return environ.get_config("SETTING_DOWNLOAD_USER_AGENT")
 
 
 def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:
@@ -241,7 +241,7 @@ class UrlFile:
     def __init__(self, url: str):
         self._url = url
         self._ident = f"{get_md5(url)}_{guess_file_name(url)[-100:]}"
-        self._root_path = resource.get_temp_path("download", self._ident)
+        self._root_path = environ.get_temp_path("download", self._ident)
         self._file_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")
 
@@ -249,7 +249,7 @@ class UrlFile:
     def _lock(self) -> FileLock:
         # noinspection PyTypeChecker
         return FileLock(
-            resource.get_temp_path("download", "lock", self._ident, create_parent=True)
+            environ.get_temp_path("download", "lock", self._ident, create_parent=True)
         )
 
     def save(self, save_dir: str = None, save_name: str = None, timeout: int = None, **kwargs) -> str:
@@ -348,7 +348,7 @@ class NotFoundError(Exception):
 
 
 def get_chrome_driver(version: str):
-    chrome_driver = tools["chromedriver80"]
+    chrome_driver = environ.get_tool("chromedriver", cmdline=None)
     base_url = chrome_driver.config.get("base_url")
 
     versions = parse_version(version)
@@ -357,7 +357,7 @@ def get_chrome_driver(version: str):
         with open(file.save(), "rt") as fd:
             return chrome_driver.copy(version=fd.read())
 
-    path = resource.get_asset_path("chrome-driver.json")
+    path = environ.get_asset_path("chrome-driver.json")
     with open(path, "rt") as fd:
         version_map = json.load(fd)
 

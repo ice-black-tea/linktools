@@ -34,9 +34,9 @@ import traceback
 from collections import deque
 from typing import Callable
 
-from .._logging import get_logger
+from .._environ import environ
 
-_logger = get_logger("utils.common")
+_logger = environ.get_logger("utils.common")
 
 
 class Stoppable(abc.ABC):
@@ -52,7 +52,7 @@ class Stoppable(abc.ABC):
         self.stop()
 
 
-class Reactor(object):
+class Reactor(Stoppable):
     """
     Code stolen from frida_tools.application.Reactor
     """

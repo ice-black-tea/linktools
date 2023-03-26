@@ -5,7 +5,7 @@ from importlib.util import module_from_spec
 from pkgutil import walk_packages
 
 from ._command import Command
-from .._environ import logger
+from .._environ import environ
 
 
 def walk_commands(path: str):
@@ -27,4 +27,4 @@ def walk_commands(path: str):
                 if command and isinstance(command, Command):
                     yield name, command
             except Exception as e:
-                logger.warning(f"Ignore {name}, caused by {e.__class__.__name__}: {e}")
+                environ.logger.warning(f"Ignore {name}, caused by {e.__class__.__name__}: {e}")

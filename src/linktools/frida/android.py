@@ -16,10 +16,10 @@ from typing import Optional
 import frida
 
 from .server import FridaServer
-from .. import resource, config, utils, get_logger
+from .. import environ, utils
 from ..android import adb
 
-_logger = get_logger("frida.server.android")
+_logger = environ.get_logger("frida.server.android")
 
 
 class AndroidFridaServer(FridaServer):
@@ -105,12 +105,12 @@ class AndroidFridaServer(FridaServer):
     class Environ:
 
         def __init__(self, abi: str, version: str):
-            cfg = config["ANDROID_TOOL_FRIDA_SERVER"].copy()
+            cfg = environ.get_config("ANDROID_TOOL_FRIDA_SERVER").copy()
             cfg.update(version=version, abi=abi)
 
             self._download_url = cfg["url"].format(**cfg)
             self.local_name = cfg["name"].format(**cfg)
-            self.local_path = resource.get_data_path("frida", self.local_name, create_parent=True)
+            self.local_path = environ.get_data_path("frida", self.local_name, create_parent=True)
             self.remote_name = "fs-{abi}-{version}".format(**cfg)
             self.remote_path = adb.Device.get_data_path(self.remote_name)
 

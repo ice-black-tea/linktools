@@ -13,9 +13,10 @@ from scp import SCPClient
 
 from . import list2cmdline
 from ._utils import ignore_error
-from .._logging import get_logger, create_log_progress
+from .._environ import environ
+from .._logging import create_log_progress
 
-_logger = get_logger("utils.ssh")
+_logger = environ.get_logger("utils.ssh")
 
 
 class SSHClient(paramiko.SSHClient):

@@ -29,82 +29,98 @@
 import json
 import os
 import pathlib
+from typing import TypeVar, Type, Optional, Any, Dict
 
 import yaml
 
-from .utils import lazy_load
-from .version import __name__ as module_name
+from .decorator import cached_property
+from .version import \
+    __name__ as __module_name__, \
+    __description__ as __module_description__, \
+    __version__ as __module_version__
+
+_T = TypeVar("_T")
 
 
 class Environ:
-
-    def __init__(self):
-        self._root_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-        self._resource = lazy_load(self._create_default_resource, self._root_path)
-        self._config = lazy_load(self._create_default_config)
-        self._logger = lazy_load(self._create_default_logger)
-        self._tools = lazy_load(self._create_default_tools)
+    __missing__ = object()
 
     @property
-    def resource(self):
-        return self._resource
+    def name(self) -> str:
+        return __module_name__
 
     @property
-    def config(self):
-        return self._config
+    def description(self) -> str:
+        return __module_description__
 
     @property
+    def version(self) -> str:
+        return __module_version__
+
+    @cached_property
     def logger(self):
-        return self._logger
+        from ._logging import get_logger
 
-    @property
-    def tools(self):
-        return self._tools
+        return get_logger(prefix=self.name)
 
-    @property
-    def root_path(self):
-        return self._root_path
+    def get_logger(self, name: str = None):
+        from ._logging import get_logger
 
-    @property
-    def debug(self) -> bool:
-        return self.config.get("__DEBUG__", False)
+        return get_logger(name=name, prefix=self.name)
 
-    @debug.setter
-    def debug(self, value: bool):
-        self.config["__DEBUG__"] = value
+    @cached_property
+    def root_path(self) -> str:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
-    @property
-    def show_log_time(self) -> bool:
-        return self.config.get("__SHOW_LOG_TIME__", False)
+    def get_asset_path(self, *paths: [str]):
+        return self._get_path(self.root_path, "assets", *paths, create=False, create_parent=False)
 
-    @show_log_time.setter
-    def show_log_time(self, value: bool):
-        from ._logging import LogHandler
-        handler = LogHandler.get_instance()
-        if handler:
-            handler.show_time = value
-        self.config["__SHOW_LOG_TIME__"] = value
+    @cached_property
+    def data_path(self):
+        path = self.get_config("SETTING_DATA_PATH")
+        if not path:
+            path = os.path.join(self.get_config("SETTING_STORAGE_PATH"), "data")
+        return path
 
-    @property
-    def show_log_level(self) -> bool:
-        return self.config.get("__SHOW_LOG_LEVEL__", True)
+    @cached_property
+    def temp_path(self):
+        path = self.get_config("SETTING_TEMP_PATH")
+        if not path:
+            path = os.path.join(self.get_config("SETTING_STORAGE_PATH"), "temp")
+        return path
 
-    @show_log_level.setter
-    def show_log_level(self, value: bool):
-        from ._logging import LogHandler
-        handler = LogHandler.get_instance()
-        if handler:
-            handler.show_level = value
-        self.config["__SHOW_LOG_LEVEL__"] = value
+    def get_data_path(self, *paths: [str], create_parent: bool = False):
+        return self._get_path(self.data_path, *paths, create=False, create_parent=create_parent)
 
-    @classmethod
-    def _create_default_resource(cls, root_path: str):
-        from ._resource import Resource
+    def get_data_dir(self, *paths: [str], create: bool = False):
+        return self._get_path(self.data_path, *paths, create=create, create_parent=False)
 
-        return Resource(root_path)
+    def get_temp_path(self, *paths: [str], create_parent: bool = False):
+        return self._get_path(self.temp_path, *paths, create=False, create_parent=create_parent)
+
+    def get_temp_dir(self, *paths: [str], create: bool = False):
+        return self._get_path(self.temp_path, *paths, create=create, create_parent=False)
 
     @classmethod
-    def _create_default_config(cls):
+    def _get_path(cls, root_path: str, *paths: [str], create: bool = False, create_parent: bool = False):
+        target_path = parent_path = os.path.abspath(root_path)
+        for path in paths:
+            target_path = os.path.abspath(os.path.join(parent_path, path))
+            if target_path == parent_path or parent_path != os.path.commonpath([parent_path, target_path]):
+                raise Exception(f"Unsafe path \"{path}\"")
+            parent_path = target_path
+        dir_path = None
+        if create:
+            dir_path = target_path
+        elif create_parent:
+            dir_path = os.path.dirname(target_path)
+        if dir_path is not None:
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+        return target_path
+
+    @cached_property
+    def _config(self):
         from ._config import Config
 
         config = Config()
@@ -112,7 +128,7 @@ class Environ:
         # 初始化全局存储路径配置，优先级低于data、temp路径
         config["SETTING_STORAGE_PATH"] = \
             os.environ.get("SETTING_STORAGE_PATH") or \
-            os.path.join(str(pathlib.Path.home()), f".{module_name}")
+            os.path.join(str(pathlib.Path.home()), f".{__module_name__}")
 
         # 初始化data、temp路径配置
         config["SETTING_DATA_PATH"] = os.environ.get("SETTING_DATA_PATH")  # default {SETTING_STORAGE_PATH}/data
@@ -126,22 +142,50 @@ class Environ:
             "Safari/537.36"
 
         # 导入configs文件夹中所有配置文件
-        config.from_file(resource.get_asset_path("tools.yml"), load=yaml.safe_load)
-        config.from_file(resource.get_asset_path("android-tools.json"), load=json.load)
+        config.from_file(self.get_asset_path("tools.yml"), load=yaml.safe_load)
+        config.from_file(self.get_asset_path("android-tools.json"), load=json.load)
 
         # 导入环境变量LINKTOOLS_SETTING中的配置文件
         config.from_envvar("LINKTOOLS_SETTING", silent=True)
 
         return config
 
-    @classmethod
-    def _create_default_logger(cls):
-        from ._logging import get_logger
+    def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
+        rv = {}
+        for k, v in self._config.items():
+            if not k.startswith(namespace):
+                continue
+            if trim_namespace:
+                key = k[len(namespace):]
+            else:
+                key = k
+            if lowercase:
+                key = key.lower()
+            rv[key] = v
+        return rv
 
-        return get_logger()
+    def get_config(self, key, type: Type[_T] = None, default: _T = None) -> Optional[_T]:
+        try:
+            value = self._config.get(key, self.__missing__)
+            if value is not self.__missing__:
+                return value if type is None else type(value)
+        except Exception as e:
+            self.logger.debug(f"Get config \"{key}\" error: {e}")
 
-    @classmethod
-    def _create_default_tools(cls):
+        try:
+            value = os.environ.get(key, self.__missing__)
+            if value is not self.__missing__:
+                return value if type is None else type(value)
+        except Exception as e:
+            self.logger.debug(f"Get environ \"{key}\" error: {e}")
+
+        return default
+
+    def set_config(self, key: str, value: Any) -> None:
+        self._config[key] = value
+
+    @cached_property
+    def tools(self):
         from ._tools import ToolContainer
 
         tools = ToolContainer()
@@ -162,9 +206,47 @@ class Environ:
 
         return tools
 
+    def get_tool(self, name: str, **kwargs):
+        tool = self.tools[name]
+        if len(kwargs) != 0:
+            tool = tool.copy(**kwargs)
+        return tool
+
+    @property
+    def debug(self) -> bool:
+        return self.get_config("__DEBUG__", default=False)
+
+    @debug.setter
+    def debug(self, value: bool):
+        self.set_config("__DEBUG__", value)
+
+    @property
+    def show_log_time(self) -> bool:
+        return self.get_config("__SHOW_LOG_TIME__", default=False)
+
+    @show_log_time.setter
+    def show_log_time(self, value: bool):
+        from ._logging import LogHandler
+        handler = LogHandler.get_instance()
+        if handler:
+            handler.show_time = value
+        self.set_config("__SHOW_LOG_TIME__", value)
+
+    @property
+    def show_log_level(self) -> bool:
+        return self.get_config("__SHOW_LOG_LEVEL__", default=True)
+
+    @show_log_level.setter
+    def show_log_level(self, value: bool):
+        from ._logging import LogHandler
+        handler = LogHandler.get_instance()
+        if handler:
+            handler.show_level = value
+        self.set_config("__SHOW_LOG_LEVEL__", value)
+
+    @property
+    def system(self) -> str:
+        return self.tools.system
+
 
 environ = Environ()
-resource = environ.resource
-config = environ.config
-logger = environ.logger
-tools = environ.tools

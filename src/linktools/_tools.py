@@ -35,11 +35,10 @@ import warnings
 from typing import Dict, Union, Mapping, Iterator, Any
 
 from . import utils
-from ._environ import resource, config
-from ._logging import get_logger
+from ._environ import environ
 from .decorator import cached_property
 
-_logger = get_logger("utils")
+_logger = environ.get_logger("utils")
 
 
 class Parser(object):
@@ -243,7 +242,7 @@ class Tool(metaclass=Meta):
         paths = ["tools"]
         if not utils.is_empty(cfg["unpack_path"]):
             paths.append(cfg["unpack_path"])
-        cfg["root_path"] = resource.get_data_dir(*paths)
+        cfg["root_path"] = environ.get_data_dir(*paths)
         cfg["absolute_path"] = os.path.join(cfg["root_path"], cfg["target_path"])
 
         # set executable cmdline
@@ -285,7 +284,7 @@ class Tool(metaclass=Meta):
         elif not self.exists:
             _logger.info("Download tool: {}".format(self.download_url))
             url_file = utils.UrlFile(self.download_url)
-            temp_dir = resource.get_temp_path("tools", "cache")
+            temp_dir = environ.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
                 _logger.debug("Unpack tool to {}".format(self.root_path))
@@ -385,7 +384,7 @@ class ToolContainer(object):
     @cached_property
     def items(self) -> Mapping[str, Tool]:
         items = {}
-        for key, value in config.get_namespace("GENERAL_TOOL_").items():
+        for key, value in environ.get_configs("GENERAL_TOOL_").items():
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue

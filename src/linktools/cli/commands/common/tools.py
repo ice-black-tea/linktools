@@ -31,7 +31,7 @@ import subprocess
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import tools, logger, cli
+from linktools import environ, cli
 
 
 class Command(cli.Command):
@@ -39,7 +39,7 @@ class Command(cli.Command):
     Tools downloaded from the web
     """
 
-    _TOOL_NAMES = sorted([tool.name for tool in iter(tools)])
+    _TOOL_NAMES = sorted([tool.name for tool in iter(environ.tools)])
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
@@ -64,21 +64,21 @@ class Command(cli.Command):
 
         tool_name = args.tool[0]
         tool_args = args.tool[1:]
-        tool = tools[tool_name].copy(**{k: v for k, v in args.configs})
+        tool = environ.get_tool(tool_name, **{k: v for k, v in args.configs})
 
         if args.config:
-            logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))
+            environ.logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))
             return 0
 
         elif args.download:
             if not tool.exists:
                 tool.prepare()
-            logger.info(f"Download tool files success: {tool.absolute_path}")
+            environ.logger.info(f"Download tool files success: {tool.absolute_path}")
             return 0
 
         elif args.clear:
             tool.clear()
-            logger.info(f"Clear tool files success")
+            environ.logger.info(f"Clear tool files success")
             return 0
 
         elif args.daemon:

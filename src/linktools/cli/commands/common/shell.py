@@ -7,7 +7,7 @@ import shutil
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, tools, cli
+from linktools import utils, environ, cli
 
 
 class Command(cli.Command):
@@ -17,7 +17,7 @@ class Command(cli.Command):
 
     def __init__(self):
         self._shell_path = None
-        if tools.system in ["darwin", "linux"]:
+        if environ.system in ["darwin", "linux"]:
             try:
                 import pwd
                 self._shell_path = pwd.getpwnam(getpass.getuser()).pw_shell
@@ -25,7 +25,7 @@ class Command(cli.Command):
                 self._shell_path = shutil.which("bash") or shutil.which("sh")
             if "SHELL" in os.environ:
                 self._shell_path = os.environ["SHELL"]
-        elif tools.system in ["windows"]:
+        elif environ.system in ["windows"]:
             self._shell_path = shutil.which("powershell") or shutil.which("cmd")
             if "ComSpec" in os.environ:
                 self._shell_path = os.environ["ComSpec"]
@@ -40,7 +40,7 @@ class Command(cli.Command):
             return process.call()
 
         if not self._shell_path or not os.path.exists(self._shell_path):
-            raise NotImplementedError(f"unsupported system {tools.system}")
+            raise NotImplementedError(f"unsupported system {environ.system}")
 
         process = utils.Popen(self._shell_path)
         return process.call()

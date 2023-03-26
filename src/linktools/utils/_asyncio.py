@@ -6,10 +6,10 @@ import atexit
 import threading
 from typing import Optional, Callable, Any, Coroutine
 
-from .._logging import get_logger
+from .._environ import environ
 from ..decorator import singleton
 
-_logger = get_logger("utils.asyncio")
+_logger = environ.get_logger("utils.asyncio")
 
 
 @singleton

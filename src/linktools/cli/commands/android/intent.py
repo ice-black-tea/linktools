@@ -32,7 +32,7 @@ import time
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, cli
+from linktools import utils, environ, cli
 
 
 class Command(cli.AndroidCommand):
@@ -94,14 +94,14 @@ class Command(cli.AndroidCommand):
             apk_path = args.path
 
             if args.path.startswith("http://") or args.path.startswith("https://"):
-                logger.info(f"Download file: {args.path}")
+                environ.logger.info(f"Download file: {args.path}")
                 file = utils.UrlFile(args.path)
                 apk_path = file.save()
-                logger.info(f"Save file to local: {apk_path}")
+                environ.logger.info(f"Save file to local: {apk_path}")
 
             remote_path = device.get_data_path("apk", f"{int(time.time())}.apk")
             try:
-                logger.info(f"Push file to remote: {remote_path}")
+                environ.logger.info(f"Push file to remote: {remote_path}")
                 device.push(apk_path, remote_path,
                             log_output=True)
                 if device.uid >= 10000:
@@ -115,7 +115,7 @@ class Command(cli.AndroidCommand):
                                  "-r", "-t", "-d", "-f", remote_path,
                                  log_output=True)
             finally:
-                logger.debug(f"Clear remote file: {remote_path}")
+                environ.logger.debug(f"Clear remote file: {remote_path}")
                 device.shell("rm", remote_path, log_output=True)
 
         elif "--browser" in sys.argv:

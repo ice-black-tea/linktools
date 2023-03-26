@@ -10,10 +10,9 @@ from typing import Union, AnyStr, Tuple, Optional, IO
 
 from . import Timeout
 from .._environ import environ
-from .._logging import get_logger
 from ..decorator import cached_property
 
-_logger = get_logger("utils.subprocess")
+_logger = environ.get_logger("utils.subprocess")
 
 list2cmdline = subprocess.list2cmdline
 
@@ -102,7 +101,7 @@ class Popen(subprocess.Popen):
             try:
                 kwargs["cwd"] = os.getcwd()
             except FileNotFoundError:
-                kwargs["cwd"] = environ.resource.get_temp_dir()
+                kwargs["cwd"] = environ.get_temp_dir(create=True)
         if "append_env" in kwargs:
             env = os.environ.copy()
             env.update(kwargs.pop("env", {}))

@@ -36,9 +36,9 @@ from rich import get_console
 from rich.prompt import Confirm
 from rich.table import Table
 
-from .. import utils, get_logger
+from .. import utils, environ
 
-_logger = get_logger("frida.app")
+_logger = environ.get_logger("frida.app")
 
 
 class FridaUserScript(metaclass=abc.ABCMeta):

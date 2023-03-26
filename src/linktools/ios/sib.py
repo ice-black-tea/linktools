@@ -7,11 +7,11 @@ import time
 from subprocess import TimeoutExpired
 from typing import Any
 
-from .. import utils, tools, ToolExecError
-from .._logging import get_logger
+from .. import utils, ToolExecError
+from .._environ import environ
 from ..decorator import cached_property
 
-_logger = get_logger("android.adb")
+_logger = environ.get_logger("android.adb")
 
 
 class SibError(Exception):
@@ -43,7 +43,7 @@ class Sib(object):
 
     @classmethod
     def popen(cls, *args: [Any], **kwargs) -> utils.Popen:
-        return tools["sib"].popen(*args, **kwargs)
+        return environ.get_tool("sib").popen(*args, **kwargs)
 
     @classmethod
     def exec(cls, *args: [Any], timeout: float = None,
@@ -57,7 +57,7 @@ class Sib(object):
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
         try:
-            return tools["sib"].exec(
+            return environ.get_tool("sib").exec(
                 *args,
                 timeout=timeout,
                 ignore_errors=ignore_errors,

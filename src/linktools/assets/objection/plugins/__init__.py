@@ -33,20 +33,20 @@ import click
 from objection.state.app import app_state
 from objection.utils.plugin import Plugin
 
-from linktools import resource, __name__ as module_name
+from linktools import environ
 from linktools.frida import FridaEvalCode
 from linktools.frida.app import FridaScript, FridaScriptHandler, FridaSession
 
-__description__ = f"{module_name} plugin"
+__description__ = f"{environ.name} plugin"
 
 
 class LinktoolsPlugin(Plugin, FridaScriptHandler):
 
     def __init__(self, ns):
-        self.script_path = resource.get_asset_path("frida.js")
+        self.script_path = environ.get_asset_path("frida.js")
 
         super().__init__(__file__, ns, {
-            'meta': f'"{module_name}',
+            'meta': f'"{environ.name}',
             'commands': {
                 'eval': {
                     'meta': 'eval code',

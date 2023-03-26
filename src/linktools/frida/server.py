@@ -31,9 +31,9 @@ import time
 
 import frida
 
-from .. import get_logger, utils
+from .. import environ, utils
 
-_logger = get_logger("frida.server")
+_logger = environ.get_logger("frida.server")
 
 
 class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMeta):  # proxy for frida.core.Device

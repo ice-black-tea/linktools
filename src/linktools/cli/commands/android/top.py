@@ -32,7 +32,7 @@ import sys
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, cli
+from linktools import utils, cli, environ
 
 
 class Command(cli.AndroidCommand):
@@ -60,19 +60,19 @@ class Command(cli.AndroidCommand):
         device = args.parse_device()
 
         if args.package:
-            logger.info(device.get_current_package())
+            environ.logger.info(device.get_current_package())
         elif args.activity:
-            logger.info(device.get_current_activity())
+            environ.logger.info(device.get_current_activity())
         elif args.path:
-            logger.info(device.get_apk_path(device.get_current_package()))
+            environ.logger.info(device.get_apk_path(device.get_current_package()))
         elif args.kill:
             device.shell("am", "force-stop", device.get_current_package(), log_output=True)
         elif "--apk" in sys.argv:
             package_name = device.get_current_package()
-            logger.info("find current package: {}".format(package_name))
+            environ.logger.info("find current package: {}".format(package_name))
             package = utils.get_item(device.get_packages(package_name, simple=True), 0)
             if package is not None:
-                logger.info("find current apk path: {}".format(package.source_dir))
+                environ.logger.info("find current apk path: {}".format(package.source_dir))
                 path = device.get_storage_path("{}_{}.apk".format(package.name, package.version_name))
                 dest = args.apk if not utils.is_empty(args.apk) else "."
                 device.shell("mkdir", "-p", device.get_storage_path(), log_output=True)
@@ -89,9 +89,9 @@ class Command(cli.AndroidCommand):
             device.shell("rm", path)
         else:
             package = device.get_current_package()
-            logger.info("package:  ", package)
-            logger.info("activity: ", device.get_current_activity())
-            logger.info("path:     ", device.get_apk_path(package))
+            environ.logger.info("package:  ", package)
+            environ.logger.info("activity: ", device.get_current_activity())
+            environ.logger.info("path:     ", device.get_apk_path(package))
 
         return
 

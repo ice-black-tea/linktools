@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, resource, environ, cli
+from linktools import utils, environ, cli
 from linktools.frida.android import AndroidFridaServer
 
 
@@ -48,7 +48,7 @@ class Command(cli.AndroidCommand):
                                  "newline, that will run before the repl polls the device for information.")
         parser.add_argument("-S", "--startup-script", action="store",
                             help="A script to import and run before the repl polls the device for information.")
-        parser.add_argument("-P", "--plugin-folder", action="store", default=resource.get_asset_path("objection"),
+        parser.add_argument("-P", "--plugin-folder", action="store", default=environ.get_asset_path("objection"),
                             help="The folder to load plugins from.")
 
         parser.add_argument("--redirect-address", metavar="ADDRESS", action="store", dest="redirect_address",
@@ -73,7 +73,7 @@ class Command(cli.AndroidCommand):
             if utils.is_empty(package):
                 target_app = server.get_frontmost_application()
                 if target_app is None:
-                    logger.error("Unknown frontmost application")
+                    environ.logger.error("Unknown frontmost application")
                     return 1
                 package = target_app.identifier
             objection_args += ["-g", package]

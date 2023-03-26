@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, logger, cli
+from linktools import utils, environ, cli
 from linktools.android import Package, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
 
@@ -55,16 +55,16 @@ class PrintStream(PrintLevel):
         if not self.min <= level <= self.max:
             pass
         elif level == PrintLevel.title:
-            logger.info(text, style="bold", indent=indent)
+            environ.logger.info(text, style="bold", indent=indent)
         elif level == PrintLevel.dangerous:
-            logger.info(text, style="red bold", indent=indent)
+            environ.logger.info(text, style="red bold", indent=indent)
         elif level == PrintLevel.useless:
-            logger.info(text, style="strike", indent=indent)
+            environ.logger.info(text, style="strike", indent=indent)
         else:
-            logger.info(text, indent=indent)
+            environ.logger.info(text, indent=indent)
 
     def print_line(self):
-        logger.info("")
+        environ.logger.info("")
 
 
 class PrintStreamWrapper(PrintLevel):

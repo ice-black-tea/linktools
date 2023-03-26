@@ -40,7 +40,7 @@ from rich import get_console
 from rich.highlighter import NullHighlighter
 from rich.text import Text
 
-from linktools import utils, logger, cli
+from linktools import utils, environ, cli
 
 pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)
 
@@ -116,7 +116,7 @@ class GrepMatcher:
                 if not GrepHandler.handle(self, filename, mimetype):
                     self.on_binary(filename, mimetype)
             except Exception as e:
-                logger.debug(f"handle file error: {e}")
+                environ.logger.debug(f"handle file error: {e}")
 
     @GrepHandler.match(
         "application/xml",

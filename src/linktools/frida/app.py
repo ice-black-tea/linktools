@@ -20,9 +20,20 @@ from frida.core import Session, Script
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from ._utils import Counter
-from .. import utils, resource, get_logger, environ
+from .. import utils, environ
 
-_logger = get_logger("frida.app")
+_logger = environ.get_logger("frida.app")
+
+
+class FridaReactor(utils.Reactor):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cancellable = frida.Cancellable()
+
+    def _work(self, fn: Callable[[], any]):
+        with self.cancellable:
+            fn()
 
 
 class FridaSession(utils.get_derived_type(Session)):  # proxy for frida.core.Session
@@ -281,7 +292,7 @@ class FridaApplication(FridaScriptHandler):
         self._last_error = None
         self._stop_request = utils.InterruptableEvent()
         self._finished = utils.InterruptableEvent()
-        self._reactor = utils.Reactor(
+        self._reactor = FridaReactor(
             on_stop=self._on_stop,
             on_error=self._on_error
         )
@@ -291,8 +302,8 @@ class FridaApplication(FridaScriptHandler):
         self._last_change_id = 0
         self._monitored_files: Dict[str, frida.FileMonitor] = {}
 
-        self._internal_script = FridaScriptFile(resource.get_asset_path("frida.min.js"))
-        self._internal_debug_script = FridaScriptFile(resource.get_asset_path("frida.js"))
+        self._internal_script = FridaScriptFile(environ.get_asset_path("frida.min.js"))
+        self._internal_debug_script = FridaScriptFile(environ.get_asset_path("frida.js"))
 
         self._user_parameters = user_parameters or {}
         self._user_scripts = user_scripts or tuple()
@@ -337,9 +348,7 @@ class FridaApplication(FridaScriptHandler):
         # utils.ignore_error(self.device.off, "uninjected", self._cb_uninjected)
         utils.ignore_error(self.device.off, "lost", self._cb_lost)
 
-        with frida.Cancellable():
-            self._demonitor_all()
-
+        self._demonitor_all()
         self._finished.set()
 
     @property
@@ -362,9 +371,12 @@ class FridaApplication(FridaScriptHandler):
         self._stop_request.set()
 
     def __enter__(self):
-        self._init()
-        self._reactor.run()
-        return self
+        try:
+            self._init()
+            self._reactor.run()
+            return self
+        except:
+            utils.ignore_error(self._deinit)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._reactor.stop()
