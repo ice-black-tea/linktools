@@ -8,7 +8,8 @@ from typing import Optional, Tuple, Type
 import paramiko
 from paramiko.ssh_exception import SSHException
 
-from linktools import utils, cli
+from linktools import utils
+from linktools.cli import IOSCommand
 from linktools.ios import Device
 
 _REMOTE_PATH_PREFIX = "@"
@@ -31,7 +32,7 @@ class SCPFile(os.PathLike):
         return self._path
 
 
-class Command(cli.IOSCommand):
+class Command(IOSCommand):
     """
     OpenSSH secure file copy (require iOS device jailbreak)
     """

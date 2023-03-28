@@ -32,10 +32,11 @@ import time
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
+from linktools.cli import AndroidCommand
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Common intent actions
     """

@@ -65,7 +65,6 @@ def user_agent(style=None) -> str:
         user_agent = _UserAgent()
 
         if style:
-            print(user_agent[style])
             return user_agent[style]
 
         return user_agent.random

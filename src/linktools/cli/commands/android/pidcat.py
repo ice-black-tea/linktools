@@ -25,7 +25,7 @@ from argparse import ArgumentParser
 from subprocess import PIPE
 from typing import Optional
 
-from linktools import cli
+from linktools.cli import AndroidCommand
 
 __version__ = '2.1.0'
 
@@ -55,7 +55,7 @@ def get_char_width(char):
     return 1
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Filter logcat by package name
     """

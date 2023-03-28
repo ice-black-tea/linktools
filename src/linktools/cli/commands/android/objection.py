@@ -29,11 +29,12 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
+from linktools.cli import AndroidCommand
 from linktools.frida.android import AndroidFridaServer
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Easy to use objection (require Android device rooted)
     """

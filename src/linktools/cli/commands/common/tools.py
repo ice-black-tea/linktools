@@ -31,10 +31,11 @@ import subprocess
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import environ, cli
+from linktools import environ
+from linktools.cli import BaseCommand
 
 
-class Command(cli.Command):
+class Command(BaseCommand):
     """
     Tools downloaded from the web
     """

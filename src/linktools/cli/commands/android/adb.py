@@ -29,11 +29,11 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import cli
 from linktools.android import Adb
+from linktools.cli import AndroidCommand
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Adb that supports multiple devices
     """

@@ -7,10 +7,11 @@ import shutil
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
+from linktools.cli import BaseCommand
 
 
-class Command(cli.Command):
+class Command(BaseCommand):
     """
     Shell with environment variables already initialized
     """

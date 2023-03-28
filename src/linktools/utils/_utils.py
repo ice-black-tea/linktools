@@ -104,7 +104,7 @@ def ignore_error(fn: Callable[..., _T], *args, **kwargs) -> _T:
 
 
 # noinspection PyShadowingBuiltins
-def cast(type: type, obj: object, default=None):
+def cast(type: Type[_T], obj: Any, default: _T = None) -> Optional[_T]:
     """
     类型转换
     :param type: 目标类型
@@ -118,7 +118,7 @@ def cast(type: type, obj: object, default=None):
         return default
 
 
-def int(obj: object, default: int = 0) -> int:
+def int(obj: Any, default: int = 0) -> "int":
     """
     转为int
     :param obj: 需要转换的值
@@ -128,31 +128,36 @@ def int(obj: object, default: int = 0) -> int:
     return cast(type(0), obj, default=default)
 
 
-def bool(obj: object, default: bool = False) -> "bool":
+def bool(obj: Any, default: bool = False) -> "bool":
     """
     转为bool
     :param obj: 需要转换的值
     :param default: 默认值
     :return: 转换后的值
     """
-    return cast(type(True), obj, default=default)
+    bool_type = type(True)
+    if isinstance(obj, bool_type):
+        return obj
+    if isinstance(obj, str):
+        return cast(lambda o: o.lower() == "true", obj, default=default)
+    return cast(bool_type, obj, default=default)
 
 
-def is_contain(obj: object, key: object) -> "bool":
+def is_contain(obj: Any, key: Any) -> "bool":
     """
     是否包含内容
     :param obj: 对象
     :param key: 键
     :return: 是否包含
     """
-    if object is None:
+    if obj is None:
         return False
     if isinstance(obj, Iterable):
         return key in obj
     return False
 
 
-def is_empty(obj: object) -> "bool":
+def is_empty(obj: Any) -> "bool":
     """
     对象是否为空
     :param obj: 对象

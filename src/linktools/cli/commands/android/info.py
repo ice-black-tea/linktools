@@ -29,7 +29,8 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import environ, cli
+from linktools import environ
+from linktools.cli import AndroidCommand
 
 props = (
     "ro.product.manufacturer",
@@ -70,7 +71,7 @@ cmds = (
 )
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Fetch device information
     """

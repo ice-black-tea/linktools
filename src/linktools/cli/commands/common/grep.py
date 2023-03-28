@@ -40,7 +40,8 @@ from rich import get_console
 from rich.highlighter import NullHighlighter
 from rich.text import Text
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
+from linktools.cli import BaseCommand
 
 pprint = functools.partial(get_console().print, sep="", markup=False, highlight=NullHighlighter)
 
@@ -191,7 +192,7 @@ class GrepMatcher:
         return out
 
 
-class Command(cli.Command):
+class Command(BaseCommand):
     """
     Match files with regular expression
     """

@@ -29,12 +29,13 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
+from linktools.cli import IOSCommand
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
 
 
-class Command(cli.IOSCommand):
+class Command(IOSCommand):
     """
     Easy to use frida (require iOS device jailbreak)
     """

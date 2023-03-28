@@ -28,4 +28,4 @@
 """
 
 from ._cli import walk_commands
-from ._command import Command, AndroidCommand, IOSCommand
+from ._command import BaseCommand, AndroidCommand, IOSCommand

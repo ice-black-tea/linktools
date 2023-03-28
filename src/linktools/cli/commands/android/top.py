@@ -32,10 +32,11 @@ import sys
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, cli, environ
+from linktools import utils, environ
+from linktools.cli import AndroidCommand
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Fetch current running app's basic information
     """

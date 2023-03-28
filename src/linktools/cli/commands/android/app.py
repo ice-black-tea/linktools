@@ -29,9 +29,10 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
 from linktools.android import Package, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
+from linktools.cli import AndroidCommand
 
 
 class PrintLevel:
@@ -224,7 +225,7 @@ class PackagePrinter:
             stream.print("Type [%s]" % type, indent=indent + 4, level=level)
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Fetch application info
     """

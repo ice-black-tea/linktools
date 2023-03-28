@@ -29,12 +29,13 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ, cli
+from linktools import utils, environ
+from linktools.cli import AndroidCommand
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Easy to use frida (require Android device rooted)
     """

@@ -33,10 +33,9 @@ from typing import Optional
 from rich import get_console
 from rich.tree import Tree
 
-from . import cli
 from ._environ import environ
+from .cli import BaseCommand, walk_commands
 from .decorator import cached_property
-from .version import __description__
 
 
 class CategoryInfo:
@@ -52,10 +51,13 @@ class CategoryInfo:
 
 class CommandInfo:
 
-    def __init__(self, name: str, category: CategoryInfo, command: cli.Command):
-        self.name = name
+    def __init__(self, category: CategoryInfo, command: BaseCommand):
         self.category = category
         self.command = command
+
+    @property
+    def name(self):
+        return self.command.name
 
     @property
     def description(self):
@@ -65,7 +67,7 @@ class CommandInfo:
         return self.name
 
 
-class Command(cli.Command):
+class Command(BaseCommand):
 
     @cached_property
     def _commands(self):
@@ -80,10 +82,9 @@ class Command(cli.Command):
         for category in module_categories:
             commands[category] = []
             path = os.path.join(module_path, category.name)
-            for name, command in cli.walk_commands(path):
+            for command in walk_commands(path):
                 commands[category].append(
                     CommandInfo(
-                        name=name,
                         category=category,
                         command=command,
                     )
@@ -123,7 +124,8 @@ class Command(cli.Command):
                 node.add(f"👉 {command.category.prefix}[bold red]{command.name}[/bold red]: {command.description}")
 
         console = get_console()
-        console.print(__description__, highlight=False)
+        if environ.description:
+            console.print(environ.description, highlight=False)
         console.print(tree, highlight=False)
 
 

@@ -29,10 +29,10 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import cli
+from linktools.cli import AndroidCommand
 
 
-class Command(cli.AndroidCommand):
+class Command(AndroidCommand):
     """
     Debug android-tools.apk
     """

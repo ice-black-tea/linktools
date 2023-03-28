@@ -34,4 +34,4 @@ from . import decorator
 from ._logging import LogHandler
 from ._config import Config
 from ._tools import ToolContainer, ToolExecError, Tool
-from ._environ import Environ, environ
+from ._environ import BaseEnviron, environ

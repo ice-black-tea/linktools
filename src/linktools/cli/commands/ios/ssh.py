@@ -32,11 +32,12 @@ from typing import Optional, Tuple, Type
 import paramiko
 from paramiko.ssh_exception import SSHException
 
-from linktools import cli, utils
+from linktools import utils
+from linktools.cli import IOSCommand
 from linktools.ios import Device
 
 
-class Command(cli.IOSCommand):
+class Command(IOSCommand):
     """
     OpenSSH remote login client (require iOS device jailbreak)
     """

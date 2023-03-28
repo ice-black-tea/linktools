@@ -42,16 +42,20 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from .._environ import Environ, environ
+from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
 from ..utils import ignore_error
 
 
-class Command(abc.ABC):
+class BaseCommand(abc.ABC):
 
     @property
-    def environ(self) -> Environ:
+    def name(self):
+        return self.__module__
+
+    @property
+    def environ(self) -> BaseEnviron:
         return environ
 
     @property
@@ -185,7 +189,7 @@ class Command(abc.ABC):
         return exit_code
 
 
-class AndroidCommand(Command, ABC):
+class AndroidCommand(BaseCommand, ABC):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
@@ -310,7 +314,7 @@ class AndroidCommand(Command, ABC):
                            help="use last device")
 
 
-class IOSCommand(Command, ABC):
+class IOSCommand(BaseCommand, ABC):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:

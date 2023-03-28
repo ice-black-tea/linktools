@@ -4,11 +4,11 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import cli
+from linktools.cli import IOSCommand
 from linktools.ios import Sib
 
 
-class Command(cli.IOSCommand):
+class Command(IOSCommand):
     """
     Sib that supports multiple devices
     """
