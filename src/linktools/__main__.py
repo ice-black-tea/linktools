@@ -72,7 +72,7 @@ class Command(BaseCommand):
     @cached_property
     def _commands(self):
         commands = {}
-        module_path = os.path.join(environ.root_path, "cli", "commands")
+        module_path = environ.get_cli_path("commands")
         module_categories = (
             CategoryInfo(name="common", prefix="ct-", description=""),
             CategoryInfo(name="android", prefix="at-", description=""),

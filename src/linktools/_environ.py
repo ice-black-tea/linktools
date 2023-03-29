@@ -34,7 +34,7 @@ from typing import TypeVar, Type, Optional, Any, Dict
 
 import yaml
 
-from .decorator import cached_property
+from .decorator import cached_property, cached_classproperty
 from .version import \
     __name__ as __module_name__, \
     __description__ as __module_description__, \
@@ -43,6 +43,7 @@ from .version import \
 T = TypeVar("T")
 root_path = os.path.dirname(__file__)
 asset_path = os.path.join(root_path, "assets")
+cli_path = os.path.join(root_path, "cli")
 
 
 class BaseEnviron(abc.ABC):
@@ -70,14 +71,6 @@ class BaseEnviron(abc.ABC):
         模块描述
         """
         return ""
-
-    @property
-    @abc.abstractmethod
-    def root_path(self) -> str:
-        """
-        模块根目录
-        """
-        pass
 
     @cached_property
     def data_path(self):
@@ -117,12 +110,6 @@ class BaseEnviron(abc.ABC):
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
         return target_path
-
-    def get_path(self, *paths: str):
-        """
-        获取根目录下的子目录
-        """
-        return self._get_path(self.root_path, *paths, create=False, create_parent=False)
 
     def get_data_path(self, *paths: str, create_parent: bool = False):
         """
@@ -165,16 +152,17 @@ class BaseEnviron(abc.ABC):
 
         return get_logger(name=name, prefix=self.name)
 
-    @cached_property
-    def _config(self):
+    @cached_classproperty
+    def _default_config(cls):
         from ._config import Config
 
         config = Config()
 
         # 初始化全局存储路径配置，优先级低于data、temp路径
-        config["STORAGE_PATH"] = \
-            os.environ.get("STORAGE_PATH") or \
-            os.path.join(str(pathlib.Path.home()), f".{__module_name__}")
+        config["STORAGE_PATH"] = os.path.join(
+            str(pathlib.Path.home()),
+            f".{__module_name__}"
+        )
 
         # 初始化下载相关参数
         config["SETTING_DOWNLOAD_USER_AGENT"] = \
@@ -184,13 +172,16 @@ class BaseEnviron(abc.ABC):
             "Safari/537.36"
 
         # 导入configs文件夹中所有配置文件
-        config.from_file(self._get_path(asset_path, "tools.yml"), load=yaml.safe_load)
-        config.from_file(self._get_path(asset_path, "android-tools.json"), load=json.load)
-
-        # 导入环境变量LINKTOOLS_SETTING中的配置文件
-        config.from_envvar("LINKTOOLS_SETTING", silent=True)
+        config.from_file(cls._get_path(asset_path, "tools.yml"), load=yaml.safe_load)
+        config.from_file(cls._get_path(asset_path, "android-tools.json"), load=json.load)
 
         return config
+
+    @cached_property
+    def _config(self):
+        from ._config import Config
+
+        return Config(self._default_config)
 
     def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
@@ -309,6 +300,7 @@ class BaseEnviron(abc.ABC):
         显示日志时间
         """
         from ._logging import LogHandler
+
         handler = LogHandler.get_instance()
         if handler:
             handler.show_time = value
@@ -329,6 +321,7 @@ class BaseEnviron(abc.ABC):
         显示日志级别
         """
         from ._logging import LogHandler
+
         handler = LogHandler.get_instance()
         if handler:
             handler.show_level = value
@@ -349,18 +342,17 @@ class Environ(BaseEnviron):
         return __module_name__
 
     @property
-    def description(self) -> str:
-        return __module_description__
-
-    @property
     def version(self) -> str:
         return __module_version__
 
     @property
-    def root_path(self) -> str:
-        return root_path
+    def description(self) -> str:
+        return __module_description__
 
-    def get_asset_path(self, *paths: str):
+    def get_cli_path(self, *paths: str) -> str:
+        return self._get_path(cli_path, *paths)
+
+    def get_asset_path(self, *paths: str) -> str:
         return self._get_path(asset_path, *paths)
 
 

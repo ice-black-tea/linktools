@@ -8,10 +8,11 @@ python & pip (3.6及以上): <https://www.python.org/downloads/>
 
 ### 安装
 
-直接安装
+使用pip安装linktools
 
 ```bash
-# 也可以直接使用github上的最新版本："linktools @ git+https://github.com/ice-black-tea/Zelda.git"
+# 可以pip直接安装linktools，也可以用以下命令安装github上的最新版本:
+# python3 -m pip install "linktools @ git+https://github.com/ice-black-tea/Zelda.git"
 python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
 ```
 
@@ -19,7 +20,7 @@ python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
 ```
 linktools[requests]：下载时使用requests包，并且支持socks5代理
 linktools[frida]：集成frida hook框架，支持android、ios hook
-linktools[lief]：为ct-grep提供服务，可解析apk、elf等文件格式
+linktools[lief]：为grep提供服务，可解析apk、elf等文件格式
 linktools[all]：添加所有依赖
 ```
 
@@ -610,7 +611,7 @@ from linktools.frida.android import AndroidFridaServer
 jscode = """
 Java.perform(function () {
     JavaHelper.hookMethods(
-        "java.util.HashMap", "put", JavaHelper.getEventImpl({stack: false, args: true})
+        "java.util.HashMap", "put", {stack: false, args: true}
     );
 });
 """

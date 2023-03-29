@@ -31,6 +31,7 @@ import threading
 import typing
 
 _T = typing.TypeVar('_T')
+_missing = object()
 
 
 def singleton(cls: typing.Type[_T]) -> typing.Callable[..., _T]:
@@ -81,7 +82,6 @@ def synchronized(lock=None):
 
 
 class cached_property:
-    __missing__ = object()
 
     def __init__(self, func):
         self.func = func
@@ -112,12 +112,12 @@ class cached_property:
                 f"instance to cache {self.attrname!r} property."
             )
             raise TypeError(msg) from None
-        val = cache.get(self.attrname, self.__missing__)
-        if val is self.__missing__:
+        val = cache.get(self.attrname, _missing)
+        if val is _missing:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, self.__missing__)
-                if val is self.__missing__:
+                val = cache.get(self.attrname, _missing)
+                if val is _missing:
                     val = self.func(instance)
                     try:
                         cache[self.attrname] = val
@@ -131,5 +131,32 @@ class cached_property:
         return val
 
 
-class locked_cached_property(cached_property):
-    pass
+class classproperty:
+    """
+    Decorator that converts a method with a single cls argument into a property
+    that can be accessed directly from the class.
+    """
+
+    def __init__(self, func=None):
+        self.func = func
+
+    def __get__(self, instance, owner=None):
+        return self.func(owner)
+
+
+class cached_classproperty:
+
+    def __init__(self, func):
+        self.func = func
+        self.__doc__ = func.__doc__
+        self.lock = threading.RLock()
+        self.val = _missing
+
+    def __get__(self, instance, owner=None):
+        if self.val is _missing:
+            with self.lock:
+                # check if another thread filled cache while we awaited lock
+                if self.val is _missing:
+                    self.val = self.func(owner)
+
+        return self.val
