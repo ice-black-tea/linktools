@@ -35,7 +35,7 @@ import warnings
 from typing import Dict, Union, Mapping, Iterator, Any
 
 from . import utils
-from ._environ import environ
+from ._environ import environ, BaseEnviron
 from .decorator import cached_property
 
 _logger = environ.get_logger("utils")
@@ -233,6 +233,9 @@ class Tool(metaclass=Meta):
             f"{cfg['name']}.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
+        if download_url and not unpack_path and not target_path:
+            target_path = utils.guess_file_name(download_url)
+
         # target path: {target_path}
         # unpack path: {unpack_path}
         # root path: tools/{unpack_path}/
@@ -375,7 +378,8 @@ class ToolContainer(object):
     processor: str = property(lambda self: self.config["processor"])
     architecture: str = property(lambda self: self.config["architecture"])
 
-    def __init__(self, **kwargs):
+    def __init__(self, env: BaseEnviron, **kwargs):
+        self.environ = env
         self.config = kwargs
         self.config.setdefault("system", platform.system().lower())
         self.config.setdefault("processor", platform.processor().lower())
@@ -384,7 +388,7 @@ class ToolContainer(object):
     @cached_property
     def items(self) -> Mapping[str, Tool]:
         items = {}
-        for key, value in environ.get_configs("GENERAL_TOOL_").items():
+        for key, value in self.environ.get_configs("GENERAL_TOOL_").items():
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue

@@ -72,7 +72,7 @@ def user_agent(style=None) -> str:
     except Exception as e:
         _logger.debug(f"fetch user agent error: {e}")
 
-    return environ.get_config("SETTING_DOWNLOAD_USER_AGENT")
+    return environ.get_config("DOWNLOAD_USER_AGENT")
 
 
 def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:
@@ -103,7 +103,12 @@ def cookie_to_dict(cookie: str) -> Dict[str, str]:
 
 
 def guess_file_name(url: str) -> str:
-    return os.path.split(parse.urlparse(url).path)[1]
+    if not url:
+        return ""
+    try:
+        return os.path.split(parse.urlparse(url).path)[1]
+    except:
+        return ""
 
 
 class DownloadError(Exception):

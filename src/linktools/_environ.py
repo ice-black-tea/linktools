@@ -30,6 +30,7 @@ import abc
 import json
 import os
 import pathlib
+import pickle
 from typing import TypeVar, Type, Optional, Any, Dict
 
 import yaml
@@ -164,16 +165,8 @@ class BaseEnviron(abc.ABC):
             f".{__module_name__}"
         )
 
-        # 初始化下载相关参数
-        config["SETTING_DOWNLOAD_USER_AGENT"] = \
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " \
-            "AppleWebKit/537.36 (KHTML, like Gecko) " \
-            "Chrome/98.0.4758.109 " \
-            "Safari/537.36"
-
-        # 导入configs文件夹中所有配置文件
+        # 导入configs文件夹中的配置文件
         config.from_file(cls._get_path(asset_path, "tools.yml"), load=yaml.safe_load)
-        config.from_file(cls._get_path(asset_path, "android-tools.json"), load=json.load)
 
         return config
 
@@ -181,7 +174,11 @@ class BaseEnviron(abc.ABC):
     def _config(self):
         from ._config import Config
 
-        return Config(self._default_config)
+        config: Config = pickle.loads(
+            pickle.dumps(self._default_config)
+        )
+
+        return config
 
     def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
@@ -242,7 +239,7 @@ class BaseEnviron(abc.ABC):
         """
         from ._tools import ToolContainer
 
-        tools = ToolContainer()
+        tools = ToolContainer(self)
 
         # set environment variable
         index = 0
@@ -348,6 +345,22 @@ class Environ(BaseEnviron):
     @property
     def description(self) -> str:
         return __module_description__
+
+    @cached_property
+    def _config(self):
+        config = super()._config
+
+        # 初始化下载相关参数
+        config["DOWNLOAD_USER_AGENT"] = \
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " \
+            "AppleWebKit/537.36 (KHTML, like Gecko) " \
+            "Chrome/98.0.4758.109 " \
+            "Safari/537.36"
+
+        # 导入configs文件夹中所有配置文件
+        config.from_file(self._get_path(asset_path, "android-tools.json"), load=json.load)
+
+        return config
 
     def get_cli_path(self, *paths: str) -> str:
         return self._get_path(cli_path, *paths)

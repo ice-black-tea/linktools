@@ -10,26 +10,26 @@ GENERAL_TOOL_BAKSMALI:
   <<: *JAR
   version: 2.5.2
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/baksmali-{version}.jar
-  target_path: baksmali-{version}.jar
 
 GENERAL_TOOL_SMALI:
   <<: *JAR
   version: 2.5.2
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/smali-{version}.jar
-  target_path: smali-{version}.jar
 
 GENERAL_TOOL_APKTOOL:
   <<: *JAR
   version: 2.7.0
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
-  target_path: apktool-{version}.jar
 
 GENERAL_TOOL_APPCRAWLER:
   <<: *JAR
-  cmdline: appcrawler
   version: 2.7.4
   download_url: https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar
-  target_path: appcrawler-{version}-hogwarts.jar
+
+GENERAL_TOOL_XPATCH:
+  <<: *JAR
+  version: 5.1
+  download_url: https://github.com/WindySha/Xpatch/releases/download/v{version}/xpatch-{version}.jar
 
 GENERAL_TOOL_TIDEVICE:
   <<: *PY
