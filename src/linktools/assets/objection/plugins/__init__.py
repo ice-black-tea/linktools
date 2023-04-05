@@ -64,7 +64,7 @@ class LinktoolsPlugin(Plugin, FridaScriptHandler):
 
     def eval_code(self, args: list):
         self.api.load_scripts([
-            FridaEvalCode(arg).to_dict() for arg in args
+            FridaEvalCode(arg).as_dict() for arg in args
         ])
 
     @functools.cached_property

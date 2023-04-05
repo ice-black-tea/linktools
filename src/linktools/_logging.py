@@ -40,6 +40,7 @@ from rich.progress import Task, \
 from rich.table import Column
 from rich.text import Text
 
+from . import utils
 from ._environ import environ
 
 
@@ -104,6 +105,16 @@ class LogConfig:
             if not style:
                 style = "log.level"
         return Text(f" {level_name[:1]} ", style=style)
+
+
+class LogManager(utils.get_derived_type(logging.Manager)):
+
+    def __init__(self, manager):
+        super().__init__(manager)
+        object.__setattr__(self, "loggerClass", Logger)
+
+    def getLogger(self, name):
+        return logging.Manager.getLogger(self, name)
 
 
 class LogHandler(RichHandler):
@@ -236,5 +247,4 @@ class Logger(logging.Logger):
 
 
 _config = LogConfig()
-_manager = logging.Manager(logging.root)
-_manager.setLoggerClass(Logger)
+_manager = LogManager(logging.Logger.manager)

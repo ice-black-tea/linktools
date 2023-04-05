@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import re
 from argparse import ArgumentParser
 from typing import Optional
 
@@ -86,72 +87,49 @@ class Command(AndroidCommand):
 
         class Application(FridaApplication):
 
-            def on_spawn_added(self, spawn):
-                environ.logger.debug(f"{spawn} added")
-                if device.extract_package(spawn.identifier) != package:
-                    try:
-                        self.device.resume(spawn.pid)
-                    except Exception as e:
-                        environ.logger.error(f"{e}")
-                else:
-                    self.load_script(spawn.pid, resume=True)
-
             def on_session_detached(self, session, reason, crash) -> None:
                 environ.logger.info(f"{session} detached, reason={reason}")
                 if reason in ("connection-terminated", "device-lost"):
                     self.stop()
-                elif len(self._sessions) == 0:
+                elif len(self.sessions) == 0:
                     if args.auto_start:
                         app.load_script(app.device.spawn(package), resume=True)
 
         with AndroidFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 
-            app = Application(
-                server,
-                user_parameters=user_parameters,
-                user_scripts=user_scripts,
-                enable_spawn_gating=True,
-            )
-
             # 如果没有填包名，则找到顶层应用
             if utils.is_empty(package):
-                target_app = app.device.get_frontmost_application()
+                target_app = server.get_frontmost_application()
                 if target_app is None:
                     environ.logger.error("Unknown frontmost application")
                     return
                 package = target_app.identifier
 
-            target_pids = set()
+            app = Application(
+                server,
+                target_identifiers=rf"^{re.escape(package)}($|:)",
+                user_parameters=user_parameters,
+                user_scripts=user_scripts,
+                enable_spawn_gating=True,
+            )
 
             if args.spawn:
                 # 打开进程后注入
                 app.load_script(app.device.spawn(package), resume=True)
 
-            else:
-                # 匹配所有app
-                for target_app in app.device.enumerate_applications():
-                    if target_app.pid > 0 and target_app.identifier == package:
-                        target_pids.add(target_app.pid)
+            elif app.inject_all():
+                # 注入所有进程进程
+                pass
 
-                # 匹配所有进程
-                for target_process in app.device.enumerate_processes():
-                    if target_process.pid > 0 and device.extract_package(target_process.name) == package:
-                        target_pids.add(target_process.pid)
-
-                if len(target_pids) > 0:
-                    # 进程存在，直接注入
-                    for pid in target_pids:
-                        app.load_script(pid)
-                elif args.auto_start:
-                    # 进程不存在，打开进程后注入
-                    app.load_script(app.device.spawn(package), resume=True)
+            elif args.auto_start:
+                # 进程不存在，打开进程后注入
+                app.load_script(app.device.spawn(package), resume=True)
 
             if args.redirect_address or args.redirect_port:
                 # 如果需要重定向到本地端口
                 address = args.redirect_address
                 port = args.redirect_port or 8080
-                info = device.get_package(package)
-                uid = info.user_id if info else None
+                uid = device.get_uid(package)
                 with device.redirect(address, port, uid):
                     app.run()
             else:

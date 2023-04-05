@@ -51,7 +51,7 @@ def bind(port: int, socket_type: socket.SocketKind, socket_proto: int):
         except socket.error:
             continue
         try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(('', port))
             if socket_type == socket.SOCK_STREAM:
                 sock.listen(1)
@@ -75,7 +75,7 @@ def is_port_free(port: int):
            bind(port, socket.SOCK_DGRAM, socket.IPPROTO_UDP) is not None
 
 
-def pick_unused_port(ports: [int] = range(50000, 55000)):
+def pick_unused_port(ports: [int] = range(47134, 52134)):
     for port in ports:
         if is_port_free(port):
             return port

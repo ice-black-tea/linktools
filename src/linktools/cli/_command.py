@@ -50,6 +50,25 @@ from ..utils import ignore_error
 
 class BaseCommand(abc.ABC):
 
+    def main(self, *args, **kwargs) -> None:
+        try:
+            self.on_main_init()
+            logging.basicConfig(
+                level=logging.INFO,
+                format="%(message)s",
+                datefmt="[%X]",
+                handlers=[LogHandler()]
+            )
+            exit(self(*args, **kwargs))
+        finally:
+            self.on_main_deinit()
+
+    def on_main_init(self):
+        pass
+
+    def on_main_deinit(self):
+        pass
+
     @property
     def name(self):
         return self.__module__
@@ -139,66 +158,7 @@ class BaseCommand(abc.ABC):
             group.add_argument("--level", "--no-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
                                help="show log level")
 
-    def main(self, *args, **kwargs) -> None:
-        try:
-            self.on_main_init()
-            logging.basicConfig(
-                level=logging.INFO,
-                format="%(message)s",
-                datefmt="[%X]",
-                handlers=[LogHandler()]
-            )
-            exit(self(*args, **kwargs))
-        finally:
-            self.on_main_deinit()
-
-    def on_main_init(self):
-        pass
-
-    def on_main_deinit(self):
-        pass
-
-    @abc.abstractmethod
-    def run(self, args: [str]) -> Optional[int]:
-        pass
-
-    def __call__(self, args: [str] = None) -> int:
-        try:
-            args = args if args is not None else sys.argv[1:]
-            exit_code = self.run(args) or 0
-
-        except SystemExit as e:
-            exit_code = e.code
-
-        except (KeyboardInterrupt, EOFError, *self.known_errors) as e:
-            exit_code = 1
-            error_type, error_message = e.__class__.__name__, str(e).strip()
-            self.logger.error(
-                f"{error_type}: {error_message}" if error_message else error_type,
-                exc_info=True if environ.debug else None,
-            )
-
-        except:
-            exit_code = 1
-            if environ.debug:
-                console = get_console()
-                console.print_exception(show_locals=True)
-            else:
-                self.logger.error(traceback.format_exc())
-
-        return exit_code
-
-
-class AndroidCommand(BaseCommand, ABC):
-
-    @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        from linktools.android import AdbError
-        return AdbError,
-
-    def add_base_arguments(self, parser: ArgumentParser):
-        super().add_base_arguments(parser)
-
+    def add_android_arguments(self, parser: ArgumentParser):
         from linktools.android import Adb, Device, AdbError
         cache_path = environ.get_temp_path("cache", "device", "android", create_parent=True)
 
@@ -313,17 +273,7 @@ class AndroidCommand(BaseCommand, ABC):
         group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
                            help="use last device")
 
-
-class IOSCommand(BaseCommand, ABC):
-
-    @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        from linktools.ios import SibError
-        return SibError,
-
-    def add_base_arguments(self, parser: ArgumentParser):
-        super().add_base_arguments(parser)
-
+    def add_ios_arguments(self, parser: ArgumentParser):
         from linktools.ios import Sib, SibError, Device
         cache_path = environ.get_temp_path("cache", "device", "ios", create_parent=True)
 
@@ -415,3 +365,57 @@ class IOSCommand(BaseCommand, ABC):
                            help="use device with TCP/IP")
         group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
                            help="use last device")
+
+    @abc.abstractmethod
+    def run(self, args: [str]) -> Optional[int]:
+        pass
+
+    def __call__(self, args: [str] = None) -> int:
+        try:
+            args = args if args is not None else sys.argv[1:]
+            exit_code = self.run(args) or 0
+
+        except SystemExit as e:
+            exit_code = e.code
+
+        except (KeyboardInterrupt, EOFError, *self.known_errors) as e:
+            exit_code = 1
+            error_type, error_message = e.__class__.__name__, str(e).strip()
+            self.logger.error(
+                f"{error_type}: {error_message}" if error_message else error_type,
+                exc_info=True if environ.debug else None,
+            )
+
+        except:
+            exit_code = 1
+            if environ.debug:
+                console = get_console()
+                console.print_exception(show_locals=True)
+            else:
+                self.logger.error(traceback.format_exc())
+
+        return exit_code
+
+
+class AndroidCommand(BaseCommand, ABC):
+
+    @property
+    def known_errors(self) -> Tuple[Type[BaseException]]:
+        from linktools.android import AdbError
+        return AdbError,
+
+    def add_base_arguments(self, parser: ArgumentParser):
+        super().add_base_arguments(parser)
+        self.add_android_arguments(parser)
+
+
+class IOSCommand(BaseCommand, ABC):
+
+    @property
+    def known_errors(self) -> Tuple[Type[BaseException]]:
+        from linktools.ios import SibError
+        return SibError,
+
+    def add_base_arguments(self, parser: ArgumentParser):
+        super().add_base_arguments(parser)
+        self.add_ios_arguments(parser)

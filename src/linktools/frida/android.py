@@ -90,8 +90,6 @@ class AndroidFridaServer(FridaServer):
 
     def _stop(self):
         try:
-            # 删除软连接
-            self._device.sudo("rm", self._server_path, ignore_errors=True)
             # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
             process_name_lc = f"{self._server_prefix}*".lower()
             for process in self.enumerate_processes():

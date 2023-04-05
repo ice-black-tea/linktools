@@ -38,7 +38,7 @@ from urllib import parse
 
 from filelock import FileLock
 
-from ._utils import Timeout, get_md5, ignore_error, parse_version
+from ._utils import Timeout, TimeoutType, get_md5, ignore_error, parse_version
 from .._environ import environ
 from .._logging import create_log_progress
 from ..decorator import cached_property, singleton
@@ -256,7 +256,7 @@ class UrlFile:
             environ.get_temp_path("download", "lock", self._ident, create_parent=True)
         )
 
-    def save(self, save_dir: str = None, save_name: str = None, timeout: int = None, **kwargs) -> str:
+    def save(self, save_dir: str = None, save_name: str = None, timeout: TimeoutType = None, **kwargs) -> str:
         """
         从指定url下载文件
         :param save_dir: 文件路径，如果为空，则保存到temp目录

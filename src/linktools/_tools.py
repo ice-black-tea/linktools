@@ -333,7 +333,7 @@ class Tool(metaclass=Meta):
     def exec(
             self,
             *args: [Any],
-            timeout: Union[float, utils.Timeout] = None,
+            timeout: utils.TimeoutType = None,
             ignore_errors: bool = False,
             log_output: bool = False,
     ) -> str:

@@ -74,7 +74,7 @@ class Adb(object):
     def exec(
             cls,
             *args: [Any],
-            timeout: float = None,
+            timeout: utils.TimeoutType = None,
             ignore_errors: bool = False,
             log_output: bool = False
     ) -> str:
@@ -204,7 +204,7 @@ class Device(object):
         :param package_name: 包名
         :return: adb输出结果
         """
-        return self.exec("uninstall", self.extract_package(package_name), **kwargs)
+        return self.exec("uninstall", package_name, **kwargs)
 
     def push(self, src: str, dst: str, **kwargs) -> str:
         """
@@ -274,7 +274,7 @@ class Device(object):
 
         return Stoppable()
 
-    def redirect(self, address: str = None, port: int = 8080, uid: int = None) -> utils.Stoppable:
+    def redirect(self, address: str = None, port: int = None, uid: int = None):
         """
         将手机流量重定向到本地指定端口
         :param address: 本地监听地址，不填默认本机
@@ -285,10 +285,14 @@ class Device(object):
 
         remote_port = None
 
+        if not port:
+            port = utils.pick_unused_port()
+
         if not address:
             # 如果没有指定目标地址，则通过reverse端口访问
             remote_port = self.exec("reverse", f"tcp:0", f"tcp:{port}").strip()
-            destination = f"127.0.0.1:{remote_port}"
+            address = "127.0.0.1"
+            destination = f"{address}:{remote_port}"
             _logger.debug(f"Not found redirect address, use {destination} instead")
         else:
             # 指定了目标地址那就直接用目标地址
@@ -307,6 +311,11 @@ class Device(object):
 
         # noinspection PyMethodParameters
         class Stoppable(utils.Stoppable):
+
+            def __init__(self):
+                self.local_port = port
+                self.local_address = address
+                self.remote_port = remote_port
 
             def stop(_):
                 # 清空iptables -t nat配置
@@ -341,7 +350,7 @@ class Device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        args = ["am", "kill", self.extract_package(package_name)]
+        args = ["am", "kill", package_name]
         return self.shell(*args, **kwargs).rstrip()
 
     def force_stop(self, package_name: str, **kwargs) -> str:
@@ -350,7 +359,7 @@ class Device(object):
         :param package_name: 关闭的包名
         :return: adb输出结果
         """
-        args = ["am", "force-stop", self.extract_package(package_name)]
+        args = ["am", "force-stop", package_name]
         return self.shell(*args, **kwargs).rstrip()
 
     def is_file_exist(self, path: str, **kwargs) -> bool:
@@ -460,6 +469,15 @@ class Device(object):
                 return match.group(1).strip()
         obj = self.get_packages(package, simple=True, timeout=timeout, **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
+
+    def get_uid(self, package_name: str):
+        """
+        根据包名获取uid
+        :param package_name: 包名
+        :return: uid
+        """
+        info = self.get_package(package_name)
+        return info.user_id if info else None
 
     def get_package(self, package_name: str, **kwargs) -> Optional[Package]:
         """
@@ -595,18 +613,6 @@ class Device(object):
         return "/data/local/tmp/%s" % (
             "/".join([cls.get_safe_path(o) for o in paths])
         )
-
-    @classmethod
-    def extract_package(cls, package_name) -> str:
-        """
-        获取可识别的包名（主要是过滤像":"这类字符）
-        :param package_name: 包名
-        :return: 包名
-        """
-        match = re.search(r"([a-zA-Z_]\w*)+([.][a-zA-Z_]\w*)+", package_name)
-        if match is not None:
-            return match.group(0)
-        return package_name
 
     def __repr__(self):
         return f"AndroidDevice<{self.id}>"

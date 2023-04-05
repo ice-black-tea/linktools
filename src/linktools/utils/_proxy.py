@@ -7,6 +7,10 @@
 import functools
 from typing import TypeVar, Type, Callable
 
+_PROXY_FN = "_Proxy__fn"
+_PROXY_OBJECT = "_Proxy__object"
+_PROXY_MISSING = object()
+
 
 # Code stolen from celery.local.Proxy: https://github.com/celery/celery/blob/main/celery/local.py
 
@@ -37,19 +41,14 @@ class _Proxy(object):
     """Proxy to another object."""
 
     __slots__ = ('__fn', '__object', '__dict__')
-    __missing__ = object()
 
-    def __init__(self, fn=None, obj=None, name=None, __doc__=None):
-        if fn is None and obj is None:
-            raise ValueError('fn and obj arguments may not be "None" at the same time')
-        elif fn is not None and obj is not None:
-            raise ValueError('fn and obj arguments may not be specified at the same time')
-        object.__setattr__(self, "_Proxy__fn", fn or self.__missing__)
-        object.__setattr__(self, "_Proxy__object", obj or self.__missing__)
+    def __init__(self, fn, name=None, doc=None):
+        object.__setattr__(self, _PROXY_FN, fn or _PROXY_MISSING)
+        object.__setattr__(self, _PROXY_OBJECT, _PROXY_MISSING)
         if name is not None:
             object.__setattr__(self, "__custom_name__", name)
-        if __doc__ is not None:
-            object.__setattr__(self, "__doc__", __doc__)
+        if doc is not None:
+            object.__setattr__(self, "__doc__", doc)
 
     @_default_cls_attr('name', str, __name__)
     def __name__(self):
@@ -81,10 +80,10 @@ class _Proxy(object):
         return self._get_class()
 
     def _get_current_object(self):
-        obj = getattr(self, "_Proxy__object")
-        if obj == self.__missing__:
-            obj = getattr(self, "_Proxy__fn")()
-            object.__setattr__(self, "_Proxy__object", obj)
+        obj = getattr(self, _PROXY_OBJECT)
+        if obj == _PROXY_MISSING:
+            obj = getattr(self, _PROXY_FN)()
+            object.__setattr__(self, _PROXY_OBJECT, obj)
         return obj
 
     @property
@@ -291,11 +290,11 @@ def get_derived_type(t: Type[_T]) -> Type[_T]:
     class Derived(_Proxy):
 
         def __init__(self, obj: _T):
-            super().__init__(obj=obj)
+            super().__init__(_PROXY_MISSING)
+            object.__setattr__(self, "__super__", obj)
 
-        @property
-        def __super__(self) -> _T:
-            return self._get_current_object()
+        def _get_current_object(self):
+            return self.__super__
 
     return Derived
 

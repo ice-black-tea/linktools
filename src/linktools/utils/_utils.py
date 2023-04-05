@@ -39,14 +39,19 @@ from typing import Union, Callable, Optional, Type, Any, List, TypeVar
 from urllib.request import urlopen
 
 _T = TypeVar("_T")
+TimeoutType = Union[float, int, "Timeout", None]
 
 
 class Timeout:
 
-    def __init__(self, timeout: Union[float, None]):
-        self._deadline = None
-        self._timeout = timeout
-        self.reset()
+    def __init__(self, timeout: TimeoutType):
+        if isinstance(timeout, Timeout):
+            self._deadline = timeout._deadline
+            self._timeout = timeout._timeout
+        else:
+            self._deadline = None
+            self._timeout = timeout
+            self.reset()
 
     @property
     def remain(self) -> Union[float, None]:
@@ -56,7 +61,7 @@ class Timeout:
         return timeout
 
     @property
-    def deadline(self):
+    def deadline(self) -> Union[float, None]:
         return self._deadline
 
     def reset(self) -> None:
@@ -82,7 +87,7 @@ class InterruptableEvent(threading.Event):
     解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
     """
 
-    def wait(self, timeout=None):
+    def wait(self, timeout: TimeoutType = None):
         interval = 1
         wait = super().wait
         timeout = Timeout(timeout)

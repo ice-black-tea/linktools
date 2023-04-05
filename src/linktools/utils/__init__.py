@@ -28,7 +28,9 @@
 """
 
 from ._utils import (
-    Timeout, InterruptableEvent, ignore_error,
+    Timeout, TimeoutType,
+    InterruptableEvent,
+    ignore_error,
     cast, int, bool,
     is_contain, is_empty,
     get_item, pop_item, get_list_item,

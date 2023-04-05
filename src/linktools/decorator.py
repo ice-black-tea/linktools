@@ -31,20 +31,21 @@ import threading
 import typing
 
 _T = typing.TypeVar('_T')
-_missing = object()
+_MISSING = object()
 
 
 def singleton(cls: typing.Type[_T]) -> typing.Callable[..., _T]:
-    instances = {}
+    instance = _MISSING
     lock = threading.RLock()
 
     @functools.wraps(cls)
     def wrapper(*args, **kwargs):
-        if cls not in instances:
+        nonlocal instance
+        if instance is _MISSING:
             with lock:
-                if cls not in instances:
-                    instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
+                if instance is _MISSING:
+                    instance = cls(*args, **kwargs)
+        return instance
 
     return wrapper
 
@@ -112,12 +113,12 @@ class cached_property:
                 f"instance to cache {self.attrname!r} property."
             )
             raise TypeError(msg) from None
-        val = cache.get(self.attrname, _missing)
-        if val is _missing:
+        val = cache.get(self.attrname, _MISSING)
+        if val is _MISSING:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, _missing)
-                if val is _missing:
+                val = cache.get(self.attrname, _MISSING)
+                if val is _MISSING:
                     val = self.func(instance)
                     try:
                         cache[self.attrname] = val
@@ -150,13 +151,13 @@ class cached_classproperty:
         self.func = func
         self.__doc__ = func.__doc__
         self.lock = threading.RLock()
-        self.val = _missing
+        self.val = _MISSING
 
     def __get__(self, instance, owner=None):
-        if self.val is _missing:
+        if self.val is _MISSING:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                if self.val is _missing:
+                if self.val is _MISSING:
                     self.val = self.func(owner)
 
         return self.val

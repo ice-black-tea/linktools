@@ -71,11 +71,11 @@ class FridaUserScript(metaclass=abc.ABCMeta):
     def _load(self) -> Optional[str]:
         pass
 
-    def to_dict(self) -> dict:
+    def as_dict(self) -> dict:
         return {"filename": self.filename, "source": self.source}
 
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict())
+    def as_json(self) -> str:
+        return json.dumps(self.as_dict())
 
     def __repr__(self):
         class_name = self.__class__.__name__

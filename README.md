@@ -1,4 +1,4 @@
-# Link Tools
+# Linktools Toolkit
 
 ## 开始使用
 
@@ -12,7 +12,7 @@ python & pip (3.6及以上): <https://www.python.org/downloads/>
 
 ```bash
 # 可以pip直接安装linktools，也可以用以下命令安装github上的最新版本:
-# python3 -m pip install "linktools @ git+https://github.com/ice-black-tea/Zelda.git"
+# python3 -m pip install "linktools@ git+https://github.com/ice-black-tea/Zelda.git"
 python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
 ```
 

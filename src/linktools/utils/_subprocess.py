@@ -6,9 +6,9 @@ import os
 import queue
 import subprocess
 import threading
-from typing import Union, AnyStr, Tuple, Optional, IO
+from typing import AnyStr, Tuple, Optional, IO
 
-from . import Timeout
+from . import Timeout, TimeoutType
 from .._environ import environ
 from ..decorator import cached_property
 
@@ -113,7 +113,7 @@ class Popen(subprocess.Popen):
 
         super().__init__(args, **kwargs)
 
-    def call(self, timeout: Union[float, Timeout] = None) -> int:
+    def call(self, timeout: TimeoutType = None) -> int:
         with self:
             try:
                 return self.wait(
@@ -123,7 +123,7 @@ class Popen(subprocess.Popen):
                 self.kill()
                 raise
 
-    def call_as_daemon(self, timeout: Union[float, Timeout] = None) -> int:
+    def call_as_daemon(self, timeout: TimeoutType = None) -> int:
         try:
             return self.wait(
                 timeout=(timeout.remain if isinstance(timeout, Timeout) else timeout) or .1
@@ -131,7 +131,7 @@ class Popen(subprocess.Popen):
         except subprocess.TimeoutExpired:
             return 0
 
-    def check_call(self, timeout: Union[float, Timeout] = None) -> int:
+    def check_call(self, timeout: TimeoutType = None) -> int:
         with self:
             try:
                 retcode = self.wait(
@@ -144,7 +144,7 @@ class Popen(subprocess.Popen):
                 self.kill()
                 raise
 
-    def exec(self, timeout: Union[float, Timeout] = None, log_stdout: bool = False, log_stderr: bool = False) \
+    def exec(self, timeout: TimeoutType = None, log_stdout: bool = False, log_stderr: bool = False) \
             -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
         """
         执行命令
@@ -155,9 +155,7 @@ class Popen(subprocess.Popen):
         """
 
         out = err = None
-
-        if not isinstance(timeout, Timeout):
-            timeout = Timeout(timeout)
+        timeout = Timeout(timeout)
 
         if self.stdout or self.stderr:
 
