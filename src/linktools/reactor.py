@@ -1,42 +1,18 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-@author  : Hu Ji
-@file    : reactor.py 
-@time    : 2022/11/19
-@site    :  
-@software: PyCharm 
-
-              ,----------------,              ,---------,
-         ,-----------------------,          ,"        ,"|
-       ,"                      ,"|        ,"        ,"  |
-      +-----------------------+  |      ,"        ,"    |
-      |  .-----------------.  |  |     +---------+      |
-      |  |                 |  |  |     | -==----'|      |
-      |  | $ sudo rm -rf / |  |  |     |         |      |
-      |  |                 |  |  |/----|`---=    |      |
-      |  |                 |  |  |   ,/|==== ooo |      ;
-      |  |                 |  |  |  // |(((( [33]|    ,"
-      |  `-----------------'  |," .;'| |((((     |  ,"
-      +-----------------------+  ;;  | |         |,"
-         /_)______________(_/  //'   | +---------+
-    ___________________________/___  `,
-   /  oooooooooooooooo  .o.  oooo /,   \,"-----------
-  / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
- /_==__==========__==_ooo__ooo=_/'   /___________,"
-"""
+# -*- coding:utf-8 -*-
 import abc
+import asyncio
+import atexit
 import functools
 import threading
 import time
 import traceback
 from collections import deque
-from typing import Callable
+from typing import Optional, Callable, Any, Coroutine
 
-from .._environ import environ
+from ._environ import environ
 
-_logger = environ.get_logger("utils.common")
+_logger = environ.get_logger("reactor")
 
 
 class Stoppable(abc.ABC):
@@ -145,3 +121,36 @@ class Reactor(Stoppable):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
         self.wait()
+
+
+class ReactorThread(threading.Thread, Stoppable):
+
+    def __init__(self):
+        def run():
+            self._loop = asyncio.new_event_loop()
+            event.set()
+            self._loop.run_forever()
+
+        super().__init__(target=run)
+
+        event = threading.Event()
+        self.daemon = True
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self.start()
+        event.wait()
+        atexit.register(self.stop)
+
+    def stop(self):
+        loop = self.get_event_loop()
+        loop.call_soon_threadsafe(lambda: loop.stop())
+
+    def call_soon(self, callback: Callable[..., Any]):
+        loop = self.get_event_loop()
+        return loop.call_soon_threadsafe(callback)
+
+    def call_task_soon(self, coro: Coroutine):
+        loop = self.get_event_loop()
+        return loop.call_soon_threadsafe(lambda: loop.create_task(coro))
+
+    def get_event_loop(self) -> asyncio.AbstractEventLoop:
+        return self._loop

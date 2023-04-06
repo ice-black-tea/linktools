@@ -197,7 +197,7 @@ class BaseEnviron(abc.ABC):
             rv[key] = v
         return rv
 
-    def get_config(self, key, cast_type: Type[T] = None, accept_empty: bool = False, default: T = None) -> Optional[T]:
+    def get_config(self, key, type: Type[T] = None, empty: bool = False, default: T = None) -> Optional[T]:
         """
         获取指定配置，优先会从环境变量中获取
         """
@@ -205,16 +205,16 @@ class BaseEnviron(abc.ABC):
             new_key = f"{self.name}_{key}".upper()
             if new_key in os.environ:
                 value = os.environ.get(new_key)
-                if accept_empty or value:
-                    return value if cast_type is None else cast_type(value)
+                if empty or value:
+                    return value if type is None else type(value)
         except Exception as e:
             self.logger.debug(f"Get config \"{key}\" from system environ error: {e}")
 
         try:
             if key in self._config:
                 value = self._config.get(key)
-                if accept_empty or value:
-                    return value if cast_type is None else cast_type(value)
+                if empty or value:
+                    return value if type is None else type(value)
         except Exception as e:
             self.logger.debug(f"Get config \"{key}\" error: {e}")
 
@@ -273,7 +273,7 @@ class BaseEnviron(abc.ABC):
         """
         from . import utils
 
-        return self.get_config("DEBUG", cast_type=utils.bool, default=False)
+        return self.get_config("DEBUG", type=utils.bool, default=False)
 
     @debug.setter
     def debug(self, value: bool):
@@ -289,7 +289,7 @@ class BaseEnviron(abc.ABC):
         """
         from . import utils
 
-        return self.get_config("SHOW_LOG_TIME", cast_type=utils.bool, default=False)
+        return self.get_config("SHOW_LOG_TIME", type=utils.bool, default=False)
 
     @show_log_time.setter
     def show_log_time(self, value: bool):
@@ -310,7 +310,7 @@ class BaseEnviron(abc.ABC):
         """
         from . import utils
 
-        return self.get_config("SHOW_LOG_LEVEL", cast_type=utils.bool, default=True)
+        return self.get_config("SHOW_LOG_LEVEL", type=utils.bool, default=True)
 
     @show_log_level.setter
     def show_log_level(self, value: bool):

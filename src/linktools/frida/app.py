@@ -22,11 +22,12 @@ from ._utils import Counter
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .. import utils, environ
+from ..reactor import Reactor
 
 _logger = environ.get_logger("frida.app")
 
 
-class FridaReactor(utils.Reactor):
+class FridaReactor(Reactor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -304,7 +305,7 @@ class FridaManager:
                 if not session.is_detached:
                     return session
                 self._sessions.pop(pid)
-        return None
+            return None
 
     def set_session(self, session: FridaSession):
         with self._lock:
@@ -578,12 +579,14 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         self._stop_request.set()
 
     def __enter__(self):
+        assert not self.is_running
         try:
             self._init()
             self._reactor.run()
             return self
-        except:
-            utils.ignore_error(self._deinit)
+        except Exception as e:
+            self._deinit()
+            raise e
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._reactor.stop()

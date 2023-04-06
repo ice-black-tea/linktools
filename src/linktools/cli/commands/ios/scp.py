@@ -11,6 +11,7 @@ from paramiko.ssh_exception import SSHException
 from linktools import utils
 from linktools.cli import IOSCommand
 from linktools.ios import Device
+from linktools.ssh import SSHClient
 
 _REMOTE_PATH_PREFIX = "@"
 
@@ -60,7 +61,7 @@ class Command(IOSCommand):
 
         local_port = utils.pick_unused_port()
         with device.forward(local_port, args.port):
-            with utils.SSHClient() as client:
+            with SSHClient() as client:
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 client.connect_with_pwd("localhost", port=local_port, username=args.username, password=args.password)
                 if args.source.is_remote and args.target.is_local:

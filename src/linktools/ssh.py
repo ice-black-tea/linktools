@@ -11,10 +11,9 @@ from rich import get_console
 from rich.prompt import Prompt
 from scp import SCPClient
 
-from . import list2cmdline
-from ._utils import ignore_error
-from .._environ import environ
-from .._logging import create_log_progress
+from ._environ import environ
+from ._logging import create_log_progress
+from .utils import list2cmdline, ignore_error
 
 _logger = environ.get_logger("utils.ssh")
 

@@ -68,20 +68,19 @@ class CommandInfo:
 
 
 class Command(BaseCommand):
+    module_path = environ.get_cli_path("commands")
+    module_categories = (
+        CategoryInfo(name="common", prefix="ct-", description=""),
+        CategoryInfo(name="android", prefix="at-", description=""),
+        CategoryInfo(name="ios", prefix="it-", description=""),
+    )
 
     @cached_property
-    def _commands(self):
+    def commands(self):
         commands = {}
-        module_path = environ.get_cli_path("commands")
-        module_categories = (
-            CategoryInfo(name="common", prefix="ct-", description=""),
-            CategoryInfo(name="android", prefix="at-", description=""),
-            CategoryInfo(name="ios", prefix="it-", description=""),
-        )
-
-        for category in module_categories:
+        for category in self.module_categories:
             commands[category] = []
-            path = os.path.join(module_path, category.name)
+            path = os.path.join(self.module_path, category.name)
             for command in walk_commands(path):
                 commands[category].append(
                     CommandInfo(
@@ -93,7 +92,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         sub_parsers = parser.add_subparsers()
-        for category, commands in self._commands.items():
+        for category, commands in self.commands.items():
             parser = sub_parsers.add_parser(
                 category.name,
                 description=category.description
@@ -118,7 +117,7 @@ class Command(BaseCommand):
             return args.help()
 
         tree = Tree("📎 All commands")
-        for category, commands in self._commands.items():
+        for category, commands in self.commands.items():
             node = tree.add(f"📖 {category}")
             for command in commands:
                 node.add(f"👉 {command.category.prefix}[bold red]{command.name}[/bold red]: {command.description}")

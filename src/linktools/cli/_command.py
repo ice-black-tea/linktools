@@ -51,23 +51,13 @@ from ..utils import ignore_error
 class BaseCommand(abc.ABC):
 
     def main(self, *args, **kwargs) -> None:
-        try:
-            self.on_main_init()
-            logging.basicConfig(
-                level=logging.INFO,
-                format="%(message)s",
-                datefmt="[%X]",
-                handlers=[LogHandler()]
-            )
-            exit(self(*args, **kwargs))
-        finally:
-            self.on_main_deinit()
-
-    def on_main_init(self):
-        pass
-
-    def on_main_deinit(self):
-        pass
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[LogHandler()]
+        )
+        exit(self(*args, **kwargs))
 
     @property
     def name(self):
@@ -87,7 +77,7 @@ class BaseCommand(abc.ABC):
 
     @cached_property
     def argument_parser(self) -> ArgumentParser:
-        return self.create_argument_parser()
+        return self._create_argument_parser()
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
@@ -97,7 +87,11 @@ class BaseCommand(abc.ABC):
     def add_arguments(self, parser: ArgumentParser) -> None:
         pass
 
-    def create_argument_parser(self):
+    @abc.abstractmethod
+    def run(self, args: [str]) -> Optional[int]:
+        pass
+
+    def _create_argument_parser(self):
 
         description = self.description.strip()
         if description and self.environ.description:
@@ -109,12 +103,14 @@ class BaseCommand(abc.ABC):
             description=description,
             conflict_handler="resolve"
         )
-        self.add_base_arguments(parser)
+        self._add_base_arguments(parser)
         self.add_arguments(parser)
 
         return parser
 
-    def add_base_arguments(self, parser: ArgumentParser):
+    def _add_base_arguments(self, parser: ArgumentParser):
+
+        command_self = self
 
         class VerboseAction(Action):
 
@@ -124,8 +120,8 @@ class BaseCommand(abc.ABC):
         class DebugAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
-                environ.debug = True
-                environ.logger.setLevel(logging.DEBUG)
+                command_self.environ.debug = True
+                command_self.environ.logger.setLevel(logging.DEBUG)
 
         class BooleanOptionalAction(Action):
 
@@ -136,13 +132,13 @@ class BaseCommand(abc.ABC):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 if option_string in self.option_strings:
-                    environ.show_log_time = not option_string.startswith("--no-")
+                    command_self.environ.show_log_time = not option_string.startswith("--no-")
 
         class LogLevelAction(BooleanOptionalAction):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 if option_string in self.option_strings:
-                    environ.show_log_level = not option_string.startswith("--no-")
+                    command_self.environ.show_log_level = not option_string.startswith("--no-")
 
         parser.add_argument("--version", action="version", version=self.environ.version)
 
@@ -150,7 +146,7 @@ class BaseCommand(abc.ABC):
         group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
         group.add_argument("--debug", action=DebugAction, nargs=0, const=True, dest=SUPPRESS,
-                           help="enable debug mode and increase log verbosity")
+                           help=f"enable debug mode and increase {self.environ.name}'s log verbosity")
 
         if LogHandler.get_instance():
             group.add_argument("--time", "--no-time", action=LogTimeAction, nargs=0, dest=SUPPRESS,
@@ -159,7 +155,8 @@ class BaseCommand(abc.ABC):
                                help="show log level")
 
     def add_android_arguments(self, parser: ArgumentParser):
-        from linktools.android import Adb, Device, AdbError
+        from ..android import Adb, Device, AdbError
+
         cache_path = environ.get_temp_path("cache", "device", "android", create_parent=True)
 
         def parse_handler(fn):
@@ -175,7 +172,7 @@ class BaseCommand(abc.ABC):
 
         @parse_handler
         def parse_device():
-            devices = Adb.devices(alive=True)
+            devices = list(Adb.list_devices(alive=True))
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
 
@@ -240,7 +237,7 @@ class BaseCommand(abc.ABC):
                     addr = str(values)
                     if addr.find(":") < 0:
                         addr = addr + ":5555"
-                    devices = Adb.devices()
+                    devices = Adb.list_devices()
                     if addr not in [device.id for device in devices]:
                         Adb.exec("connect", addr, log_output=True)
                     return Device(addr)
@@ -254,9 +251,9 @@ class BaseCommand(abc.ABC):
                 def wrapper():
                     if os.path.exists(cache_path):
                         with open(cache_path, "rt") as fd:
-                            result = fd.read().strip()
-                            if len(result) > 0:
-                                return Device(result)
+                            device_id = fd.read().strip()
+                        if len(device_id) > 0:
+                            return Device(device_id)
                     raise AdbError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
@@ -274,7 +271,8 @@ class BaseCommand(abc.ABC):
                            help="use last device")
 
     def add_ios_arguments(self, parser: ArgumentParser):
-        from linktools.ios import Sib, SibError, Device
+        from ..ios import Sib, SibError, Device
+
         cache_path = environ.get_temp_path("cache", "device", "ios", create_parent=True)
 
         def parse_handler(fn):
@@ -290,7 +288,7 @@ class BaseCommand(abc.ABC):
 
         @parse_handler
         def parse_device():
-            devices = Sib.devices()
+            devices = list(Sib.list_devices(alive=True))
             if len(devices) == 0:
                 raise SibError("no devices/emulators found")
 
@@ -336,9 +334,9 @@ class BaseCommand(abc.ABC):
                 def wrapper():
                     if os.path.exists(cache_path):
                         with open(cache_path, "rt") as fd:
-                            result = fd.read().strip()
-                            if len(result) > 0:
-                                return Device(result)
+                            device_id = fd.read().strip()
+                        if len(device_id) > 0:
+                            return Device(device_id)
                     raise SibError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
@@ -351,7 +349,7 @@ class BaseCommand(abc.ABC):
                     address = str(values)
                     host, port = address.split(":", maxsplit=1)
                     Sib.exec("remote", "connect", "--host", host, "--port", port, log_output=True)
-                    for device in Sib.devices():
+                    for device in Sib.list_devices():
                         if address == device.address:
                             return device
 
@@ -366,9 +364,89 @@ class BaseCommand(abc.ABC):
         group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
                            help="use last device")
 
-    @abc.abstractmethod
-    def run(self, args: [str]) -> Optional[int]:
-        pass
+    def add_mobile_arguments(self, parser: ArgumentParser):
+        from ..device import Bridge, BridgeError
+
+        cache_path = environ.get_temp_path("cache", "device", "mobile", create_parent=True)
+
+        def parse_handler(fn):
+            @functools.wraps(fn)
+            def wrapper(*args, **kwargs):
+                device = fn(*args, **kwargs)
+                if device is not None:
+                    with open(cache_path, "wt+") as fd:
+                        fd.write(device.id)
+                return device
+
+            return wrapper
+
+        @parse_handler
+        def parse_device():
+            devices = list(Bridge.list_devices(alive=True))
+            if len(devices) == 0:
+                raise BridgeError("no devices/emulators found")
+
+            if len(devices) == 1:
+                return devices[0]
+
+            table = Table(show_lines=True)
+            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
+            table.add_column("ID", style="magenta")
+            table.add_column("Name", style="magenta")
+
+            offset = 1
+            for i in range(len(devices)):
+                table.add_row(
+                    str(i + offset),
+                    ignore_error(lambda: devices[i].id),
+                    ignore_error(lambda: devices[i].name) or "",
+                )
+
+            console = get_console()
+            console.print(table)
+
+            prompt = f"More than one device/emulator. {os.linesep}" \
+                     f"Enter device index"
+            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
+            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
+
+            return devices[index - offset]
+
+        class IDAction(Action):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                @parse_handler
+                def wrapper():
+                    device_id = str(values)
+                    for device in Bridge.list_devices():
+                        if device.id == device_id:
+                            return device
+                    raise BridgeError(f"no devices/emulators with {device_id} found")
+
+                setattr(namespace, self.dest, wrapper)
+
+        class LastAction(Action):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                @parse_handler
+                def wrapper():
+                    if os.path.exists(cache_path):
+                        with open(cache_path, "rt") as fd:
+                            device_id = fd.read().strip()
+                        if len(device_id) > 0:
+                            for device in Bridge.list_devices():
+                                if device.id == device_id:
+                                    return device
+                    raise BridgeError("no device used last time")
+
+                setattr(namespace, self.dest, wrapper)
+
+        group = parser.add_argument_group(title="mobile device arguments")
+        group = group.add_mutually_exclusive_group()
+        group.add_argument("-i", "--id", metavar="ID", dest="parse_device", action=IDAction,
+                           help="specify unique device identifier", default=parse_device)
+        group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
+                           help="use last device")
 
     def __call__(self, args: [str] = None) -> int:
         try:
@@ -401,11 +479,11 @@ class AndroidCommand(BaseCommand, ABC):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
-        from linktools.android import AdbError
+        from ..android import AdbError
         return AdbError,
 
-    def add_base_arguments(self, parser: ArgumentParser):
-        super().add_base_arguments(parser)
+    def _add_base_arguments(self, parser: ArgumentParser):
+        super()._add_base_arguments(parser)
         self.add_android_arguments(parser)
 
 
@@ -413,9 +491,9 @@ class IOSCommand(BaseCommand, ABC):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
-        from linktools.ios import SibError
+        from ..ios import SibError
         return SibError,
 
-    def add_base_arguments(self, parser: ArgumentParser):
-        super().add_base_arguments(parser)
+    def _add_base_arguments(self, parser: ArgumentParser):
+        super()._add_base_arguments(parser)
         self.add_ios_arguments(parser)

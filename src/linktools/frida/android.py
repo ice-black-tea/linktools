@@ -18,6 +18,7 @@ import frida
 from .server import FridaServer
 from .. import environ, utils
 from ..android import adb
+from ..reactor import Stoppable
 
 _logger = environ.get_logger("frida.server.android")
 
@@ -32,7 +33,7 @@ class AndroidFridaServer(FridaServer):
         self._device = device or adb.Device()
         self._local_port = local_port
         self._remote_port = remote_port
-        self._forward: Optional[utils.Stoppable] = None
+        self._forward: Optional[Stoppable] = None
         self._environ = self.Environ(self._device.abi, frida.__version__)
 
         self._server_prefix = "fs-ln-"

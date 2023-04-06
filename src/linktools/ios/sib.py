@@ -5,76 +5,58 @@ import json
 import subprocess
 import time
 from subprocess import TimeoutExpired
-from typing import Any
+from typing import Any, Generator
 
-from .. import utils, ToolExecError
+from .. import utils
 from .._environ import environ
+from ..device import BridgeError, Bridge, BaseDevice
 from ..decorator import cached_property
+from ..reactor import Stoppable
 
 _logger = environ.get_logger("android.adb")
 
 
-class SibError(Exception):
+class SibError(BridgeError):
     pass
 
 
-class Sib(object):
+class Sib(Bridge):
     _ALIVE_STATUS = ("online",)
 
     @classmethod
-    def devices(cls, alive: bool = None) -> ["Device"]:
+    def list_devices(cls, alive: bool = None) -> Generator["Device", None, None]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
         :return: 设备号数组
         """
-        devices = []
         result = cls.exec("devices", "--detail")
         result = utils.ignore_error(json.loads, result) or []
         for info in utils.get_list_item(result, "deviceList", default=[]):
             id = utils.get_item(info, "serialNumber")
             status = utils.get_item(info, "status")
             if alive is None:
-                devices.append(Device(id, info))
+                yield Device(id, info)
             elif alive == (status in cls._ALIVE_STATUS):
-                devices.append(Device(id, info))
-
-        return devices
+                yield Device(id, info)
 
     @classmethod
-    def popen(cls, *args: [Any], **kwargs) -> utils.Popen:
-        return environ.get_tool("sib").popen(*args, **kwargs)
+    def get_tool(cls):
+        return environ.get_tool("sib")
 
     @classmethod
-    def exec(cls, *args: [Any], timeout: float = None,
-             ignore_errors: bool = False, log_output: bool = False) -> str:
-        """
-        执行命令
-        :param args: 命令
-        :param timeout: 超时时间
-        :param ignore_errors: 忽略错误，报错不会抛异常
-        :param log_output: 把输出打印到logger中
-        :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
-        """
-        try:
-            return environ.get_tool("sib").exec(
-                *args,
-                timeout=timeout,
-                ignore_errors=ignore_errors,
-                log_output=log_output,
-            )
-        except ToolExecError as e:
-            raise SibError(e)
+    def get_error_class(cls):
+        return SibError
 
 
-class Device(object):
+class Device(BaseDevice):
 
     def __init__(self, id: str = None, info: dict = None):
         """
         :param id: 设备号
         """
         if id is None:
-            devices = Sib.devices(alive=True)
+            devices = list(Sib.list_devices(alive=True))
             if len(devices) == 0:
                 raise SibError("no devices/emulators found")
             elif len(devices) > 1:
@@ -113,7 +95,7 @@ class Device(object):
         """
         if self._info is not None:
             return self._info
-        for device in Sib.devices():
+        for device in Sib.list_devices():
             if device.id == self.id:
                 return device.info
         raise SibError(f"device '{self.id}' not found")
@@ -169,7 +151,7 @@ class Device(object):
                     _logger.debug(f"Capture sib proxy process output: {out.rstrip()}")
                     break
 
-        class Stoppable(utils.Stoppable):
+        class Forward(Stoppable):
 
             def stop(self):
                 try:
@@ -179,7 +161,7 @@ class Device(object):
                 except TimeoutExpired:
                     _logger.error(f"Proxy process did not finish normally")
 
-        return Stoppable()
+        return Forward()
 
     def __repr__(self):
         return f"iOSDevice<{self.id}>"

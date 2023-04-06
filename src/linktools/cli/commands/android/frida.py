@@ -40,9 +40,10 @@ class Command(AndroidCommand):
     """
     Easy to use frida (require Android device rooted)
     """
-
-    def on_main_init(self):
+    def main(self, *args, **kwargs) -> None:
         environ.show_log_time = True
+        environ.show_log_level = True
+        return super().main(*args, **kwargs)
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,
@@ -82,8 +83,6 @@ class Command(AndroidCommand):
 
         user_parameters = {p[0]: p[1] for p in args.user_parameters}
         user_scripts = args.user_scripts
-        for user_script in user_scripts:
-            user_script.load()
 
         class Application(FridaApplication):
 

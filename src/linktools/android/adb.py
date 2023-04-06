@@ -29,30 +29,31 @@
 
 import json
 import re
-from typing import Optional, Any
+from typing import Optional, Any, Generator
 
 from .struct import Package, UnixSocket, InetSocket
-from .. import utils, ToolExecError, environ
+from .. import utils, environ
 from ..decorator import cached_property
+from ..device import BridgeError, Bridge, BaseDevice
+from ..reactor import Stoppable
 
 _logger = environ.get_logger("android.adb")
 
 
-class AdbError(Exception):
+class AdbError(BridgeError):
     pass
 
 
-class Adb(object):
+class Adb(Bridge):
     _ALIVE_STATUS = ("bootloader", "device", "recovery", "sideload")
 
     @classmethod
-    def devices(cls, alive: bool = None) -> ["Device"]:
+    def list_devices(cls, alive: bool = None) -> Generator["Device", None, None]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
         :return: 设备号数组
         """
-        devices = []
         result = cls.exec("devices")
         lines = result.splitlines()
         for i in range(1, len(lines)):
@@ -60,51 +61,27 @@ class Adb(object):
             if len(splits) >= 2:
                 device, status = splits
                 if alive is None:
-                    devices.append(Device(device))
+                    yield Device(device)
                 elif alive == (status in cls._ALIVE_STATUS):
-                    devices.append(Device(device))
-
-        return devices
+                    yield Device(device)
 
     @classmethod
-    def popen(cls, *args: [Any], **kwargs) -> utils.Popen:
-        return environ.get_tool("adb").popen(*args, **kwargs)
+    def get_tool(cls):
+        return environ.get_tool("adb")
 
     @classmethod
-    def exec(
-            cls,
-            *args: [Any],
-            timeout: utils.TimeoutType = None,
-            ignore_errors: bool = False,
-            log_output: bool = False
-    ) -> str:
-        """
-        执行命令
-        :param args: 命令
-        :param timeout: 超时时间
-        :param ignore_errors: 忽略错误，报错不会抛异常
-        :param log_output: 把输出打印到logger中
-        :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
-        """
-        try:
-            return environ.get_tool("adb").exec(
-                *args,
-                timeout=timeout,
-                ignore_errors=ignore_errors,
-                log_output=log_output,
-            )
-        except ToolExecError as e:
-            raise AdbError(e)
+    def get_error_class(cls):
+        return AdbError
 
 
-class Device(object):
+class Device(BaseDevice):
 
     def __init__(self, id: str = None):
         """
         :param id: 设备号
         """
         if id is None:
-            devices = Adb.devices(alive=True)
+            devices = list(Adb.list_devices(alive=True))
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
             elif len(devices) > 1:
@@ -120,6 +97,14 @@ class Device(object):
         :return: 设备号
         """
         return self._id
+
+    @cached_property
+    def name(self) -> str:
+        """
+        获取设备名
+        :return: 设备名
+        """
+        return self.get_prop("ro.product.model", timeout=1)
 
     @cached_property
     def abi(self) -> str:
@@ -240,16 +225,16 @@ class Device(object):
         _remote = remote.split(":", maxsplit=1)
 
         # noinspection PyPropertyDefinition,PyMethodParameters
-        class Stoppable(utils.Stoppable):
+        class Forward(Stoppable):
             local = property(fget=lambda _: _local)
             remote = property(fget=lambda _: _remote)
 
             def stop(_):
                 self.exec("forward", "--remove", local, ignore_errors=True)
 
-        return Stoppable()
+        return Forward()
 
-    def reverse(self, remote: str, local: str) -> utils.Stoppable:
+    def reverse(self, remote: str, local: str):
         """
         端口转发
         :param remote: 远程端口
@@ -265,14 +250,14 @@ class Device(object):
         _remote = remote.split(":", maxsplit=1)
 
         # noinspection PyPropertyDefinition,PyMethodParameters
-        class Stoppable(utils.Stoppable):
+        class Reverse(Stoppable):
             local = property(fget=lambda _: _local)
             remote = property(fget=lambda _: _remote)
 
             def stop(_):
                 self.exec("reverse", "--remove", remote, ignore_errors=True)
 
-        return Stoppable()
+        return Reverse()
 
     def redirect(self, address: str = None, port: int = None, uid: int = None):
         """
@@ -310,7 +295,7 @@ class Device(object):
         self.sudo("iptables", "-t", "nat", *args)
 
         # noinspection PyMethodParameters
-        class Stoppable(utils.Stoppable):
+        class Redirect(Stoppable):
 
             def __init__(self):
                 self.local_port = port
@@ -324,7 +309,7 @@ class Device(object):
                 if remote_port:
                     self.exec("reverse", "--remove", f"tcp:{remote_port}", ignore_errors=True)
 
-        return Stoppable()
+        return Redirect()
 
     def get_prop(self, prop: str, **kwargs) -> str:
         """
