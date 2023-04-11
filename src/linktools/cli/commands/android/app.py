@@ -32,7 +32,7 @@ from typing import Optional
 from linktools import utils, environ
 from linktools.android import Package, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 
 class PrintLevel:
@@ -230,7 +230,7 @@ class Command(AndroidCommand):
     Fetch application info
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
         group.add_argument('-t', '--top', action='store_true', default=False,
                            help='fetch current running app only')
@@ -255,7 +255,7 @@ class Command(AndroidCommand):
                             help='order by target field')
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
 
         if not utils.is_empty(args.packages):

@@ -79,41 +79,24 @@ export class JavaHelper {
         return activityThreadClass.currentApplication().getApplicationContext();
     }
 
-    /**
-     * 获取java类的类对象
-     * @param className java类名
-     * @param classloader java类所在的ClassLoader
-     * @returns 类对象
-     */
-    findClass<T extends Java.Members<T> = {}>(className: string, classloader: Java.Wrapper = void 0): Java.Wrapper<T> {
-        if (classloader !== void 0 && classloader != null) {
-            var originClassloader = Java.classFactory.loader;
-            try {
-                Reflect.set(Java.classFactory, "loader", classloader);
-                return Java.use(className);
-            } finally {
-                Reflect.set(Java.classFactory, "loader", originClassloader);
-            }
-        } else {
-            if (parseInt(Java.androidVersion) < 7) {
-                return Java.use(className);
-            }
-            var error = null;
-            var loaders = Java.enumerateClassLoadersSync();
-            for (var i in loaders) {
-                try {
-                    var clazz = this.findClass<T>(className, loaders[i]);
-                    if (clazz != null) {
-                        return clazz;
-                    }
-                } catch (e) {
-                    if (error == null) {
-                        error = e;
-                    }
-                }
-            }
-            throw error;
+    isSameObject<T extends Java.Members<T> = {}>(obj1: Java.Wrapper<T>, obj2: Java.Wrapper<T>) {
+        if (obj1 === obj2) {
+            return true;
+        } else if (obj1 == null || obj2 == null) {
+            return false;
+        } else if (obj1.hasOwnProperty("$isSameObject")) {
+            return obj1.$isSameObject(obj2);
         }
+        return false;
+    }
+
+    getObjectHandle<T extends Java.Members<T> = {}>(obj: Java.Wrapper<T>): NativePointer {
+        if (obj == null) {
+            return null;
+        } else if (obj.hasOwnProperty("$h")) {
+            return obj.$h;
+        }
+        throw new Error("not implemented for 'getObjectHandle'");
     }
 
     /**
@@ -121,7 +104,7 @@ export class JavaHelper {
      * @param clazz 类对象
      * @returns 
      */
-    private $getClassName<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>): string {
+    getClassName<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>): string {
         var className = clazz.$className;
         if (className != void 0) {
             return className;
@@ -149,7 +132,7 @@ export class JavaHelper {
      * @param methodName 方法名
      * @returns 方法对象
      */
-    private $getClassMethod<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>, methodName: string): Java.MethodDispatcher<T> {
+    getClassMethod<T extends Java.Members<T> = {}>(clazz: Java.Wrapper<T>, methodName: string): Java.MethodDispatcher<T> {
         var method = clazz[methodName];
         if (method !== void 0) {
             return method;
@@ -173,7 +156,7 @@ export class JavaHelper {
                 configurable: true,
                 enumerable: true,
                 writable: false,
-                value: this.$getClassName(method.holder)
+                value: this.getClassName(method.holder)
             },
             name: {
                 configurable: true,
@@ -198,6 +181,39 @@ export class JavaHelper {
                 }
             }
         });
+    }
+
+
+
+    /**
+     * 获取java类的类对象
+     * @param className java类名
+     * @param classloader java类所在的ClassLoader
+     * @returns 类对象
+     */
+    findClass<T extends Java.Members<T> = {}>(className: string, classloader: Java.Wrapper<{}> = void 0): Java.Wrapper<T> {
+        if (classloader !== void 0 && classloader != null) {
+            return Java.ClassFactory.get(classloader).use(className);
+        } else {
+            if (parseInt(Java.androidVersion) < 7) {
+                return Java.use(className);
+            }
+            var error = null;
+            var loaders = Java.enumerateClassLoadersSync();
+            for (var i in loaders) {
+                try {
+                    var clazz = this.findClass<T>(className, loaders[i]);
+                    if (clazz != null) {
+                        return clazz;
+                    }
+                } catch (e) {
+                    if (error == null) {
+                        error = e;
+                    }
+                }
+            }
+            throw error;
+        }
     }
 
     /**
@@ -250,23 +266,23 @@ export class JavaHelper {
             if (typeof (targetClass) === "string") {
                 targetClass = this.findClass(targetClass);
             }
-            const method = this.$getClassMethod(targetClass, methodName);
+            const method = this.getClassMethod(targetClass, methodName);
             if (method === void 0 || method.overloads === void 0) {
-                Log.w("Cannot find method: " + this.$getClassName(targetClass) + "." + methodName);
+                Log.w("Cannot find method: " + this.getClassName(targetClass) + "." + methodName);
                 return;
             }
             if (signatures != null) {
                 var targetSignatures: any[] = signatures;
                 for (var i in targetSignatures) {
                     if (typeof (targetSignatures[i]) !== "string") {
-                        targetSignatures[i] = this.$getClassName(targetSignatures[i]);
+                        targetSignatures[i] = this.getClassName(targetSignatures[i]);
                     }
                 }
                 targetMethod = method.overload.apply(method, targetSignatures);
             } else if (method.overloads.length == 1) {
                 targetMethod = method.overloads[0];
             } else {
-                throw Error(this.$getClassName(targetClass) + "." + methodName + " has too many overloads");
+                throw Error(this.getClassName(targetClass) + "." + methodName + " has too many overloads");
             }
         }
         this.$defineMethodProperties(targetMethod);
@@ -288,9 +304,9 @@ export class JavaHelper {
         if (typeof (targetClass) === "string") {
             targetClass = this.findClass(targetClass);
         }
-        var method = this.$getClassMethod(targetClass, methodName);
+        var method = this.getClassMethod(targetClass, methodName);
         if (method === void 0 || method.overloads === void 0) {
-            Log.w("Cannot find method: " + this.$getClassName(targetClass) + "." + methodName);
+            Log.w("Cannot find method: " + this.getClassName(targetClass) + "." + methodName);
             return;
         }
         for (var i = 0; i < method.overloads.length; i++) {

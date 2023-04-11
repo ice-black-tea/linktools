@@ -33,7 +33,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, environ
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 
 class Command(AndroidCommand):
@@ -41,7 +41,7 @@ class Command(AndroidCommand):
     Fetch current running app's basic information
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
         group.add_argument('-p', '--package', action='store_const', const=True, default=False,
                            help='show current package name')
@@ -57,7 +57,7 @@ class Command(AndroidCommand):
                            help='capture screen and pull file')
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
 
         if args.package:

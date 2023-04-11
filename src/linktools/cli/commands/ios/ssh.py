@@ -33,8 +33,7 @@ import paramiko
 from paramiko.ssh_exception import SSHException
 
 from linktools import utils
-from linktools.cli import IOSCommand
-from linktools.ios import Device
+from linktools.cli.ios import IOSCommand
 from linktools.ssh import SSHClient
 
 
@@ -47,7 +46,7 @@ class Command(IOSCommand):
     def known_errors(self) -> Tuple[Type[BaseException]]:
         return super().known_errors + tuple([SSHException])
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--username", action="store", default="root",
                             help="iOS ssh username (default: root)")
         parser.add_argument("-p", "--port", action="store", type=int, default=22,
@@ -57,8 +56,8 @@ class Command(IOSCommand):
         parser.add_argument('ssh_args', nargs='...', help="ssh args")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
-        device: Device = args.parse_device()
+        args = self.parse_args(args)
+        device = args.parse_device()
 
         local_port = utils.pick_unused_port()
         with device.forward(local_port, args.port):

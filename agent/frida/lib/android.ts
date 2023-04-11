@@ -1,3 +1,8 @@
+
+type UseClassCallback = (clazz: Java.Wrapper<{}>) => void;
+type UseClassCallBackSet = Set<UseClassCallback>;
+
+
 export class AndroidHelper {
 
     setWebviewDebuggingEnabled() {
@@ -44,7 +49,7 @@ export class AndroidHelper {
             const arraysClass = Java.use("java.util.Arrays");
 
             ignoreError(() =>
-                JavaHelper.hookMethods("com.android.org.conscrypt.TrustManagerImpl", "checkServerTrusted", function (obj, args) {
+                JavaHelper.hookMethods("com.android.org.conscrypt.TrustManagerImpl", "checkServerTrusted", function (_obj, args) {
                     Log.d('Bypassing TrustManagerImpl checkServerTrusted');
                     if (this.returnType.type == 'void') {
                         return;
@@ -55,13 +60,13 @@ export class AndroidHelper {
             );
 
             ignoreError(() =>
-                JavaHelper.hookMethods("com.google.android.gms.org.conscrypt.Platform", "checkServerTrusted", function (obj, args) {
+                JavaHelper.hookMethods("com.google.android.gms.org.conscrypt.Platform", "checkServerTrusted", function (_obj, _args) {
                     Log.d('Bypassing Platform checkServerTrusted {1}');
                 })
             );
 
             ignoreError(() =>
-                JavaHelper.hookMethods("com.android.org.conscrypt.Platform", "checkServerTrusted", function (obj, args) {
+                JavaHelper.hookMethods("com.android.org.conscrypt.Platform", "checkServerTrusted", function (_obj, _args) {
                     Log.d('Bypassing Platform checkServerTrusted {2}');
                 })
             );
@@ -113,5 +118,108 @@ export class AndroidHelper {
                 }
             });
         });
+    }
+
+    runOnCreateContext(fn: (context: Java.Wrapper<{}>) => any) {
+        Java.perform(function () {
+            JavaHelper.hookMethods("android.app.ContextImpl", "createAppContext", function (obj, args) {
+                const context = this(obj, args);
+                fn(context);
+                return context;
+            });
+        });
+    }
+
+    runOnCreateApplication(fn: (application: Java.Wrapper<{}>) => any) {
+        Java.perform(function () {
+            JavaHelper.hookMethods("android.app.LoadedApk", "makeApplication", function (obj, args) {
+                const app = this(obj, args);
+                fn(app);
+                return app;
+            });
+        });
+    }
+
+    javaUse(className: string, callback: UseClassCallback) {
+        const helperThis = this;
+        Java.perform(function () {
+            let targetClass: Java.Wrapper<{}> = null;
+            try {
+                targetClass = JavaHelper.findClass(className);
+            } catch (e) {
+                if (helperThis.$useClassCallbackMap == null) {
+                    helperThis.$useClassCallbackMap = new Map<string, UseClassCallBackSet>();
+                    helperThis.$regiesterUseClassCallback(helperThis.$useClassCallbackMap);
+                }
+                if (helperThis.$useClassCallbackMap.has(className)) {
+                    let callbackSet = helperThis.$useClassCallbackMap.get(className);
+                    if (callbackSet !== void 0) {
+                        callbackSet.add(callback);
+                    }
+                } else {
+                    let callbackSet = new Set<UseClassCallback>();
+                    callbackSet.add(callback);
+                    helperThis.$useClassCallbackMap.set(className, callbackSet);
+                }
+                return;
+            }
+            callback(targetClass);
+        });
+    }
+
+    $useClassCallbackMap: Map<string, UseClassCallBackSet> = null;
+
+    $regiesterUseClassCallback(map: Map<string, UseClassCallBackSet>) {
+
+        const classLoaders = Java.use("java.util.HashSet").$new();
+
+        const tryLoadClasses = function (classLoader: Java.Wrapper<{}>) {
+            let it = map.entries();
+            let result: IteratorResult<[string, UseClassCallBackSet]>;
+            while (result = it.next(), !result.done) {
+                const name = result.value[0];
+                const callbacks = result.value[1];
+                let clazz = null;
+                try {
+                    clazz = JavaHelper.findClass(name, classLoader);
+                } catch (e) {
+                    // ignore
+                }
+                if (clazz != null) {
+                    map.delete(name);
+                    callbacks.forEach(function (callback, _sameCallback, _set) {
+                        callback(clazz);
+                    });
+                }
+            }
+        }
+
+        JavaHelper.hookMethod(
+            "java.lang.Class",
+            "forName",
+            ["java.lang.String", "boolean", "java.lang.ClassLoader"],
+            function (obj, args) {
+                const classLoader = args[2];
+                if (classLoader != null && !classLoaders.contains(classLoader)) {
+                    classLoaders.add(classLoader);
+                    tryLoadClasses(classLoader);
+                }
+                return this(obj, args);
+            }
+        );
+
+        JavaHelper.hookMethod(
+            "java.lang.ClassLoader",
+            "loadClass",
+            ["java.lang.String", "boolean"],
+            function (obj, args) {
+                const classLoader = obj;
+                if (!classLoaders.contains(classLoader)) {
+                    classLoaders.add(classLoader);
+                    tryLoadClasses(classLoader);
+                }
+                return this(obj, args);
+            }
+        );
     }
 }

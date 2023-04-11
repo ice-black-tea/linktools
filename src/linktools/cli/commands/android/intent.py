@@ -33,7 +33,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, environ
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 
 class Command(AndroidCommand):
@@ -41,7 +41,7 @@ class Command(AndroidCommand):
     Common intent actions
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('--setting', dest='package', action='store_true',
                            help='start setting activity')
@@ -59,7 +59,7 @@ class Command(AndroidCommand):
                            help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
 
         if "--setting" in sys.argv:

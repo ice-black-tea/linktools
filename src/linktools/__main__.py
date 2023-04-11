@@ -90,7 +90,7 @@ class Command(BaseCommand):
                 )
         return commands
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         sub_parsers = parser.add_subparsers()
         for category, commands in self.commands.items():
             parser = sub_parsers.add_parser(
@@ -110,7 +110,7 @@ class Command(BaseCommand):
                 parser.set_defaults(func=command.command)
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         if hasattr(args, "func") and hasattr(args, "args"):
             return args.func(args.args)
         elif hasattr(args, "help"):

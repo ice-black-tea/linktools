@@ -356,7 +356,7 @@ class Tool(metaclass=Meta):
                 elif isinstance(err, str):
                     err = err.strip()
                 if err:
-                    raise Exception(err)
+                    raise ToolExecError(err)
 
             if isinstance(out, bytes):
                 out = out.decode(errors="ignore")

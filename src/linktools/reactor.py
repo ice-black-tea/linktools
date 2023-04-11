@@ -123,7 +123,7 @@ class Reactor(Stoppable):
         self.wait()
 
 
-class ReactorThread(threading.Thread, Stoppable):
+class ReactorThread(threading.Thread):
 
     def __init__(self):
         def run():

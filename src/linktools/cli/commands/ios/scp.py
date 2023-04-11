@@ -9,7 +9,7 @@ import paramiko
 from paramiko.ssh_exception import SSHException
 
 from linktools import utils
-from linktools.cli import IOSCommand
+from linktools.cli.ios import IOSCommand
 from linktools.ios import Device
 from linktools.ssh import SSHClient
 
@@ -42,7 +42,7 @@ class Command(IOSCommand):
     def known_errors(self) -> Tuple[Type[BaseException]]:
         return super().known_errors + tuple([NotImplementedError, FileNotFoundError, SSHException])
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--username", action="store", default="root",
                             help="iOS ssh username (default: root)")
         parser.add_argument("-p", "--port", action="store", type=int, default=22,
@@ -56,7 +56,7 @@ class Command(IOSCommand):
                             help=f"target file path, remote path needs to be prefixed with \"{_REMOTE_PATH_PREFIX}\"")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device: Device = args.parse_device()
 
         local_port = utils.pick_unused_port()

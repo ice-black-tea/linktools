@@ -42,7 +42,7 @@ class Command(BaseCommand):
 
     _TOOL_NAMES = sorted([tool.name for tool in iter(environ.tools)])
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
         parser.add_argument("--set", metavar=("KEY", "VALUE"),
                             action="append", nargs=2, dest="configs", default=[],
@@ -58,9 +58,9 @@ class Command(BaseCommand):
         parser.add_argument("tool", nargs="...", choices=self._TOOL_NAMES)
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         if len(args.tool) == 0 or args.tool[0] not in self._TOOL_NAMES:
-            self.argument_parser.print_help()
+            self.print_help()
             return -1
 
         tool_name = args.tool[0]

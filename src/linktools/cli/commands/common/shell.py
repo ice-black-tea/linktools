@@ -31,11 +31,11 @@ class Command(BaseCommand):
             if "ComSpec" in os.environ:
                 self._shell_path = os.environ["ComSpec"]
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-c", "--command", action="store", default=None, help="shell command")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         if args.command:
             process = utils.Popen(args.command, shell=True)
             return process.call()

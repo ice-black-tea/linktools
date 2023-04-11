@@ -27,5 +27,4 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from ._cli import walk_commands
-from ._command import BaseCommand, AndroidCommand, IOSCommand
+from ._command import BaseCommand, walk_commands

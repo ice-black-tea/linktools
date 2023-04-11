@@ -30,7 +30,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 
 class Command(AndroidCommand):
@@ -42,7 +42,7 @@ class Command(AndroidCommand):
     def _description(self) -> str:
         return "debugger"
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('package', action='store', default=None,
                             help='regular expression')
         parser.add_argument('activity', action='store', default=None,
@@ -51,7 +51,7 @@ class Command(AndroidCommand):
                             help='fetch all apps')
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
 
         device.shell("am", "force-stop", args.package, log_output=True)

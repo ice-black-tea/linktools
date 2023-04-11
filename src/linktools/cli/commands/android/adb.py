@@ -30,7 +30,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools.android import Adb
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 
 class Command(AndroidCommand):
@@ -51,11 +51,11 @@ class Command(AndroidCommand):
         "reconnect",
     ]
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("adb_args", nargs="...", help="adb args")
 
     def run(self, args: [str]) -> Optional[int]:
-        args, extra = self.argument_parser.parse_known_args(args)
+        args, extra = self.parse_known_args(args)
 
         adb_args = [*extra, *args.adb_args]
         if not extra:

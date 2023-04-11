@@ -34,7 +34,7 @@ if not __version__[:1].isdigit():
 __name__ = "linktools"
 __author__ = "Hu Ji"
 __email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/Zelda/tree/master"
+__url__ = "https://github.com/ice-black-tea/Zelda"
 __summary__ = f"{__name__} toolkit"
 __description__ = f"""\
     ___       __   __              __    

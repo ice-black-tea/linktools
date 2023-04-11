@@ -29,7 +29,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 
 class Command(AndroidCommand):
@@ -37,13 +37,13 @@ class Command(AndroidCommand):
     Debug android-tools.apk
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--privilege", action="store_true", default=False,
                             help="run with root privilege")
         parser.add_argument("agent_args", nargs="...", help="agent args")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
         adb_args = [
             "CLASSPATH=%s" % device.init_agent(),

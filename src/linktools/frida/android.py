@@ -17,7 +17,7 @@ import frida
 
 from .server import FridaServer
 from .. import environ, utils
-from ..android import adb
+from ..android import Device
 from ..reactor import Stoppable
 
 _logger = environ.get_logger("frida.server.android")
@@ -28,9 +28,9 @@ class AndroidFridaServer(FridaServer):
     android server
     """
 
-    def __init__(self, device: adb.Device = None, local_port: int = 47042, remote_port: int = 47042):
+    def __init__(self, device: Device = None, local_port: int = 47042, remote_port: int = 47042):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
-        self._device = device or adb.Device()
+        self._device = device or Device()
         self._local_port = local_port
         self._remote_port = remote_port
         self._forward: Optional[Stoppable] = None
@@ -57,14 +57,17 @@ class AndroidFridaServer(FridaServer):
 
     def _start(self):
 
+        remote_name = f"fs-{self._device.abi}-{frida.__version__}"
+        remote_path = self._device.get_data_path(remote_name)
+
         # 先下载frida server，然后把server推送到设备上
-        if not self._device.is_file_exist(self._environ.remote_path):
+        if not self._device.is_file_exist(remote_path):
             self._environ.prepare()
-            _logger.info(f"Push frida server to remote: {self._environ.remote_path}")
-            temp_path = self._device.get_storage_path("frida", self._environ.remote_name)
-            self._device.push(self._environ.local_path, temp_path, log_output=True)
-            self._device.sudo("mv", temp_path, self._environ.remote_path, log_output=True)
-            self._device.sudo("chmod", "755", self._environ.remote_path, log_output=True)
+            _logger.info(f"Push frida server to remote: {remote_path}")
+            temp_path = self._device.get_storage_path("frida", remote_name)
+            self._device.push(self._environ.server_path, temp_path, log_output=True)
+            self._device.sudo("mv", temp_path, remote_path, log_output=True)
+            self._device.sudo("chmod", "755", remote_path, log_output=True)
 
         # 转发端口
         self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
@@ -72,7 +75,7 @@ class AndroidFridaServer(FridaServer):
         try:
             # 创建软链
             self._device.sudo("mkdir", "-p", self._server_dir)
-            self._device.sudo("ln", "-s", self._environ.remote_path, self._server_path)
+            self._device.sudo("ln", "-s", remote_path, self._server_path)
 
             # 接下来新开一个进程运行frida server，并且输出一下是否出错
             self._device.sudo(
@@ -107,19 +110,17 @@ class AndroidFridaServer(FridaServer):
             cfg = environ.get_config("ANDROID_TOOL_FRIDA_SERVER").copy()
             cfg.update(version=version, abi=abi)
 
-            self._download_url = cfg["url"].format(**cfg)
-            self.local_name = cfg["name"].format(**cfg)
-            self.local_path = environ.get_data_path("frida", self.local_name, create_parent=True)
-            self.remote_name = "fs-{abi}-{version}".format(**cfg)
-            self.remote_path = adb.Device.get_data_path(self.remote_name)
+            self.download_url = cfg["url"].format(**cfg)
+            self.server_name = cfg["name"].format(**cfg)
+            self.server_path = environ.get_data_path("frida", self.server_name, create_parent=True)
 
         def prepare(self):
-            if os.path.exists(self.local_path):
+            if os.path.exists(self.server_path):
                 return
             _logger.info("Download frida server ...")
-            with utils.UrlFile(self._download_url) as file:
-                if os.path.exists(self.local_path):
+            with utils.UrlFile(self.download_url) as file:
+                if os.path.exists(self.server_path):
                     return
-                with lzma.open(file.save(), "rb") as read, open(self.local_path, "wb") as write:
+                with lzma.open(file.save(), "rb") as read, open(self.server_path, "wb") as write:
                     shutil.copyfileobj(read, write)
                 file.clear()

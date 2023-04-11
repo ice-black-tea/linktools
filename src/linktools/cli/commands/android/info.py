@@ -30,7 +30,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import environ
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 props = (
     "ro.product.manufacturer",
@@ -76,11 +76,11 @@ class Command(AndroidCommand):
     Fetch device information
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('agent_args', nargs='...', help="agent args")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
 
         environ.logger.info(f"Property", style="red")

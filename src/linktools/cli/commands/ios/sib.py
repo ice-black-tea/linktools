@@ -4,7 +4,7 @@
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools.cli import IOSCommand
+from linktools.cli.ios import IOSCommand
 from linktools.ios import Sib
 
 
@@ -21,11 +21,11 @@ class Command(IOSCommand):
         "remote",
     ]
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('sib_args', nargs='...', help="sib args")
 
     def run(self, args: [str]) -> Optional[int]:
-        args, extra = self.argument_parser.parse_known_args(args)
+        args, extra = self.parse_known_args(args)
 
         sib_args = [*extra, *args.sib_args]
         if not extra:

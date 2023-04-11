@@ -25,7 +25,7 @@ from argparse import ArgumentParser
 from subprocess import PIPE
 from typing import Optional
 
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 
 __version__ = '2.1.0'
 
@@ -60,7 +60,7 @@ class Command(AndroidCommand):
     Filter logcat by package name
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('package', nargs='*', help='application package name(s)')
         parser.add_argument('-w', '--tag-width', metavar='N', dest='tag_width', type=int, default=23,
                             help='width of log tag')
@@ -82,7 +82,7 @@ class Command(AndroidCommand):
                             help='print all log messages')
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
         package = args.package
         min_level = LOG_LEVELS_MAP[args.min_level.upper()]

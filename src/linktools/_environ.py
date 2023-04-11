@@ -59,12 +59,11 @@ class BaseEnviron(abc.ABC):
         pass
 
     @property
-    @abc.abstractmethod
     def version(self) -> str:
         """
         模块版本号
         """
-        pass
+        return ""
 
     @property
     def description(self) -> str:

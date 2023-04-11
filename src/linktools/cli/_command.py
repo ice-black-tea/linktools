@@ -34,9 +34,10 @@ import os
 import sys
 import textwrap
 import traceback
-from abc import ABC
-from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
-from typing import Tuple, Type, Optional
+from argparse import ArgumentParser, Action, Namespace, RawDescriptionHelpFormatter, SUPPRESS
+from importlib.util import module_from_spec
+from pkgutil import walk_packages
+from typing import Tuple, Type, Optional, List, Generator, IO
 
 from rich import get_console
 from rich.prompt import IntPrompt
@@ -48,16 +49,7 @@ from ..decorator import cached_property
 from ..utils import ignore_error
 
 
-class BaseCommand(abc.ABC):
-
-    def main(self, *args, **kwargs) -> None:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[LogHandler()]
-        )
-        exit(self(*args, **kwargs))
+class BaseCommand(metaclass=abc.ABCMeta):
 
     @property
     def name(self):
@@ -75,24 +67,25 @@ class BaseCommand(abc.ABC):
     def description(self) -> str:
         return textwrap.dedent((self.__doc__ or "").strip())
 
-    @cached_property
-    def argument_parser(self) -> ArgumentParser:
-        return self._create_argument_parser()
-
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
         return tuple()
 
     @abc.abstractmethod
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def run(self, args: List[str]) -> Optional[int]:
         pass
 
-    @abc.abstractmethod
-    def run(self, args: [str]) -> Optional[int]:
-        pass
+    def print_help(self, file: IO[str] = None):
+        return self._argument_parser.print_help(file=file)
 
-    def _create_argument_parser(self):
+    def parse_args(self, args: List[str] = None) -> Namespace:
+        return self._argument_parser.parse_args(args=args)
 
+    def parse_known_args(self, args: List[str] = None) -> Tuple[Namespace, List[str]]:
+        return self._argument_parser.parse_known_args(args=args)
+
+    @cached_property
+    def _argument_parser(self) -> ArgumentParser:
         description = self.description.strip()
         if description and self.environ.description:
             description += os.linesep + os.linesep
@@ -103,12 +96,16 @@ class BaseCommand(abc.ABC):
             description=description,
             conflict_handler="resolve"
         )
-        self._add_base_arguments(parser)
-        self.add_arguments(parser)
+        self.init_base_arguments(parser)
+        self.init_arguments(parser)
 
         return parser
 
-    def _add_base_arguments(self, parser: ArgumentParser):
+    @abc.abstractmethod
+    def init_arguments(self, parser: ArgumentParser) -> None:
+        pass
+
+    def init_base_arguments(self, parser: ArgumentParser):
 
         command_self = self
 
@@ -140,7 +137,8 @@ class BaseCommand(abc.ABC):
                 if option_string in self.option_strings:
                     command_self.environ.show_log_level = not option_string.startswith("--no-")
 
-        parser.add_argument("--version", action="version", version=self.environ.version)
+        if self.environ.version:
+            parser.add_argument("--version", action="version", version=self.environ.version)
 
         group = parser.add_argument_group(title="log arguments")
         group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
@@ -155,7 +153,7 @@ class BaseCommand(abc.ABC):
                                help="show log level")
 
     def add_android_arguments(self, parser: ArgumentParser):
-        from ..android import Adb, Device, AdbError
+        from ..android import Adb, AdbError, Device as AdbDevice
 
         cache_path = environ.get_temp_path("cache", "device", "android", create_parent=True)
 
@@ -172,7 +170,7 @@ class BaseCommand(abc.ABC):
 
         @parse_handler
         def parse_device():
-            devices = list(Adb.list_devices(alive=True))
+            devices = tuple(Adb.list_devices(alive=True))
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
 
@@ -188,8 +186,8 @@ class BaseCommand(abc.ABC):
             for i in range(len(devices)):
                 table.add_row(
                     str(i + offset),
-                    devices[i].id,
-                    ignore_error(lambda: devices[i].get_prop("ro.product.model", timeout=1)) or "",
+                    ignore_error(lambda: devices[i].id),
+                    ignore_error(lambda: devices[i].name) or "",
                 )
 
             console = get_console()
@@ -207,7 +205,7 @@ class BaseCommand(abc.ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return Device(str(values))
+                    return AdbDevice(str(values))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -216,7 +214,7 @@ class BaseCommand(abc.ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return Device(Adb.exec("-d", "get-serialno").strip(" \r\n"))
+                    return AdbDevice(Adb.exec("-d", "get-serialno").strip(" \r\n"))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -225,7 +223,7 @@ class BaseCommand(abc.ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return Device(Adb.exec("-e", "get-serialno").strip(" \r\n"))
+                    return AdbDevice(Adb.exec("-e", "get-serialno").strip(" \r\n"))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -237,10 +235,9 @@ class BaseCommand(abc.ABC):
                     addr = str(values)
                     if addr.find(":") < 0:
                         addr = addr + ":5555"
-                    devices = Adb.list_devices()
-                    if addr not in [device.id for device in devices]:
+                    if addr not in [device.id for device in Adb.list_devices()]:
                         Adb.exec("connect", addr, log_output=True)
-                    return Device(addr)
+                    return AdbDevice(addr)
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -253,7 +250,7 @@ class BaseCommand(abc.ABC):
                         with open(cache_path, "rt") as fd:
                             device_id = fd.read().strip()
                         if len(device_id) > 0:
-                            return Device(device_id)
+                            return AdbDevice(device_id)
                     raise AdbError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
@@ -271,7 +268,7 @@ class BaseCommand(abc.ABC):
                            help="use last device")
 
     def add_ios_arguments(self, parser: ArgumentParser):
-        from ..ios import Sib, SibError, Device
+        from ..ios import Sib, SibError, Device as SibDevice
 
         cache_path = environ.get_temp_path("cache", "device", "ios", create_parent=True)
 
@@ -288,7 +285,7 @@ class BaseCommand(abc.ABC):
 
         @parse_handler
         def parse_device():
-            devices = list(Sib.list_devices(alive=True))
+            devices = tuple(Sib.list_devices(alive=True))
             if len(devices) == 0:
                 raise SibError("no devices/emulators found")
 
@@ -305,7 +302,7 @@ class BaseCommand(abc.ABC):
                 table.add_row(
                     str(i + offset),
                     ignore_error(lambda: devices[i].id),
-                    ignore_error(lambda: devices[i].name),
+                    ignore_error(lambda: devices[i].name) or "",
                 )
 
             console = get_console()
@@ -323,7 +320,7 @@ class BaseCommand(abc.ABC):
             def __call__(self, parser, namespace, values, option_string=None):
                 @parse_handler
                 def wrapper():
-                    return Device(str(values))
+                    return SibDevice(str(values))
 
                 setattr(namespace, self.dest, wrapper)
 
@@ -336,7 +333,7 @@ class BaseCommand(abc.ABC):
                         with open(cache_path, "rt") as fd:
                             device_id = fd.read().strip()
                         if len(device_id) > 0:
-                            return Device(device_id)
+                            return SibDevice(device_id)
                     raise SibError("no device used last time")
 
                 setattr(namespace, self.dest, wrapper)
@@ -355,8 +352,7 @@ class BaseCommand(abc.ABC):
 
                 setattr(namespace, self.dest, wrapper)
 
-        group = parser.add_argument_group(title="sib arguments")
-        group = group.add_mutually_exclusive_group()
+        group = parser.add_argument_group(title="sib arguments").add_mutually_exclusive_group()
         group.add_argument("-u", "--udid", metavar="UDID", dest="parse_device", action=UdidAction,
                            help="specify unique device identifier", default=parse_device)
         group.add_argument("-c", "--connect", metavar="IP:PORT", dest="parse_device", action=ConnectAction,
@@ -364,7 +360,7 @@ class BaseCommand(abc.ABC):
         group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
                            help="use last device")
 
-    def add_mobile_arguments(self, parser: ArgumentParser):
+    def add_device_arguments(self, parser: ArgumentParser):
         from ..device import Bridge, BridgeError
 
         cache_path = environ.get_temp_path("cache", "device", "mobile", create_parent=True)
@@ -382,7 +378,7 @@ class BaseCommand(abc.ABC):
 
         @parse_handler
         def parse_device():
-            devices = list(Bridge.list_devices(alive=True))
+            devices = tuple(Bridge.list_devices(alive=True))
             if len(devices) == 0:
                 raise BridgeError("no devices/emulators found")
 
@@ -441,12 +437,20 @@ class BaseCommand(abc.ABC):
 
                 setattr(namespace, self.dest, wrapper)
 
-        group = parser.add_argument_group(title="mobile device arguments")
-        group = group.add_mutually_exclusive_group()
+        group = parser.add_argument_group(title="mobile device arguments").add_mutually_exclusive_group()
         group.add_argument("-i", "--id", metavar="ID", dest="parse_device", action=IDAction,
                            help="specify unique device identifier", default=parse_device)
         group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
                            help="use last device")
+
+    def main(self, *args, **kwargs) -> None:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[LogHandler()]
+        )
+        exit(self(*args, **kwargs))
 
     def __call__(self, args: [str] = None) -> int:
         try:
@@ -475,25 +479,19 @@ class BaseCommand(abc.ABC):
         return exit_code
 
 
-class AndroidCommand(BaseCommand, ABC):
-
-    @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        from ..android import AdbError
-        return AdbError,
-
-    def _add_base_arguments(self, parser: ArgumentParser):
-        super()._add_base_arguments(parser)
-        self.add_android_arguments(parser)
-
-
-class IOSCommand(BaseCommand, ABC):
-
-    @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        from ..ios import SibError
-        return SibError,
-
-    def _add_base_arguments(self, parser: ArgumentParser):
-        super()._add_base_arguments(parser)
-        self.add_ios_arguments(parser)
+def walk_commands(path: str) -> Generator["BaseCommand", None, None]:
+    for finder, name, is_pkg in sorted(walk_packages(path=[path]), key=lambda i: i[1]):
+        if is_pkg:
+            continue
+        try:
+            spec = finder.find_spec(name)
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+            command = getattr(module, "command", None)
+            if command and isinstance(command, BaseCommand):
+                yield command
+        except Exception as e:
+            environ.logger.warning(
+                f"Ignore {name}, caused by {e.__class__.__name__}: {e}",
+                exc_info=e if environ.debug else None
+            )

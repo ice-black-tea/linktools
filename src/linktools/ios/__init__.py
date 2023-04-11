@@ -7,5 +7,5 @@
 # Product   : PyCharm
 # Project   : link
 
-from .ipa import IPA, IPAError
-from .sib import SibError, Sib, Device
+from ._ipa import IPA, IPAError
+from ._sib import SibError, Sib, Device

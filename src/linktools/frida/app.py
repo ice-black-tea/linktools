@@ -265,7 +265,7 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         脚本结束回调函数，默认只打印log
         :param script: frida的脚本
         """
-        self.on_script_log(script, self.LogLevel.INFO, f"{script} destroyed.", None)
+        self.on_script_log(script, self.LogLevel.DEBUG, f"{script} destroyed", None)
 
 
 class FridaFileHandler(metaclass=abc.ABCMeta):
@@ -291,7 +291,8 @@ class FridaManager:
     def sessions(self) -> Dict[int, FridaSession]:
         with self._lock:
             sessions = {}
-            for pid, session in self._sessions.items():
+            for pid in list(self._sessions.keys()):
+                session = self._sessions.get(pid)
                 if not session.is_detached:
                     sessions[pid] = session
                     continue

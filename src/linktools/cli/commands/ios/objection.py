@@ -30,7 +30,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, environ
-from linktools.cli import IOSCommand
+from linktools.cli.ios import IOSCommand
 from linktools.frida.ios import IOSFridaServer
 
 
@@ -39,7 +39,7 @@ class Command(IOSCommand):
     Easy to use objection (require iOS device jailbreak)
     """
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,
                             help="target bundle id (default: frontmost application)")
         parser.add_argument("-s", "--startup-command", action="append", default=[],
@@ -53,7 +53,7 @@ class Command(IOSCommand):
                             help="The folder to load plugins from.")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
 
         with IOSFridaServer(device=device, local_port=utils.pick_unused_port()) as server:

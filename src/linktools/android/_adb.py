@@ -31,7 +31,7 @@ import json
 import re
 from typing import Optional, Any, Generator
 
-from .struct import Package, UnixSocket, InetSocket
+from ._struct import Package, UnixSocket, InetSocket
 from .. import utils, environ
 from ..decorator import cached_property
 from ..device import BridgeError, Bridge, BaseDevice
@@ -81,7 +81,7 @@ class Device(BaseDevice):
         :param id: 设备号
         """
         if id is None:
-            devices = list(Adb.list_devices(alive=True))
+            devices = tuple(Adb.list_devices(alive=True))
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
             elif len(devices) > 1:

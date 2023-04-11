@@ -31,7 +31,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, environ
-from linktools.cli import AndroidCommand
+from linktools.cli.android import AndroidCommand
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
@@ -45,7 +45,7 @@ class Command(AndroidCommand):
         environ.show_log_level = True
         return super().main(*args, **kwargs)
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,
                             help="target package (default: frontmost application)")
         parser.add_argument("--spawn", action="store_true", default=False,
@@ -77,7 +77,7 @@ class Command(AndroidCommand):
                             help="automatically start when all processes exits")
 
     def run(self, args: [str]) -> Optional[int]:
-        args = self.argument_parser.parse_args(args)
+        args = self.parse_args(args)
         device = args.parse_device()
         package = args.package
 
