@@ -31,7 +31,7 @@ import json
 import os
 import pathlib
 import pickle
-from typing import TypeVar, Type, Optional, Any, Dict
+from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple
 
 import yaml
 
@@ -153,10 +153,8 @@ class BaseEnviron(abc.ABC):
         return get_logger(name=name, prefix=self.name)
 
     @cached_classproperty
-    def _default_config(cls):
-        from ._config import Config
-
-        config = Config()
+    def _internal_config(cls):
+        config = dict()
 
         # 初始化全局存储路径配置，优先级低于data、temp路径
         config["STORAGE_PATH"] = os.path.join(
@@ -165,7 +163,9 @@ class BaseEnviron(abc.ABC):
         )
 
         # 导入configs文件夹中的配置文件
-        config.from_file(cls._get_path(asset_path, "tools.yml"), load=yaml.safe_load)
+        tools_config = cls._get_path(asset_path, "tools.yml")
+        with open(tools_config, "rb") as fd:
+            config.update(yaml.safe_load(fd))
 
         return config
 
@@ -173,10 +173,12 @@ class BaseEnviron(abc.ABC):
     def _config(self):
         from ._config import Config
 
-        config: Config = pickle.loads(
-            pickle.dumps(self._default_config)
+        config = Config(self)
+        config.from_mapping(
+            pickle.loads(
+                pickle.dumps(self._internal_config)
+            )
         )
-
         return config
 
     def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
@@ -196,7 +198,7 @@ class BaseEnviron(abc.ABC):
             rv[key] = v
         return rv
 
-    def get_config(self, key, type: Type[T] = None, empty: bool = False, default: T = None) -> Optional[T]:
+    def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = None) -> Optional[T]:
         """
         获取指定配置，优先会从环境变量中获取
         """
@@ -230,6 +232,45 @@ class BaseEnviron(abc.ABC):
         更新配置
         """
         self._config[key] = value
+
+    def load_config_file(self, path: str) -> bool:
+        if path.endswith(".py"):
+            return self._config.from_pyfile(path)
+        elif path.endswith(".json"):
+            return self._config.from_file(path, load=json.load)
+        elif path.endswith(".yml"):
+            return self._config.from_file(path, load=yaml.safe_load)
+        self.logger.debug(f"Unsupport config file: {path}")
+        return False
+
+    def load_config_dir(self, path: str, recursion: bool = False) -> bool:
+        # 路径不存在
+        if not os.path.exists(path):
+            return False
+        # 如果不是目录
+        if not os.path.isdir(path):
+            return self.load_config_file(path)
+        # 如果不需要递归，那只要取一级目录就好了
+        if not recursion:
+            for name in os.listdir(path):
+                config_path = os.path.join(path, name)
+                if not os.path.isdir(config_path):
+                    self.load_config_file(config_path)
+            return True
+        # 剩下的就是需要递归读取所有文件的情况了
+        for root, dirs, files in os.walk(config_path, topdown=False):
+            for name in files:
+                self.load_config_file(os.path.join(root, name))
+        return True
+
+    def walk_configs(self, include_internal: bool=False) -> Generator[Tuple[str, Any], None, None]:
+        """
+        遍历配置
+        """
+        internal_config = self._internal_config
+        for key in self._config:
+            if include_internal or key not in internal_config:
+                yield key, self.get_config(key)
 
     @cached_property
     def tools(self):
