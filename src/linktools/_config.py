@@ -43,8 +43,15 @@ from ._environ import BaseEnviron
 
 class _Loader(abc.ABC):
 
-    @abc.abstractmethod
     def load(self, env: BaseEnviron, key: any):
+        try:
+            return self._load(env, key)
+        except Exception as e:
+            env.logger.error(f"Load config \"{key}\" error", exc_info=e)
+            raise e
+
+    @abc.abstractmethod
+    def _load(self, env: BaseEnviron, key: any):
         pass
 
 
@@ -68,7 +75,7 @@ class _Prompt(_Loader):
         self.type = type
         self.trim = trim
 
-    def load(self, env: BaseEnviron, key: any):
+    def _load(self, env: BaseEnviron, key: any):
         if issubclass(self.type, str):
             prompt = Prompt
         elif issubclass(self.type, int):
@@ -133,7 +140,7 @@ class _Lazy(_Loader):
     def __init__(self, func: Callable[[BaseEnviron], Any]):
         self.func = func
 
-    def load(self, env: BaseEnviron, key: any):
+    def _load(self, env: BaseEnviron, key: any):
         return self.func(env)
 
 

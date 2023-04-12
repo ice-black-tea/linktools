@@ -77,9 +77,9 @@ class BaseEnviron(abc.ABC):
         """
         存放文件目录
         """
-        path = self.get_config("DATA_PATH")
+        path = self.get_config("DATA_PATH", type=str)
         if not path:
-            path = os.path.join(self.get_config("STORAGE_PATH"), "data")
+            path = os.path.join(self.get_config("STORAGE_PATH", type=str), "data")
         return path
 
     @cached_property
@@ -87,9 +87,9 @@ class BaseEnviron(abc.ABC):
         """
         存放临时文件目录
         """
-        path = self.get_config("TEMP_PATH")
+        path = self.get_config("TEMP_PATH", type=str)
         if not path:
-            path = os.path.join(self.get_config("STORAGE_PATH"), "temp")
+            path = os.path.join(self.get_config("STORAGE_PATH", type=str), "temp")
         return path
 
     @classmethod

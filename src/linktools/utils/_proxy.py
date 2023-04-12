@@ -88,31 +88,18 @@ class _Proxy(object):
 
     @property
     def __dict__(self):
-        try:
-            return self._get_current_object().__dict__
-        except RuntimeError:  # pragma: no cover
-            raise AttributeError('__dict__')
+        return self._get_current_object().__dict__
 
     def __repr__(self):
-        try:
-            obj = self._get_current_object()
-        except RuntimeError:  # pragma: no cover
-            return '<{0} unbound>'.format(self.__class__.__name__)
-        return repr(obj)
+        return repr(self._get_current_object())
 
     def __bool__(self):
-        try:
-            return bool(self._get_current_object())
-        except RuntimeError:  # pragma: no cover
-            return False
+        return bool(self._get_current_object())
 
     __nonzero__ = __bool__  # Py2
 
     def __dir__(self):
-        try:
-            return dir(self._get_current_object())
-        except RuntimeError:  # pragma: no cover
-            return []
+        return dir(self._get_current_object())
 
     def __getattr__(self, name):
         if name == '__members__':
