@@ -72,7 +72,7 @@ def user_agent(style=None) -> str:
     except Exception as e:
         _logger.debug(f"fetch user agent error: {e}")
 
-    return environ.get_config("DOWNLOAD_USER_AGENT")
+    return environ.get_config("DOWNLOAD_USER_AGENT", type=str)
 
 
 def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:

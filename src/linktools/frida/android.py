@@ -107,7 +107,7 @@ class AndroidFridaServer(FridaServer):
     class Environ:
 
         def __init__(self, abi: str, version: str):
-            cfg = environ.get_config("ANDROID_TOOL_FRIDA_SERVER").copy()
+            cfg = environ.get_config("ANDROID_TOOL_FRIDA_SERVER", type=dict)
             cfg.update(version=version, abi=abi)
 
             self.download_url = cfg["url"].format(**cfg)

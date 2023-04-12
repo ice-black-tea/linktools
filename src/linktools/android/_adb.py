@@ -33,7 +33,7 @@ from typing import Optional, Any, Generator
 
 from ._struct import Package, UnixSocket, InetSocket
 from .. import utils, environ
-from ..decorator import cached_property
+from ..decorator import cached_property, cached_classproperty
 from ..device import BridgeError, Bridge, BaseDevice
 from ..reactor import Stoppable
 
@@ -357,9 +357,9 @@ class Device(BaseDevice):
         out = self.shell(*args, **kwargs)
         return utils.bool(utils.int(out, default=0), default=False)
 
-    @property
+    @cached_classproperty
     def agent_info(self) -> dict:
-        return environ.get_config("ANDROID_TOOL_BRIDGE_APK")
+        return environ.get_config("ANDROID_TOOL_BRIDGE_APK", type=dict)
 
     def init_agent(self):
         """

@@ -258,19 +258,19 @@ class BaseEnviron(abc.ABC):
                     self.load_config_file(config_path)
             return True
         # 剩下的就是需要递归读取所有文件的情况了
-        for root, dirs, files in os.walk(config_path, topdown=False):
+        for root, dirs, files in os.walk(path, topdown=False):
             for name in files:
                 self.load_config_file(os.path.join(root, name))
         return True
 
-    def walk_configs(self, include_internal: bool=False) -> Generator[Tuple[str, Any], None, None]:
+    def walk_configs(self, include_internal: bool = False) -> Generator[Tuple[str, Any], None, None]:
         """
         遍历配置
         """
         internal_config = self._internal_config
         for key in self._config:
             if include_internal or key not in internal_config:
-                yield key, self.get_config(key)
+                yield key, self.get_config(key, type=None)
 
     @cached_property
     def tools(self):
