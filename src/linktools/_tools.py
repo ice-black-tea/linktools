@@ -181,7 +181,15 @@ class Meta(type):
         return lambda self: self.config.get(key)
 
 
-class ToolExecError(Exception):
+class ToolError(Exception):
+    pass
+
+
+class ToolNotFound(ToolError):
+    pass
+
+
+class ToolExecError(ToolError):
     pass
 
 
@@ -374,9 +382,6 @@ class Tool(metaclass=Meta):
 
 
 class ToolContainer(object):
-    system: str = property(lambda self: self.config["system"])
-    processor: str = property(lambda self: self.config["processor"])
-    architecture: str = property(lambda self: self.config["architecture"])
 
     def __init__(self, env: BaseEnviron, **kwargs):
         self.environ = env
@@ -384,6 +389,18 @@ class ToolContainer(object):
         self.config.setdefault("system", platform.system().lower())
         self.config.setdefault("processor", platform.processor().lower())
         self.config.setdefault("architecture", platform.architecture()[0].lower())
+
+    @property
+    def system(self) -> str:
+        return self.config["system"]
+
+    @property
+    def processor(self) -> str:
+        return self.config["processor"]
+
+    @property
+    def architecture(self) -> str:
+        return self.config["architecture"]
 
     @cached_property
     def items(self) -> Mapping[str, Tool]:
@@ -399,8 +416,12 @@ class ToolContainer(object):
     def __iter__(self) -> Iterator[Tool]:
         return iter(self.items.values())
 
-    def __getitem__(self, item) -> Union[Tool, None]:
-        return self.items[item] if item in self.items else None
+    def __getitem__(self, item) -> Tool:
+        if item not in self.items:
+            raise ToolNotFound(f"Not found tool {item}")
+        return self.items[item]
 
-    def __getattr__(self, item) -> Union[Tool, None]:
-        return self.items[item] if item in self.items else None
+    def __getattr__(self, item) -> Tool:
+        if item not in self.items:
+            raise ToolNotFound(f"Not found tool {item}")
+        return self.items[item]
