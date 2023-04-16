@@ -32,6 +32,5 @@ from .version import __name__, __version__, __author__, __email__, __url__, __de
 from . import utils
 from . import decorator
 from ._logging import LogHandler
-from ._config import Config
 from ._tools import ToolContainer, ToolExecError, Tool
 from ._environ import BaseEnviron, environ

@@ -1,7 +1,6 @@
 {
   "install_requires": [
     "rich",
-    "pyyaml",
     "filelock>=3.4.0"
   ],
   "extras_require": {

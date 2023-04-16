@@ -27,14 +27,19 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import abc
+import errno
 import json
 import os
 import pathlib
 import pickle
-from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple
+import sys
+import threading
+from types import ModuleType
+from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List
 
-import yaml
+from rich.prompt import Prompt, IntPrompt, FloatPrompt
 
+from . import utils
 from .decorator import cached_property, cached_classproperty
 from .version import \
     __name__ as __module_name__, \
@@ -45,10 +50,172 @@ T = TypeVar("T")
 root_path = os.path.dirname(__file__)
 asset_path = os.path.join(root_path, "assets")
 cli_path = os.path.join(root_path, "cli")
+missing = object()
+
+
+class _ConfigLoader(abc.ABC):
+    __lock__ = threading.RLock()
+
+    def __init__(self):
+        self._data: Union[str, object] = missing
+
+    def load(self, env: "BaseEnviron", key: Any) -> Optional[str]:
+        if self._data is not missing:
+            return self._data
+        with self.__lock__:
+            if self._data is not missing:
+                return self._data
+            try:
+                self._data = self._load(env, key)
+            except Exception as e:
+                env.logger.error(f"Load config \"{key}\" error", exc_info=e)
+                raise e
+        return self._data
+
+    @abc.abstractmethod
+    def _load(self, env: "BaseEnviron", key: Any):
+        pass
+
+
+class _ConfigPrompt(_ConfigLoader):
+
+    def __init__(
+            self,
+            prompt: str = None,
+            password: bool = False,
+            choices: Optional[List[str]] = None,
+            default: Any = None,
+            type: Type = str,
+            cached: bool = False,
+            trim: bool = True,
+    ):
+        super().__init__()
+        self.prompt = prompt
+        self.password = password
+        self.choices = choices
+        self.default = default
+        self.cached = cached
+        self.type = type
+        self.trim = trim
+
+    def _load(self, env: "BaseEnviron", key: any):
+        if issubclass(self.type, str):
+            prompt = Prompt
+        elif issubclass(self.type, int):
+            prompt = IntPrompt
+        elif issubclass(self.type, float):
+            prompt = FloatPrompt
+        else:
+            raise NotImplementedError("prompt only supports str, int or float type")
+
+        def process_result(data):
+            if self.trim and isinstance(data, str):
+                data = data.strip()
+            if self.type and not isinstance(data, self.type):
+                data = self.type(data)
+                if self.trim and isinstance(data, str):
+                    data = data.strip()
+            return data
+
+        if not self.cached:
+            return process_result(
+                prompt.ask(
+                    self.prompt or f"Please input {key}",
+                    password=self.password,
+                    choices=self.choices,
+                    default=self.default,
+                    show_default=True,
+                    show_choices=True
+                )
+            )
+
+        default = self.default
+
+        path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
+        if os.path.exists(path):
+            try:
+                with open(path, "rt") as fd:
+                    default = process_result(fd.read())
+                if not env.get_config("RELOAD_CONFIG", type=utils.bool, default=False):
+                    return default
+            except Exception as e:
+                env.logger.debug(f"Load cached config \"key\" error: {e}")
+
+        result = process_result(
+            prompt.ask(
+                self.prompt or f"Please input {key}",
+                password=self.password,
+                choices=self.choices,
+                default=default,
+                show_default=True,
+                show_choices=True
+            )
+        )
+
+        with open(path, "wt") as fd:
+            fd.write(str(result))
+
+        return result
+
+
+class _ConfigLazy(_ConfigLoader):
+
+    def __init__(self, func: Callable[["BaseEnviron"], Any]):
+        super().__init__()
+        self.func = func
+
+    def _load(self, env: "BaseEnviron", key: Any):
+        return self.func(env)
+
+
+class Config(dict):
+
+    def from_pyfile(self, filename: str, silent: bool = False) -> bool:
+        d = ModuleType("config")
+        d.__file__ = filename
+        d.prompt = _ConfigPrompt
+        d.lazy = _ConfigLazy
+        try:
+            with open(filename, "rb") as config_file:
+                exec(compile(config_file.read(), filename, "exec"), d.__dict__)
+        except OSError as e:
+            if silent and e.errno in (errno.ENOENT, errno.EISDIR, errno.ENOTDIR):
+                return False
+            e.strerror = f"Unable to load configuration file ({e.strerror})"
+            raise
+        self.from_object(d)
+        return True
+
+    def from_file(self, filename: str, load: Callable[[IO[Any]], Mapping], silent: bool = False) -> bool:
+        try:
+            with open(filename, "rb") as f:
+                obj = load(f)
+        except OSError as e:
+            if silent and e.errno in (errno.ENOENT, errno.EISDIR):
+                return False
+
+            e.strerror = f"Unable to load configuration file ({e.strerror})"
+            raise
+
+        return self.from_mapping(obj)
+
+    def from_object(self, obj: Union[object, str]) -> None:
+        for key in dir(obj):
+            if key[0].isupper():
+                self[key] = getattr(obj, key)
+
+    def from_mapping(self, mapping: Optional[Mapping[str, Any]] = None, **kwargs: Any) -> bool:
+        mappings: Dict[str, Any] = {}
+        if mapping is not None:
+            mappings.update(mapping)
+        mappings.update(kwargs)
+        for key, value in mappings.items():
+            if key[0].isupper():
+                self[key] = value
+        return True
 
 
 class BaseEnviron(abc.ABC):
-    __missing__ = object()
 
     @property
     @abc.abstractmethod
@@ -153,8 +320,8 @@ class BaseEnviron(abc.ABC):
         return get_logger(name=name, prefix=self.name)
 
     @cached_classproperty
-    def _internal_config(cls):
-        config = dict()
+    def _internal_config(self) -> Config:
+        config = Config()
 
         # 初始化全局存储路径配置，优先级低于data、temp路径
         config["STORAGE_PATH"] = os.path.join(
@@ -163,23 +330,36 @@ class BaseEnviron(abc.ABC):
         )
 
         # 导入configs文件夹中的配置文件
-        tools_config = cls._get_path(asset_path, "tools.yml")
-        with open(tools_config, "rb") as fd:
-            config.update(yaml.safe_load(fd))
+        tools_path = self._get_path(asset_path, "tools.json")
+        if os.path.exists(tools_path):
+            # 只有发布版本才会有这个文件
+            config.from_file(
+                tools_path,
+                json.load
+            )
+        else:
+            try:
+                # 不是发布版本的话，使用tools.yml配置代替
+                import yaml
+                config.from_file(
+                    self._get_path(asset_path, "tools.yml"),
+                    yaml.safe_load
+                )
+            except ModuleNotFoundError:
+                self.logger.error(f"Please install pyyaml: {sys.executable} -m pip install pyyaml")
 
         return config
 
     @cached_property
-    def _config(self):
-        from ._config import Config
-
-        config = Config(self)
-        config.from_mapping(
-            pickle.loads(
-                pickle.dumps(self._internal_config)
-            )
+    def _config(self) -> Config:
+        config = pickle.loads(
+            pickle.dumps(self._internal_config)
         )
+        self._init_config(config)
         return config
+
+    def _init_config(self, config: Config):
+        pass
 
     def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
@@ -195,7 +375,7 @@ class BaseEnviron(abc.ABC):
                 key = k
             if lowercase:
                 key = key.lower()
-            rv[key] = self._config.load_value(k)
+            rv[key] = self.get_config(k)
         return rv
 
     def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = None) -> Optional[T]:
@@ -203,9 +383,9 @@ class BaseEnviron(abc.ABC):
         获取指定配置，优先会从环境变量中获取
         """
         try:
-            new_key = f"{self.name}_{key}".upper()
-            if new_key in os.environ:
-                value = os.environ.get(new_key)
+            env_key = f"{self.name}_{key}".upper()
+            if env_key in os.environ:
+                value = os.environ.get(env_key)
                 if empty or value:
                     return value if type is None else type(value)
         except Exception as e:
@@ -213,13 +393,24 @@ class BaseEnviron(abc.ABC):
 
         try:
             if key in self._config:
-                value = self._config.load_value(key)
+                value = self._config.get(key)
+                if isinstance(value, _ConfigLoader):
+                    value = value.load(self, key)
                 if empty or value:
                     return value if type is None else type(value)
         except Exception as e:
             self.logger.debug(f"Get config \"{key}\" error: {e}")
 
         return default
+
+    def walk_configs(self, include_internal: bool = False) -> Generator[Tuple[str, Any], None, None]:
+        """
+        遍历配置
+        """
+        internal_config = self._internal_config
+        for key in self._config:
+            if include_internal or key not in internal_config:
+                yield key, self.get_config(key)
 
     def update_configs(self, **kwargs) -> None:
         """
@@ -233,7 +424,7 @@ class BaseEnviron(abc.ABC):
         """
         self._config[key] = value
 
-    def load_config_file(self, path: str) -> bool:
+    def update_config_from_file(self, path: str) -> bool:
         """
         加载配置文件，按照扩展名来匹配相应的加载规则
         """
@@ -241,12 +432,10 @@ class BaseEnviron(abc.ABC):
             return self._config.from_pyfile(path)
         elif path.endswith(".json"):
             return self._config.from_file(path, load=json.load)
-        elif path.endswith(".yml"):
-            return self._config.from_file(path, load=yaml.safe_load)
         self.logger.debug(f"Unsupported config file: {path}")
         return False
 
-    def load_config_dir(self, path: str, recursion: bool = False) -> bool:
+    def update_config_from_directory(self, path: str, recursion: bool = False) -> bool:
         """
         加载配置文件目录，按照扩展名来匹配相应的加载规则
         """
@@ -255,28 +444,29 @@ class BaseEnviron(abc.ABC):
             return False
         # 如果不是目录
         if not os.path.isdir(path):
-            return self.load_config_file(path)
+            return self.update_config_from_file(path)
         # 如果不需要递归，那只要取一级目录就好了
         if not recursion:
             for name in os.listdir(path):
                 config_path = os.path.join(path, name)
                 if not os.path.isdir(config_path):
-                    self.load_config_file(config_path)
+                    self.update_config_from_file(config_path)
             return True
         # 剩下的就是需要递归读取所有文件的情况了
         for root, dirs, files in os.walk(path, topdown=False):
             for name in files:
-                self.load_config_file(os.path.join(root, name))
+                self.update_config_from_file(os.path.join(root, name))
         return True
 
-    def walk_configs(self, include_internal: bool = False) -> Generator[Tuple[str, Any], None, None]:
+    def update_config_from_envvar(self) -> bool:
         """
-        遍历配置
+        加载所有以"{name}_"为前缀的环境变量到配置中
         """
-        internal_config = self._internal_config
-        for key in self._config:
-            if include_internal or key not in internal_config:
-                yield key, self.get_config(key)
+        prefix = f"{self.name}_"
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                self._config[key[len(prefix)]:] = value
+        return True
 
     @cached_property
     def tools(self):
@@ -379,23 +569,11 @@ class BaseEnviron(abc.ABC):
 
 
 class Environ(BaseEnviron):
+    name = __module_name__
+    version = __module_version__
+    description = __module_description__
 
-    @property
-    def name(self) -> str:
-        return __module_name__
-
-    @property
-    def version(self) -> str:
-        return __module_version__
-
-    @property
-    def description(self) -> str:
-        return __module_description__
-
-    @cached_property
-    def _config(self):
-        config = super()._config
-
+    def _init_config(self, config: Config):
         # 初始化下载相关参数
         config["DOWNLOAD_USER_AGENT"] = \
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " \
@@ -404,9 +582,10 @@ class Environ(BaseEnviron):
             "Safari/537.36"
 
         # 导入configs文件夹中所有配置文件
-        config.from_file(self._get_path(asset_path, "android-tools.json"), load=json.load)
-
-        return config
+        config.from_file(
+            self._get_path(asset_path, "android-tools.json"),
+            load=json.load
+        )
 
     def get_cli_path(self, *paths: str) -> str:
         return self._get_path(cli_path, *paths)

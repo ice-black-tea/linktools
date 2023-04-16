@@ -3,10 +3,10 @@
 
 """
 @author  : Hu Ji
-@file    : version.py
-@time    : 2018/11/25
-@site    :
-@software: PyCharm
+@file    : perpare.py 
+@time    : 2023/04/16
+@site    :  
+@software: PyCharm 
 
               ,----------------,              ,---------,
          ,-----------------------,          ,"        ,"|
@@ -26,17 +26,28 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import json
+import os
+import re
 
-__version__ = "0.0.1-debug"
-__name__ = "linktools"
-__author__ = "Hu Ji"
-__email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/Zelda"
-__summary__ = f"{__name__} toolkit"
-__description__ = f"""\
-    ___       __   __              __    
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \\/ //_/ __/ __ \\/ __ \\/ / ___/  {__summary__}
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @{__author__} 
-/_/_/_/ /_/_/|_|\\__/\\____/\\____/_/____/  
-"""
+import yaml
+
+if __name__ == '__main__':
+    root_path = os.path.abspath(os.path.join(__file__, "..", "..", "..", "src", "linktools"))
+
+    version = os.environ["VERSION"]
+    if version.startswith("v"):
+        version = version[len("v"):]
+
+    patten = re.compile(r"^__version__\s+=\s*\"\S*\"$")
+    with open(os.path.join(root_path, "version.py"), "rt") as fd:
+        file_data = fd.read()
+    with open(os.path.join(root_path, "version.py"), "wt") as fd:
+        for line in file_data.splitlines(keepends=True):
+            fd.write(patten.sub(f"__version__ = \"{version}\"", line))
+
+    with open(os.path.join(root_path, "assets", "tools.yml"), "rb") as fd:
+        file_data = yaml.safe_load(fd)
+    with open(os.path.join(root_path, "assets", "tools.json"), "wt") as fd:
+        json.dump(file_data, fd, indent=2, ensure_ascii=True)
+    os.remove(os.path.join(root_path, "assets", "tools.yml"))
