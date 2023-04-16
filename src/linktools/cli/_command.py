@@ -87,7 +87,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
     @cached_property
     def _argument_parser(self) -> ArgumentParser:
         description = self.description.strip()
-        if description and self.environ.description:
+        if description and self.environ.description != NotImplemented:
             description += os.linesep + os.linesep
             description += self.environ.description
 
@@ -137,7 +137,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
                 if option_string in self.option_strings:
                     command_self.environ.show_log_level = not option_string.startswith("--no-")
 
-        if self.environ.version:
+        if self.environ.version != NotImplemented:
             parser.add_argument("--version", action="version", version=self.environ.version)
 
         group = parser.add_argument_group(title="log arguments")

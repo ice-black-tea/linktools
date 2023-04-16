@@ -123,7 +123,7 @@ class Command(BaseCommand):
                 node.add(f"👉 {command.category.prefix}[bold red]{command.name}[/bold red]: {command.description}")
 
         console = get_console()
-        if environ.description:
+        if environ.description != NotImplemented:
             console.print(environ.description, highlight=False)
         console.print(tree, highlight=False)
 

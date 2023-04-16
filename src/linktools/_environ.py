@@ -230,14 +230,21 @@ class BaseEnviron(abc.ABC):
         """
         模块版本号
         """
-        return ""
+        return NotImplemented
 
     @property
     def description(self) -> str:
         """
         模块描述
         """
-        return ""
+        return NotImplemented
+
+    @property
+    def root_path(self):
+        """
+        模块路径
+        """
+        raise NotImplemented
 
     @cached_property
     def data_path(self):
@@ -277,6 +284,14 @@ class BaseEnviron(abc.ABC):
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
         return target_path
+
+    def get_path(self, *paths: str):
+        """
+        获取模块目录下的子路径
+        """
+        if self.root_path == NotImplemented:
+            raise RuntimeError("root_path not implemented")
+        return self._get_path(self.root_path, *paths)
 
     def get_data_path(self, *paths: str, create_parent: bool = False):
         """
@@ -435,7 +450,7 @@ class BaseEnviron(abc.ABC):
         self.logger.debug(f"Unsupported config file: {path}")
         return False
 
-    def update_config_from_directory(self, path: str, recursion: bool = False) -> bool:
+    def update_config_from_dir(self, path: str, recursion: bool = False) -> bool:
         """
         加载配置文件目录，按照扩展名来匹配相应的加载规则
         """
@@ -572,6 +587,7 @@ class Environ(BaseEnviron):
     name = __module_name__
     version = __module_version__
     description = __module_description__
+    root_path = root_path
 
     def _init_config(self, config: Config):
         # 初始化下载相关参数
