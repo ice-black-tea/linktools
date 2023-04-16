@@ -186,7 +186,7 @@ class BaseEnviron(abc.ABC):
         根据命名空间获取配置列表
         """
         rv = {}
-        for k, v in self._config.items():
+        for k in self._config:
             if not k.startswith(namespace):
                 continue
             if trim_namespace:
@@ -195,7 +195,7 @@ class BaseEnviron(abc.ABC):
                 key = k
             if lowercase:
                 key = key.lower()
-            rv[key] = v
+            rv[key] = self._config.load_value(k)
         return rv
 
     def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = None) -> Optional[T]:
@@ -213,7 +213,7 @@ class BaseEnviron(abc.ABC):
 
         try:
             if key in self._config:
-                value = self._config.get(key)
+                value = self._config.load_value(key)
                 if empty or value:
                     return value if type is None else type(value)
         except Exception as e:
@@ -234,16 +234,22 @@ class BaseEnviron(abc.ABC):
         self._config[key] = value
 
     def load_config_file(self, path: str) -> bool:
+        """
+        加载配置文件，按照扩展名来匹配相应的加载规则
+        """
         if path.endswith(".py"):
             return self._config.from_pyfile(path)
         elif path.endswith(".json"):
             return self._config.from_file(path, load=json.load)
         elif path.endswith(".yml"):
             return self._config.from_file(path, load=yaml.safe_load)
-        self.logger.debug(f"Unsupport config file: {path}")
+        self.logger.debug(f"Unsupported config file: {path}")
         return False
 
     def load_config_dir(self, path: str, recursion: bool = False) -> bool:
+        """
+        加载配置文件目录，按照扩展名来匹配相应的加载规则
+        """
         # 路径不存在
         if not os.path.exists(path):
             return False
@@ -270,7 +276,7 @@ class BaseEnviron(abc.ABC):
         internal_config = self._internal_config
         for key in self._config:
             if include_internal or key not in internal_config:
-                yield key, self.get_config(key, type=None)
+                yield key, self.get_config(key)
 
     @cached_property
     def tools(self):

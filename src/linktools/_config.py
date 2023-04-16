@@ -32,6 +32,7 @@ __all__ = ("Config",)
 import abc
 import errno
 import os
+import threading
 from types import ModuleType
 from typing import Optional, Union, Callable, IO, Any, Mapping, Dict, List, Type
 
@@ -42,13 +43,24 @@ from ._environ import BaseEnviron
 
 
 class _Loader(abc.ABC):
+    __missing__ = object
+    __lock__ = threading.RLock()
 
-    def load(self, env: BaseEnviron, key: any):
-        try:
-            return self._load(env, key)
-        except Exception as e:
-            env.logger.error(f"Load config \"{key}\" error", exc_info=e)
-            raise e
+    def __init__(self):
+        self._data: Union[str, object] = self.__missing__
+
+    def load(self, env: BaseEnviron, key: any) -> Optional[str]:
+        if self._data is not self.__missing__:
+            return self._data
+        with self.__lock__:
+            if self._data is not self.__missing__:
+                return self._data
+            try:
+                self._data = self._load(env, key)
+            except Exception as e:
+                env.logger.error(f"Load config \"{key}\" error", exc_info=e)
+                raise e
+        return self._data
 
     @abc.abstractmethod
     def _load(self, env: BaseEnviron, key: any):
@@ -64,9 +76,10 @@ class _Prompt(_Loader):
             choices: Optional[List[str]] = None,
             default: Any = None,
             type: Type = str,
-            cached: bool = None,
+            cached: bool = False,
             trim: bool = True,
     ):
+        super().__init__()
         self.prompt = prompt
         self.password = password
         self.choices = choices
@@ -138,6 +151,7 @@ class _Prompt(_Loader):
 class _Lazy(_Loader):
 
     def __init__(self, func: Callable[[BaseEnviron], Any]):
+        super().__init__()
         self.func = func
 
     def _load(self, env: BaseEnviron, key: any):
@@ -150,6 +164,12 @@ class Config(dict):
     def __init__(self, env: BaseEnviron, defaults: Optional[dict] = None):
         super().__init__(defaults or {})
         self.environ = env
+
+    def load_value(self, key) -> Any:
+        value = self[key]
+        if isinstance(value, _Loader):
+            value = value.load(self.environ, key)
+        return value
 
     def from_envvar(self, variable_name: str, silent: bool = False) -> bool:
         rv = os.environ.get(variable_name)
@@ -207,8 +227,3 @@ class Config(dict):
             if key[0].isupper():
                 self[key] = value
         return True
-
-    def __setitem__(self, key, value):
-        if isinstance(value, _Loader):
-            value = utils.lazy_load(value.load, self.environ, key)
-        return super().__setitem__(key, value)
