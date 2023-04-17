@@ -376,6 +376,10 @@ class BaseEnviron(abc.ABC):
     def _init_config(self, config: Config):
         pass
 
+    @property
+    def _envvar_prefix(self) -> str:
+        return f"{self.name.upper()}_"
+
     def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
         根据命名空间获取配置列表
@@ -398,7 +402,7 @@ class BaseEnviron(abc.ABC):
         获取指定配置，优先会从环境变量中获取
         """
         try:
-            env_key = f"{self.name}_{key}".upper()
+            env_key = f"{self._envvar_prefix}{key}"
             if env_key in os.environ:
                 value = os.environ.get(env_key)
                 if empty or value:
@@ -477,7 +481,7 @@ class BaseEnviron(abc.ABC):
         """
         加载所有以"{name}_"为前缀的环境变量到配置中
         """
-        prefix = f"{self.name}_"
+        prefix = self._envvar_prefix
         for key, value in os.environ.items():
             if key.startswith(prefix):
                 self._config[key[len(prefix)]:] = value
