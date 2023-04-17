@@ -484,7 +484,7 @@ class BaseEnviron(abc.ABC):
         prefix = self._envvar_prefix
         for key, value in os.environ.items():
             if key.startswith(prefix):
-                self._config[key[len(prefix)]:] = value
+                self._config[key[len(prefix):]] = value
         return True
 
     @cached_property
