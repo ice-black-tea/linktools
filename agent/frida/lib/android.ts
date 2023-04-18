@@ -48,8 +48,10 @@ export class AndroidHelper {
         Java.perform(function () {
             const arraysClass = Java.use("java.util.Arrays");
 
-            ignoreError(() =>
-                JavaHelper.hookMethods("com.android.org.conscrypt.TrustManagerImpl", "checkServerTrusted", function (_obj, args) {
+            ignoreError(() => JavaHelper.hookMethods(
+                "com.android.org.conscrypt.TrustManagerImpl",
+                "checkServerTrusted",
+                (obj, args) => {
                     Log.d('Bypassing TrustManagerImpl checkServerTrusted');
                     if (this.returnType.type == 'void') {
                         return;
@@ -59,17 +61,50 @@ export class AndroidHelper {
                 })
             );
 
-            ignoreError(() =>
-                JavaHelper.hookMethods("com.google.android.gms.org.conscrypt.Platform", "checkServerTrusted", function (_obj, _args) {
+            ignoreError(() => JavaHelper.hookMethods(
+                "com.google.android.gms.org.conscrypt.Platform",
+                "checkServerTrusted",
+                (obj, args) => {
                     Log.d('Bypassing Platform checkServerTrusted {1}');
                 })
             );
 
-            ignoreError(() =>
-                JavaHelper.hookMethods("com.android.org.conscrypt.Platform", "checkServerTrusted", function (_obj, _args) {
+            ignoreError(() => JavaHelper.hookMethods(
+                "com.android.org.conscrypt.Platform",
+                "checkServerTrusted", (obj, args) => {
                     Log.d('Bypassing Platform checkServerTrusted {2}');
                 })
             );
+
+            ignoreError(() => JavaHelper.hookMethods(
+                "okhttp3.CertificatePinner",
+                "check",
+                (obj, args) => true
+            ));
+
+            ignoreError(() => JavaHelper.hookMethods(
+                "okhttp3.CertificatePinner",
+                "check$okhttp",
+                (obj, args) => void 0
+            ));
+
+            ignoreError(() => JavaHelper.hookMethods(
+                "com.android.okhttp.CertificatePinner",
+                "check",
+                (obj, args) => true
+            ));
+
+            ignoreError(() => JavaHelper.hookMethods(
+                "com.android.okhttp.CertificatePinner",
+                "check$okhttp",
+                (obj, args) => void 0
+            ));
+
+            ignoreError(() => JavaHelper.hookMethods(
+                "com.android.org.conscrypt.TrustManagerImpl",
+                "verifyChain",
+                (obj, args) => args[0]
+            ));
         });
     }
 

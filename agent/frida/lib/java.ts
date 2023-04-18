@@ -268,8 +268,7 @@ export class JavaHelper {
             }
             const method = this.getClassMethod(targetClass, methodName);
             if (method === void 0 || method.overloads === void 0) {
-                Log.w("Cannot find method: " + this.getClassName(targetClass) + "." + methodName);
-                return;
+                throw Error("Cannot find method: " + this.getClassName(targetClass) + "." + methodName);
             }
             if (signatures != null) {
                 var targetSignatures: any[] = signatures;
@@ -306,8 +305,7 @@ export class JavaHelper {
         }
         var method = this.getClassMethod(targetClass, methodName);
         if (method === void 0 || method.overloads === void 0) {
-            Log.w("Cannot find method: " + this.getClassName(targetClass) + "." + methodName);
-            return;
+            throw Error("Cannot find method: " + this.getClassName(targetClass) + "." + methodName);
         }
         for (var i = 0; i < method.overloads.length; i++) {
             const targetMethod = method.overloads[i];

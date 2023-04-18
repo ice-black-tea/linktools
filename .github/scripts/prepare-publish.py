@@ -35,17 +35,27 @@ import yaml
 if __name__ == '__main__':
     root_path = os.path.abspath(os.path.join(__file__, "..", "..", "..", "src", "linktools"))
 
+    ######################################################################
+    # 处理版本号和release标志位
+    ######################################################################
     version = os.environ["VERSION"]
     if version.startswith("v"):
         version = version[len("v"):]
 
-    patten = re.compile(r"^__version__\s+=\s*\"\S*\"$")
+    version_patten = re.compile(r"^__version__\s+=\s*\"\S*\".*$")
+    release_patten = re.compile(r"^__release__\s+=\s*\w+.*$")
     with open(os.path.join(root_path, "version.py"), "rt") as fd:
         file_data = fd.read()
     with open(os.path.join(root_path, "version.py"), "wt") as fd:
         for line in file_data.splitlines(keepends=True):
-            fd.write(patten.sub(f"__version__ = \"{version}\"", line))
+            result = line
+            result = version_patten.sub(f"__version__ = \"{version}\"", result)
+            result = release_patten.sub(f"__release__ = True", result)
+            fd.write(result)
 
+    ######################################################################
+    # 将tools.yml转为tools.json
+    ######################################################################
     with open(os.path.join(root_path, "assets", "tools.yml"), "rb") as fd:
         file_data = yaml.safe_load(fd)
     with open(os.path.join(root_path, "assets", "tools.json"), "wt") as fd:

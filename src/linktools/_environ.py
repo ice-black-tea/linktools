@@ -39,12 +39,8 @@ from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple, Callabl
 
 from rich.prompt import Prompt, IntPrompt, FloatPrompt
 
-from . import utils
+from . import utils, version
 from .decorator import cached_property, cached_classproperty
-from .version import \
-    __name__ as __module_name__, \
-    __description__ as __module_description__, \
-    __version__ as __module_version__
 
 T = TypeVar("T")
 root_path = os.path.dirname(__file__)
@@ -53,7 +49,7 @@ cli_path = os.path.join(root_path, "cli")
 missing = object()
 
 
-class _ConfigLoader(abc.ABC):
+class ConfigLoader(abc.ABC):
     __lock__ = threading.RLock()
 
     def __init__(self):
@@ -77,7 +73,7 @@ class _ConfigLoader(abc.ABC):
         pass
 
 
-class _ConfigPrompt(_ConfigLoader):
+class ConfigPrompt(ConfigLoader):
 
     def __init__(
             self,
@@ -158,7 +154,7 @@ class _ConfigPrompt(_ConfigLoader):
         return result
 
 
-class _ConfigLazy(_ConfigLoader):
+class ConfigLazy(ConfigLoader):
 
     def __init__(self, func: Callable[["BaseEnviron"], Any]):
         super().__init__()
@@ -173,8 +169,8 @@ class Config(dict):
     def from_pyfile(self, filename: str, silent: bool = False) -> bool:
         d = ModuleType("config")
         d.__file__ = filename
-        d.prompt = _ConfigPrompt
-        d.lazy = _ConfigLazy
+        d.prompt = ConfigPrompt
+        d.lazy = ConfigLazy
         try:
             with open(filename, "rb") as config_file:
                 exec(compile(config_file.read(), filename, "exec"), d.__dict__)
@@ -341,15 +337,13 @@ class BaseEnviron(abc.ABC):
         # 初始化全局存储路径配置，优先级低于data、temp路径
         config["STORAGE_PATH"] = os.path.join(
             str(pathlib.Path.home()),
-            f".{__module_name__}"
+            f".{version.__name__}"
         )
 
-        # 导入configs文件夹中的配置文件
-        tools_path = self._get_path(asset_path, "tools.json")
-        if os.path.exists(tools_path):
+        if version.__release__:
             # 只有发布版本才会有这个文件
             config.from_file(
-                tools_path,
+                self._get_path(asset_path, "tools.json"),
                 json.load
             )
         else:
@@ -413,7 +407,7 @@ class BaseEnviron(abc.ABC):
         try:
             if key in self._config:
                 value = self._config.get(key)
-                if isinstance(value, _ConfigLoader):
+                if isinstance(value, ConfigLoader):
                     value = value.load(self, key)
                 if empty or value:
                     return value if type is None else type(value)
@@ -588,9 +582,9 @@ class BaseEnviron(abc.ABC):
 
 
 class Environ(BaseEnviron):
-    name = __module_name__
-    version = __module_version__
-    description = __module_description__
+    name = version.__name__
+    description = version.__description__
+    version = version.__version__
     root_path = root_path
 
     def _init_config(self, config: Config):

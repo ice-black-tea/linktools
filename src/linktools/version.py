@@ -27,7 +27,8 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__version__ = "0.0.1-debug"
+__release__ = False
+__version__ = "0.0.1"
 __name__ = "linktools"
 __author__ = "Hu Ji"
 __email__ = "669898595@qq.com"
