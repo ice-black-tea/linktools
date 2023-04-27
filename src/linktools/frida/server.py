@@ -50,7 +50,7 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         try:
             processes = self.enumerate_processes()
             return processes is not None
-        except (frida.TransportError, frida.ServerNotRunningError):
+        except (frida.TransportError, frida.ServerNotRunningError, frida.InvalidArgumentError):
             return False
 
     def start(self) -> bool:

@@ -564,7 +564,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
     def is_running(self) -> bool:
         return self._reactor.is_running()
 
-    def run(self, timeout=None):
+    def run(self, timeout: utils.TimeoutType = None):
         assert not self.is_running
         try:
             self._init()
@@ -573,7 +573,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         finally:
             self._deinit()
 
-    def wait(self, timeout=None) -> bool:
+    def wait(self, timeout: utils.TimeoutType = None) -> bool:
         return self._finished.wait(timeout)
 
     def stop(self):

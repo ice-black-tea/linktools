@@ -134,6 +134,10 @@ class Device(BaseDevice):
         uid = utils.int(out, default=default)
         if uid != default:
             return uid
+        out = self.shell("echo", "-n", "${USER_ID}")
+        uid = utils.int(out, default=default)
+        if uid != default:
+            return uid
         raise AdbError("unknown adb uid: %s" % out)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Popen:
