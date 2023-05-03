@@ -31,7 +31,7 @@ import json
 import re
 from typing import Optional, Any, Generator
 
-from ._struct import Package, UnixSocket, InetSocket
+from ._struct import Package, UnixSocket, InetSocket, Process
 from .. import utils, environ
 from ..decorator import cached_property, cached_classproperty
 from ..device import BridgeError, Bridge, BaseDevice
@@ -165,9 +165,10 @@ class Device(BaseDevice):
         :param privilege: 是否以root权限运行
         :return: adb输出结果
         """
-        args = ["shell", *args] \
+        cmd = utils.list2cmdline([str(arg) for arg in args])
+        args = ["shell", cmd] \
             if not privilege or self.uid == 0 \
-            else ["shell", "su", "-c", *args]
+            else ["shell", "su", "-c", cmd]
         return self.exec(*args, **kwargs)
 
     def sudo(self, *args: [Any], **kwargs) -> str:
@@ -357,7 +358,7 @@ class Device(BaseDevice):
         :param path: 文件路径
         :return: 是否存在
         """
-        args = ["[", "-a", path, "]", "&&", "echo", "-n ", "1"]
+        args = ["[", "-a", path, "]", "&&", "echo", "-n", "1"]
         out = self.shell(*args, **kwargs)
         return utils.bool(utils.int(out, default=0), default=False)
 
@@ -465,16 +466,19 @@ class Device(BaseDevice):
         :param package_name: 包名
         :return: uid
         """
-        info = self.get_package(package_name)
+        info = self.get_package(package_name, simple=True)
         return info.user_id if info else None
 
-    def get_package(self, package_name: str, **kwargs) -> Optional[Package]:
+    def get_package(self, package_name: str, simple: bool = None, **kwargs) -> Optional[Package]:
         """
         根据包名获取包信息
         :param package_name: 包名
+        :param simple: 只获取基本信息
         :return: 包信息
         """
         args = ["package", "--packages", package_name]
+        if simple is True:
+            args.append("--simple")
         objs = json.loads(self.call_agent(*args, **kwargs))
         return Package(objs[0]) if len(objs) > 0 else None
 
@@ -557,6 +561,14 @@ class Device(BaseDevice):
             result.append(type(obj))
         return result
 
+    def get_processes(self, **kwargs) -> [Process]:
+        result = []
+        agent_args = ["process", "--list"]
+        objs = json.loads(self.call_agent(*agent_args, **kwargs))
+        for obj in objs:
+            result.append(Process(obj))
+        return result
+
     @classmethod
     def get_safe_path(cls, path: str) -> str:
         """
@@ -570,15 +582,6 @@ class Device(BaseDevice):
             if temp == result:
                 return result
             temp = result
-
-    @classmethod
-    def get_safe_command(cls, seq: [str]) -> str:
-        """
-        用双引号把命令包起来
-        :param seq: 原命令
-        :return: 双引号包起来的命令
-        """
-        return utils.list2cmdline(seq)
 
     @classmethod
     def get_storage_path(cls, *paths: [str]) -> str:

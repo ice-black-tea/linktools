@@ -11,15 +11,15 @@ import org.ironman.framework.Environment;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FComponent<II extends PackageParser.IntentInfo> {
+public class Component<II extends PackageParser.IntentInfo> {
 
     public String name;
     public boolean exported;
     public boolean enabled;
-    public List<FIntentFilter> intents;
+    public List<IntentFilter> intents;
 
     @SuppressLint("SwitchIntDef")
-    public FComponent(PackageParser.Component<II> component, ComponentInfo info) {
+    public Component(PackageParser.Component<II> component, ComponentInfo info) {
         PackageManager packageManager = Environment.getPackageManager();
         ComponentName componentName = component.getComponentName();
 
@@ -43,7 +43,7 @@ public class FComponent<II extends PackageParser.IntentInfo> {
         if (component.intents != null && component.intents.size() > 0) {
             intents = new ArrayList<>(component.intents.size());
             for (II intent : component.intents) {
-                intents.add(new FIntentFilter(intent));
+                intents.add(new IntentFilter(intent));
             }
         }
     }

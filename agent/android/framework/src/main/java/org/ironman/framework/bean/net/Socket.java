@@ -1,6 +1,6 @@
 package org.ironman.framework.bean.net;
 
-public class FSocket {
+public class Socket {
     public String proto;
     public String state;
     public long inode;

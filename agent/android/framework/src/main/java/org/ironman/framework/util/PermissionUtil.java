@@ -5,7 +5,7 @@ import android.content.pm.PermissionInfo;
 import android.text.TextUtils;
 
 import org.ironman.framework.Environment;
-import org.ironman.framework.bean.app.FPermission;
+import org.ironman.framework.bean.app.Permission;
 
 /**
  * Created by hu on 18-12-17.
@@ -15,7 +15,7 @@ public class PermissionUtil {
 
     private static final String TAG = PermissionUtil.class.getSimpleName();
 
-    public static FPermission.Protection getProtection(String permission) {
+    public static Permission.Protection getProtection(String permission) {
         if (!TextUtils.isEmpty(permission)) {
             try {
                 return getProtection(Environment.getPackageManager().getPermissionInfo(permission, -1));
@@ -23,21 +23,21 @@ public class PermissionUtil {
                 LogUtil.printStackTrace(TAG, e, null);
             }
         }
-        return FPermission.Protection.normal;
+        return Permission.Protection.normal;
     }
 
-    public static FPermission.Protection getProtection(PermissionInfo permissionInfo) {
+    public static Permission.Protection getProtection(PermissionInfo permissionInfo) {
         switch (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) {
             case PermissionInfo.PROTECTION_DANGEROUS:
-                return FPermission.Protection.dangerous;
+                return Permission.Protection.dangerous;
             case PermissionInfo.PROTECTION_NORMAL:
-                return FPermission.Protection.normal;
+                return Permission.Protection.normal;
             case PermissionInfo.PROTECTION_SIGNATURE:
-                return FPermission.Protection.signature;
+                return Permission.Protection.signature;
             case PermissionInfo.PROTECTION_SIGNATURE_OR_SYSTEM:
-                return FPermission.Protection.signatureOrSystem;
+                return Permission.Protection.signatureOrSystem;
             default:
-                return FPermission.Protection.normal;
+                return Permission.Protection.normal;
         }
     }
 

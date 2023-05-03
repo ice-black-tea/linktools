@@ -6,7 +6,7 @@ import android.tools.Output;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
-import org.ironman.framework.bean.app.FPackage;
+import org.ironman.framework.bean.app.Package;
 import org.ironman.framework.util.GsonUtil;
 import org.ironman.framework.util.PackageUtil;
 
@@ -47,14 +47,14 @@ public class PackageCommand extends Command {
             packageInfos = PackageUtil.getInstalledPackages();
         }
 
-        List<FPackage> packages = new ArrayList<>(packageInfos.size());
+        List<Package> packages = new ArrayList<>(packageInfos.size());
         for (PackageInfo packageInfo : packageInfos) {
             if (system && !PackageUtil.isSystemApp(packageInfo)) {
                 // ignore
             } else if (nonSystem && PackageUtil.isSystemApp(packageInfo)) {
                 // ignore
             } else {
-                packages.add(new FPackage(packageInfo, simple));
+                packages.add(new Package(packageInfo, simple));
             }
         }
 

@@ -165,8 +165,8 @@ class Package:
     def __init__(self, obj: dict):
         self.name = utils.get_item(obj, "name", type=str, default="")
         self.app_name = utils.get_item(obj, "appName", type=str, default="")
-        self.user_id = utils.get_item(obj, "userId", type=int, default="")
-        self.gids = utils.get_item(obj, "gids", type=str, default=[])
+        self.user_id = utils.get_item(obj, "userId", type=int, default=0)
+        self.gids = utils.get_list_item(obj, "gids", type=int, default=[])
         self.source_dir = utils.get_item(obj, "sourceDir", type=str, default="")
         self.version_code = utils.get_item(obj, "versionCode", type=str, default="")
         self.version_name = utils.get_item(obj, "versionName", type=str, default="")
@@ -229,7 +229,7 @@ class Socket:
     def __init__(self, obj: dict):
         self.proto = utils.get_item(obj, "proto", type=str, default="")
         self.state = utils.get_item(obj, "state", type=str, default="")
-        self.inode = utils.get_item(obj, "inode", type=int, default="")
+        self.inode = utils.get_item(obj, "inode", type=int, default=0)
         self.listening = utils.get_item(obj, "listening", type=bool, default=False)
 
     def is_dangerous(self):
@@ -241,19 +241,19 @@ class InetSocket(Socket):
     def __init__(self, obj: dict):
         super().__init__(obj)
         self.local_address = utils.get_item(obj, "localAddress", type=str, default="")
-        self.local_port = utils.get_item(obj, "localPort", type=int, default="")
+        self.local_port = utils.get_item(obj, "localPort", type=int, default=0)
         self.remote_address = utils.get_item(obj, "remoteAddress", type=str, default="")
-        self.remote_port = utils.get_item(obj, "remotePort", type=int, default="")
-        self.uid = utils.get_item(obj, "uid", type=int, default="")
-        self.transmit_queue = utils.get_item(obj, "transmitQueue", type=int, default="")
-        self.receive_queue = utils.get_item(obj, "receiveQueue", type=int, default="")
+        self.remote_port = utils.get_item(obj, "remotePort", type=int, default=0)
+        self.uid = utils.get_item(obj, "uid", type=int, default=0)
+        self.transmit_queue = utils.get_item(obj, "transmitQueue", type=int, default=0)
+        self.receive_queue = utils.get_item(obj, "receiveQueue", type=int, default=0)
 
 
 class UnixSocket(Socket):
 
     def __init__(self, obj: dict):
         super().__init__(obj)
-        self.ref_cnt = utils.get_item(obj, "refCnt", type=int, default="")
+        self.ref_cnt = utils.get_item(obj, "refCnt", type=int, default=0)
         self.flags = utils.get_item(obj, "flags", type=str, default="")
         self.type = utils.get_item(obj, "type", type=str, default=[])
         self.path = utils.get_item(obj, "path", type=str, default="")
@@ -262,3 +262,24 @@ class UnixSocket(Socket):
 
     def is_dangerous(self):
         return super().is_dangerous() and (self.readable or self.writable)
+
+
+class Process:
+
+    def __init__(self, obj: dict):
+        self.pid = utils.get_item(obj, "pid", type=int, default=0)
+        self.uid = utils.get_item(obj, "uid", type=int, default=0)
+        self.gid = utils.get_item(obj, "gid", type=int, default=0)
+        self.state = utils.get_item(obj, "state", type=str, default="")
+        self.cmd = utils.get_item(obj, "cmd", type=str, default="")
+        self.name = utils.get_item(obj, "name", type=str, default="")
+        self.ppid = utils.get_item(obj, "ppid", type=int, default=0)
+        self.pgid = utils.get_item(obj, "pgid", type=int, default=0)
+        self.sid = utils.get_item(obj, "sid", type=int, default=0)
+        self.tty = utils.get_item(obj, "tty", type=int, default=0)
+        self.utime = utils.get_item(obj, "utime", type=int, default=0)
+        self.stime = utils.get_item(obj, "stime", type=int, default=0)
+        self.nice = utils.get_item(obj, "nice", type=int, default=0)
+        self.start_time = utils.get_item(obj, "startTime", type=int, default=0)
+        self.vsz = utils.get_item(obj, "vsz", type=int, default=0)
+        self.rss = utils.get_item(obj, "rss", type=int, default=0)

@@ -4,7 +4,7 @@ package org.ironman.framework.bean.net;
  * Created by hu on 19-2-13.
  */
 
-public class FUnixSocket extends FSocket {
+public class UnixSocket extends Socket {
     public long refCnt;
     public String flags;
     public String type;

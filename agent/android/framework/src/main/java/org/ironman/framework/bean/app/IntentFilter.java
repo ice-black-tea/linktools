@@ -1,24 +1,22 @@
 package org.ironman.framework.bean.app;
 
-import android.content.IntentFilter;
 import android.os.Build;
-import android.os.PatternMatcher;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FIntentFilter {
+public class IntentFilter {
 
     public List<String> actions;
     public List<String> categories;
     public List<String> dataSchemes;
-    public List<FPatternMatcher> dataSchemeSpecificParts;
-    public List<FIntentFilter.AuthorityEntry> dataAuthorities;
-    public List<FPatternMatcher> dataPaths;
+    public List<PatternMatcher> dataSchemeSpecificParts;
+    public List<IntentFilter.AuthorityEntry> dataAuthorities;
+    public List<PatternMatcher> dataPaths;
     public List<String> dataTypes;
 
-    public FIntentFilter(IntentFilter intent) {
+    public IntentFilter(android.content.IntentFilter intent) {
         if (intent.countActions() > 0) {
             actions = new ArrayList<>(intent.countActions());
             Iterator<String> it = intent.actionsIterator();
@@ -46,16 +44,16 @@ public class FIntentFilter {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             if (intent.countDataSchemeSpecificParts() > 0) {
                 dataSchemeSpecificParts = new ArrayList<>(intent.countDataSchemeSpecificParts());
-                Iterator<PatternMatcher> it = intent.schemeSpecificPartsIterator();
+                Iterator<android.os.PatternMatcher> it = intent.schemeSpecificPartsIterator();
                 while (it.hasNext()) {
-                    dataSchemeSpecificParts.add(new FPatternMatcher(it.next()));
+                    dataSchemeSpecificParts.add(new PatternMatcher(it.next()));
                 }
             }
         }
 
         if (intent.countDataAuthorities() > 0) {
             dataAuthorities = new ArrayList<>(intent.countDataAuthorities());
-            Iterator<IntentFilter.AuthorityEntry> it = intent.authoritiesIterator();
+            Iterator<android.content.IntentFilter.AuthorityEntry> it = intent.authoritiesIterator();
             while (it.hasNext()) {
                 dataAuthorities.add(new AuthorityEntry(it.next()));
             }
@@ -63,9 +61,9 @@ public class FIntentFilter {
 
         if (intent.countDataPaths() > 0) {
             dataPaths = new ArrayList<>(intent.countDataPaths());
-            Iterator<PatternMatcher> it = intent.pathsIterator();
+            Iterator<android.os.PatternMatcher> it = intent.pathsIterator();
             while (it.hasNext()) {
-                dataPaths.add(new FPatternMatcher(it.next()));
+                dataPaths.add(new PatternMatcher(it.next()));
             }
         }
 
@@ -84,7 +82,7 @@ public class FIntentFilter {
         public String host;
         public int port;
 
-        public AuthorityEntry(IntentFilter.AuthorityEntry authority) {
+        public AuthorityEntry(android.content.IntentFilter.AuthorityEntry authority) {
             host = authority.getHost();
             port = authority.getPort();
         }

@@ -3,9 +3,9 @@ package org.ironman.framework.util;
 import android.text.TextUtils;
 
 import org.ironman.framework.Const;
-import org.ironman.framework.bean.net.FInetSocket;
-import org.ironman.framework.bean.net.FSocket;
-import org.ironman.framework.bean.net.FUnixSocket;
+import org.ironman.framework.bean.net.InetSocket;
+import org.ironman.framework.bean.net.Socket;
+import org.ironman.framework.bean.net.UnixSocket;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,8 +31,8 @@ public class NetworkUtil {
     private static final String PROC_NET_RAW6 = "/proc/net/raw6";
     private static final String PROC_NET_UNIX = "/proc/net/unix";
 
-    public static List<FInetSocket> getTcpSockets() throws IOException {
-        List<FInetSocket> sockets = new ArrayList<>();
+    public static List<InetSocket> getTcpSockets() throws IOException {
+        List<InetSocket> sockets = new ArrayList<>();
         parse("tcp", PROC_NET_TCP, tcpParser, sockets);
         if (new File(PROC_NET_TCP6).exists()) {
             parse("tcp6", PROC_NET_TCP6, tcpParser, sockets);
@@ -40,8 +40,8 @@ public class NetworkUtil {
         return sockets;
     }
 
-    public static List<FInetSocket> getUdpSockets() throws IOException {
-        List<FInetSocket> sockets = new ArrayList<>();
+    public static List<InetSocket> getUdpSockets() throws IOException {
+        List<InetSocket> sockets = new ArrayList<>();
         parse("udp", PROC_NET_UDP, udpParser, sockets);
         if (new File(PROC_NET_UDP6).exists()) {
             parse("udp6", PROC_NET_UDP6, udpParser, sockets);
@@ -49,8 +49,8 @@ public class NetworkUtil {
         return sockets;
     }
 
-    public static List<FInetSocket> getRawSockets() throws IOException {
-        List<FInetSocket> sockets = new ArrayList<>();
+    public static List<InetSocket> getRawSockets() throws IOException {
+        List<InetSocket> sockets = new ArrayList<>();
         parse("raw", PROC_NET_RAW, rawParser, sockets);
         if (new File(PROC_NET_RAW6).exists()) {
             parse("raw6", PROC_NET_RAW6, rawParser, sockets);
@@ -58,13 +58,13 @@ public class NetworkUtil {
         return sockets;
     }
 
-    public static List<FUnixSocket> getUnixSockets() throws IOException {
-        List<FUnixSocket> sockets = new ArrayList<>();
+    public static List<UnixSocket> getUnixSockets() throws IOException {
+        List<UnixSocket> sockets = new ArrayList<>();
         parse("unix", PROC_NET_UNIX, unixParser, sockets);
         return sockets;
     }
 
-    private static <T extends FSocket> void parse(String proto, String path, Parser<T> parser, List<T> list) throws IOException {
+    private static <T extends Socket> void parse(String proto, String path, Parser<T> parser, List<T> list) throws IOException {
         String result = FileUtil.readString(path);
         String[] lines = result.split(Const.LINE_SEPARATOR);
         for (int i = 1; i < lines.length; i++) {
@@ -94,11 +94,11 @@ public class NetworkUtil {
         }
     }
 
-    private interface Parser<T extends FSocket> {
+    private interface Parser<T extends Socket> {
         T parse(String proto, String line) throws Exception;
     }
 
-    private static final Parser<FInetSocket> tcpParser = (proto, line) -> {
+    private static final Parser<InetSocket> tcpParser = (proto, line) -> {
 
         String[] detail = line.split(" +");
         if (detail.length < 10) {
@@ -115,7 +115,7 @@ public class NetworkUtil {
         int uid = CommonUtil.parseInt(detail[7], 0);
         long inode = CommonUtil.parseInt(detail[9], 0);
 
-        FInetSocket socket = new FInetSocket();
+        InetSocket socket = new InetSocket();
         socket.proto = proto;
 
         switch (state) {
@@ -173,7 +173,7 @@ public class NetworkUtil {
         return socket;
     };
 
-    private static final Parser<FInetSocket> udpParser = (proto, line) -> {
+    private static final Parser<InetSocket> udpParser = (proto, line) -> {
         String[] detail = line.split(" +");
         if (detail.length < 10) {
             throw new Exception();
@@ -189,7 +189,7 @@ public class NetworkUtil {
         int uid = CommonUtil.parseInt(detail[7], 0);
         long inode = CommonUtil.parseInt(detail[9], 0);
 
-        FInetSocket socket = new FInetSocket();
+        InetSocket socket = new InetSocket();
         socket.proto = proto;
 
         switch (state) {
@@ -217,7 +217,7 @@ public class NetworkUtil {
         return socket;
     };
 
-    private static final Parser<FInetSocket> rawParser = (proto, line) -> {
+    private static final Parser<InetSocket> rawParser = (proto, line) -> {
         String[] detail = line.split(" +");
         if (detail.length < 10) {
             throw new Exception();
@@ -233,7 +233,7 @@ public class NetworkUtil {
         int uid = CommonUtil.parseInt(detail[7], 0);
         long inode = CommonUtil.parseInt(detail[9], 0);
 
-        FInetSocket socket = new FInetSocket();
+        InetSocket socket = new InetSocket();
         socket.proto = proto;
         socket.state = String.valueOf(state);
         socket.localAddress = localAddress.getHostAddress();
@@ -249,7 +249,7 @@ public class NetworkUtil {
         return socket;
     };
 
-    private static final Parser<FUnixSocket> unixParser = (proto, line) -> {
+    private static final Parser<UnixSocket> unixParser = (proto, line) -> {
         String[] detail = line.split(" +");
         if (detail.length < 6) {
             throw new Exception();
@@ -263,7 +263,7 @@ public class NetworkUtil {
         long inode = CommonUtil.parseLong(detail[6], 0);
         String path = detail.length > 7 ? detail[7] : null;
 
-        FUnixSocket socket = new FUnixSocket();
+        UnixSocket socket = new UnixSocket();
         if ((int) protocol == 0) {
             socket.proto = proto;
         } else {

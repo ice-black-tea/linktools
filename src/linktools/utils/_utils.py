@@ -35,7 +35,7 @@ import threading
 import time
 import uuid
 from collections.abc import Iterable, Sized
-from typing import Union, Callable, Optional, Type, Any, List, TypeVar
+from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set
 from urllib.request import urlopen
 
 _T = TypeVar("_T")
@@ -263,7 +263,7 @@ def pop_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) ->
 
 
 # 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T] = None) -> List[Optional[_T]]:
+def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T] = None) -> Optional[List[_T]]:
     """
     获取子项（列表）
     :param obj: 对象
@@ -273,7 +273,7 @@ def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T]
     :return: 子项
     """
     objs = get_item(obj, *keys, default=None)
-    if objs is None or not isinstance(objs, Iterable):
+    if objs is None or not isinstance(objs, (Tuple, List, Set)):
         return default
     result = []
     for obj in objs:

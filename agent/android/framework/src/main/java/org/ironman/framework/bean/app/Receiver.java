@@ -4,14 +4,14 @@ import android.content.pm.PackageParser;
 import android.text.TextUtils;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class FReceiver extends FComponent {
+public class Receiver extends Component {
 
-    public FPermission permission;
+    public Permission permission;
 
-    public FReceiver(PackageParser.Activity receiver) {
+    public Receiver(PackageParser.Activity receiver) {
         super(receiver, receiver.info);
         if (!TextUtils.isEmpty(receiver.info.permission)) {
-            permission = new FPermission(receiver.info.permission);
+            permission = new Permission(receiver.info.permission);
         }
     }
 }

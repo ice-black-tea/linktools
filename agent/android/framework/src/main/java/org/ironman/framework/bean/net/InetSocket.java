@@ -1,6 +1,6 @@
 package org.ironman.framework.bean.net;
 
-public class FInetSocket extends FSocket {
+public class InetSocket extends Socket {
 
     public String localAddress;
     public int localPort;
