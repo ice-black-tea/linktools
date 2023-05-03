@@ -23,6 +23,7 @@ from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .. import utils, environ
 from ..reactor import Reactor
+from ..version import __release__
 
 _logger = environ.get_logger("frida.app")
 
@@ -499,7 +500,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         self._manager = FridaManager(self._reactor)
 
         # 初始化内置脚本
-        script_name = "frida.min.js" if not environ.debug else "frida.js"
+        script_name = "frida.js" if not __release__ or environ.debug else "frida.min.js"
         self._internal_script = FridaScriptFile(environ.get_asset_path(script_name))
 
         # 初始化需要注入进程的匹配规则

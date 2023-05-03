@@ -26,6 +26,16 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.x'
+    - name: Set up Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: 11
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -35,8 +45,9 @@ jobs:
       uses: WyriHaximus/github-action-get-previous-tag@v1
     - name: Prepare package
       run: |
-        pip install -r .github/scripts/prepare-publish-requirements.txt
-        VERSION=${{ steps.previoustag.outputs.tag }} python .github/scripts/prepare-publish.py
+        pip install -r .github/scripts/prepare-publish-requirements.txt && VERSION=${{ steps.previoustag.outputs.tag }} python .github/scripts/prepare-publish.py
+        cd agent/frida/ && npm install && npm run build && cd ../../
+        cd agent/android/ && ./gradlew --no-daemon :tools:buildTools && cd ../../
     - name: Build package
       run: python setup.py sdist bdist_wheel
     - name: Publish package
