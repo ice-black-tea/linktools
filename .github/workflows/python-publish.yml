@@ -35,8 +35,6 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: 11
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
