@@ -51,8 +51,8 @@ export class AndroidHelper {
             ignoreError(() => JavaHelper.hookMethods(
                 "com.android.org.conscrypt.TrustManagerImpl",
                 "checkServerTrusted",
-                (obj, args) => {
-                    Log.d('Bypassing TrustManagerImpl checkServerTrusted');
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
                     if (this.returnType.type == 'void') {
                         return;
                     } else if (this.returnType.type == "pointer" && this.returnType.className == "java.util.List") {
@@ -64,47 +64,66 @@ export class AndroidHelper {
             ignoreError(() => JavaHelper.hookMethods(
                 "com.google.android.gms.org.conscrypt.Platform",
                 "checkServerTrusted",
-                (obj, args) => {
-                    Log.d('Bypassing Platform checkServerTrusted {1}');
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
                 })
             );
 
             ignoreError(() => JavaHelper.hookMethods(
                 "com.android.org.conscrypt.Platform",
-                "checkServerTrusted", (obj, args) => {
-                    Log.d('Bypassing Platform checkServerTrusted {2}');
+                "checkServerTrusted",
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
                 })
             );
 
             ignoreError(() => JavaHelper.hookMethods(
                 "okhttp3.CertificatePinner",
                 "check",
-                (obj, args) => true
-            ));
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
+                    if (this.returnType.type == "boolean") {
+                        return true;
+                    }
+                })
+            );
 
             ignoreError(() => JavaHelper.hookMethods(
                 "okhttp3.CertificatePinner",
                 "check$okhttp",
-                (obj, args) => void 0
-            ));
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
+                })
+            );
 
             ignoreError(() => JavaHelper.hookMethods(
                 "com.android.okhttp.CertificatePinner",
                 "check",
-                (obj, args) => true
-            ));
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
+                    if (this.returnType.type == "boolean") {
+                        return true;
+                    }
+                })
+            );
 
             ignoreError(() => JavaHelper.hookMethods(
                 "com.android.okhttp.CertificatePinner",
                 "check$okhttp",
-                (obj, args) => void 0
-            ));
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
+                    return void 0;
+                })
+            );
 
             ignoreError(() => JavaHelper.hookMethods(
                 "com.android.org.conscrypt.TrustManagerImpl",
                 "verifyChain",
-                (obj, args) => args[0]
-            ));
+                function (obj, args) {
+                    Log.d('SSL bypassing ' + this);
+                    return args[0];
+                })
+            );
         });
     }
 
