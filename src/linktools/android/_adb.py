@@ -29,6 +29,7 @@
 
 import json
 import re
+import time
 from typing import Optional, Any, Generator
 
 from ._struct import Package, UnixSocket, InetSocket, Process
@@ -180,21 +181,45 @@ class Device(BaseDevice):
         kwargs["privilege"] = True
         return self.shell(*args, **kwargs)
 
-    def install(self, *file_path: str, **kwargs) -> str:
+    def install(self, path_or_url: str, opts: [str] = (), **kwargs):
         """
         安装apk
-        :param file_path: apk文件路径
-        :return: adb输出结果
+        :param path_or_url: apk文件路径
+        :param opts: 安装参数
         """
-        return self.exec("install", *file_path, **kwargs)
+        kwargs = self._filter_kwargs(kwargs)
 
-    def uninstall(self, package_name: str, **kwargs) -> str:
+        apk_path = path_or_url
+        if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+            environ.logger.info(f"Download file: {path_or_url}")
+            file = utils.UrlFile(path_or_url)
+            apk_path = file.save()
+            environ.logger.info(f"Save file to local: {apk_path}")
+
+        remote_path = self.get_data_path("apk", f"{int(time.time())}.apk")
+        try:
+            environ.logger.debug(f"Push file to remote: {remote_path}")
+            self.push(apk_path, remote_path, **kwargs)
+            if self.uid >= 10000:
+                self.shell("am", "start", "--user", "0",
+                           "-a", "android.intent.action.VIEW",
+                           "-t", "application/vnd.android.package-archive",
+                           "-d", "file://%s" % remote_path,
+                           **kwargs)
+            else:
+                self.shell("pm", "install", *(opts or tuple()), remote_path,
+                           **kwargs)
+        finally:
+            environ.logger.debug(f"Clear remote file: {remote_path}")
+            self.shell("rm", remote_path, **kwargs)
+
+    def uninstall(self, package_name: str, **kwargs):
         """
         卸载apk
         :param package_name: 包名
         :return: adb输出结果
         """
-        return self.exec("uninstall", package_name, **kwargs)
+        self.exec("uninstall", package_name, **kwargs)
 
     def push(self, src: str, dst: str, **kwargs) -> str:
         """
@@ -334,6 +359,30 @@ class Device(BaseDevice):
         args = ["setprop", prop, value]
         return self.shell(*args, **kwargs).rstrip()
 
+    def start(self, package_name: str, activity_name: str = None, **kwargs) -> str:
+        """
+        启动app的launcher页面
+        :param package_name: 包名
+        :param activity_name: activity名
+        :return: adb输出结果
+        """
+        kwargs = self._filter_kwargs(kwargs)
+
+        if not activity_name:
+            package = self.get_package(package_name, **kwargs)
+            activity = package.get_launch_activity()
+            if not activity:
+                raise AdbError(f"Package {package.name} does not have a launch activity")
+            activity_name = activity.name
+
+        return self.shell(
+            "am", "start",
+            "-a", "android.intent.action.MAIN",
+            "-c", "android.intent.category.LAUNCHER",
+            "-n", f"{package_name}/{activity_name}",
+            **kwargs
+        )
+
     def kill(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
@@ -421,15 +470,15 @@ class Device(BaseDevice):
         获取顶层包名
         :return: 顶层包名
         """
-        timeout = utils.Timeout(kwargs.pop("timeout", None))
+        kwargs = self._filter_kwargs(kwargs)
         if self.uid < 10000:
             args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1", ]
-            out = self.shell(*args, timeout=timeout, **kwargs)
+            out = self.shell(*args, **kwargs)
             items = out.splitlines()[-1].split()
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0].rstrip()
         # use agent instead of dumpsys
-        out = self.call_agent("common", "--top-package", timeout=timeout, **kwargs)
+        out = self.call_agent("common", "--top-package", **kwargs)
         if not utils.is_empty(out):
             return out
         raise AdbError("can not fetch top package")
@@ -451,13 +500,14 @@ class Device(BaseDevice):
         获取apk路径
         :return: apk路径
         """
-        timeout = utils.Timeout(kwargs.pop("timeout", None))
+        kwargs = self._filter_kwargs(kwargs)
+
         if self.uid < 10000:
-            out = self.shell("pm", "path", package, timeout=timeout, **kwargs)
-            match = re.search(r"^.*package:[ ]*(.*)[\s\S]*$", out)
+            out = self.shell("pm", "path", package, **kwargs)
+            match = re.search(r"^.*package:\s*(.*)[\s\S]*$", out)
             if match is not None:
                 return match.group(1).strip()
-        obj = self.get_packages(package, simple=True, timeout=timeout, **kwargs)
+        obj = self.get_packages(package, simple=True, **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     def get_uid(self, package_name: str):
@@ -605,6 +655,14 @@ class Device(BaseDevice):
         return "/data/local/tmp/%s" % (
             "/".join([cls.get_safe_path(o) for o in paths])
         )
+
+    @classmethod
+    def _filter_kwargs(cls, kwargs) -> dict:
+        if "timeout" in kwargs:
+            timeout = kwargs.get("timeout")
+            if isinstance(timeout, utils.Timeout):
+                kwargs["timeout"] = utils.Timeout(timeout)
+        return kwargs
 
     def __repr__(self):
         return f"AndroidDevice<{self.id}>"

@@ -355,7 +355,7 @@ class BaseEnviron(abc.ABC):
                     yaml.safe_load
                 )
             except ModuleNotFoundError:
-                self.logger.error(f"Please install pyyaml: {sys.executable} -m pip install pyyaml")
+                raise ModuleNotFoundError(f"Please install pyyaml: {sys.executable} -m pip install pyyaml")
 
         return config
 

@@ -28,11 +28,11 @@
 """
 import os
 import sys
-import time
 from argparse import ArgumentParser
 from typing import Optional
 
-from linktools import utils, environ
+from linktools import utils
+from linktools.android import Device
 from linktools.cli.android import AndroidCommand
 
 
@@ -60,7 +60,7 @@ class Command(AndroidCommand):
 
     def run(self, args: [str]) -> Optional[int]:
         args = self.parse_args(args)
-        device = args.parse_device()
+        device: Device = args.parse_device()
 
         if "--setting" in sys.argv:
             device.shell("am", "start", "--user", "0",
@@ -92,33 +92,9 @@ class Command(AndroidCommand):
                          "-d", "file://%s" % remote_path,
                          log_output=True)
         elif "--install" in sys.argv:
-            apk_path = args.path
-
-            if args.path.startswith("http://") or args.path.startswith("https://"):
-                environ.logger.info(f"Download file: {args.path}")
-                file = utils.UrlFile(args.path)
-                apk_path = file.save()
-                environ.logger.info(f"Save file to local: {apk_path}")
-
-            remote_path = device.get_data_path("apk", f"{int(time.time())}.apk")
-            try:
-                environ.logger.info(f"Push file to remote: {remote_path}")
-                device.push(apk_path, remote_path,
-                            log_output=True)
-                if device.uid >= 10000:
-                    device.shell("am", "start", "--user", "0",
-                                 "-a", "android.intent.action.VIEW",
-                                 "-t", "application/vnd.android.package-archive",
-                                 "-d", "file://%s" % remote_path,
-                                 log_output=True)
-                else:
-                    device.shell("pm", "install", "--user", "0",
-                                 "-r", "-t", "-d", "-f", remote_path,
-                                 log_output=True)
-            finally:
-                environ.logger.debug(f"Clear remote file: {remote_path}")
-                device.shell("rm", remote_path, log_output=True)
-
+            device.install(args.path,
+                           opts=["-r", "-t", "-d", "-f"],
+                           log_output=True)
         elif "--browser" in sys.argv:
             device.shell("am", "start", "--user", "0",
                          "-a", "android.intent.action.VIEW",

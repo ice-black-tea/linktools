@@ -136,28 +136,28 @@ class PackagePrinter:
         if not utils.is_empty(self.package.activities):
             self.stream.print("Activities:", indent=indent, level=self.stream.title)
             for activity in self.package.activities:
-                self._print_component(self.stream, activity, indent=indent + 4, identity="Activity")
+                self._print_component(self.stream, self.package, activity, indent=indent + 4, identity="Activity")
             self.stream.print_line()
 
     def print_services(self, indent: int = 4):
         if not utils.is_empty(self.package.services):
             self.stream.print("Services:", indent=indent, level=self.stream.title)
             for service in self.package.services:
-                self._print_component(self.stream, service, indent=indent + 4, identity="Service")
+                self._print_component(self.stream, self.package, service, indent=indent + 4, identity="Service")
             self.stream.print_line()
 
     def print_receivers(self, indent: int = 4):
         if not utils.is_empty(self.package.receivers):
             self.stream.print("Receivers:", indent=indent, level=self.stream.title)
             for receiver in self.package.receivers:
-                self._print_component(self.stream, receiver, indent=indent + 4, identity="Receiver")
+                self._print_component(self.stream, self.package, receiver, indent=indent + 4, identity="Receiver")
             self.stream.print_line()
 
     def print_providers(self, indent: int = 4):
         if not utils.is_empty(self.package.providers):
             self.stream.print("Providers:", indent=indent, level=self.stream.title)
             for provider in self.package.providers:
-                self._print_component(self.stream, provider, indent=indent + 4, identity="Provider")
+                self._print_component(self.stream, self.package, provider, indent=indent + 4, identity="Provider")
             self.stream.print_line()
 
     @classmethod
@@ -168,7 +168,7 @@ class PackagePrinter:
                          level=stream.dangerous if permission.is_dangerous() else stream.normal)
 
     @classmethod
-    def _print_component(cls, stream: PrintStreamWrapper, component: Component, indent: int = 0, identity: str = None):
+    def _print_component(cls, stream: PrintStreamWrapper, package: Package, component: Component, indent: int = 0, identity: str = None):
         if not component.enabled:
             description = "disabled"
             level = stream.useless
@@ -181,7 +181,7 @@ class PackagePrinter:
             description = "exported" if component.exported else ""
             level = stream.normal
             stream = stream.create(max_level=stream.normal)
-        stream.print("%s [%s] %s" % (identity, component, description), indent=indent, level=level)
+        stream.print("%s [%s/%s] %s" % (identity, package, component, description), indent=indent, level=level)
 
         if isinstance(component, Activity) or isinstance(component, Service) or isinstance(component, Receiver):
             cls._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")

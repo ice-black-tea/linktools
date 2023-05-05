@@ -39,6 +39,7 @@ from importlib.util import module_from_spec
 from pkgutil import walk_packages
 from typing import Tuple, Type, Optional, List, Generator, IO
 
+import rich
 from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
@@ -444,12 +445,20 @@ class BaseCommand(metaclass=abc.ABCMeta):
                            help="use last device")
 
     def main(self, *args, **kwargs) -> None:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[LogHandler()]
-        )
+        if rich.get_console().is_terminal:
+            logging.basicConfig(
+                level=logging.INFO,
+                format="%(message)s",
+                datefmt="[%X]",
+                handlers=[LogHandler()]
+            )
+        else:
+            logging.basicConfig(
+                level=logging.INFO,
+                format="[%(asctime)s] %(levelname)s %(module)s %(funcName)s %(message)s",
+                datefmt="%H:%M:%S"
+            )
+
         exit(self(*args, **kwargs))
 
     def __call__(self, args: [str] = None) -> int:

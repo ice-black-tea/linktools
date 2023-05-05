@@ -23,7 +23,7 @@ public class Component<II extends PackageParser.IntentInfo> {
         PackageManager packageManager = Environment.getPackageManager();
         ComponentName componentName = component.getComponentName();
 
-        name = componentName.flattenToShortString();
+        name = componentName.getClassName();
         exported = info.exported;
 
         switch (packageManager.getComponentEnabledSetting(componentName)) {

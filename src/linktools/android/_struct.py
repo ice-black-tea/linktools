@@ -26,6 +26,8 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+from typing import Optional
+
 from .. import utils
 
 
@@ -182,13 +184,28 @@ class Package:
         self.receivers = utils.get_list_item(obj, "receivers", type=Receiver, default=[])
         self.providers = utils.get_list_item(obj, "providers", type=Provider, default=[])
 
+    def get_launch_activity(self) -> Optional[Activity]:
+        for activity in self.activities:
+            for intent in activity.intents:
+                if "android.intent.action.MAIN" in intent.actions and \
+                        "android.intent.category.INFO" in intent.categories:
+                    return activity
+
+        for activity in self.activities:
+            for intent in activity.intents:
+                if "android.intent.action.MAIN" in intent.actions and \
+                        "android.intent.category.LAUNCHER" in intent.categories:
+                    return activity
+
+        return None
+
     def is_dangerous(self):
         return self.debuggable or self.allow_backup or \
-               self.has_dangerous_permission() or \
-               self.has_dangerous_activity() or \
-               self.has_dangerous_service() or \
-               self.has_dangerous_receiver() or \
-               self.has_dangerous_provider()
+            self.has_dangerous_permission() or \
+            self.has_dangerous_activity() or \
+            self.has_dangerous_service() or \
+            self.has_dangerous_receiver() or \
+            self.has_dangerous_provider()
 
     def has_dangerous_permission(self):
         for permission in self.permissions:

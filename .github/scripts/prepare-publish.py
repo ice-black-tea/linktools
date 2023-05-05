@@ -59,5 +59,5 @@ if __name__ == '__main__':
     with open(os.path.join(root_path, "assets", "tools.yml"), "rb") as fd:
         file_data = yaml.safe_load(fd)
     with open(os.path.join(root_path, "assets", "tools.json"), "wt") as fd:
-        json.dump(file_data, fd, indent=2, ensure_ascii=True)
+        json.dump(file_data, fd)
     os.remove(os.path.join(root_path, "assets", "tools.yml"))
