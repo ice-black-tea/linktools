@@ -44,9 +44,8 @@ jobs:
       uses: WyriHaximus/github-action-get-previous-tag@v1
     - name: Prepare package
       run: |
-        pip install -r .github/scripts/prepare-publish-requirements.txt && VERSION=${{ steps.previoustag.outputs.tag }} python .github/scripts/prepare-publish.py
-        cd agent/frida/ && npm install && npm run build && cd ../../
-        cd agent/android/ && ./gradlew --no-daemon :tools:buildTools && cd ../../
+        pip install -r .github/scripts/prepare-publish-requirements.txt
+        VERSION=${{ steps.previoustag.outputs.tag }} python .github/scripts/prepare-publish.py
     - name: Build package
       run: python setup.py sdist bdist_wheel
     - name: Publish package
