@@ -59,13 +59,8 @@ class ConfigLoader(abc.ABC):
         if self._data is not missing:
             return self._data
         with self.__lock__:
-            if self._data is not missing:
-                return self._data
-            try:
+            if self._data is missing:
                 self._data = self._load(env, key)
-            except Exception as e:
-                env.logger.error(f"Load config \"{key}\" error", exc_info=e)
-                raise e
         return self._data
 
     @abc.abstractmethod
@@ -104,6 +99,11 @@ class ConfigPrompt(ConfigLoader):
         else:
             raise NotImplementedError("prompt only supports str, int or float type")
 
+        def process_default():
+            if isinstance(self.default, ConfigLoader):
+                return self.default.load(env, key)
+            return self.default
+
         def process_result(data):
             if self.trim and isinstance(data, str):
                 data = data.strip()
@@ -119,13 +119,13 @@ class ConfigPrompt(ConfigLoader):
                     self.prompt or f"Please input {key}",
                     password=self.password,
                     choices=self.choices,
-                    default=self.default,
+                    default=process_default(),
                     show_default=True,
                     show_choices=True
                 )
             )
 
-        default = self.default
+        default = missing
 
         path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
         if os.path.exists(path):
@@ -142,7 +142,7 @@ class ConfigPrompt(ConfigLoader):
                 self.prompt or f"Please input {key}",
                 password=self.password,
                 choices=self.choices,
-                default=default,
+                default=process_default() if default is missing else default,
                 show_default=True,
                 show_choices=True
             )
@@ -164,6 +164,19 @@ class ConfigLazy(ConfigLoader):
         return self.func(env)
 
 
+class ConfigError(ConfigLoader):
+
+    def __init__(self, message: str = None):
+        super().__init__()
+        self.message = message
+
+    def _load(self, env: "BaseEnviron", key: Any):
+        raise RuntimeError(
+            self.message or
+            f"Please set \"{env._envvar_prefix}{key}\" as an environment variable, or set \"{key}\" in config file"
+        )
+
+
 class Config(dict):
 
     def from_pyfile(self, filename: str, silent: bool = False) -> bool:
@@ -171,6 +184,7 @@ class Config(dict):
         d.__file__ = filename
         d.prompt = ConfigPrompt
         d.lazy = ConfigLazy
+        d.error = ConfigError
         try:
             with open(filename, "rb") as config_file:
                 exec(compile(config_file.read(), filename, "exec"), d.__dict__)
@@ -247,7 +261,7 @@ class BaseEnviron(abc.ABC):
         """
         存放文件目录
         """
-        path = self.get_config("DATA_PATH", type=str)
+        path = self.get_config("DATA_PATH", type=str, default=None)
         if not path:
             path = os.path.join(self.get_config("STORAGE_PATH", type=str), "data")
         return path
@@ -257,7 +271,7 @@ class BaseEnviron(abc.ABC):
         """
         存放临时文件目录
         """
-        path = self.get_config("TEMP_PATH", type=str)
+        path = self.get_config("TEMP_PATH", type=str, default=None)
         if not path:
             path = os.path.join(self.get_config("STORAGE_PATH", type=str), "temp")
         return path
@@ -391,10 +405,12 @@ class BaseEnviron(abc.ABC):
             rv[key] = self.get_config(k)
         return rv
 
-    def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = None) -> Optional[T]:
+    def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = missing) -> Optional[T]:
         """
         获取指定配置，优先会从环境变量中获取
         """
+        last_error = None
+
         try:
             env_key = f"{self._envvar_prefix}{key}"
             if env_key in os.environ:
@@ -402,6 +418,7 @@ class BaseEnviron(abc.ABC):
                 if empty or value:
                     return value if type is None else type(value)
         except Exception as e:
+            last_error = e
             self.logger.debug(f"Get config \"{key}\" from system environ error: {e}")
 
         try:
@@ -412,7 +429,13 @@ class BaseEnviron(abc.ABC):
                 if empty or value:
                     return value if type is None else type(value)
         except Exception as e:
+            last_error = e
             self.logger.debug(f"Get config \"{key}\" error: {e}")
+
+        if default is missing:
+            if last_error:
+                raise last_error
+            raise RuntimeError(f"Not found environment variable \"{self._envvar_prefix}{key}\" or config \"{key}\"")
 
         return default
 

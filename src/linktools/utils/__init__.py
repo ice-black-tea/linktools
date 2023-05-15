@@ -28,7 +28,7 @@
 """
 
 from ._utils import (
-    Timeout, TimeoutType,
+    timeoutable, Timeout,
     InterruptableEvent,
     ignore_error,
     cast, int, bool,

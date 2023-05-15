@@ -38,7 +38,7 @@ from . import utils
 from ._environ import environ, BaseEnviron
 from .decorator import cached_property
 
-_logger = environ.get_logger("utils")
+_logger = environ.get_logger("tools")
 
 
 class Parser(object):
@@ -338,10 +338,11 @@ class Tool(metaclass=Meta):
 
         return utils.Popen(*[*executable_cmdline, *args], **kwargs)
 
+    @utils.timeoutable
     def exec(
             self,
             *args: [Any],
-            timeout: utils.TimeoutType = None,
+            timeout: utils.Timeout = None,
             ignore_errors: bool = False,
             log_output: bool = False,
     ) -> str:
@@ -356,7 +357,11 @@ class Tool(metaclass=Meta):
         process = self.popen(*args, capture_output=True)
 
         try:
-            out, err = process.exec(timeout, log_stdout=log_output, log_stderr=log_output)
+            out, err = process.exec(
+                timeout=timeout,
+                on_stdout=_logger.info if log_output else None,
+                on_stderr=_logger.error if log_output else None
+            )
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):
                     err = err.decode(errors="ignore")

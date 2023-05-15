@@ -67,12 +67,12 @@ class Adb(Bridge):
                     yield Device(device)
 
     @classmethod
-    def get_tool(cls):
+    def _get_tool(cls):
         return environ.get_tool("adb")
 
     @classmethod
-    def get_error_class(cls):
-        return AdbError
+    def _handle_error(cls, e):
+        raise AdbError(e)
 
 
 class Device(BaseDevice):
@@ -150,6 +150,7 @@ class Device(BaseDevice):
         args = ["-s", self.id, *args]
         return Adb.popen(*args, **kwargs)
 
+    @utils.timeoutable
     def exec(self, *args: [Any], **kwargs) -> str:
         """
         执行命令
@@ -159,6 +160,7 @@ class Device(BaseDevice):
         args = ["-s", self.id, *args]
         return Adb.exec(*args, **kwargs)
 
+    @utils.timeoutable
     def shell(self, *args: [Any], privilege: bool = False, **kwargs) -> str:
         """
         执行shell
@@ -172,6 +174,7 @@ class Device(BaseDevice):
             else ["shell", "su", "-c", cmd]
         return self.exec(*args, **kwargs)
 
+    @utils.timeoutable
     def sudo(self, *args: [Any], **kwargs) -> str:
         """
         以root权限执行shell
@@ -181,14 +184,13 @@ class Device(BaseDevice):
         kwargs["privilege"] = True
         return self.shell(*args, **kwargs)
 
+    @utils.timeoutable
     def install(self, path_or_url: str, opts: [str] = (), **kwargs):
         """
         安装apk
         :param path_or_url: apk文件路径
         :param opts: 安装参数
         """
-        kwargs = self._filter_kwargs(kwargs)
-
         apk_path = path_or_url
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
             environ.logger.info(f"Download file: {path_or_url}")
@@ -213,6 +215,7 @@ class Device(BaseDevice):
             environ.logger.debug(f"Clear remote file: {remote_path}")
             self.shell("rm", remote_path, **kwargs)
 
+    @utils.timeoutable
     def uninstall(self, package_name: str, **kwargs):
         """
         卸载apk
@@ -221,23 +224,25 @@ class Device(BaseDevice):
         """
         self.exec("uninstall", package_name, **kwargs)
 
-    def push(self, src: str, dst: str, **kwargs) -> str:
+    @utils.timeoutable
+    def push(self, src: str, dst: str, **kwargs):
         """
         推送文件到设备
         :param src: 源文件
         :param dst: 目标文件
         :return: adb输出结果
         """
-        return self.exec("push", src, dst, **kwargs)
+        self.exec("push", src, dst, **kwargs)
 
-    def pull(self, src: str, dst: str, **kwargs) -> str:
+    @utils.timeoutable
+    def pull(self, src: str, dst: str, **kwargs):
         """
         拉取设备的文件
         :param src: 源文件
         :param dst: 目标文件
         :return: adb输出结果
         """
-        return self.exec("pull", src, dst, **kwargs)
+        self.exec("pull", src, dst, **kwargs)
 
     def forward(self, local: str, remote: str):
         """
@@ -341,6 +346,7 @@ class Device(BaseDevice):
 
         return Redirect()
 
+    @utils.timeoutable
     def get_prop(self, prop: str, **kwargs) -> str:
         """
         获取属性值
@@ -349,6 +355,7 @@ class Device(BaseDevice):
         """
         return self.shell("getprop", prop, **kwargs).rstrip()
 
+    @utils.timeoutable
     def set_prop(self, prop: str, value: str, **kwargs) -> str:
         """
         设置属性值
@@ -359,6 +366,7 @@ class Device(BaseDevice):
         args = ["setprop", prop, value]
         return self.shell(*args, **kwargs).rstrip()
 
+    @utils.timeoutable
     def start(self, package_name: str, activity_name: str = None, **kwargs) -> str:
         """
         启动app的launcher页面
@@ -366,8 +374,6 @@ class Device(BaseDevice):
         :param activity_name: activity名
         :return: adb输出结果
         """
-        kwargs = self._filter_kwargs(kwargs)
-
         if not activity_name:
             package = self.get_package(package_name, **kwargs)
             activity = package.get_launch_activity()
@@ -383,6 +389,7 @@ class Device(BaseDevice):
             **kwargs
         )
 
+    @utils.timeoutable
     def kill(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
@@ -392,6 +399,7 @@ class Device(BaseDevice):
         args = ["am", "kill", package_name]
         return self.shell(*args, **kwargs).rstrip()
 
+    @utils.timeoutable
     def force_stop(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
@@ -401,6 +409,7 @@ class Device(BaseDevice):
         args = ["am", "force-stop", package_name]
         return self.shell(*args, **kwargs).rstrip()
 
+    @utils.timeoutable
     def is_file_exist(self, path: str, **kwargs) -> bool:
         """
         文件是否存在
@@ -436,6 +445,7 @@ class Device(BaseDevice):
 
         return target_path
 
+    @utils.timeoutable
     def call_agent(self, *args: [str], **kwargs) -> str:
         """
         调用辅助apk功能
@@ -465,12 +475,12 @@ class Device(BaseDevice):
             raise AdbError(result[begin:])
         return result
 
+    @utils.timeoutable
     def get_current_package(self, **kwargs) -> str:
         """
         获取顶层包名
         :return: 顶层包名
         """
-        kwargs = self._filter_kwargs(kwargs)
         if self.uid < 10000:
             args = ["dumpsys", "activity", "top", "|", "grep", "^TASK", "-A", "1", ]
             out = self.shell(*args, **kwargs)
@@ -483,6 +493,7 @@ class Device(BaseDevice):
             return out
         raise AdbError("can not fetch top package")
 
+    @utils.timeoutable
     def get_current_activity(self, **kwargs) -> str:
         """
         获取顶层activity名
@@ -495,13 +506,12 @@ class Device(BaseDevice):
             return items[1].rstrip()
         raise AdbError("can not fetch top activity")
 
+    @utils.timeoutable
     def get_apk_path(self, package: str, **kwargs) -> str:
         """
         获取apk路径
         :return: apk路径
         """
-        kwargs = self._filter_kwargs(kwargs)
-
         if self.uid < 10000:
             out = self.shell("pm", "path", package, **kwargs)
             match = re.search(r"^.*package:\s*(.*)[\s\S]*$", out)
@@ -510,15 +520,18 @@ class Device(BaseDevice):
         obj = self.get_packages(package, simple=True, **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
-    def get_uid(self, package_name: str):
+    @utils.timeoutable
+    def get_uid(self, package_name: str, timeout: utils.Timeout = None):
         """
         根据包名获取uid
         :param package_name: 包名
+        :param timeout: 超时时间
         :return: uid
         """
-        info = self.get_package(package_name, simple=True)
+        info = self.get_package(package_name, simple=True, timeout=timeout)
         return info.user_id if info else None
 
+    @utils.timeoutable
     def get_package(self, package_name: str, simple: bool = None, **kwargs) -> Optional[Package]:
         """
         根据包名获取包信息
@@ -532,6 +545,7 @@ class Device(BaseDevice):
         objs = json.loads(self.call_agent(*args, **kwargs))
         return Package(objs[0]) if len(objs) > 0 else None
 
+    @utils.timeoutable
     def get_packages(self, *package_names: str, system: bool = None, simple: bool = None, **kwargs) -> [Package]:
         """
         获取包信息
@@ -556,6 +570,7 @@ class Device(BaseDevice):
             result.append(Package(obj))
         return result
 
+    @utils.timeoutable
     def get_packages_for_uid(self, *uids: int, simple: bool = None, **kwargs) -> [Package]:
         """
         获取指定uid包信息
@@ -575,6 +590,7 @@ class Device(BaseDevice):
             result.append(Package(obj))
         return result
 
+    @utils.timeoutable
     def get_tcp_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备tcp连接情况，需要读取/proc/net/tcp文件，高版本设备至少需要shell权限
@@ -582,6 +598,7 @@ class Device(BaseDevice):
         """
         return self._get_sockets(InetSocket, "--tcp-sock", **kwargs)
 
+    @utils.timeoutable
     def get_udp_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备udp连接情况，需要读取/proc/net/udp文件，高版本设备至少需要shell权限
@@ -589,6 +606,7 @@ class Device(BaseDevice):
         """
         return self._get_sockets(InetSocket, "--udp-sock", **kwargs)
 
+    @utils.timeoutable
     def get_raw_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备raw连接情况，需要读取/proc/net/raw文件，高版本设备至少需要shell权限
@@ -596,6 +614,7 @@ class Device(BaseDevice):
         """
         return self._get_sockets(InetSocket, "--raw-sock", **kwargs)
 
+    @utils.timeoutable
     def get_unix_sockets(self, **kwargs) -> [UnixSocket]:
         """
         同netstat命令，获取设备unix连接情况，需要读取/proc/net/unix文件，高版本设备至少需要shell权限
@@ -603,6 +622,7 @@ class Device(BaseDevice):
         """
         return self._get_sockets(UnixSocket, "--unix-sock", **kwargs)
 
+    @utils.timeoutable
     def _get_sockets(self, type, command, **kwargs):
         result = []
         agent_args = ["network", command]
@@ -611,6 +631,7 @@ class Device(BaseDevice):
             result.append(type(obj))
         return result
 
+    @utils.timeoutable
     def get_processes(self, **kwargs) -> [Process]:
         result = []
         agent_args = ["process", "--list"]
@@ -655,14 +676,6 @@ class Device(BaseDevice):
         return "/data/local/tmp/%s" % (
             "/".join([cls.get_safe_path(o) for o in paths])
         )
-
-    @classmethod
-    def _filter_kwargs(cls, kwargs) -> dict:
-        if "timeout" in kwargs:
-            timeout = kwargs.get("timeout")
-            if isinstance(timeout, utils.Timeout):
-                kwargs["timeout"] = utils.Timeout(timeout)
-        return kwargs
 
     def __repr__(self):
         return f"AndroidDevice<{self.id}>"

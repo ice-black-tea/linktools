@@ -23,20 +23,22 @@ class Bridge:
             yield device
 
     @classmethod
-    def get_error_class(cls):
-        return BridgeError
+    @abstractmethod
+    def _get_tool(cls) -> Tool:
+        pass
 
     @classmethod
     @abstractmethod
-    def get_tool(cls) -> Tool:
+    def _handle_error(cls, e: ToolExecError):
         pass
 
     @classmethod
     def popen(cls, *args: [Any], **kwargs) -> utils.Popen:
-        return cls.get_tool().popen(*args, **kwargs)
+        return cls._get_tool().popen(*args, **kwargs)
 
     @classmethod
-    def exec(cls, *args: [Any], timeout: utils.TimeoutType = None,
+    @utils.timeoutable
+    def exec(cls, *args: [Any], timeout: utils.Timeout = None,
              ignore_errors: bool = False, log_output: bool = False) -> str:
         """
         执行命令
@@ -47,15 +49,14 @@ class Bridge:
         :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
         """
         try:
-            return cls.get_tool().exec(
+            return cls._get_tool().exec(
                 *args,
                 timeout=timeout,
                 ignore_errors=ignore_errors,
                 log_output=log_output,
             )
         except ToolExecError as e:
-            error_class = cls.get_error_class()
-            raise error_class(e)
+            cls._handle_error(e)
 
 
 class BaseDevice(ABC):
@@ -77,4 +78,3 @@ class BaseDevice(ABC):
         :return: 设备名
         """
         pass
-

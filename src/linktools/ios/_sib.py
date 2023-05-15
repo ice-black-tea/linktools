@@ -31,7 +31,7 @@ class Sib(Bridge):
         :return: 设备号数组
         """
         result = cls.exec("devices", "--detail")
-        result = utils.ignore_error(json.loads, result) or []
+        result = utils.ignore_error(json.loads, args=(result,)) or []
         for info in utils.get_list_item(result, "deviceList", default=[]):
             id = utils.get_item(info, "serialNumber")
             status = utils.get_item(info, "status")
@@ -41,12 +41,12 @@ class Sib(Bridge):
                 yield Device(id, info)
 
     @classmethod
-    def get_tool(cls):
+    def _get_tool(cls):
         return environ.get_tool("sib")
 
     @classmethod
-    def get_error_class(cls):
-        return SibError
+    def _handle_error(cls, e):
+        raise SibError(e)
 
 
 class Device(BaseDevice):
@@ -113,6 +113,7 @@ class Device(BaseDevice):
         args = ["--udid", self.id, *args]
         return Sib.popen(*args, **kwargs)
 
+    @utils.timeoutable
     def exec(self, *args: [Any], **kwargs) -> str:
         """
         执行命令
@@ -122,9 +123,11 @@ class Device(BaseDevice):
         args = ["--udid", self.id, *args]
         return Sib.exec(*args, **kwargs)
 
+    @utils.timeoutable
     def install(self, path: str, **kwargs) -> str:
         return self.exec("app", "install", "--path", path, **kwargs)
 
+    @utils.timeoutable
     def uninstall(self, bundle_id: str, **kwargs) -> str:
         return self.exec("app", "uninstall", "--bundleId", bundle_id, **kwargs)
 
@@ -142,7 +145,7 @@ class Device(BaseDevice):
         for i in range(10):
             if process.poll() is not None:
                 break
-            out, err = process.exec(timeout=1, log_stderr=True)
+            out, err = process.exec(timeout=1, on_stderr=_logger.error)
             if out:
                 if isinstance(out, bytes):
                     out = out.decode(errors="ignore")

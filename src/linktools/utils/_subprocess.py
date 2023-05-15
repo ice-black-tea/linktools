@@ -6,9 +6,9 @@ import os
 import queue
 import subprocess
 import threading
-from typing import AnyStr, Tuple, Optional, IO
+from typing import AnyStr, Tuple, Optional, IO, Callable, Any
 
-from . import Timeout, TimeoutType
+from . import Timeout, timeoutable
 from .._environ import environ
 from ..decorator import cached_property
 
@@ -113,30 +113,27 @@ class Popen(subprocess.Popen):
 
         super().__init__(args, **kwargs)
 
-    def call(self, timeout: TimeoutType = None) -> int:
+    @timeoutable
+    def call(self, timeout: Timeout = None) -> int:
         with self:
             try:
-                return self.wait(
-                    timeout=timeout.remain if isinstance(timeout, Timeout) else timeout
-                )
+                return self.wait(timeout=timeout.remain)
             except Exception:
                 self.kill()
                 raise
 
-    def call_as_daemon(self, timeout: TimeoutType = None) -> int:
+    @timeoutable
+    def call_as_daemon(self, timeout: Timeout = None) -> int:
         try:
-            return self.wait(
-                timeout=(timeout.remain if isinstance(timeout, Timeout) else timeout) or .1
-            )
+            return self.wait(timeout=timeout.remain or .1)
         except subprocess.TimeoutExpired:
             return 0
 
-    def check_call(self, timeout: TimeoutType = None) -> int:
+    @timeoutable
+    def check_call(self, timeout: Timeout = None) -> int:
         with self:
             try:
-                retcode = self.wait(
-                    timeout=timeout.remain if isinstance(timeout, Timeout) else timeout
-                )
+                retcode = self.wait(timeout=timeout.remain)
                 if retcode:
                     raise subprocess.CalledProcessError(retcode, self.args)
                 return retcode
@@ -144,37 +141,41 @@ class Popen(subprocess.Popen):
                 self.kill()
                 raise
 
-    def exec(self, timeout: TimeoutType = None, log_stdout: bool = False, log_stderr: bool = False) \
-            -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
+    @timeoutable
+    def exec(
+            self,
+            timeout: Timeout = None,
+            on_stdout: Callable[[str], Any] = None,
+            on_stderr: Callable[[str], Any] = None
+    ) -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
         """
         执行命令
         :param timeout: 超时时间
-        :param log_stdout: 把输出打印到logger中
-        :param log_stderr: 把输出打印到logger中
+        :param on_stdout: 把输出打印到logger中
+        :param on_stderr: 把输出打印到logger中
         :return: 返回stdout输出内容
         """
 
         out = err = None
-        timeout = Timeout(timeout)
 
         if self.stdout or self.stderr:
 
             for flag, data in self._output.get_lines(timeout):
                 if flag == self._output.STDOUT:
                     out = data if out is None else out + data
-                    if log_stdout:
+                    if on_stdout:
                         data = data.decode(errors="ignore") if isinstance(data, bytes) else data
                         data = data.rstrip()
                         if data:
-                            _logger.info(data)
+                            on_stdout(data)
 
                 elif flag == self._output.STDERR:
                     err = data if err is None else err + data
-                    if log_stderr:
+                    if on_stderr:
                         data = data.decode(errors="ignore") if isinstance(data, bytes) else data
                         data = data.rstrip()
                         if data:
-                            _logger.error(data)
+                            on_stderr(data)
         else:
 
             try:

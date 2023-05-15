@@ -26,8 +26,10 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import functools
 import gzip
 import hashlib
+import inspect
 import random
 import re
 import socket
@@ -35,23 +37,19 @@ import threading
 import time
 import uuid
 from collections.abc import Iterable, Sized
-from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set
+from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
 from urllib.request import urlopen
 
 _T = TypeVar("_T")
-TimeoutType = Union[float, int, "Timeout", None]
+_TimeoutType = Union[float, int, None]
 
 
 class Timeout:
 
-    def __init__(self, timeout: TimeoutType):
-        if isinstance(timeout, Timeout):
-            self._deadline = timeout._deadline
-            self._timeout = timeout._timeout
-        else:
-            self._deadline = None
-            self._timeout = timeout
-            self.reset()
+    def __init__(self, timeout: _TimeoutType = None):
+        self._deadline = None
+        self._timeout = timeout
+        self.reset()
 
     @property
     def remain(self) -> Union[float, None]:
@@ -74,12 +72,64 @@ class Timeout:
                 return False
         return True
 
-    def ensure(self) -> None:
+    def ensure(self, err_type=TimeoutError, message=None) -> None:
         if not self.check():
-            raise TimeoutError()
+            raise err_type(message)
 
     def __repr__(self):
         return f"Timeout(timeout={self._timeout})"
+
+
+def timeoutable(fn: Callable[..., _T]) -> Callable[..., _T]:
+    timeout_keyword = "timeout"
+
+    timeout_index = -1
+    positional_index = -1
+    keyword_index = -1
+
+    index = 0
+    for key, parameter in inspect.signature(fn).parameters.items():
+        if key == timeout_keyword:
+            timeout_index = index
+            break
+        elif parameter.kind in (parameter.KEYWORD_ONLY, parameter.VAR_KEYWORD):
+            keyword_index = index
+        elif parameter.kind in (parameter.VAR_POSITIONAL,):
+            positional_index = index
+        index += 1
+
+    if timeout_index < 0 and keyword_index < 0:
+        raise RuntimeError(f"Not found timeout parameter in {fn}")
+
+    if 0 <= positional_index < timeout_index:
+        # 如果timeout在*args参数后面，那就只能通过**kwargs访问了
+        timeout_index = -1
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if 0 <= timeout_index < len(args):
+            timeout = args[timeout_index]
+            if isinstance(timeout, Timeout):
+                pass
+            elif isinstance(timeout, _TimeoutType):
+                args = list(args)
+                args[timeout_index] = Timeout(timeout)
+            else:
+                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
+        elif timeout_keyword in kwargs:
+            timeout = kwargs.get(timeout_keyword)
+            if isinstance(timeout, Timeout):
+                pass
+            elif isinstance(timeout, _TimeoutType):
+                kwargs[timeout_keyword] = Timeout(timeout)
+            else:
+                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
+        else:
+            kwargs[timeout_keyword] = Timeout()
+
+        return fn(*args, **kwargs)
+
+    return wrapper
 
 
 class InterruptableEvent(threading.Event):
@@ -87,10 +137,10 @@ class InterruptableEvent(threading.Event):
     解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
     """
 
-    def wait(self, timeout: TimeoutType = None):
+    @timeoutable
+    def wait(self, timeout: Timeout = None):
         interval = 1
         wait = super().wait
-        timeout = Timeout(timeout)
         while True:
             t = timeout.remain
             if t is None:
@@ -101,11 +151,18 @@ class InterruptableEvent(threading.Event):
                 break
 
 
-def ignore_error(fn: Callable[..., _T], *args, **kwargs) -> _T:
+def ignore_error(
+        fn: Callable[..., _T], *,
+        args: Tuple[Any, ...] = None, kwargs: Dict[str, Any] = None,
+        default: _T = None) -> _T:
     try:
+        if args is None:
+            args = tuple()
+        if kwargs is None:
+            kwargs = dict()
         return fn(*args, **kwargs)
     except:
-        return None
+        return default
 
 
 # noinspection PyShadowingBuiltins

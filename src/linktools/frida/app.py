@@ -333,14 +333,14 @@ class FridaManager:
         device.on("lost", cb_lost)
 
         def cancel():
-            utils.ignore_error(device.off, "spawn-added", cb_spawn_added)
-            utils.ignore_error(device.off, "spawn-removed", cb_spawn_removed)
-            utils.ignore_error(device.off, "child-added", cb_child_added)
-            utils.ignore_error(device.off, "child-removed", cb_child_removed)
-            utils.ignore_error(device.off, "output", cb_output)
-            # utils.ignore_error(device.off, "process-crashed", cb_process_crashed)
-            # utils.ignore_error(device.off, "uninjected", cb_uninjected)
-            utils.ignore_error(device.off, "lost", cb_lost)
+            utils.ignore_error(device.off, args=("spawn-added", cb_spawn_added))
+            utils.ignore_error(device.off, args=("spawn-removed", cb_spawn_removed))
+            utils.ignore_error(device.off, args=("child-added", cb_child_added))
+            utils.ignore_error(device.off, args=("child-removed", cb_child_removed))
+            utils.ignore_error(device.off, args=("output", cb_output))
+            # utils.ignore_error(device.off, args=("process-crashed", cb_process_crashed))
+            # utils.ignore_error(device.off, args=("uninjected", cb_uninjected))
+            utils.ignore_error(device.off, args=("lost", cb_lost))
 
         self._register_cancel(device, cancel)
 
@@ -359,7 +359,7 @@ class FridaManager:
         session.on("detached", on_detached)
 
         def cancel():
-            utils.ignore_error(session.off, "detached", on_detached)
+            utils.ignore_error(session.off, args=("detached", on_detached))
 
         self._register_cancel(session, cancel)
 
@@ -380,8 +380,8 @@ class FridaManager:
         script.on("destroyed", on_destroyed)
 
         def cancel():
-            utils.ignore_error(script.off, "message", on_message)
-            utils.ignore_error(script.off, "destroyed", on_destroyed)
+            utils.ignore_error(script.off, args=("message", on_message))
+            utils.ignore_error(script.off, args=("destroyed", on_destroyed))
 
         self._register_cancel(script, cancel)
 
@@ -565,7 +565,8 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
     def is_running(self) -> bool:
         return self._reactor.is_running()
 
-    def run(self, timeout: utils.TimeoutType = None):
+    @utils.timeoutable
+    def run(self, timeout: utils.Timeout = None):
         assert not self.is_running
         try:
             self._init()
@@ -574,7 +575,8 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         finally:
             self._deinit()
 
-    def wait(self, timeout: utils.TimeoutType = None) -> bool:
+    @utils.timeoutable
+    def wait(self, timeout: utils.Timeout = None) -> bool:
         return self._finished.wait(timeout)
 
     def stop(self):
@@ -693,7 +695,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
             script.exports_sync.load_scripts(self._load_script_files(), self._user_parameters)
         finally:
             if resume:
-                utils.ignore_error(self.device.resume, pid)
+                utils.ignore_error(self.device.resume, args=(pid,))
 
         self._reactor.schedule(lambda: self.on_script_loaded(script))
 
