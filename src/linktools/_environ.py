@@ -35,7 +35,7 @@ import pickle
 import sys
 import threading
 from types import ModuleType
-from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List
+from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, Sized
 
 from rich.prompt import Prompt, IntPrompt, FloatPrompt
 
@@ -411,12 +411,19 @@ class BaseEnviron(abc.ABC):
         """
         last_error = None
 
+        def process_result(data):
+            if not empty:  # 处理不允许为空，但配置为空的情况
+                if data is None:
+                    raise RuntimeError(f"Config \"{key}\" is None")
+                elif isinstance(data, Sized) and len(data) == 0:
+                    raise RuntimeError(f"Config \"{key}\" is empty")
+            return data if type is None else type(data)
+
         try:
             env_key = f"{self._envvar_prefix}{key}"
             if env_key in os.environ:
                 value = os.environ.get(env_key)
-                if empty or value:
-                    return value if type is None else type(value)
+                return process_result(value)
         except Exception as e:
             last_error = e
             self.logger.debug(f"Get config \"{key}\" from system environ error: {e}")
@@ -426,8 +433,7 @@ class BaseEnviron(abc.ABC):
                 value = self._config.get(key)
                 if isinstance(value, ConfigLoader):
                     value = value.load(self, key)
-                if empty or value:
-                    return value if type is None else type(value)
+                return process_result(value)
         except Exception as e:
             last_error = e
             self.logger.debug(f"Get config \"{key}\" error: {e}")
@@ -444,7 +450,7 @@ class BaseEnviron(abc.ABC):
         遍历配置
         """
         internal_config = self._internal_config
-        for key in self._config:
+        for key in sorted(self._config.keys()):
             if include_internal or key not in internal_config:
                 yield key, self.get_config(key)
 
@@ -543,8 +549,6 @@ class BaseEnviron(abc.ABC):
         """
         debug模式
         """
-        from . import utils
-
         return self.get_config("DEBUG", type=utils.bool, default=False)
 
     @debug.setter
@@ -559,8 +563,6 @@ class BaseEnviron(abc.ABC):
         """
         显示日志时间
         """
-        from . import utils
-
         return self.get_config("SHOW_LOG_TIME", type=utils.bool, default=False)
 
     @show_log_time.setter
@@ -580,8 +582,6 @@ class BaseEnviron(abc.ABC):
         """
         显示日志级别
         """
-        from . import utils
-
         return self.get_config("SHOW_LOG_LEVEL", type=utils.bool, default=True)
 
     @show_log_level.setter
