@@ -409,8 +409,6 @@ class BaseEnviron(abc.ABC):
         """
         获取指定配置，优先会从环境变量中获取
         """
-        last_error = None
-
         def process_result(data):
             if not empty:  # 处理不允许为空，但配置为空的情况
                 if data is None:
@@ -419,29 +417,22 @@ class BaseEnviron(abc.ABC):
                     raise RuntimeError(f"Config \"{key}\" is empty")
             return data if type is None else type(data)
 
-        try:
-            env_key = f"{self._envvar_prefix}{key}"
-            if env_key in os.environ:
-                value = os.environ.get(env_key)
-                return process_result(value)
-        except Exception as e:
-            last_error = e
-            self.logger.debug(f"Get config \"{key}\" from system environ error: {e}")
+        env_key = f"{self._envvar_prefix}{key}"
+        if env_key in os.environ:
+            value = os.environ.get(env_key)
+            return process_result(value)
 
-        try:
-            if key in self._config:
-                value = self._config.get(key)
-                if isinstance(value, ConfigLoader):
-                    value = value.load(self, key)
-                return process_result(value)
-        except Exception as e:
-            last_error = e
-            self.logger.debug(f"Get config \"{key}\" error: {e}")
+        if key in self._config:
+            value = self._config.get(key)
+            if isinstance(value, ConfigLoader):
+                value = value.load(self, key)
+            return process_result(value)
 
         if default is missing:
-            if last_error:
-                raise last_error
             raise RuntimeError(f"Not found environment variable \"{self._envvar_prefix}{key}\" or config \"{key}\"")
+
+        if isinstance(default, ConfigLoader):
+            return default.load(self, key)
 
         return default
 
