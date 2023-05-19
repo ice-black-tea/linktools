@@ -173,7 +173,7 @@ class ConfigError(ConfigLoader):
     def _load(self, env: "BaseEnviron", key: Any):
         raise RuntimeError(
             self.message or
-            f"Please set \"{env._envvar_prefix}{key}\" as an environment variable, or set \"{key}\" in config file"
+            f"Please set \"{env.envvar_prefix}{key}\" as an environment variable, or set \"{key}\" in config file"
         )
 
 
@@ -348,10 +348,13 @@ class BaseEnviron(abc.ABC):
     def _internal_config(self) -> Config:
         config = Config()
 
-        # 初始化全局存储路径配置，优先级低于data、temp路径
-        config["STORAGE_PATH"] = os.path.join(
-            str(pathlib.Path.home()),
-            f".{version.__name__}"
+        # 初始化内部配置
+        config.update(
+            DEBUG=False,
+            STORAGE_PATH=str(pathlib.Path.home() / f".{version.__name__}"),
+            ENVVAR_PREFIX=None,
+            SHOW_LOG_TIME=False,
+            SHOW_LOG_LEVEL=True,
         )
 
         if version.__release__:
@@ -382,11 +385,7 @@ class BaseEnviron(abc.ABC):
         return config
 
     def _init_config(self, config: Config):
-        pass
-
-    @property
-    def _envvar_prefix(self) -> str:
-        return f"{self.name.upper()}_"
+        config["ENVVAR_PREFIX"] = f"{self.name.upper()}_"
 
     def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
@@ -409,6 +408,7 @@ class BaseEnviron(abc.ABC):
         """
         获取指定配置，优先会从环境变量中获取
         """
+
         def process_result(data):
             if not empty:  # 处理不允许为空，但配置为空的情况
                 if data is None:
@@ -417,7 +417,7 @@ class BaseEnviron(abc.ABC):
                     raise RuntimeError(f"Config \"{key}\" is empty")
             return data if type is None else type(data)
 
-        env_key = f"{self._envvar_prefix}{key}"
+        env_key = f"{self.envvar_prefix}{key}"
         if env_key in os.environ:
             value = os.environ.get(env_key)
             return process_result(value)
@@ -429,7 +429,7 @@ class BaseEnviron(abc.ABC):
             return process_result(value)
 
         if default is missing:
-            raise RuntimeError(f"Not found environment variable \"{self._envvar_prefix}{key}\" or config \"{key}\"")
+            raise RuntimeError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
         if isinstance(default, ConfigLoader):
             return default.load(self, key)
@@ -495,7 +495,7 @@ class BaseEnviron(abc.ABC):
         """
         加载所有以"{name}_"为前缀的环境变量到配置中
         """
-        prefix = self._envvar_prefix
+        prefix = self.envvar_prefix
         for key, value in os.environ.items():
             if key.startswith(prefix):
                 self._config[key[len(prefix):]] = value
@@ -536,11 +536,18 @@ class BaseEnviron(abc.ABC):
         return tool
 
     @property
+    def system(self) -> str:
+        """
+        系统名称
+        """
+        return self.tools.system
+
+    @property
     def debug(self) -> bool:
         """
         debug模式
         """
-        return self.get_config("DEBUG", type=utils.bool, default=False)
+        return self.get_config("DEBUG", type=utils.bool)
 
     @debug.setter
     def debug(self, value: bool):
@@ -550,16 +557,30 @@ class BaseEnviron(abc.ABC):
         self.set_config("DEBUG", value)
 
     @property
+    def envvar_prefix(self):
+        """
+        环境变量前缀，只看保存在config中的配置
+        """
+        return self._config.get("ENVVAR_PREFIX")
+
+    @envvar_prefix.setter
+    def envvar_prefix(self, value: str):
+        """
+        环境变量前缀，只看保存在config中的配置
+        """
+        return self.set_config("ENVVAR_PREFIX", value)
+
+    @property
     def show_log_time(self) -> bool:
         """
-        显示日志时间
+        显示日志时间，只对使用LogHandler的logger有效
         """
-        return self.get_config("SHOW_LOG_TIME", type=utils.bool, default=False)
+        return self.get_config("SHOW_LOG_TIME", type=utils.bool)
 
     @show_log_time.setter
     def show_log_time(self, value: bool):
         """
-        显示日志时间
+        显示日志时间，只对使用LogHandler的logger有效
         """
         from ._logging import LogHandler
 
@@ -571,14 +592,14 @@ class BaseEnviron(abc.ABC):
     @property
     def show_log_level(self) -> bool:
         """
-        显示日志级别
+        显示日志级别，只对使用LogHandler的logger有效
         """
-        return self.get_config("SHOW_LOG_LEVEL", type=utils.bool, default=True)
+        return self.get_config("SHOW_LOG_LEVEL", type=utils.bool)
 
     @show_log_level.setter
     def show_log_level(self, value: bool):
         """
-        显示日志级别
+        显示日志级别，只对使用LogHandler的logger有效
         """
         from ._logging import LogHandler
 
@@ -586,13 +607,6 @@ class BaseEnviron(abc.ABC):
         if handler:
             handler.show_level = value
         self.set_config("SHOW_LOG_LEVEL", value)
-
-    @property
-    def system(self) -> str:
-        """
-        系统名称
-        """
-        return self.tools.system
 
 
 class Environ(BaseEnviron):
@@ -602,6 +616,8 @@ class Environ(BaseEnviron):
     root_path = root_path
 
     def _init_config(self, config: Config):
+        super()._init_config(config)
+
         # 初始化下载相关参数
         config["DOWNLOAD_USER_AGENT"] = \
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " \
