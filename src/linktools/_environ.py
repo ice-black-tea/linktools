@@ -36,7 +36,7 @@ import threading
 from types import ModuleType
 from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, Sized
 
-from rich.prompt import Prompt, IntPrompt, FloatPrompt
+from rich.prompt import Prompt, IntPrompt, FloatPrompt, Confirm
 
 from . import utils, version
 from .decorator import cached_property, cached_classproperty
@@ -125,12 +125,10 @@ class ConfigPrompt(ConfigLoader):
             )
 
         default = missing
-
         path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
         if os.path.exists(path):
             try:
-                with open(path, "rt") as fd:
-                    default = process_result(fd.read())
+                default = process_result(utils.read_file(path, binary=False))
                 if not env.get_config("RELOAD_CONFIG", type=utils.bool):
                     return default
             except Exception as e:
@@ -147,8 +145,66 @@ class ConfigPrompt(ConfigLoader):
             )
         )
 
-        with open(path, "wt") as fd:
-            fd.write(str(result))
+        utils.write_file(path, str(result))
+
+        return result
+
+
+class ConfigConfirm(ConfigLoader):
+
+    def __init__(
+            self,
+            prompt: str = None,
+            default: Any = None,
+            cached: bool = False,
+    ):
+        super().__init__()
+        self.prompt = prompt
+        self.default = default
+        self.cached = cached
+
+    def _load(self, env: "BaseEnviron", key: any):
+
+        def process_default():
+            if isinstance(self.default, ConfigLoader):
+                return self.default.load(env, key)
+            return self.default
+
+        def process_result(data):
+            if isinstance(data, str):
+                data = data.strip()
+            if not isinstance(data, bool):
+                data = utils.bool(data)
+            return data
+
+        if not self.cached:
+            return process_result(
+                Confirm.ask(
+                    self.prompt or f"Please input {key}",
+                    default=process_default(),
+                    show_default=True,
+                )
+            )
+
+        default = missing
+        path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
+        if os.path.exists(path):
+            try:
+                default = process_result(utils.read_file(path, binary=False))
+                if not env.get_config("RELOAD_CONFIG", type=utils.bool):
+                    return default
+            except Exception as e:
+                env.logger.debug(f"Load cached config \"key\" error: {e}")
+
+        result = process_result(
+            Confirm.ask(
+                self.prompt or f"Please confirm {key}",
+                default=process_default() if default is missing else default,
+                show_default=True,
+            )
+        )
+
+        utils.write_file(path, str(result))
 
         return result
 
@@ -184,6 +240,7 @@ class ConfigDict(dict):
         d.prompt = Config.Prompt
         d.lazy = Config.Lazy
         d.error = Config.Error
+        d.confirm = Config.Confirm
         try:
             with open(filename, "rb") as config_file:
                 exec(compile(config_file.read(), filename, "exec"), d.__dict__)
@@ -228,6 +285,7 @@ class Config:
     Prompt = ConfigPrompt
     Lazy = ConfigLazy
     Error = ConfigError
+    Confirm = ConfigConfirm
 
     @cached_classproperty
     def _internal_config(self) -> ConfigDict:
@@ -573,7 +631,7 @@ class BaseEnviron(abc.ABC):
     def _init_config(cls, config: Config):
         pass
 
-    def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = missing) -> Optional[T]:
+    def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: Any = missing) -> Optional[T]:
         """
         获取指定配置，优先会从环境变量中获取
         """
