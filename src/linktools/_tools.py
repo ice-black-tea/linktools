@@ -410,7 +410,7 @@ class ToolContainer(object):
     @cached_property
     def items(self) -> Mapping[str, Tool]:
         items = {}
-        for key, value in self.environ.get_configs("GENERAL_TOOL_").items():
+        for key, value in self.environ.config.get_namespace("GENERAL_TOOL_").items():
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue

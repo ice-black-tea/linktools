@@ -42,8 +42,8 @@ class Command(IOSCommand):
     """
 
     def main(self, *args, **kwargs) -> None:
-        environ.show_log_time = True
-        environ.show_log_level = True
+        environ.set_config("SHOW_LOG_TIME", True)
+        environ.set_config("SHOW_LOG_LEVEL", True)
         return super().main(*args, **kwargs)
 
     def init_arguments(self, parser: ArgumentParser) -> None:

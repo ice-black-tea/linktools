@@ -32,7 +32,6 @@ import json
 import os
 import pathlib
 import pickle
-import sys
 import threading
 from types import ModuleType
 from typing import TypeVar, Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, Sized
@@ -132,7 +131,7 @@ class ConfigPrompt(ConfigLoader):
             try:
                 with open(path, "rt") as fd:
                     default = process_result(fd.read())
-                if not env.get_config("RELOAD_CONFIG", type=utils.bool, default=False):
+                if not env.get_config("RELOAD_CONFIG", type=utils.bool):
                     return default
             except Exception as e:
                 env.logger.debug(f"Load cached config \"key\" error: {e}")
@@ -177,14 +176,14 @@ class ConfigError(ConfigLoader):
         )
 
 
-class Config(dict):
+class ConfigDict(dict):
 
     def from_pyfile(self, filename: str, silent: bool = False) -> bool:
         d = ModuleType("config")
         d.__file__ = filename
-        d.prompt = ConfigPrompt
-        d.lazy = ConfigLazy
-        d.error = ConfigError
+        d.prompt = Config.Prompt
+        d.lazy = Config.Lazy
+        d.error = Config.Error
         try:
             with open(filename, "rb") as config_file:
                 exec(compile(config_file.read(), filename, "exec"), d.__dict__)
@@ -225,6 +224,191 @@ class Config(dict):
         return True
 
 
+class Config:
+    Prompt = ConfigPrompt
+    Lazy = ConfigLazy
+    Error = ConfigError
+
+    @cached_classproperty
+    def _internal_config(self) -> ConfigDict:
+        config = ConfigDict()
+
+        # 初始化内部配置
+        config.update(
+            DEBUG=False,
+            STORAGE_PATH=str(pathlib.Path.home() / f".{version.__name__}"),
+            ENVVAR_PREFIX=None,
+            RELOAD_CONFIG=False,
+            SHOW_LOG_TIME=False,
+            SHOW_LOG_LEVEL=True,
+        )
+
+        if version.__release__:
+            # 只有发布版本才会有这个文件
+            config.from_file(
+                os.path.join(asset_path, "tools.json"),
+                json.load
+            )
+        else:
+            # 不是发布版本的话，使用tools.yml配置代替
+            import yaml
+            config.from_file(
+                os.path.join(asset_path, "tools.yml"),
+                yaml.safe_load
+            )
+
+        return config
+
+    def __init__(self, env: "BaseEnviron"):
+        self._environ = env
+        self._config = pickle.loads(pickle.dumps(self._internal_config))
+        self.envvar_prefix = f"{self._environ.name.upper()}_"
+
+    @property
+    def envvar_prefix(self):
+        """
+        环境变量前缀
+        """
+        return self._config.get("ENVVAR_PREFIX")
+
+    @envvar_prefix.setter
+    def envvar_prefix(self, value: str):
+        """
+        环境变量前缀
+        """
+        self._config["ENVVAR_PREFIX"] = value
+
+    def get_namespace(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
+        """
+        根据命名空间获取配置列表
+        """
+        rv = {}
+        for k in self._config:
+            if not k.startswith(namespace):
+                continue
+            if trim_namespace:
+                key = k[len(namespace):]
+            else:
+                key = k
+            if lowercase:
+                key = key.lower()
+            rv[key] = self.get(k)
+        return rv
+
+    def get(self, key: str, type: Type[T] = None, empty: bool = False, default: T = missing) -> Optional[T]:
+        """
+        获取指定配置，优先会从环境变量中获取
+        """
+
+        def process_result(data):
+            if not empty:  # 处理不允许为空，但配置为空的情况
+                if data is None:
+                    raise RuntimeError(f"Config \"{key}\" is None")
+                elif isinstance(data, Sized) and len(data) == 0:
+                    raise RuntimeError(f"Config \"{key}\" is empty")
+            return data if type is None else type(data)
+
+        env_key = f"{self.envvar_prefix}{key}"
+        if env_key in os.environ:
+            value = os.environ.get(env_key)
+            return process_result(value)
+
+        if key in self._config:
+            value = self._config.get(key)
+            if isinstance(value, ConfigLoader):
+                value = value.load(self._environ, key)
+            return process_result(value)
+
+        if default is missing:
+            raise RuntimeError(
+                f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
+
+        if isinstance(default, ConfigLoader):
+            return default.load(self._environ, key)
+
+        return default
+
+    def walk(self, include_internal: bool = False) -> Generator[Tuple[str, Any], None, None]:
+        """
+        遍历配置
+        """
+        internal_config = self._internal_config
+        for key in self._config.keys():
+            if include_internal or key not in internal_config:
+                yield key, self.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        """
+        更新配置
+        """
+        self._config[key] = value
+
+    def set_default(self, key: str, value: Any) -> Any:
+        """
+        设置默认配置
+        """
+        return self._config.setdefault(key, value)
+
+    def update(self, **kwargs) -> None:
+        """
+        更新配置
+        """
+        self._config.update(**kwargs)
+
+    def update_defaults(self, **kwargs) -> None:
+        """
+        更新默认配置
+        """
+        for key, value in kwargs.items():
+            self._config.setdefault(key, value)
+
+    def update_from_file(self, path: str, load: Callable[[IO[Any]], Mapping] = None) -> bool:
+        """
+        加载配置文件，按照扩展名来匹配相应的加载规则
+        """
+        if load is not None:
+            return self._config.from_file(path, load=load)
+        if path.endswith(".py"):
+            return self._config.from_pyfile(path)
+        elif path.endswith(".json"):
+            return self._config.from_file(path, load=json.load)
+        self._environ.logger.debug(f"Unsupported config file: {path}")
+        return False
+
+    def update_from_dir(self, path: str, recursion: bool = False) -> bool:
+        """
+        加载配置文件目录，按照扩展名来匹配相应的加载规则
+        """
+        # 路径不存在
+        if not os.path.exists(path):
+            return False
+        # 如果不是目录
+        if not os.path.isdir(path):
+            return self.update_from_file(path)
+        # 如果不需要递归，那只要取一级目录就好了
+        if not recursion:
+            for name in os.listdir(path):
+                config_path = os.path.join(path, name)
+                if not os.path.isdir(config_path):
+                    self.update_from_file(config_path)
+            return True
+        # 剩下的就是需要递归读取所有文件的情况了
+        for root, dirs, files in os.walk(path, topdown=False):
+            for name in files:
+                self.update_from_file(os.path.join(root, name))
+        return True
+
+    def update_from_envvar(self) -> bool:
+        """
+        加载所有以"{name}_"为前缀的环境变量到配置中
+        """
+        prefix = self.envvar_prefix
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                self._config[key[len(prefix):]] = value
+        return True
+
+
 class BaseEnviron(abc.ABC):
 
     @property
@@ -255,6 +439,41 @@ class BaseEnviron(abc.ABC):
         模块路径
         """
         raise NotImplemented
+
+    @property
+    def system(self) -> str:
+        """
+        系统名称
+        """
+        return self.tools.system
+
+    @property
+    def debug(self) -> bool:
+        """
+        debug模式
+        """
+        return self.get_config("DEBUG", type=utils.bool)
+
+    @debug.setter
+    def debug(self, value: bool):
+        """
+        debug模式
+        """
+        self.set_config("DEBUG", value)
+
+    @property
+    def envvar_prefix(self):
+        """
+        环境变量前缀
+        """
+        return self.config.envvar_prefix
+
+    @envvar_prefix.setter
+    def envvar_prefix(self, value: str):
+        """
+        环境变量前缀
+        """
+        self.config.envvar_prefix = value
 
     @cached_property
     def data_path(self):
@@ -292,7 +511,7 @@ class BaseEnviron(abc.ABC):
             dir_path = os.path.dirname(target_path)
         if dir_path is not None:
             if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
+                os.makedirs(dir_path, exist_ok=True)
         return target_path
 
     def get_path(self, *paths: str):
@@ -344,162 +563,27 @@ class BaseEnviron(abc.ABC):
 
         return get_logger(name=name, prefix=self.name)
 
-    @cached_classproperty
-    def _internal_config(self) -> Config:
-        config = Config()
-
-        # 初始化内部配置
-        config.update(
-            DEBUG=False,
-            STORAGE_PATH=str(pathlib.Path.home() / f".{version.__name__}"),
-            ENVVAR_PREFIX=None,
-            SHOW_LOG_TIME=False,
-            SHOW_LOG_LEVEL=True,
-        )
-
-        if version.__release__:
-            # 只有发布版本才会有这个文件
-            config.from_file(
-                self._get_path(asset_path, "tools.json"),
-                json.load
-            )
-        else:
-            try:
-                # 不是发布版本的话，使用tools.yml配置代替
-                import yaml
-                config.from_file(
-                    self._get_path(asset_path, "tools.yml"),
-                    yaml.safe_load
-                )
-            except ModuleNotFoundError:
-                raise ModuleNotFoundError(f"Please install pyyaml: {sys.executable} -m pip install pyyaml")
-
-        return config
-
     @cached_property
-    def _config(self) -> Config:
-        config = pickle.loads(
-            pickle.dumps(self._internal_config)
-        )
+    def config(self) -> Config:
+        config = Config(self)
         self._init_config(config)
         return config
 
-    def _init_config(self, config: Config):
-        config["ENVVAR_PREFIX"] = f"{self.name.upper()}_"
-
-    def get_configs(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
-        """
-        根据命名空间获取配置列表
-        """
-        rv = {}
-        for k in self._config:
-            if not k.startswith(namespace):
-                continue
-            if trim_namespace:
-                key = k[len(namespace):]
-            else:
-                key = k
-            if lowercase:
-                key = key.lower()
-            rv[key] = self.get_config(k)
-        return rv
+    @classmethod
+    def _init_config(cls, config: Config):
+        pass
 
     def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: T = missing) -> Optional[T]:
         """
         获取指定配置，优先会从环境变量中获取
         """
-
-        def process_result(data):
-            if not empty:  # 处理不允许为空，但配置为空的情况
-                if data is None:
-                    raise RuntimeError(f"Config \"{key}\" is None")
-                elif isinstance(data, Sized) and len(data) == 0:
-                    raise RuntimeError(f"Config \"{key}\" is empty")
-            return data if type is None else type(data)
-
-        env_key = f"{self.envvar_prefix}{key}"
-        if env_key in os.environ:
-            value = os.environ.get(env_key)
-            return process_result(value)
-
-        if key in self._config:
-            value = self._config.get(key)
-            if isinstance(value, ConfigLoader):
-                value = value.load(self, key)
-            return process_result(value)
-
-        if default is missing:
-            raise RuntimeError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
-
-        if isinstance(default, ConfigLoader):
-            return default.load(self, key)
-
-        return default
-
-    def walk_configs(self, include_internal: bool = False) -> Generator[Tuple[str, Any], None, None]:
-        """
-        遍历配置
-        """
-        internal_config = self._internal_config
-        for key in sorted(self._config.keys()):
-            if include_internal or key not in internal_config:
-                yield key, self.get_config(key)
-
-    def update_configs(self, **kwargs) -> None:
-        """
-        更新配置
-        """
-        self._config.update(**kwargs)
+        return self.config.get(key=key, type=type, empty=empty, default=default)
 
     def set_config(self, key: str, value: Any) -> None:
         """
         更新配置
         """
-        self._config[key] = value
-
-    def update_config_from_file(self, path: str) -> bool:
-        """
-        加载配置文件，按照扩展名来匹配相应的加载规则
-        """
-        if path.endswith(".py"):
-            return self._config.from_pyfile(path)
-        elif path.endswith(".json"):
-            return self._config.from_file(path, load=json.load)
-        self.logger.debug(f"Unsupported config file: {path}")
-        return False
-
-    def update_config_from_dir(self, path: str, recursion: bool = False) -> bool:
-        """
-        加载配置文件目录，按照扩展名来匹配相应的加载规则
-        """
-        # 路径不存在
-        if not os.path.exists(path):
-            return False
-        # 如果不是目录
-        if not os.path.isdir(path):
-            return self.update_config_from_file(path)
-        # 如果不需要递归，那只要取一级目录就好了
-        if not recursion:
-            for name in os.listdir(path):
-                config_path = os.path.join(path, name)
-                if not os.path.isdir(config_path):
-                    self.update_config_from_file(config_path)
-            return True
-        # 剩下的就是需要递归读取所有文件的情况了
-        for root, dirs, files in os.walk(path, topdown=False):
-            for name in files:
-                self.update_config_from_file(os.path.join(root, name))
-        return True
-
-    def update_config_from_envvar(self) -> bool:
-        """
-        加载所有以"{name}_"为前缀的环境变量到配置中
-        """
-        prefix = self.envvar_prefix
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                self._config[key[len(prefix):]] = value
-        return True
+        self.config.set(key, value)
 
     @cached_property
     def tools(self):
@@ -535,79 +619,6 @@ class BaseEnviron(abc.ABC):
             tool = tool.copy(**kwargs)
         return tool
 
-    @property
-    def system(self) -> str:
-        """
-        系统名称
-        """
-        return self.tools.system
-
-    @property
-    def debug(self) -> bool:
-        """
-        debug模式
-        """
-        return self.get_config("DEBUG", type=utils.bool)
-
-    @debug.setter
-    def debug(self, value: bool):
-        """
-        debug模式
-        """
-        self.set_config("DEBUG", value)
-
-    @property
-    def envvar_prefix(self):
-        """
-        环境变量前缀，只看保存在config中的配置
-        """
-        return self._config.get("ENVVAR_PREFIX")
-
-    @envvar_prefix.setter
-    def envvar_prefix(self, value: str):
-        """
-        环境变量前缀，只看保存在config中的配置
-        """
-        return self.set_config("ENVVAR_PREFIX", value)
-
-    @property
-    def show_log_time(self) -> bool:
-        """
-        显示日志时间，只对使用LogHandler的logger有效
-        """
-        return self.get_config("SHOW_LOG_TIME", type=utils.bool)
-
-    @show_log_time.setter
-    def show_log_time(self, value: bool):
-        """
-        显示日志时间，只对使用LogHandler的logger有效
-        """
-        from ._logging import LogHandler
-
-        handler = LogHandler.get_instance()
-        if handler:
-            handler.show_time = value
-        self.set_config("SHOW_LOG_TIME", value)
-
-    @property
-    def show_log_level(self) -> bool:
-        """
-        显示日志级别，只对使用LogHandler的logger有效
-        """
-        return self.get_config("SHOW_LOG_LEVEL", type=utils.bool)
-
-    @show_log_level.setter
-    def show_log_level(self, value: bool):
-        """
-        显示日志级别，只对使用LogHandler的logger有效
-        """
-        from ._logging import LogHandler
-
-        handler = LogHandler.get_instance()
-        if handler:
-            handler.show_level = value
-        self.set_config("SHOW_LOG_LEVEL", value)
-
 
 class Environ(BaseEnviron):
     name = version.__name__
@@ -615,19 +626,22 @@ class Environ(BaseEnviron):
     version = version.__version__
     root_path = root_path
 
-    def _init_config(self, config: Config):
+    @classmethod
+    def _init_config(cls, config: Config):
         super()._init_config(config)
 
         # 初始化下载相关参数
-        config["DOWNLOAD_USER_AGENT"] = \
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " \
-            "AppleWebKit/537.36 (KHTML, like Gecko) " \
-            "Chrome/98.0.4758.109 " \
+        config.set(
+            "DOWNLOAD_USER_AGENT",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/98.0.4758.109 "
             "Safari/537.36"
+        )
 
         # 导入configs文件夹中所有配置文件
-        config.from_file(
-            self._get_path(asset_path, "android-tools.json"),
+        config.update_from_file(
+            os.path.join(asset_path, "android-tools.json"),
             load=json.load
         )
 

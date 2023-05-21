@@ -130,13 +130,21 @@ class BaseCommand(metaclass=abc.ABCMeta):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 if option_string in self.option_strings:
-                    command_self.environ.show_log_time = not option_string.startswith("--no-")
+                    value = not option_string.startswith("--no-")
+                    handler = LogHandler.get_instance()
+                    if handler:
+                        handler.show_time = value
+                    command_self.environ.set_config("SHOW_LOG_TIME", value)
 
         class LogLevelAction(BooleanOptionalAction):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 if option_string in self.option_strings:
-                    command_self.environ.show_log_level = not option_string.startswith("--no-")
+                    value = not option_string.startswith("--no-")
+                    handler = LogHandler.get_instance()
+                    if handler:
+                        handler.show_level = value
+                    command_self.environ.set_config("SHOW_LOG_LEVEL", value)
 
         if self.environ.version != NotImplemented:
             parser.add_argument("--version", action="version", version=self.environ.version)
