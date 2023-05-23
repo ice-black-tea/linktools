@@ -30,6 +30,7 @@ import functools
 import gzip
 import hashlib
 import inspect
+import os
 import random
 import re
 import socket
@@ -66,7 +67,7 @@ class Timeout:
         if self._timeout is not None and self._timeout >= 0:
             self._deadline = time.time() + self._timeout
 
-    def check(self) -> "bool":
+    def check(self) -> bool:
         if self._deadline is not None:
             if time.time() > self._deadline:
                 return False
@@ -180,32 +181,36 @@ def cast(type: Type[_T], obj: Any, default: _T = None) -> Optional[_T]:
         return default
 
 
-def int(obj: Any, default: int = 0) -> "int":
+def cast_int(obj: Any, default: int = 0) -> int:
     """
     转为int
     :param obj: 需要转换的值
     :param default: 默认值
     :return: 转换后的值
     """
-    return cast(type(0), obj, default=default)
+    return cast(int, obj, default=default)
 
 
-def bool(obj: Any, default: bool = False) -> "bool":
+def _cast_bool(obj: str) -> bool:
+    return obj.lower() in ("true", "yes")
+
+
+def cast_bool(obj: Any, default: bool = False) -> bool:
     """
     转为bool
     :param obj: 需要转换的值
     :param default: 默认值
     :return: 转换后的值
     """
-    bool_type = type(True)
-    if isinstance(obj, bool_type):
+    if isinstance(obj, bool):
         return obj
+    cast_type = bool
     if isinstance(obj, str):
-        return cast(lambda o: o.lower() == "true", obj, default=default)
-    return cast(bool_type, obj, default=default)
+        cast_type = _cast_bool
+    return cast(cast_type, obj, default=default)
 
 
-def is_contain(obj: Any, key: Any) -> "bool":
+def is_contain(obj: Any, key: Any) -> bool:
     """
     是否包含内容
     :param obj: 对象
@@ -219,7 +224,7 @@ def is_contain(obj: Any, key: Any) -> "bool":
     return False
 
 
-def is_empty(obj: Any) -> "bool":
+def is_empty(obj: Any) -> bool:
     """
     对象是否为空
     :param obj: 对象
@@ -378,7 +383,26 @@ def gzip_compress(data: Union[str, bytes]) -> bytes:
     return gzip.compress(data)
 
 
-def read_file(path: str, binary: "bool" = True) -> Union[str, bytes]:
+def get_path(root_path: str, *paths: [str], create: bool = False, create_parent: bool = False):
+    target_path = parent_path = os.path.abspath(root_path)
+    for path in paths:
+        target_path = os.path.abspath(os.path.join(parent_path, path))
+        common_path = os.path.commonpath([parent_path, target_path])
+        if target_path == parent_path or parent_path != common_path:
+            raise Exception(f"Unsafe path \"{path}\"")
+        parent_path = target_path
+    dir_path = None
+    if create:
+        dir_path = target_path
+    elif create_parent:
+        dir_path = os.path.dirname(target_path)
+    if dir_path is not None:
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+    return target_path
+
+
+def read_file(path: str, binary: bool = True) -> Union[str, bytes]:
     with open(path, "rb" if binary else 'r') as f:
         return f.read()
 
@@ -409,22 +433,22 @@ def get_wan_ip() -> Optional[str]:
         return None
 
 
-def parse_version(version: str) -> [int, ...]:
+def parse_version(version: str) -> Tuple[int, ...]:
     result = []
     for x in version.split("."):
         if x.isdigit():
-            result.append(int(x))
+            result.append(cast_int(x))
         else:
             match = re.match(r"^\d+", x)
             if not match:
                 break
-            result.append(int(match.group(0)))
+            result.append(cast_int(match.group(0)))
     return tuple(result)
 
 
 def range_type(min: int, max: int):
     def wrapper(o):
-        value = int(o)
+        value = cast_int(o)
         if min <= value <= max:
             return value
         raise ValueError("value not in range %s-%s" % (min, max))
