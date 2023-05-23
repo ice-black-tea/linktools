@@ -211,11 +211,11 @@ class BaseEnviron(abc.ABC):
         config: Config = self._create_config()
         return config
 
-    def get_config(self, key: str, type: Type[T] = None, empty: bool = False, default: Any = MISSING) -> Optional[T]:
+    def get_config(self, key: str, type: Type[T] = None, default: Any = MISSING) -> Optional[T]:
         """
         获取指定配置，优先会从环境变量中获取
         """
-        return self.config.get(key=key, type=type, empty=empty, default=default)
+        return self.config.get(key=key, type=type, default=default)
 
     def set_config(self, key: str, value: Any) -> None:
         """
