@@ -42,12 +42,11 @@ from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, S
 from urllib.request import urlopen
 
 _T = TypeVar("_T")
-_TimeoutType = Union[float, int, None]
 
 
 class Timeout:
 
-    def __init__(self, timeout: _TimeoutType = None):
+    def __init__(self, timeout: Union[float, int] = None):
         self._deadline = None
         self._timeout = timeout
         self.reset()
@@ -112,7 +111,7 @@ def timeoutable(fn: Callable[..., _T]) -> Callable[..., _T]:
             timeout = args[timeout_index]
             if isinstance(timeout, Timeout):
                 pass
-            elif isinstance(timeout, _TimeoutType):
+            elif isinstance(timeout, (float, int, type(None))):
                 args = list(args)
                 args[timeout_index] = Timeout(timeout)
             else:
@@ -121,7 +120,7 @@ def timeoutable(fn: Callable[..., _T]) -> Callable[..., _T]:
             timeout = kwargs.get(timeout_keyword)
             if isinstance(timeout, Timeout):
                 pass
-            elif isinstance(timeout, _TimeoutType):
+            elif isinstance(timeout, (float, int, type(None))):
                 kwargs[timeout_keyword] = Timeout(timeout)
             else:
                 raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
@@ -188,11 +187,10 @@ def cast_int(obj: Any, default: int = 0) -> int:
     :param default: 默认值
     :return: 转换后的值
     """
-    return cast(int, obj, default=default)
-
-
-def _cast_bool(obj: str) -> bool:
-    return obj.lower() in ("true", "yes")
+    try:
+        return int(obj)
+    except:
+        return default
 
 
 def cast_bool(obj: Any, default: bool = False) -> bool:
@@ -206,7 +204,7 @@ def cast_bool(obj: Any, default: bool = False) -> bool:
         return obj
     cast_type = bool
     if isinstance(obj, str):
-        cast_type = _cast_bool
+        return obj.lower() in ("true", "yes")
     return cast(cast_type, obj, default=default)
 
 
@@ -403,12 +401,12 @@ def get_path(root_path: str, *paths: [str], create: bool = False, create_parent:
 
 
 def read_file(path: str, binary: bool = True) -> Union[str, bytes]:
-    with open(path, "rb" if binary else 'r') as f:
+    with open(path, "rb" if binary else "rt") as f:
         return f.read()
 
 
 def write_file(path: str, data: [str, bytes]) -> None:
-    with open(path, "wb" if isinstance(data, bytes) else "w") as f:
+    with open(path, "wb" if isinstance(data, bytes) else "wt") as f:
         f.write(data)
 
 

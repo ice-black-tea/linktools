@@ -34,9 +34,9 @@ import os
 import pickle
 import threading
 from types import ModuleType
-from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, Sized
+from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List
 
-from rich.prompt import Prompt, IntPrompt, FloatPrompt, Confirm
+from rich.prompt import Prompt, IntPrompt, FloatPrompt, Confirm, PromptType, InvalidResponse
 
 from . import utils
 from ._environ import BaseEnviron, MISSING, T
@@ -182,7 +182,7 @@ class Config:
 
     def walk(self, all: bool = False) -> Generator[Tuple[str, Any], None, None]:
         """
-        遍历配置，默认只遍历配置的
+        遍历配置，默认不遍历内置配置
         """
         for key in self._config.keys():
             if all or key not in self._internal:
@@ -267,29 +267,39 @@ class Config:
                 prompt: str = None,
                 password: bool = False,
                 choices: Optional[List[str]] = None,
-                default: Any = None,
+                default: Any = ...,
                 type: Type = str,
                 cached: bool = False,
-                trim: bool = True,
+                empty: bool = False,
         ):
             super().__init__()
+
+            if issubclass(type, str):
+                prompt_class = Prompt
+            elif issubclass(type, int):
+                prompt_class = IntPrompt
+            elif issubclass(type, float):
+                prompt_class = FloatPrompt
+            else:
+                raise NotImplementedError("prompt only supports str, int or float type")
+
+            class ConfigPrompt(prompt_class):
+
+                def process_response(self, value: str) -> PromptType:
+                    value = value.strip()
+                    if not empty and utils.is_empty(value):
+                        raise InvalidResponse(self.validate_error_message)
+                    return super().process_response(value)
+
+            self.prompt_class = ConfigPrompt
             self.prompt = prompt
             self.password = password
             self.choices = choices
             self.default = default
-            self.cached = cached
             self.type = type
-            self.trim = trim
+            self.cached = cached
 
         def _load(self, env: BaseEnviron, key: any):
-            if issubclass(self.type, str):
-                prompt = Prompt
-            elif issubclass(self.type, int):
-                prompt = IntPrompt
-            elif issubclass(self.type, float):
-                prompt = FloatPrompt
-            else:
-                raise NotImplementedError("prompt only supports str, int or float type")
 
             def process_default():
                 if isinstance(self.default, ConfigLoader):
@@ -297,17 +307,13 @@ class Config:
                 return self.default
 
             def process_result(data):
-                if self.trim and isinstance(data, str):
-                    data = data.strip()
                 if self.type and not isinstance(data, self.type):
                     data = self.type(data)
-                    if self.trim and isinstance(data, str):
-                        data = data.strip()
                 return data
 
             if not self.cached:
                 return process_result(
-                    prompt.ask(
+                    self.prompt_class.ask(
                         self.prompt or f"Please input {key}",
                         password=self.password,
                         choices=self.choices,
@@ -328,7 +334,7 @@ class Config:
                     env.logger.debug(f"Load cached config \"key\" error: {e}")
 
             result = process_result(
-                prompt.ask(
+                self.prompt_class.ask(
                     self.prompt or f"Please input {key}",
                     password=self.password,
                     choices=self.choices,
@@ -347,10 +353,11 @@ class Config:
         def __init__(
                 self,
                 prompt: str = None,
-                default: Any = None,
+                default: Any = ...,
                 cached: bool = False,
         ):
             super().__init__()
+            self.prompt_class = Confirm
             self.prompt = prompt
             self.default = default
             self.cached = cached
@@ -363,15 +370,13 @@ class Config:
                 return self.default
 
             def process_result(data):
-                if isinstance(data, str):
-                    data = data.strip()
                 if not isinstance(data, bool):
                     data = utils.bool(data)
                 return data
 
             if not self.cached:
                 return process_result(
-                    Confirm.ask(
+                    self.prompt_class.ask(
                         self.prompt or f"Please input {key}",
                         default=process_default(),
                         show_default=True,
@@ -389,7 +394,7 @@ class Config:
                     env.logger.debug(f"Load cached config \"key\" error: {e}")
 
             result = process_result(
-                Confirm.ask(
+                self.prompt_class.ask(
                     self.prompt or f"Please confirm {key}",
                     default=process_default() if default is MISSING else default,
                     show_default=True,
