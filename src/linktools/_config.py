@@ -153,7 +153,12 @@ class Config:
         """
         获取指定配置，优先会从环境变量中获取
         """
-        last_error = None
+        if type == int:
+            type = utils.int
+        elif type == bool:
+            type = utils.bool
+
+        last_error = MISSING
         try:
 
             env_key = f"{self.envvar_prefix}{key}"
@@ -171,7 +176,7 @@ class Config:
             last_error = e
 
         if default is MISSING:
-            if last_error:
+            if last_error is not MISSING:
                 raise last_error
             raise RuntimeError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
@@ -328,7 +333,7 @@ class Config:
             if os.path.exists(path):
                 try:
                     default = process_result(utils.read_file(path, binary=False))
-                    if not env.get_config("RELOAD_CONFIG", type=utils.bool):
+                    if not env.get_config("RELOAD_CONFIG", type=bool):
                         return default
                 except Exception as e:
                     env.logger.debug(f"Load cached config \"key\" error: {e}")
@@ -388,7 +393,7 @@ class Config:
             if os.path.exists(path):
                 try:
                     default = process_result(utils.read_file(path, binary=False))
-                    if not env.get_config("RELOAD_CONFIG", type=utils.bool):
+                    if not env.get_config("RELOAD_CONFIG", type=bool):
                         return default
                 except Exception as e:
                     env.logger.debug(f"Load cached config \"key\" error: {e}")

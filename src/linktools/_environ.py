@@ -86,7 +86,7 @@ class BaseEnviron(abc.ABC):
         """
         debug模式
         """
-        return self.get_config("DEBUG", type=utils.bool)
+        return self.get_config("DEBUG", type=bool)
 
     @debug.setter
     def debug(self, value: bool):

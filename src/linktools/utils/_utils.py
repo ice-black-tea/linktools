@@ -42,6 +42,7 @@ from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, S
 from urllib.request import urlopen
 
 _T = TypeVar("_T")
+MISSING = object()
 
 
 class Timeout:
@@ -166,7 +167,7 @@ def ignore_error(
 
 
 # noinspection PyShadowingBuiltins
-def cast(type: Type[_T], obj: Any, default: _T = None) -> Optional[_T]:
+def cast(type: Type[_T], obj: Any, default: Any = MISSING) -> Optional[_T]:
     """
     类型转换
     :param type: 目标类型
@@ -174,26 +175,25 @@ def cast(type: Type[_T], obj: Any, default: _T = None) -> Optional[_T]:
     :param default: 默认值
     :return: 转换后的值
     """
+    if default is MISSING:
+        return type(obj)
     try:
         return type(obj)
     except:
         return default
 
 
-def cast_int(obj: Any, default: int = 0) -> int:
+def cast_int(obj: Any, default: Any = MISSING) -> int:
     """
     转为int
     :param obj: 需要转换的值
     :param default: 默认值
     :return: 转换后的值
     """
-    try:
-        return int(obj)
-    except:
-        return default
+    return cast(int, obj, default)
 
 
-def cast_bool(obj: Any, default: bool = False) -> bool:
+def cast_bool(obj: Any, default: Any = MISSING) -> bool:
     """
     转为bool
     :param obj: 需要转换的值
@@ -202,10 +202,17 @@ def cast_bool(obj: Any, default: bool = False) -> bool:
     """
     if isinstance(obj, bool):
         return obj
-    cast_type = bool
     if isinstance(obj, str):
-        return obj.lower() in ("true", "yes")
-    return cast(cast_type, obj, default=default)
+        data = obj.lower()
+        if data in ("true", "yes", "y", "1"):
+            return True
+        elif data in ("false", "no", "n", "0"):
+            return False
+        if default is MISSING:
+            raise TypeError(f"str '{obj}' cannot be converted to type bool")
+        else:
+            return default
+    return cast(bool, obj, default)
 
 
 def is_contain(obj: Any, key: Any) -> bool:
