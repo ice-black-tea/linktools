@@ -185,13 +185,20 @@ class Config:
 
         return default
 
-    def walk(self, all: bool = False) -> Generator[Tuple[str, Any], None, None]:
+    def keys(self, all: bool = False) -> Generator[str, None, None]:
         """
-        遍历配置，默认不遍历内置配置
+        遍历配置名，默认不遍历内置配置
         """
         for key in self._config.keys():
             if all or key not in self._internal:
-                yield key, self.get(key)
+                yield key
+
+    def items(self, all: bool = False) -> Generator[Tuple[str, Any], None, None]:
+        """
+        遍历配置项，默认不遍历内置配置
+        """
+        for key in self.keys(all=all):
+            yield key, self.get(key)
 
     def set(self, key: str, value: Any) -> None:
         """
