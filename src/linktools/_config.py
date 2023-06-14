@@ -42,6 +42,10 @@ from . import utils
 from ._environ import BaseEnviron, MISSING, T
 
 
+class ConfigError(Exception):
+    pass
+
+
 class ConfigLoader(abc.ABC):
     __lock__ = threading.RLock()
 
@@ -178,7 +182,7 @@ class Config:
         if default is MISSING:
             if last_error is not MISSING:
                 raise last_error
-            raise RuntimeError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
+            raise ConfigError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
         if isinstance(default, ConfigLoader):
             return default.load(self._environ, key)
@@ -293,7 +297,7 @@ class Config:
             elif issubclass(type, float):
                 prompt_class = FloatPrompt
             else:
-                raise NotImplementedError("prompt only supports str, int or float type")
+                raise ConfigError("prompt only supports str, int or float type")
 
             class ConfigPrompt(prompt_class):
 
@@ -433,7 +437,7 @@ class Config:
             self.message = message
 
         def _load(self, env: BaseEnviron, key: Any):
-            raise RuntimeError(
+            raise ConfigError(
                 self.message or
                 f"Please set \"{env.config.envvar_prefix}{key}\" as an environment variable, "
                 f"or set \"{key}\" in config file"
