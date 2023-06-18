@@ -34,34 +34,85 @@ import os
 import pickle
 import threading
 from types import ModuleType
-from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List
+from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, TypeVar
 
 from rich.prompt import Prompt, IntPrompt, FloatPrompt, Confirm, PromptType, InvalidResponse
 
 from . import utils
-from ._environ import BaseEnviron, MISSING, T
+from ._environ import BaseEnviron
+
+T = TypeVar("T")
+MISSING = ...
+
+
+def _cast_bool(obj: Any) -> bool:
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, str):
+        data = obj.lower()
+        if data in ("true", "yes", "y", "1"):
+            return True
+        elif data in ("false", "no", "n", "0"):
+            return False
+        raise TypeError(f"str '{obj}' cannot be converted to type bool")
+    return bool(obj)
+
+
+def _cast_str(obj: Any) -> str:
+    if isinstance(obj, str):
+        return obj
+    if obj is None:
+        return ""
+    return str(obj)
+
+
+CAST_DICT: Dict[Type[T], Callable[..., T]] = {
+    bool: _cast_bool,
+    str: _cast_str,
+}
 
 
 class ConfigError(Exception):
     pass
 
 
-class ConfigLoader(abc.ABC):
+class ConfigProperty(abc.ABC):
     __lock__ = threading.RLock()
 
-    def __init__(self):
+    def __init__(self, type: Type = None, cached: bool = False):
         self._data: Union[str, object] = MISSING
+        self._type = type
+        self._cached = cached
 
     def load(self, env: BaseEnviron, key: Any) -> Optional[str]:
         if self._data is not MISSING:
             return self._data
         with self.__lock__:
-            if self._data is MISSING:
-                self._data = self._load(env, key)
-        return self._data
+            if self._data is not MISSING:
+                return self._data
+            if self._cached:
+                cache = MISSING
+                path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
+                if os.path.exists(path):
+                    cache = utils.read_file(path, binary=False)
+                result = self._load(env, key, cache)
+                if isinstance(result, ConfigProperty):
+                    result = result.load(env, key)
+                if self._type and not isinstance(result, self._type):
+                    result = env.config.cast(result, self._type)
+                utils.write_file(path, str(result))
+                self._data = result
+            else:
+                result = self._load(env, key, MISSING)
+                if isinstance(result, ConfigProperty):
+                    result = result.load(env, key)
+                if self._type and not isinstance(result, self._type):
+                    result = env.config.cast(result, self._type)
+                self._data = result
+            return self._data
 
     @abc.abstractmethod
-    def _load(self, env: BaseEnviron, key: Any):
+    def _load(self, env: BaseEnviron, key: Any, cache: Any):
         pass
 
 
@@ -72,6 +123,7 @@ class ConfigDict(dict):
         d.__file__ = filename
         d.prompt = Config.Prompt
         d.lazy = Config.Lazy
+        d.alias = Config.Alias
         d.error = Config.Error
         d.confirm = Config.Confirm
         try:
@@ -136,6 +188,10 @@ class Config:
         """
         self._envvar_prefix = value
 
+    def cast(self, obj: str, type: Type[T] = None):
+        cast = CAST_DICT.get(type, type)
+        return cast(obj) if cast is not None else obj
+
     def get_namespace(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
         根据命名空间获取配置列表
@@ -157,10 +213,6 @@ class Config:
         """
         获取指定配置，优先会从环境变量中获取
         """
-        if type == int:
-            type = utils.int
-        elif type == bool:
-            type = utils.bool
 
         last_error = MISSING
         try:
@@ -168,13 +220,13 @@ class Config:
             env_key = f"{self.envvar_prefix}{key}"
             if env_key in os.environ:
                 value = os.environ.get(env_key)
-                return value if type is None else type(value)
+                return self.cast(value, type=type)
 
             if key in self._config:
                 value = self._config.get(key)
-                if isinstance(value, ConfigLoader):
+                if isinstance(value, ConfigProperty):
                     value = value.load(self._environ, key)
-                return value if type is None else type(value)
+                return self.cast(value, type=type)
 
         except Exception as e:
             last_error = e
@@ -184,10 +236,22 @@ class Config:
                 raise last_error
             raise ConfigError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
-        if isinstance(default, ConfigLoader):
+        if isinstance(default, ConfigProperty):
             return default.load(self._environ, key)
 
         return default
+
+    def get_str(self, key: str, default: T = MISSING) -> Optional[bool]:
+        return self.get(key, type=str, default=default)
+
+    def get_bool(self, key: str, default: T = MISSING) -> Optional[bool]:
+        return self.get(key, type=bool, default=default)
+
+    def get_int(self, key: str, default: T = MISSING) -> Optional[bool]:
+        return self.get(key, type=int, default=default)
+
+    def get_float(self, key: str, default: T = MISSING) -> Optional[bool]:
+        return self.get(key, type=float, default=default)
 
     def keys(self, all: bool = False) -> Generator[str, None, None]:
         """
@@ -276,167 +340,144 @@ class Config:
                 self._config[key[len(prefix):]] = value
         return True
 
-    class Prompt(ConfigLoader):
+    class Prompt(ConfigProperty):
+
+        _prompt_types: Dict[Type, Type[Prompt]] = {
+            str: Prompt,
+            int: IntPrompt,
+            float: FloatPrompt,
+        }
+
+        @classmethod
+        def _create_prompt_class(cls, type: Type, allow_empty: bool):
+            base_prompt_types = cls._prompt_types.get(type)
+            if base_prompt_types is None:
+                support_types = [str(key) for key in cls._prompt_types.keys()]
+                raise ConfigError(f"prompt only supports {support_types} type")
+
+            class ConfigPrompt(base_prompt_types):
+
+                def process_response(self, value: str) -> PromptType:
+                    value = value.strip()
+                    if not allow_empty and utils.is_empty(value):
+                        raise InvalidResponse(self.validate_error_message)
+                    return super().process_response(value)
+
+            return ConfigPrompt
 
         def __init__(
                 self,
                 prompt: str = None,
                 password: bool = False,
                 choices: Optional[List[str]] = None,
-                default: Any = ...,
                 type: Type = str,
+                default: Any = MISSING,
                 cached: bool = False,
-                empty: bool = False,
+                always_ask: bool = False,
+                allow_empty: bool = False,
         ):
-            super().__init__()
+            super().__init__(type=type, cached=cached)
 
-            if issubclass(type, str):
-                prompt_class = Prompt
-            elif issubclass(type, int):
-                prompt_class = IntPrompt
-            elif issubclass(type, float):
-                prompt_class = FloatPrompt
-            else:
-                raise ConfigError("prompt only supports str, int or float type")
-
-            class ConfigPrompt(prompt_class):
-
-                def process_response(self, value: str) -> PromptType:
-                    value = value.strip()
-                    if not empty and utils.is_empty(value):
-                        raise InvalidResponse(self.validate_error_message)
-                    return super().process_response(value)
-
-            self.prompt_class = ConfigPrompt
+            self.prompt_class = self._create_prompt_class(type, allow_empty)
             self.prompt = prompt
             self.password = password
             self.choices = choices
             self.default = default
-            self.type = type
-            self.cached = cached
+            self.always_ask = always_ask
 
-        def _load(self, env: BaseEnviron, key: any):
+        def _load(self, env: BaseEnviron, key: Any, cache: Any):
 
-            def process_default():
-                if isinstance(self.default, ConfigLoader):
-                    return self.default.load(env, key)
-                return self.default
+            default = cache
+            if default is not MISSING and not self.always_ask:
+                if not env.get_config("RELOAD_CONFIG", type=bool):
+                    return default
 
-            def process_result(data):
-                if self.type and not isinstance(data, self.type):
-                    data = self.type(data)
-                return data
+            if default is MISSING:
+                default = self.default
+                if isinstance(default, ConfigProperty):
+                    default = default.load(env, key)
 
-            if not self.cached:
-                return process_result(
-                    self.prompt_class.ask(
-                        self.prompt or f"Please input {key}",
-                        password=self.password,
-                        choices=self.choices,
-                        default=process_default(),
-                        show_default=True,
-                        show_choices=True
-                    )
-                )
-
-            default = MISSING
-            path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
-            if os.path.exists(path):
-                try:
-                    default = process_result(utils.read_file(path, binary=False))
-                    if not env.get_config("RELOAD_CONFIG", type=bool):
-                        return default
-                except Exception as e:
-                    env.logger.debug(f"Load cached config \"key\" error: {e}")
-
-            result = process_result(
-                self.prompt_class.ask(
-                    self.prompt or f"Please input {key}",
-                    password=self.password,
-                    choices=self.choices,
-                    default=process_default() if default is MISSING else default,
-                    show_default=True,
-                    show_choices=True
-                )
+            return self.prompt_class.ask(
+                self.prompt or f"Please input {key}",
+                password=self.password,
+                choices=self.choices,
+                default=default,
+                show_default=True,
+                show_choices=True
             )
 
-            utils.write_file(path, str(result))
-
-            return result
-
-    class Confirm(ConfigLoader):
+    class Confirm(ConfigProperty):
 
         def __init__(
                 self,
                 prompt: str = None,
-                default: Any = ...,
+                default: Any = MISSING,
                 cached: bool = False,
+                always_ask: bool = False,
         ):
-            super().__init__()
+            super().__init__(type=bool, cached=cached)
+
             self.prompt_class = Confirm
             self.prompt = prompt
             self.default = default
-            self.cached = cached
+            self.always_ask = always_ask
 
-        def _load(self, env: BaseEnviron, key: any):
+        def _load(self, env: BaseEnviron, key: Any, cache: Any):
 
-            def process_default():
-                if isinstance(self.default, ConfigLoader):
-                    return self.default.load(env, key)
-                return self.default
+            default = cache
+            if default is not MISSING and not self.always_ask:
+                if not env.get_config("RELOAD_CONFIG", type=bool):
+                    return default
 
-            def process_result(data):
-                if not isinstance(data, bool):
-                    data = utils.bool(data)
-                return data
+            if default is MISSING:
+                default = self.default
+                if isinstance(default, ConfigProperty):
+                    default = default.load(env, key)
 
-            if not self.cached:
-                return process_result(
-                    self.prompt_class.ask(
-                        self.prompt or f"Please input {key}",
-                        default=process_default(),
-                        show_default=True,
-                    )
-                )
-
-            default = MISSING
-            path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
-            if os.path.exists(path):
-                try:
-                    default = process_result(utils.read_file(path, binary=False))
-                    if not env.get_config("RELOAD_CONFIG", type=bool):
-                        return default
-                except Exception as e:
-                    env.logger.debug(f"Load cached config \"key\" error: {e}")
-
-            result = process_result(
-                self.prompt_class.ask(
-                    self.prompt or f"Please confirm {key}",
-                    default=process_default() if default is MISSING else default,
-                    show_default=True,
-                )
+            return self.prompt_class.ask(
+                self.prompt or f"Please confirm {key}",
+                default=default,
+                show_default=True,
             )
 
-            utils.write_file(path, str(result))
+    class Alias(ConfigProperty):
+
+        _not_found = object()
+
+        def __init__(self, key: str, type: Type = str, default: Any = MISSING, cached: bool = False):
+            super().__init__(type=type, cached=cached)
+            self.key = key
+            self.default = default
+
+        def _load(self, env: BaseEnviron, key: Any, cache: Any):
+            if cache is not MISSING:
+                return cache
+
+            if self.default is MISSING:
+                return env.get_config(self.key)
+
+            result = env.get_config(self.key, default=self._not_found)
+            if result is self._not_found:
+                result = self.default
 
             return result
 
-    class Lazy(ConfigLoader):
+    class Lazy(ConfigProperty):
 
         def __init__(self, func: Callable[[BaseEnviron], Any]):
             super().__init__()
             self.func = func
 
-        def _load(self, env: BaseEnviron, key: Any):
+        def _load(self, env: BaseEnviron, key: Any, cache: Any):
             return self.func(env)
 
-    class Error(ConfigLoader):
+    class Error(ConfigProperty):
 
         def __init__(self, message: str = None):
             super().__init__()
             self.message = message
 
-        def _load(self, env: BaseEnviron, key: Any):
+        def _load(self, env: BaseEnviron, key: Any, cache: Any):
             raise ConfigError(
                 self.message or
                 f"Please set \"{env.config.envvar_prefix}{key}\" as an environment variable, "

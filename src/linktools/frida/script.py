@@ -42,7 +42,7 @@ _logger = environ.get_logger("frida.app")
 
 
 class FridaUserScript(metaclass=abc.ABCMeta):
-    __missing__ = object()
+    __missing__ = ...
 
     def __init__(self):
         self._source: Union[str, object] = self.__missing__

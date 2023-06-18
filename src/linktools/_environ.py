@@ -36,7 +36,7 @@ from . import utils, version
 from .decorator import cached_property, cached_classproperty
 
 T = TypeVar("T")
-MISSING = object()
+MISSING = ...
 
 root_path = os.path.dirname(__file__)
 asset_path = os.path.join(root_path, "assets")

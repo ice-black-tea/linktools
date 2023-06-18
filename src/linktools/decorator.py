@@ -31,7 +31,7 @@ import threading
 import typing
 
 _T = typing.TypeVar('_T')
-_MISSING = object()
+_MISSING = ...
 
 
 def singleton(cls: typing.Type[_T]) -> typing.Callable[..., _T]:

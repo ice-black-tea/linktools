@@ -28,6 +28,7 @@
 """
 
 import os
+import pickle
 import platform
 import shutil
 import sys
@@ -210,13 +211,13 @@ class Tool(metaclass=Meta):
     exists: bool = property(lambda self: not self.target_path or os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: None if not self.target_path else os.path.dirname(self.absolute_path))
 
-    def __init__(self, container: "ToolContainer", cfg: Union[dict, str], **kwargs):
-        self.__container = container
-        self.__config = cfg
+    def __init__(self, container: "ToolContainer", config: Union[dict, str], **kwargs):
+        self._container = container
+        self._config = config
 
-        self._raw_config = self.__default__.copy()
+        self._raw_config = pickle.loads(pickle.dumps(self.__default__))
         self._raw_config.update(container.config)
-        self._raw_config.update(cfg)
+        self._raw_config.update(config)
         self._raw_config.update(kwargs)
 
     @cached_property
@@ -229,7 +230,7 @@ class Tool(metaclass=Meta):
             f"{cfg['name']}.download_url type error, " \
             f"str was expects, got {type(download_url)}"
 
-        cfg["download_url"] = download_url.format(tools=self.__container, **cfg)
+        cfg["download_url"] = download_url.format(tools=self._container, **cfg)
 
         unpack_path = utils.get_item(cfg, "unpack_path") or ""
         assert isinstance(unpack_path, str), \
@@ -248,8 +249,8 @@ class Tool(metaclass=Meta):
         # unpack path: {unpack_path}
         # root path: tools/{unpack_path}/
         # absolute path: tools/{unpack_path}/{target_path}
-        cfg["target_path"] = target_path.format(tools=self.__container, **cfg)
-        cfg["unpack_path"] = unpack_path.format(tools=self.__container, **cfg)
+        cfg["target_path"] = target_path.format(tools=self._container, **cfg)
+        cfg["unpack_path"] = unpack_path.format(tools=self._container, **cfg)
         paths = ["tools"]
         if not utils.is_empty(cfg["unpack_path"]):
             paths.append(cfg["unpack_path"])
@@ -278,20 +279,20 @@ class Tool(metaclass=Meta):
                 executable_cmdline = cfg["absolute_path"]
             if isinstance(executable_cmdline, str):
                 executable_cmdline = [executable_cmdline]
-            cfg["executable_cmdline"] = [str(i).format(tools=self.__container, **cfg) \
+            cfg["executable_cmdline"] = [str(i).format(tools=self._container, **cfg) \
                                          for i in executable_cmdline]
 
         return cfg
 
     def copy(self, **kwargs):
-        return Tool(self.__container, self.__config, **kwargs)
+        return Tool(self._container, self._config, **kwargs)
 
     def prepare(self) -> None:
         # download and unzip file
         if self.exists:
             pass
         elif not self.download_url:
-            raise Exception(f"{self.name} does not support running on {self.__container.system}")
+            raise Exception(f"{self.name} does not support running on {self._container.system}")
         elif not self.exists:
             _logger.info("Download tool: {}".format(self.download_url))
             url_file = utils.UrlFile(self.download_url)
@@ -331,9 +332,9 @@ class Tool(metaclass=Meta):
             return utils.Popen(*args, **kwargs)
 
         # java or other
-        if executable_cmdline[0] in self.__container.items:
+        if executable_cmdline[0] in self._container.items:
             args = [*executable_cmdline[1:], *args]
-            tool = self.__container.items[executable_cmdline[0]]
+            tool = self._container.items[executable_cmdline[0]]
             return tool.popen(*args, **kwargs)
 
         return utils.Popen(*[*executable_cmdline, *args], **kwargs)

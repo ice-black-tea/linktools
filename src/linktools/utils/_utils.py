@@ -41,8 +41,8 @@ from collections.abc import Iterable, Sized
 from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
 from urllib.request import urlopen
 
-_T = TypeVar("_T")
-MISSING = object()
+T = TypeVar("T")
+MISSING = ...
 
 
 class Timeout:
@@ -81,7 +81,7 @@ class Timeout:
         return f"Timeout(timeout={self._timeout})"
 
 
-def timeoutable(fn: Callable[..., _T]) -> Callable[..., _T]:
+def timeoutable(fn: Callable[..., T]) -> Callable[..., T]:
     timeout_keyword = "timeout"
 
     timeout_index = -1
@@ -153,9 +153,9 @@ class InterruptableEvent(threading.Event):
 
 
 def ignore_error(
-        fn: Callable[..., _T], *,
+        fn: Callable[..., T], *,
         args: Tuple[Any, ...] = None, kwargs: Dict[str, Any] = None,
-        default: _T = None) -> _T:
+        default: T = None) -> T:
     try:
         if args is None:
             args = tuple()
@@ -167,7 +167,7 @@ def ignore_error(
 
 
 # noinspection PyShadowingBuiltins
-def cast(type: Type[_T], obj: Any, default: Any = MISSING) -> Optional[_T]:
+def cast(type: Type[T], obj: Any, default: Any = MISSING) -> Optional[T]:
     """
     类型转换
     :param type: 目标类型
@@ -200,18 +200,6 @@ def cast_bool(obj: Any, default: Any = MISSING) -> bool:
     :param default: 默认值
     :return: 转换后的值
     """
-    if isinstance(obj, bool):
-        return obj
-    if isinstance(obj, str):
-        data = obj.lower()
-        if data in ("true", "yes", "y", "1"):
-            return True
-        elif data in ("false", "no", "n", "0"):
-            return False
-        if default is MISSING:
-            raise TypeError(f"str '{obj}' cannot be converted to type bool")
-        else:
-            return default
     return cast(bool, obj, default)
 
 
@@ -243,7 +231,7 @@ def is_empty(obj: Any) -> bool:
 
 
 # 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) -> Optional[_T]:
+def get_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> Optional[T]:
     """
     获取子项
     :param obj: 对象
@@ -280,7 +268,7 @@ def get_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) ->
 
 
 # 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def pop_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) -> Optional[_T]:
+def pop_item(obj: Any, *keys: Any, type: Type[T] = None, default: T = None) -> Optional[T]:
     """
     获取并删除子项
     :param obj: 对象
@@ -330,7 +318,7 @@ def pop_item(obj: Any, *keys: Any, type: Type[_T] = None, default: _T = None) ->
 
 
 # 1noinspection PyShadowingBuiltins, PyUnresolvedReferences
-def get_list_item(obj: Any, *keys: Any, type: Type[_T] = None, default: List[_T] = None) -> Optional[List[_T]]:
+def get_list_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] = None) -> Optional[List[T]]:
     """
     获取子项（列表）
     :param obj: 对象

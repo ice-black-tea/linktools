@@ -9,7 +9,7 @@ from typing import TypeVar, Type, Callable
 
 _PROXY_FN = "_Proxy__fn"
 _PROXY_OBJECT = "_Proxy__object"
-_PROXY_MISSING = object()
+_PROXY_MISSING = ...
 
 
 # Code stolen from celery.local.Proxy: https://github.com/celery/celery/blob/main/celery/local.py
