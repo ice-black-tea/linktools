@@ -211,7 +211,7 @@ class BaseEnviron(abc.ABC):
         config: Config = self._create_config()
         return config
 
-    def get_config(self, key: str, type: Type[T] = None, default: Any = MISSING) -> Optional[T]:
+    def get_config(self, key: str, type: Type[T] = None, default: Any = MISSING) -> T:
         """
         获取指定配置，优先会从环境变量中获取
         """

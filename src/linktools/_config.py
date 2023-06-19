@@ -84,30 +84,31 @@ class ConfigProperty(abc.ABC):
         self._type = type
         self._cached = cached
 
-    def load(self, env: BaseEnviron, key: Any) -> Optional[str]:
+    def load(self, env: BaseEnviron, key: str, type: Type = None) -> Any:
         if self._data is not MISSING:
             return self._data
         with self.__lock__:
             if self._data is not MISSING:
                 return self._data
+            type = type or self._type
             if self._cached:
                 cache = MISSING
-                path = env.get_data_path("configs", f"cached_{env.name}", str(key), create_parent=True)
+                path = env.get_data_path("configs", f"cached_{env.name}", key, create_parent=True)
                 if os.path.exists(path):
                     cache = utils.read_file(path, binary=False)
                 result = self._load(env, key, cache)
                 if isinstance(result, ConfigProperty):
-                    result = result.load(env, key)
-                if self._type and not isinstance(result, self._type):
-                    result = env.config.cast(result, self._type)
+                    result = result.load(env, key, type=type)
+                elif type and not isinstance(result, type):
+                    result = env.config.cast(result, type)
                 utils.write_file(path, str(result))
                 self._data = result
             else:
                 result = self._load(env, key, MISSING)
                 if isinstance(result, ConfigProperty):
-                    result = result.load(env, key)
-                if self._type and not isinstance(result, self._type):
-                    result = env.config.cast(result, self._type)
+                    result = result.load(env, key, type=type)
+                elif type and not isinstance(result, type):
+                    result = env.config.cast(result, type)
                 self._data = result
             return self._data
 
@@ -209,7 +210,7 @@ class Config:
             rv[key] = self.get(k)
         return rv
 
-    def get(self, key: str, type: Type[T] = None, default: T = MISSING) -> Optional[T]:
+    def get(self, key: str, type: Type[T] = None, default: Union[T, ConfigProperty] = MISSING) -> T:
         """
         获取指定配置，优先会从环境变量中获取
         """
@@ -225,7 +226,7 @@ class Config:
             if key in self._config:
                 value = self._config.get(key)
                 if isinstance(value, ConfigProperty):
-                    value = value.load(self._environ, key)
+                    return value.load(self._environ, key, type=type)
                 return self.cast(value, type=type)
 
         except Exception as e:
@@ -237,20 +238,20 @@ class Config:
             raise ConfigError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
         if isinstance(default, ConfigProperty):
-            return default.load(self._environ, key)
+            return default.load(self._environ, key, type=type)
 
         return default
 
-    def get_str(self, key: str, default: T = MISSING) -> Optional[bool]:
+    def get_str(self, key: str, default: Union[str, ConfigProperty] = MISSING) -> str:
         return self.get(key, type=str, default=default)
 
-    def get_bool(self, key: str, default: T = MISSING) -> Optional[bool]:
+    def get_bool(self, key: str, default: Union[bool, ConfigProperty] = MISSING) -> bool:
         return self.get(key, type=bool, default=default)
 
-    def get_int(self, key: str, default: T = MISSING) -> Optional[bool]:
+    def get_int(self, key: str, default: Union[int, ConfigProperty] = MISSING) -> int:
         return self.get(key, type=int, default=default)
 
-    def get_float(self, key: str, default: T = MISSING) -> Optional[bool]:
+    def get_float(self, key: str, default: Union[float, ConfigProperty] = MISSING) -> float:
         return self.get(key, type=float, default=default)
 
     def keys(self, all: bool = False) -> Generator[str, None, None]:
