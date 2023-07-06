@@ -29,6 +29,8 @@
 from argparse import ArgumentParser
 from typing import Optional
 
+from linktools import utils
+
 from linktools.cli.android import AndroidCommand
 
 
@@ -50,9 +52,10 @@ class Command(AndroidCommand):
             "app_process", "/", device.agent_info["main"],
             *args.agent_args
         ]
-        adb_args = ["shell", *adb_args] \
+        cmdline = utils.list2cmdline([str(arg) for arg in adb_args])
+        adb_args = ["shell", cmdline] \
             if not args.privilege or device.uid == 0 \
-            else ["shell", "su", "-c", *adb_args]
+            else ["shell", "su", "-c", cmdline]
         process = device.popen(*adb_args)
         return process.call()
 
