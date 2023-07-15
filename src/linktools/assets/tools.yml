@@ -236,7 +236,7 @@ GENERAL_TOOL_IPATOOL:
     case:
       - when: { system: darwin, machine: arm64 }
         then: bin/ipatool-{version}-macos-arm64
-      - when: { system: darwin, machine: x86_641 }
+      - when: { system: darwin, machine: x86_64 }
         then: bin/ipatool-{version}-macos-amd64
       - when: { system: linux, machine: x86_64 }
         then: bin/ipatool-{version}-linux-amd64

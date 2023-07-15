@@ -301,11 +301,11 @@ class Tool(metaclass=Meta):
         # download and unzip file
         if self.exists:
             pass
-        elif not self.download_url:
+        elif not self.download_url or not self.absolute_path:
             raise ToolError(
                 f"{self.name} does not support on "
                 f"{self._container.system} ({self._container.machine})")
-        elif not self.exists:
+        else:
             logger.info("Download tool: {}".format(self.download_url))
             url_file = utils.UrlFile(self.download_url)
             temp_dir = environ.get_temp_path("tools", "cache")
@@ -320,6 +320,7 @@ class Tool(metaclass=Meta):
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
+            print(self.absolute_path)
             logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
