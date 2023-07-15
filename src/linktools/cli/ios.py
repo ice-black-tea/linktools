@@ -13,7 +13,7 @@ class IOSCommand(BaseCommand, metaclass=abc.ABCMeta):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
-        return SibError,
+        return super().known_errors + tuple([SibError])
 
     def init_base_arguments(self, parser: ArgumentParser):
         super().init_base_arguments(parser)

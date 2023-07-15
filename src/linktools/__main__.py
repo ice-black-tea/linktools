@@ -91,16 +91,16 @@ class Command(BaseCommand):
         return commands
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        sub_parsers = parser.add_subparsers()
+        subparsers = parser.add_subparsers()
         for category, commands in self.commands.items():
-            parser = sub_parsers.add_parser(
+            parser = subparsers.add_parser(
                 category.name,
                 description=category.description
             )
             parser.set_defaults(help=parser.print_help)
-            catalog_parser = parser.add_subparsers()
+            catalog_subparsers = parser.add_subparsers()
             for command in commands:
-                parser = catalog_parser.add_parser(
+                parser = catalog_subparsers.add_parser(
                     command.name,
                     help=command.description,
                     add_help=False,

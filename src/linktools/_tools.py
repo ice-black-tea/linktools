@@ -39,7 +39,7 @@ from . import utils
 from ._environ import environ, BaseEnviron
 from .decorator import cached_property
 
-_logger = environ.get_logger("tools")
+logger = environ.get_logger("tools")
 
 
 class Parser(object):
@@ -164,8 +164,7 @@ class Meta(type):
         # initialize __parser__
         attrs["__parser__"] = Parser(
             "system",
-            "processor",
-            "architecture",
+            "machine",
         )
         # initialize __default__
         attrs["__default__"] = {}
@@ -208,8 +207,8 @@ class Tool(metaclass=Meta):
     executable: bool = Var(default=True)
     executable_cmdline: tuple = Var(default=[])
 
-    exists: bool = property(lambda self: not self.target_path or os.path.exists(self.absolute_path))
-    dirname: bool = property(lambda self: None if not self.target_path else os.path.dirname(self.absolute_path))
+    exists: bool = property(lambda self: self.absolute_path and os.path.exists(self.absolute_path))
+    dirname: bool = property(lambda self: None if not self.absolute_path else os.path.dirname(self.absolute_path))
 
     def __init__(self, container: "ToolContainer", config: Union[dict, str], **kwargs):
         self._container = container
@@ -242,6 +241,11 @@ class Tool(metaclass=Meta):
             f"{cfg['name']}.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
+        absolute_path = utils.get_item(cfg, "absolute_path", type=str) or ""
+        assert isinstance(target_path, str), \
+            f"{cfg['name']}.absolute_path type error, " \
+            f"str was expects, got {type(absolute_path)}"
+
         if download_url and not unpack_path and not target_path:
             target_path = utils.guess_file_name(download_url)
 
@@ -255,7 +259,13 @@ class Tool(metaclass=Meta):
         if not utils.is_empty(cfg["unpack_path"]):
             paths.append(cfg["unpack_path"])
         cfg["root_path"] = environ.get_data_dir(*paths)
-        cfg["absolute_path"] = os.path.join(cfg["root_path"], cfg["target_path"])
+
+        if absolute_path:
+            cfg["absolute_path"] = absolute_path.format(tools=self._container, **cfg)
+        elif cfg["target_path"]:
+            cfg["absolute_path"] = os.path.join(cfg["root_path"], cfg["target_path"])
+        else:
+            cfg["absolute_path"] = ""
 
         # set executable cmdline
         cmdline = utils.get_item(cfg, "cmdline", type=str) or ""
@@ -292,46 +302,43 @@ class Tool(metaclass=Meta):
         if self.exists:
             pass
         elif not self.download_url:
-            raise Exception(f"{self.name} does not support running on {self._container.system}")
+            raise ToolError(
+                f"{self.name} does not support on "
+                f"{self._container.system} ({self._container.machine})")
         elif not self.exists:
-            _logger.info("Download tool: {}".format(self.download_url))
+            logger.info("Download tool: {}".format(self.download_url))
             url_file = utils.UrlFile(self.download_url)
             temp_dir = environ.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
-                _logger.debug("Unpack tool to {}".format(self.root_path))
+                logger.debug("Unpack tool to {}".format(self.root_path))
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
-                _logger.debug("Move tool to {}".format(self.absolute_path))
+                logger.debug("Move tool to {}".format(self.absolute_path))
                 shutil.move(temp_path, self.absolute_path)
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
-            _logger.debug(f"Chmod 755 {self.absolute_path}")
+            logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
         if not self.exists:
-            _logger.debug(f"{self} does not exist, skip")
+            logger.debug(f"{self} does not exist, skip")
             return
         if not utils.is_empty(self.unpack_path):
-            _logger.debug(f"Delete {self.root_path}")
+            logger.debug(f"Delete {self.root_path}")
             shutil.rmtree(self.root_path, ignore_errors=True)
         elif self.absolute_path.startswith(self.root_path):
-            _logger.debug(f"Delete {self.absolute_path}")
+            logger.debug(f"Delete {self.absolute_path}")
             os.remove(self.absolute_path)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Popen:
         self.prepare()
 
-        # python
-        executable_cmdline = self.executable_cmdline
-        if executable_cmdline[0] == "python":
-            args = [sys.executable, *executable_cmdline[1:], *args]
-            return utils.Popen(*args, **kwargs)
-
         # java or other
+        executable_cmdline = self.executable_cmdline
         if executable_cmdline[0] in self._container.items:
             args = [*executable_cmdline[1:], *args]
             tool = self._container.items[executable_cmdline[0]]
@@ -360,8 +367,8 @@ class Tool(metaclass=Meta):
         try:
             out, err = process.exec(
                 timeout=timeout,
-                on_stdout=_logger.info if log_output else None,
-                on_stderr=_logger.error if log_output else None
+                on_stdout=logger.info if log_output else None,
+                on_stderr=logger.error if log_output else None
             )
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):
@@ -393,20 +400,16 @@ class ToolContainer(object):
         self.environ = env
         self.config = kwargs
         self.config.setdefault("system", platform.system().lower())
-        self.config.setdefault("processor", platform.processor().lower())
-        self.config.setdefault("architecture", platform.architecture()[0].lower())
+        self.config.setdefault("machine", platform.machine().lower())
+        self.config.setdefault("interpreter", sys.executable)
 
     @property
     def system(self) -> str:
         return self.config["system"]
 
     @property
-    def processor(self) -> str:
-        return self.config["processor"]
-
-    @property
-    def architecture(self) -> str:
-        return self.config["architecture"]
+    def machine(self) -> str:
+        return self.config["machine"]
 
     @cached_property
     def items(self) -> Mapping[str, Tool]:

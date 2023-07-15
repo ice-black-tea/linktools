@@ -29,24 +29,27 @@
 import json
 import subprocess
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, Tuple, Type
 
-from linktools import environ
+from linktools._tools import ToolError
 from linktools.cli import BaseCommand
 
 
 class Command(BaseCommand):
     """
-    Tools downloaded from the web
+    Download and use tools
     """
 
-    _TOOL_NAMES = sorted([tool.name for tool in iter(environ.tools)])
+    @property
+    def known_errors(self) -> Tuple[Type[BaseException]]:
+        return super().known_errors + tuple([ToolError])
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        group = parser.add_mutually_exclusive_group()
         parser.add_argument("--set", metavar=("KEY", "VALUE"),
                             action="append", nargs=2, dest="configs", default=[],
                             help="set the config of tool")
+
+        group = parser.add_mutually_exclusive_group()
         group.add_argument("-c", "--config", action="store_true", default=False,
                            help="show the config of tool")
         group.add_argument("--download", action="store_true", default=False,
@@ -55,31 +58,36 @@ class Command(BaseCommand):
                            help="clear tool files")
         group.add_argument("-d", "--daemon", action="store_true", default=False,
                            help="execute tools as a daemon")
-        parser.add_argument("tool", nargs="...", choices=self._TOOL_NAMES)
+
+        subparsers = parser.add_subparsers(title="tool arguments")
+        for name in sorted([tool.name for tool in iter(self.environ.tools)]):
+            tool_parser = subparsers.add_parser(name, prefix_chars=chr(0))
+            tool_parser.add_argument("args", nargs="...")
+            tool_parser.set_defaults(tool=name)
 
     def run(self, args: [str]) -> Optional[int]:
         args = self.parse_args(args)
-        if len(args.tool) == 0 or args.tool[0] not in self._TOOL_NAMES:
+        if not hasattr(args, "tool") or not args.tool:
             self.print_help()
             return -1
 
-        tool_name = args.tool[0]
-        tool_args = args.tool[1:]
-        tool = environ.get_tool(tool_name, **{k: v for k, v in args.configs})
+        tool_name = args.tool
+        tool_args = args.args
+        tool = self.environ.get_tool(tool_name, **{k: v for k, v in args.configs})
 
         if args.config:
-            environ.logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))
+            self.logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))
             return 0
 
         elif args.download:
             if not tool.exists:
                 tool.prepare()
-            environ.logger.info(f"Download tool files success: {tool.absolute_path}")
+            self.logger.info(f"Download tool files success: {tool.absolute_path}")
             return 0
 
         elif args.clear:
             tool.clear()
-            environ.logger.info(f"Clear tool files success")
+            self.logger.info(f"Clear tool files success")
             return 0
 
         elif args.daemon:

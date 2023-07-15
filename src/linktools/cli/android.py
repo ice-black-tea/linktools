@@ -13,7 +13,7 @@ class AndroidCommand(BaseCommand, metaclass=abc.ABCMeta):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
-        return AdbError,
+        return super().known_errors + tuple([AdbError])
 
     def init_base_arguments(self, parser: ArgumentParser):
         super().init_base_arguments(parser)

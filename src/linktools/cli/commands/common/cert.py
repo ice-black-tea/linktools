@@ -52,7 +52,7 @@ class Command(BaseCommand):
 
     @property
     def known_errors(self) -> Tuple[Type[BaseException]]:
-        return OpenSSL.crypto.Error,
+        return super().known_errors + tuple([OpenSSL.crypto.Error])
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("path", action="store", help="cert path")
