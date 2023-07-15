@@ -79,10 +79,10 @@ class BaseCommand(metaclass=abc.ABCMeta):
     def print_help(self, file: IO[str] = None):
         return self._argument_parser.print_help(file=file)
 
-    def parse_args(self, args: List[str] = None) -> Namespace:
+    def parse_args(self, args: List[str]) -> Namespace:
         return self._argument_parser.parse_args(args=args)
 
-    def parse_known_args(self, args: List[str] = None) -> Tuple[Namespace, List[str]]:
+    def parse_known_args(self, args: List[str]) -> Tuple[Namespace, List[str]]:
         return self._argument_parser.parse_known_args(args=args)
 
     @cached_property
@@ -106,9 +106,9 @@ class BaseCommand(metaclass=abc.ABCMeta):
     def init_arguments(self, parser: ArgumentParser) -> None:
         pass
 
-    def init_base_arguments(self, parser: ArgumentParser):
+    def init_base_arguments(self, parser: ArgumentParser) -> None:
 
-        command_self = self
+        environ = self.environ
 
         class VerboseAction(Action):
 
@@ -118,8 +118,8 @@ class BaseCommand(metaclass=abc.ABCMeta):
         class DebugAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
-                command_self.environ.debug = True
-                command_self.environ.logger.setLevel(logging.DEBUG)
+                environ.debug = True
+                environ.logger.setLevel(logging.DEBUG)
 
         class BooleanOptionalAction(Action):
 
@@ -134,7 +134,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
                     handler = LogHandler.get_instance()
                     if handler:
                         handler.show_time = value
-                    command_self.environ.set_config("SHOW_LOG_TIME", value)
+                    environ.set_config("SHOW_LOG_TIME", value)
 
         class LogLevelAction(BooleanOptionalAction):
 
@@ -144,7 +144,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
                     handler = LogHandler.get_instance()
                     if handler:
                         handler.show_level = value
-                    command_self.environ.set_config("SHOW_LOG_LEVEL", value)
+                    environ.set_config("SHOW_LOG_LEVEL", value)
 
         if self.environ.version != NotImplemented:
             parser.add_argument("--version", action="version", version=self.environ.version)
@@ -161,7 +161,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
             group.add_argument("--level", "--no-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
                                help="show log level")
 
-    def add_android_arguments(self, parser: ArgumentParser):
+    def add_android_arguments(self, parser: ArgumentParser) -> None:
         from ..android import Adb, AdbError, Device as AdbDevice
 
         cache_path = environ.get_temp_path("cache", "device", "android", create_parent=True)

@@ -22,6 +22,9 @@
     "ssh": [
       "paramiko",
       "scp"
+    ],
+    "ssl": [
+      "pyOpenSSL"
     ]
   }
 }

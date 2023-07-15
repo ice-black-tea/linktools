@@ -443,7 +443,7 @@ class Config:
 
     class Alias(ConfigProperty):
 
-        _not_found = object()
+        _NOT_FOUND = object()
 
         def __init__(self, key: str, type: Type = str, default: Any = MISSING, cached: bool = False):
             super().__init__(type=type, cached=cached)
@@ -457,8 +457,8 @@ class Config:
             if self.default is MISSING:
                 return env.get_config(self.key)
 
-            result = env.get_config(self.key, default=self._not_found)
-            if result is self._not_found:
+            result = env.get_config(self.key, default=self._NOT_FOUND)
+            if result is self._NOT_FOUND:
                 result = self.default
 
             return result
