@@ -16,7 +16,7 @@
     "lief": [
       "lief>0.10.1",
       "python-magic; platform_system==\"Linux\"",
-      "python-magic-bin; platform_system==\"Darwin\"",
+      "python-magic; platform_system==\"Darwin\"",
       "python-magic-bin; platform_system==\"Windows\""
     ],
     "ssh": [
