@@ -27,4 +27,4 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from ._command import BaseCommand, walk_commands
+from .command import BaseCommand, walk_commands

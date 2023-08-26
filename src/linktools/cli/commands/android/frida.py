@@ -32,6 +32,7 @@ from typing import Optional
 
 from linktools import utils, environ
 from linktools.cli.android import AndroidCommand
+from linktools.cli.argparse import range_type, KeyValueAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
@@ -40,10 +41,6 @@ class Command(AndroidCommand):
     """
     Easy to use frida (require Android device rooted)
     """
-    def main(self, *args, **kwargs) -> None:
-        environ.set_config("SHOW_LOG_TIME", True)
-        environ.set_config("SHOW_LOG_LEVEL", True)
-        return super().main(*args, **kwargs)
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,
@@ -51,8 +48,8 @@ class Command(AndroidCommand):
         parser.add_argument("--spawn", action="store_true", default=False,
                             help="inject after spawn (default: false)")
 
-        parser.add_argument("-P", "--parameters", metavar=("KEY", "VALUE"),
-                            action="append", nargs=2, dest="user_parameters", default=[],
+        parser.add_argument("-P", "--parameters",
+                            action=KeyValueAction, nargs="+", dest="user_parameters", default={},
                             help="user script parameters")
 
         parser.add_argument("-l", "--load", metavar="SCRIPT",
@@ -70,7 +67,7 @@ class Command(AndroidCommand):
                             type=str,
                             help="redirect traffic to target address (default: localhost)")
         parser.add_argument("--redirect-port", metavar="PORT", action="store", dest="redirect_port",
-                            type=utils.range_type(1, 65536),
+                            type=range_type(1, 65536),
                             help="redirect traffic to target port (default: 8080)")
 
         parser.add_argument("-a", "--auto-start", action="store_true", default=False,
@@ -78,11 +75,12 @@ class Command(AndroidCommand):
 
     def run(self, args: [str]) -> Optional[int]:
         args = self.parse_args(args)
+
+        user_parameters = args.user_parameters
+        user_scripts = args.user_scripts
+
         device = args.parse_device()
         package = args.package
-
-        user_parameters = {p[0]: p[1] for p in args.user_parameters}
-        user_scripts = args.user_scripts
 
         class Application(FridaApplication):
 

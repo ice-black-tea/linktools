@@ -31,6 +31,7 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils, environ
+from linktools.cli.argparse import KeyValueAction
 from linktools.cli.ios import IOSCommand
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
@@ -41,19 +42,14 @@ class Command(IOSCommand):
     Easy to use frida (require iOS device jailbreak)
     """
 
-    def main(self, *args, **kwargs) -> None:
-        environ.set_config("SHOW_LOG_TIME", True)
-        environ.set_config("SHOW_LOG_LEVEL", True)
-        return super().main(*args, **kwargs)
-
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,
                             help="target bundle id (default: frontmost application)")
         parser.add_argument("--spawn", action="store_true", default=False,
                             help="inject after spawn (default: false)")
 
-        parser.add_argument("-P", "--parameters", metavar=("KEY", "VALUE"),
-                            action="append", nargs=2, dest="user_parameters", default=[],
+        parser.add_argument("-P", "--parameters",
+                            action=KeyValueAction, nargs="+", dest="user_parameters", default={},
                             help="user script parameters")
 
         parser.add_argument("-l", "--load", metavar="SCRIPT",
@@ -72,11 +68,12 @@ class Command(IOSCommand):
 
     def run(self, args: [str]) -> Optional[int]:
         args = self.parse_args(args)
+
+        user_parameters = args.user_parameters
+        user_scripts = args.user_scripts
+
         device = args.parse_device()
         bundle_id = args.bundle_id
-
-        user_parameters = {p[0]: p[1] for p in args.user_parameters}
-        user_scripts = args.user_scripts
 
         class Application(FridaApplication):
 

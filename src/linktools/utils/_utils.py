@@ -437,13 +437,3 @@ def parse_version(version: str) -> Tuple[int, ...]:
                 break
             result.append(cast_int(match.group(0)))
     return tuple(result)
-
-
-def range_type(min: int, max: int):
-    def wrapper(o):
-        value = cast_int(o)
-        if min <= value <= max:
-            return value
-        raise ValueError("value not in range %s-%s" % (min, max))
-
-    return wrapper

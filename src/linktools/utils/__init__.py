@@ -38,7 +38,6 @@ from ._utils import (
     get_path, read_file, write_file,
     get_lan_ip, get_wan_ip,
     parse_version,
-    range_type,
 )
 
 from ._proxy import (

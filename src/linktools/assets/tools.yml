@@ -45,7 +45,6 @@ GENERAL_TOOL_TIDEVICE:
 # java
 ############################################################################################
 GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
-  cmdline: java
   version: 11.0.18
   download_url:
     case:
@@ -71,7 +70,6 @@ GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
 
 GENERAL_TOOL_JARSIGNER:
   <<: *GENERAL_TOOL_JAVA
-  cmdline: jarsigner
 
 ############################################################################################
 # dex2jar
@@ -96,7 +94,6 @@ GENERAL_TOOL_JAR2DEX:
 # adb
 ############################################################################################
 GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
-  cmdline: adb
   download_url: https://dl.google.com/android/repository/platform-tools-latest-{system}.zip
   unpack_path: platform-tools
   target_path:
@@ -109,13 +106,11 @@ GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
 
 GENERAL_TOOL_FASTBOOT:
   <<: *GENERAL_TOOL_ADB
-  cmdline: fastboot
 
 ############################################################################################
 # aapt
 ############################################################################################
 GENERAL_TOOL_AAPT: &GENERAL_TOOL_AAPT
-  cmdline: aapt
   version: r33
   version_name: android-13
   download_url:
@@ -138,11 +133,9 @@ GENERAL_TOOL_AAPT: &GENERAL_TOOL_AAPT
 
 GENERAL_TOOL_APKSIGNER:
   <<: *GENERAL_TOOL_AAPT
-  cmdline: apksigner
 
 GENERAL_TOOL_ZIPALIGN:
   <<: *GENERAL_TOOL_AAPT
-  cmdline: zipalign
 
 ############################################################################################
 # jadx
@@ -167,7 +160,6 @@ GENERAL_TOOL_JADX_GUI:
 # chromedriver
 ############################################################################################
 GENERAL_TOOL_CHROMEDRIVER:
-  cmdline: chromedriver
   version: 80.0.3987.106
   base_url: http://chromedriver.storage.googleapis.com
   download_url:

@@ -31,8 +31,9 @@ import subprocess
 from argparse import ArgumentParser
 from typing import Optional, Tuple, Type
 
-from linktools._tools import ToolError
+from linktools import ToolError
 from linktools.cli import BaseCommand
+from linktools.cli.argparse import KeyValueAction
 
 
 class Command(BaseCommand):
@@ -45,8 +46,7 @@ class Command(BaseCommand):
         return super().known_errors + tuple([ToolError])
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("--set", metavar=("KEY", "VALUE"),
-                            action="append", nargs=2, dest="configs", default=[],
+        parser.add_argument("--set", action=KeyValueAction, nargs=1, dest="configs", default={},
                             help="set the config of tool")
 
         group = parser.add_mutually_exclusive_group()
@@ -73,7 +73,8 @@ class Command(BaseCommand):
 
         tool_name = args.tool
         tool_args = args.args
-        tool = self.environ.get_tool(tool_name, **{k: v for k, v in args.configs})
+
+        tool = self.environ.get_tool(tool_name, **args.configs)
 
         if args.config:
             self.logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))

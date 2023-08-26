@@ -31,6 +31,7 @@ from typing import Optional
 
 from linktools import utils, environ
 from linktools.cli.android import AndroidCommand
+from linktools.cli.argparse import range_type
 from linktools.frida.android import AndroidFridaServer
 
 
@@ -56,7 +57,7 @@ class Command(AndroidCommand):
                             type=str,
                             help="redirect traffic to target address (default: localhost)")
         parser.add_argument("--redirect-port", metavar="PORT", action="store", dest="redirect_port",
-                            type=utils.range_type(1, 65536),
+                            type=range_type(1, 65536),
                             help="redirect traffic to target port (default: 8080)")
 
     def run(self, args: [str]) -> Optional[int]:

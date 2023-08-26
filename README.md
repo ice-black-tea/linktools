@@ -13,15 +13,17 @@ python & pip (3.6及以上): <https://www.python.org/downloads/>
 ```bash
 # 可以pip直接安装linktools，也可以用以下命令安装github上的最新版本:
 # python3 -m pip install "linktools@ git+https://github.com/ice-black-tea/Zelda.git"
-python3 -m pip install -U "linktools[requests,frida]" # 按需添加依赖包
+python3 -m pip install -U "linktools[all]" # 按需添加依赖项，推荐使用all添加所有依赖项
 ```
 
-额外的依赖包以及相应功能如下：
+额外的依赖项以及相应功能如下：
 ```
 linktools[requests]：下载时使用requests包，并且支持socks5代理
+linktools[lief]：为grep提供服务，可解析apk、elf等文件格式（注意：对于mac系统，需要额外安装brew install libmagic）
 linktools[frida]：集成frida hook框架，支持android、ios hook
-linktools[lief]：为grep提供服务，可解析apk、elf等文件格式
-linktools[all]：添加所有依赖
+linktooks[objection]：集成objection框架
+linktools[ssh]：使用ssh连接越狱后的iphone
+linktools[ssl]：解析证书时使用
 ```
 
 ## 相关功能
@@ -99,7 +101,12 @@ log arguments:
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
-声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/src/linktools/assets/tools.yml)查看
+对于linux和macos系统，推荐在~/.bashrc（linux）、～/.bash_profile（macos）等文件中配置alias，方便调用，如jadx-gui可以写成以下形式：
+```bash
+alias jadx="JAVA_OPTS=-Xmx8g ct-tools --set version=1.4.7 jadx-gui"
+```
+
+所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/src/linktools/assets/tools.yml)查看
 
 ```
 $ usage: ct-tools [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c | --download | --clear | -d] ...

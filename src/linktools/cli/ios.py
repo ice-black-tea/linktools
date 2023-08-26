@@ -5,7 +5,7 @@ import abc
 from argparse import ArgumentParser
 from typing import Tuple, Type
 
-from ._command import BaseCommand
+from .command import BaseCommand
 from ..ios import SibError
 
 

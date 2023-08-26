@@ -30,6 +30,6 @@
 from . import utils
 from . import decorator
 from ._logging import LogHandler
-from ._tools import ToolContainer, ToolExecError, Tool
+from ._tools import ToolContainer, Tool, ToolError, ToolNotFound, ToolExecError
 from ._config import Config, ConfigError
 from ._environ import BaseEnviron, environ

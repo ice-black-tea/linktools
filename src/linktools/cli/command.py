@@ -44,6 +44,7 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
+from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
@@ -121,11 +122,6 @@ class BaseCommand(metaclass=abc.ABCMeta):
                 environ.debug = True
                 environ.logger.setLevel(logging.DEBUG)
 
-        class BooleanOptionalAction(Action):
-
-            def format_usage(self):
-                return ' | '.join(self.option_strings)
-
         class LogTimeAction(BooleanOptionalAction):
 
             def __call__(self, parser, namespace, values, option_string=None):
@@ -156,9 +152,9 @@ class BaseCommand(metaclass=abc.ABCMeta):
                            help=f"enable debug mode and increase {self.environ.name}'s log verbosity")
 
         if LogHandler.get_instance():
-            group.add_argument("--time", "--no-time", action=LogTimeAction, nargs=0, dest=SUPPRESS,
+            group.add_argument("--time", action=LogTimeAction, dest=SUPPRESS,
                                help="show log time")
-            group.add_argument("--level", "--no-level", action=LogLevelAction, nargs=0, dest=SUPPRESS,
+            group.add_argument("--level", action=LogLevelAction, dest=SUPPRESS,
                                help="show log level")
 
     def add_android_arguments(self, parser: ArgumentParser) -> None:

@@ -18,7 +18,6 @@ import _frida
 import frida
 from frida.core import Session, Script
 
-from ._utils import Counter
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .. import utils, environ
@@ -279,6 +278,46 @@ class FridaFileHandler(metaclass=abc.ABCMeta):
         _logger.debug(f"{file} changed")
 
 
+class FridaEventCounter:
+
+    def __init__(self):
+        self._map = {}
+        self._lock = threading.RLock()
+
+    def increase(self, group: "Group"):
+        with self._lock:
+            keys = group.values
+            if keys not in self._map:
+                self._map[keys] = 0
+            self._map[keys] = self._map[keys] + 1
+            return self._map[keys]
+
+    class Group:
+
+        def __init__(self, accept_empty: bool = False):
+            self._accept_empty = accept_empty
+            self._names = []
+            self._values = []
+
+        def add(self, **kwargs):
+            for k, v in kwargs.items():
+                if self._accept_empty or v is not None:
+                    self._names.append(k)
+                    self._values.append(v)
+            return self
+
+        @property
+        def names(self):
+            return tuple(self._names)
+
+        @property
+        def values(self):
+            return tuple(self._values)
+
+        def __repr__(self):
+            return f"Group({', '.join(self._names)})"
+
+
 class FridaManager:
 
     def __init__(self, reactor: FridaReactor):
@@ -535,7 +574,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         self._enable_child_gating = enable_child_gating
         self._eternalize = eternalize
 
-        self._event_counter = Counter()
+        self._event_counter = FridaEventCounter()
 
     @property
     def device(self) -> frida.core.Device:
@@ -833,7 +872,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         :param message: 事件消息
         :param data: 事件数据
         """
-        group = Counter.Group(accept_empty=False)
+        group = FridaEventCounter.Group(accept_empty=False)
         count = self._event_counter.increase(
             group.add(
                 pid=script.session.pid,

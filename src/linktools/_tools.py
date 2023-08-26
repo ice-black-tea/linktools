@@ -40,6 +40,7 @@ from ._environ import environ, BaseEnviron
 from .decorator import cached_property
 
 logger = environ.get_logger("tools")
+MISSING = ...
 
 
 class Parser(object):
@@ -106,7 +107,7 @@ class Parser(object):
 
                 else_block = utils.get_item(cond_block, "else")
                 if else_block is not None:  # ==> find "case" => "else"
-                    # if it is a else block, return "else"
+                    # if it is an else block, return "else"
                     # -----------------------------------------
                     #   field:
                     #     case:
@@ -151,25 +152,22 @@ class Parser(object):
         return verify
 
 
-class Var(object):
+class ToolProperty(object):
 
     def __init__(self, name=None, default=None):
         self.name = name
         self.default = default
 
 
-class Meta(type):
+class ToolMeta(type):
 
     def __new__(mcs, name, bases, attrs):
         # initialize __parser__
-        attrs["__parser__"] = Parser(
-            "system",
-            "machine",
-        )
+        attrs["__parser__"] = Parser("system", "machine")
         # initialize __default__
         attrs["__default__"] = {}
         for key in list(attrs.keys()):
-            if isinstance(attrs[key], Var):
+            if isinstance(attrs[key], ToolProperty):
                 var = attrs[key]
                 var_name = var.name or key
                 attrs["__default__"][var_name] = var.default
@@ -193,19 +191,19 @@ class ToolExecError(ToolError):
     pass
 
 
-class Tool(metaclass=Meta):
+class Tool(metaclass=ToolMeta):
     __default__: Dict
     __parser__: Parser
 
-    name: str = Var(default="")
-    version: str = Var(default="")
-    download_url: str = Var(default="")
-    target_path: bool = Var(default="")
-    root_path: str = Var(default="")
-    unpack_path: str = Var(default="")
-    absolute_path: str = Var(default="")
-    executable: bool = Var(default=True)
-    executable_cmdline: tuple = Var(default=[])
+    name: str = ToolProperty(default=MISSING)
+    download_url: str = ToolProperty(default=MISSING)
+    target_path: bool = ToolProperty(default=MISSING)
+    root_path: str = ToolProperty(default=MISSING)
+    unpack_path: str = ToolProperty(default=MISSING)
+    absolute_path: str = ToolProperty(default=MISSING)
+    cmdline: str = ToolProperty(default=MISSING)
+    executable: bool = ToolProperty(default=True)
+    executable_cmdline: tuple = ToolProperty(default=[])
 
     exists: bool = property(lambda self: self.absolute_path and os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: None if not self.absolute_path else os.path.dirname(self.absolute_path))
@@ -225,25 +223,32 @@ class Tool(metaclass=Meta):
 
         # download url
         download_url = utils.get_item(cfg, "download_url") or ""
+        if download_url is MISSING:
+            download_url = ""
         assert isinstance(download_url, str), \
-            f"{cfg['name']}.download_url type error, " \
+            f"<Tool {cfg['name']}>.download_url type error, " \
             f"str was expects, got {type(download_url)}"
-
         cfg["download_url"] = download_url.format(tools=self._container, **cfg)
 
         unpack_path = utils.get_item(cfg, "unpack_path") or ""
+        if unpack_path is MISSING:
+            unpack_path = ""
         assert isinstance(unpack_path, str), \
-            f"{cfg['name']}.unpack_path type error, " \
+            f"<Tool {cfg['name']}>.unpack_path type error, " \
             f"str was expects, got {type(unpack_path)}"
 
-        target_path = utils.get_item(cfg, "target_path", type=str) or ""
+        target_path = utils.get_item(cfg, "target_path") or ""
+        if target_path is MISSING:
+            target_path = ""
         assert isinstance(target_path, str), \
-            f"{cfg['name']}.target_path type error, " \
+            f"<Tool {cfg['name']}>.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
-        absolute_path = utils.get_item(cfg, "absolute_path", type=str) or ""
-        assert isinstance(target_path, str), \
-            f"{cfg['name']}.absolute_path type error, " \
+        absolute_path = utils.get_item(cfg, "absolute_path") or ""
+        if absolute_path is MISSING:
+            absolute_path = ""
+        assert isinstance(absolute_path, str), \
+            f"<Tool {cfg['name']}>.absolute_path type error, " \
             f"str was expects, got {type(absolute_path)}"
 
         if download_url and not unpack_path and not target_path:
@@ -268,7 +273,14 @@ class Tool(metaclass=Meta):
             cfg["absolute_path"] = ""
 
         # set executable cmdline
-        cmdline = utils.get_item(cfg, "cmdline", type=str) or ""
+        cmdline = utils.get_item(cfg, "cmdline") or ""
+        if cmdline is MISSING:
+            cmdline = cfg["name"]
+        assert isinstance(cmdline, str), \
+            f"<Tool {cfg['name']}>.cmdline type error, " \
+            f"str was expects, got {type(absolute_path)}"
+        cfg["cmdline"] = cmdline
+
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
         if not utils.is_empty(cmdline):
@@ -320,7 +332,6 @@ class Tool(metaclass=Meta):
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
-            print(self.absolute_path)
             logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
