@@ -46,7 +46,7 @@ MISSING = ...
 class Parser(object):
 
     def __init__(self, *items):
-        self._verifies = tuple(self._get_verify(item) for item in items)
+        self._conditions = tuple(self._get_condition(item) for item in items)
 
     def parse(self, cfg: Dict):
         result = {}
@@ -84,8 +84,8 @@ class Parser(object):
                     #       - else: ~
                     # -----------------------------------------
                     is_verified = True
-                    for verify in self._verifies:
-                        if not verify(cfg, when_block):
+                    for condition in self._conditions:
+                        if not condition(cfg, when_block):
                             is_verified = False
                             break
 
@@ -126,9 +126,9 @@ class Parser(object):
         return value  # ==> not found "case"
 
     @classmethod
-    def _get_verify(cls, item: str):
+    def _get_condition(cls, item: str):
 
-        def verify(config, when_block):
+        def check(config, when_block):
             when_scope = utils.get_item(when_block, item)
             if when_scope is not None:
                 # -----------------------------------------
@@ -149,7 +149,7 @@ class Parser(object):
                         return False
             return True
 
-        return verify
+        return check
 
 
 class ToolProperty(object):

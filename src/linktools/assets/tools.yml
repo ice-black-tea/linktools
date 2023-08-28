@@ -22,7 +22,7 @@ GENERAL_TOOL_SMALI:
 
 GENERAL_TOOL_APKTOOL:
   <<: *JAR
-  version: 2.7.0
+  version: 2.8.1
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
 
 GENERAL_TOOL_APPCRAWLER:
@@ -32,7 +32,7 @@ GENERAL_TOOL_APPCRAWLER:
 
 GENERAL_TOOL_XPATCH:
   <<: *JAR
-  version: 5.1
+  version: 5.2
   download_url: https://github.com/WindySha/Xpatch/releases/download/v{version}/xpatch-{version}.jar
 
 ############################################################################################

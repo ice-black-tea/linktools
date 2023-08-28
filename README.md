@@ -26,6 +26,19 @@ linktools[ssh]：使用ssh连接越狱后的iphone
 linktools[ssl]：解析证书时使用
 ```
 
+### 配置alias（推荐）
+
+对于*nix等系统，推荐在~/.bashrc、~/.bash_profile、~/.zshrc等文件中配置alias，简化调用方式：
+
+```bash
+alias adb="at-adb"
+alias logcat="at-logcat"
+alias sib="it-sib"
+
+alias apktool="ct-tools apktool"
+alias jadx="JAVA_OPTS=-Xmx8g ct-tools --set version=1.4.7 jadx-gui" # 指定jadx版本号，配置jvm最大内存
+```
+
 ## 相关功能
 
 ```
@@ -100,11 +113,6 @@ log arguments:
 
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
-
-对于linux和macos系统，推荐在~/.bashrc（linux）、～/.bash_profile（macos）等文件中配置alias，方便调用，如jadx-gui可以写成以下形式：
-```bash
-alias jadx="JAVA_OPTS=-Xmx8g ct-tools --set version=1.4.7 jadx-gui"
-```
 
 所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/src/linktools/assets/tools.yml)查看
 
