@@ -54,7 +54,7 @@ GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
         then: https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_macos-x64_bin.tar.gz
       - when: { system: linux, machine: x86_64 }
         then: https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_linux-x64_bin.tar.gz
-      - when: { system: windows, machine: x86_64 }
+      - when: { system: windows, machine: amd64 }
         then: https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_windows-x64_bin.zip
       - else: ~
   unpack_path: java-{version}
@@ -195,7 +195,7 @@ GENERAL_TOOL_SIB:
         then: https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_macosx_x86_64.tar.gz
       - when: { system: linux, machine: x86_64 }
         then: https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_linux_x86_64.tar.gz
-      - when: { system: windows, machine: x86_64 }
+      - when: { system: windows, machine: amd64 }
         then: https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_windows_x86_64.tar.gz
       - else: ~
   unpack_path: sib-{version}
@@ -220,7 +220,7 @@ GENERAL_TOOL_IPATOOL:
         then: https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-macos-amd64.tar.gz
       - when: { system: linux, machine: x86_64 }
         then: https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-linux-amd64.tar.gz
-      - when: { system: windows, machine: x86_64 }
+      - when: { system: windows, machine: amd64 }
         then: https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-windows-amd64.tar.gz
       - else: ~
   unpack_path: ipatool-{version}
@@ -232,6 +232,6 @@ GENERAL_TOOL_IPATOOL:
         then: bin/ipatool-{version}-macos-amd64
       - when: { system: linux, machine: x86_64 }
         then: bin/ipatool-{version}-linux-amd64
-      - when: { system: windows, machine: x86_64 }
+      - when: { system: windows, machine: amd64 }
         then: bin/ipatool-{version}-windows-amd64.exe
       - else: ~

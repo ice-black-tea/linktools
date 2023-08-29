@@ -28,7 +28,7 @@
 """
 
 __release__ = False
-__version__ = "0.0.1"
+__version__ = "0.0.1.dev"
 __name__ = "linktools"
 __author__ = "Hu Ji"
 __email__ = "669898595@qq.com"
