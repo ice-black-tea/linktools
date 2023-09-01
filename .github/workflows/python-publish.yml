@@ -54,3 +54,12 @@ jobs:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: dist/
+    - name: Commit and push changes
+      run: |
+        git config --global user.name '$GITHUB_REPOSITORY_OWNER'
+        git config --global user.email '$GITHUB_REPOSITORY_OWNER@github.com'
+        git checkout master
+        git add src/linktools/assets/frida.js
+        git add src/linktools/assets/android-tools.json src/linktools/assets/android-tools.apk
+        git commit -m "Auto commit artifacts (${{ steps.previoustag.outputs.tag }})"
+        git push origin master
