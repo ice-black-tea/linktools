@@ -20,6 +20,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
@@ -54,12 +57,15 @@ jobs:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: dist/
-    - name: Commit and push changes
+    - name: Commit files
       run: |
-        git config --global user.name '$GITHUB_REPOSITORY_OWNER'
-        git config --global user.email '$GITHUB_REPOSITORY_OWNER@github.com'
-        git checkout -b master
+        git config user.name github-actions
+        git config user.email github-actions@github.com
         git add src/linktools/assets/frida.js
         git add src/linktools/assets/android-tools.json src/linktools/assets/android-tools.apk
         git commit -m "Auto commit artifacts (${{ steps.previoustag.outputs.tag }})"
-        git push origin HEAD:master
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: master
