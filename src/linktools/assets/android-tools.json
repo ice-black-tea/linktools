@@ -1,10 +1,10 @@
 {
     "ANDROID_TOOL_BRIDGE_APK": {
         "name": "android-tools.apk",
-        "md5": "466c349cf14cb1cf4034b8274e84ca1f",
+        "md5": "3b3ff2b2253b2f6cc76d0941129c67fe",
         "main": "android.tools.Main",
-        "size": 82895,
-        "time": "2023-05-03 15:42:45"
+        "size": 82987,
+        "time": "2023-09-03 21:21:19"
     },
     "ANDROID_TOOL_FRIDA_SERVER": {
         "name": "frida-server-{version}-android-{abi}",
