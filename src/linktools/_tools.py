@@ -226,7 +226,7 @@ class Tool(metaclass=ToolMeta):
         if download_url is MISSING:
             download_url = ""
         assert isinstance(download_url, str), \
-            f"<Tool {cfg['name']}>.download_url type error, " \
+            f"Tool<{cfg['name']}>.download_url type error, " \
             f"str was expects, got {type(download_url)}"
         cfg["download_url"] = download_url.format(tools=self._container, **cfg)
 
@@ -234,21 +234,21 @@ class Tool(metaclass=ToolMeta):
         if unpack_path is MISSING:
             unpack_path = ""
         assert isinstance(unpack_path, str), \
-            f"<Tool {cfg['name']}>.unpack_path type error, " \
+            f"Tool<{cfg['name']}>.unpack_path type error, " \
             f"str was expects, got {type(unpack_path)}"
 
         target_path = utils.get_item(cfg, "target_path") or ""
         if target_path is MISSING:
             target_path = ""
         assert isinstance(target_path, str), \
-            f"<Tool {cfg['name']}>.target_path type error, " \
+            f"Tool<{cfg['name']}>.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
         absolute_path = utils.get_item(cfg, "absolute_path") or ""
         if absolute_path is MISSING:
             absolute_path = ""
         assert isinstance(absolute_path, str), \
-            f"<Tool {cfg['name']}>.absolute_path type error, " \
+            f"Tool<{cfg['name']}>.absolute_path type error, " \
             f"str was expects, got {type(absolute_path)}"
 
         if download_url and not unpack_path and not target_path:
@@ -256,8 +256,8 @@ class Tool(metaclass=ToolMeta):
 
         # target path: {target_path}
         # unpack path: {unpack_path}
-        # root path: tools/{unpack_path}/
-        # absolute path: tools/{unpack_path}/{target_path}
+        # root path: {data_path}/tools/{unpack_path}/
+        # absolute path: {data_path}/tools/{unpack_path}/{target_path}
         cfg["target_path"] = target_path.format(tools=self._container, **cfg)
         cfg["unpack_path"] = unpack_path.format(tools=self._container, **cfg)
         paths = ["tools"]
@@ -277,7 +277,7 @@ class Tool(metaclass=ToolMeta):
         if cmdline is MISSING:
             cmdline = cfg["name"]
         assert isinstance(cmdline, str), \
-            f"<Tool {cfg['name']}>.cmdline type error, " \
+            f"Tool<{cfg['name']}>.cmdline type error, " \
             f"str was expects, got {type(absolute_path)}"
         cfg["cmdline"] = cmdline
 
@@ -290,7 +290,7 @@ class Tool(metaclass=ToolMeta):
             executable_cmdline = utils.get_item(cfg, "executable_cmdline")
             if executable_cmdline:
                 assert isinstance(executable_cmdline, (str, tuple, list)), \
-                    f"{cfg['name']}.executable_cmdline type error, " \
+                    f"Tool<{cfg['name']}>.executable_cmdline type error, " \
                     f"str/tuple/list was expects, got {type(executable_cmdline)}"
                 # if executable_cmdline is not empty,
                 # set the executable flag to false
@@ -315,7 +315,7 @@ class Tool(metaclass=ToolMeta):
             pass
         elif not self.download_url or not self.absolute_path:
             raise ToolError(
-                f"{self.name} does not support on "
+                f"{self} does not support on "
                 f"{self._container.system} ({self._container.machine})")
         else:
             logger.info("Download tool: {}".format(self.download_url))
@@ -403,7 +403,7 @@ class Tool(metaclass=ToolMeta):
             process.kill()
 
     def __repr__(self):
-        return f"<Tool {self.name}>"
+        return f"Tool<{self.name}>"
 
 
 class ToolContainer(object):

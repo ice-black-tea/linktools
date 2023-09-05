@@ -30,7 +30,8 @@ import abc
 import json
 import os
 import pathlib
-from typing import TypeVar, Type, Optional, Any
+import sys
+from typing import TypeVar, Type, Any
 
 from . import utils, version
 from .decorator import cached_property, cached_classproperty
@@ -188,7 +189,14 @@ class BaseEnviron(abc.ABC):
             )
         else:
             # 不是发布版本的话，使用tools.yml配置代替
-            import yaml
+            try:
+                import yaml
+            except:
+                utils.Popen(
+                    sys.executable, "-m", "pip", "install", "pyyaml",
+                    stdout=None, stderr=None,
+                ).check_call()
+                import yaml
             config.update_from_file(
                 os.path.join(asset_path, "tools.yml"),
                 yaml.safe_load

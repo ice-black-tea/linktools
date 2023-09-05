@@ -58,10 +58,14 @@ if __name__ == '__main__':
     ######################################################################
     # 将tools.yml转为tools.json
     ######################################################################
+    tools = {}
     with open(os.path.join(src_path, "assets", "tools.yml"), "rb") as fd:
         file_data = yaml.safe_load(fd)
+    for key, value in file_data.items():
+        if key[0].isupper():
+            tools[key] = value
     with open(os.path.join(src_path, "assets", "tools.json"), "wt") as fd:
-        json.dump(file_data, fd)
+        json.dump(tools, fd)
     os.remove(os.path.join(src_path, "assets", "tools.yml"))
 
     ######################################################################

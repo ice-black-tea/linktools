@@ -1,9 +1,9 @@
 # general tools
 
-jar: &JAR
+_jar: &JAR
   executable_cmdline: [ java, -jar, "{absolute_path}" ]
 
-py: &PY
+_py: &PY
   absolute_path: "{interpreter}"
   executable_cmdline: [ "{interpreter}", -m, "{name}" ]
 

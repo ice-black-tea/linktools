@@ -28,7 +28,7 @@ linktools[ssl]：解析证书时使用
 
 ### 配置alias（推荐）
 
-对于*nix等系统，推荐在~/.bashrc、~/.bash_profile、~/.zshrc等文件中配置alias，简化调用方式：
+对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置alias，简化调用方式：
 
 ```bash
 alias adb="at-adb"

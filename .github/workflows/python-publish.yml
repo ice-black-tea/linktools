@@ -12,16 +12,10 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-
 jobs:
   deploy:
 
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
 
     steps:
     - uses: actions/checkout@v3
@@ -36,22 +30,26 @@ jobs:
     - name: Set up JDK 11
       uses: actions/setup-java@v3
       with:
-        distribution: 'temurin'
+        distribution: temurin
         java-version: 11
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install wheel
     - name: Get previous tag
-      id: previoustag
+      id: tag
       uses: WyriHaximus/github-action-get-previous-tag@v1
     - name: Prepare package
       run: |
         pip install -r .github/scripts/prepare-publish-requirements.txt
-        VERSION=${{ steps.previoustag.outputs.tag }} python .github/scripts/prepare-publish.py
+        VERSION=${{ steps.tag.outputs.tag }} python .github/scripts/prepare-publish.py
     - name: Build package
+      if: ${{ !env.ACT }}
       run: python setup.py sdist bdist_wheel
     - name: Publish package
+      if: ${{ !env.ACT }}
       uses: pypa/gh-action-pypi-publish@v1.6.4
       with:
         user: __token__
@@ -63,9 +61,8 @@ jobs:
         git config user.email github-actions@github.com
         git add src/linktools/assets/frida.js
         git add src/linktools/assets/android-tools.json src/linktools/assets/android-tools.apk
-        git commit -m "Auto commit artifacts (${{ steps.previoustag.outputs.tag }})"
+        git commit -m "Auto commit artifacts (${{ steps.tag.outputs.tag }})"
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: master
