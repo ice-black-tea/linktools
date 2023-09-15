@@ -35,6 +35,24 @@ GENERAL_TOOL_XPATCH:
   version: 5.2
   download_url: https://github.com/WindySha/Xpatch/releases/download/v{version}/xpatch-{version}.jar
 
+GENERAL_TOOL_BURPSUITE: &GENERAL_TOOL_BURPSUITE
+  version: 2023.1
+  download_url: https://github.com/ice-black-tea/tools/releases/download/v0.0.1/burpsuite_pro_v{version}.zip
+  unpack_path: burpsuite_pro_v{version}
+  target_path: burpsuite_pro_v{version}.jar
+  executable_cmdline:
+    case:
+      - when: { system: [ darwin, linux ] }
+        then: [ java, --illegal-access=permit, -Dfile.encoding=utf-8, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{root_path}/burp-loader-keygen-2_1_06.jar", -noverify, -jar, "{root_path}/burpsuite_pro_v2023.1.jar" ]
+      - when: { system: windows }
+        then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{root_path}/burp-loader-keygen-2_1_06.jar", -noverify, -jar, "{root_path}/burpsuite_pro_v2023.1.jar" ]
+      - else: ~
+
+GENERAL_TOOL_BURPSUITE_KEYGEN:
+  <<: *GENERAL_TOOL_BURPSUITE
+  name: burpsuite-keygen
+  executable_cmdline: [ java, -jar, "{root_path}/burp-loader-keygen-2_1_06.jar" ]
+
 ############################################################################################
 # python libraries
 ############################################################################################
@@ -45,7 +63,7 @@ GENERAL_TOOL_TIDEVICE:
 # java
 ############################################################################################
 GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
-  version: 11.0.18
+  version: 17.0.8 # 11.0.18
   download_url:
     case:
       - when: { system: darwin, machine: arm64 }
