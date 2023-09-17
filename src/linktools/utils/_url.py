@@ -135,6 +135,8 @@ class DownloadContext:
     file_size: int = DownloadContextVar("FileSize")
     file_name: str = DownloadContextVar("FileName")
     completed: bool = DownloadContextVar("IsCompleted", False)
+    max_times: int = DownloadContextVar("MaxTimes")
+    last_error: Exception = DownloadContextVar("LastError")
 
     def __init__(self, path: str):
         self._db = shelve.open(path)
@@ -257,12 +259,13 @@ class UrlFile:
         )
 
     @timeoutable
-    def save(self, save_dir: str = None, save_name: str = None, timeout: Timeout = None, **kwargs) -> str:
+    def save(self, save_dir: str = None, save_name: str = None, timeout: Timeout = None, retry: int = 2, **kwargs) -> str:
         """
         从指定url下载文件
         :param save_dir: 文件路径，如果为空，则保存到temp目录
         :param save_name: 文件名，如果为空，则默认为下载的文件名
         :param timeout: 超时时间
+        :param retry: 重试次数
         :return: 文件路径
         """
 
@@ -294,8 +297,22 @@ class UrlFile:
 
                     # 开始下载
                     context.completed = False
-                    context.download(timeout)
-                    context.completed = True
+                    context.last_error = None
+                    context.max_times = 1 + max(retry or 0, 0)
+                    for i in range(context.max_times, 0, -1):
+                        try:
+                            if context.last_error is not None:
+                                _logger.warning(
+                                    f"Download remain retry times: {i}, "
+                                    f"last error: {context.last_error}")
+                            context.download(timeout)
+                            context.completed = True
+                            break
+                        except Exception as e:
+                            context.last_error = e
+
+                    if not context.completed:
+                        raise context.last_error
 
                 if save_dir:
                     # 如果指定了路径，先创建路径
