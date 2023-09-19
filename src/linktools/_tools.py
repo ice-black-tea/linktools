@@ -33,7 +33,7 @@ import platform
 import shutil
 import sys
 import warnings
-from typing import Dict, Union, Mapping, Iterator, Any
+from typing import Dict, Union, Mapping, Iterator, Any, Tuple, List
 
 from . import utils
 from ._environ import environ, BaseEnviron
@@ -196,6 +196,7 @@ class Tool(metaclass=ToolMeta):
     __parser__: Parser
 
     name: str = ToolProperty(default=MISSING)
+    depends_on: tuple = ToolProperty(default=[])
     download_url: str = ToolProperty(default=MISSING)
     target_path: bool = ToolProperty(default=MISSING)
     root_path: str = ToolProperty(default=MISSING)
@@ -220,6 +221,18 @@ class Tool(metaclass=ToolMeta):
     @cached_property
     def config(self) -> dict:
         cfg = self.__parser__.parse(self._raw_config)
+
+        depends_on = utils.get_item(cfg, "depends_on")
+        if depends_on:
+            assert isinstance(depends_on, (str, Tuple, List)), \
+                f"Tool<{cfg['name']}>.depends_on type error, " \
+                f"str/tuple/list was expects, got {type(depends_on)}"
+            if isinstance(depends_on, str):
+                depends_on = [depends_on]
+            for dependency in depends_on:
+                assert dependency in self._container.items, \
+                    f"Tool<{cfg['name']}>.depends_on error: not found Tool<{dependency}>"
+            cfg["depends_on"] = depends_on
 
         # download url
         download_url = utils.get_item(cfg, "download_url") or ""
@@ -289,7 +302,7 @@ class Tool(metaclass=ToolMeta):
         else:
             executable_cmdline = utils.get_item(cfg, "executable_cmdline")
             if executable_cmdline:
-                assert isinstance(executable_cmdline, (str, tuple, list)), \
+                assert isinstance(executable_cmdline, (str, Tuple, List)), \
                     f"Tool<{cfg['name']}>.executable_cmdline type error, " \
                     f"str/tuple/list was expects, got {type(executable_cmdline)}"
                 # if executable_cmdline is not empty,
@@ -310,6 +323,10 @@ class Tool(metaclass=ToolMeta):
         return Tool(self._container, self._config, **kwargs)
 
     def prepare(self) -> None:
+        for dependency in self.depends_on:
+            tool = self._container[dependency]
+            tool.prepare()
+
         # download and unzip file
         if self.exists:
             pass
@@ -318,16 +335,16 @@ class Tool(metaclass=ToolMeta):
                 f"{self} does not support on "
                 f"{self._container.system} ({self._container.machine})")
         else:
-            logger.info("Download tool: {}".format(self.download_url))
+            logger.info(f"Download {self}: {self.download_url}")
             url_file = utils.UrlFile(self.download_url)
             temp_dir = environ.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
-                logger.debug("Unpack tool to {}".format(self.root_path))
+                logger.debug(f"Unpack {self} to {self.root_path}")
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
-                logger.debug("Move tool to {}".format(self.absolute_path))
+                logger.debug(f"Move {self} to {self.absolute_path}")
                 shutil.move(temp_path, self.absolute_path)
 
         # change tool file mode

@@ -12,46 +12,47 @@ _py: &PY
 ############################################################################################
 GENERAL_TOOL_BAKSMALI:
   <<: *JAR
-  version: 2.5.2
+  version: "2.5.2"
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/baksmali-{version}.jar
 
 GENERAL_TOOL_SMALI:
   <<: *JAR
-  version: 2.5.2
+  version: "2.5.2"
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/smali-{version}.jar
 
 GENERAL_TOOL_APKTOOL:
   <<: *JAR
-  version: 2.8.1
+  version: "2.8.1"
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
 
 GENERAL_TOOL_APPCRAWLER:
   <<: *JAR
-  version: 2.7.4
+  version: "2.7.4"
   download_url: https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar
 
 GENERAL_TOOL_XPATCH:
   <<: *JAR
-  version: 5.2
+  version: "5.2"
   download_url: https://github.com/WindySha/Xpatch/releases/download/v{version}/xpatch-{version}.jar
 
-GENERAL_TOOL_BURPSUITE: &GENERAL_TOOL_BURPSUITE
-  version: 2023.1
-  download_url: https://github.com/ice-black-tea/tools/releases/download/v0.0.1/burpsuite_pro_v{version}.zip
-  unpack_path: burpsuite_pro_v{version}
+GENERAL_TOOL_BURPSUITE:
+  <<: *JAR
+  version: "2023.10"
+  depends_on: burpsuite-keygen
+  download_url: https://portswigger-cdn.net/burp/releases/download?product=pro&type=Jar&version={version}
   target_path: burpsuite_pro_v{version}.jar
   executable_cmdline:
     case:
       - when: { system: [ darwin, linux ] }
-        then: [ java, --illegal-access=permit, -Dfile.encoding=utf-8, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{root_path}/burp-loader-keygen-2_1_06.jar", -noverify, -jar, "{root_path}/burpsuite_pro_v2023.1.jar" ]
+        then: [ java, --illegal-access=permit, -Dfile.encoding=utf-8, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -noverify, -jar, "{absolute_path}" ]
       - when: { system: windows }
-        then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{root_path}/burp-loader-keygen-2_1_06.jar", -noverify, -jar, "{root_path}/burpsuite_pro_v2023.1.jar" ]
+        then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -noverify, -jar, "{absolute_path}" ]
       - else: ~
 
 GENERAL_TOOL_BURPSUITE_KEYGEN:
-  <<: *GENERAL_TOOL_BURPSUITE
+  <<: *JAR
   name: burpsuite-keygen
-  executable_cmdline: [ java, -jar, "{root_path}/burp-loader-keygen-2_1_06.jar" ]
+  download_url: https://github.com/ice-black-tea/tools/releases/download/burp-loader-keygen-2_1_06/burp-loader-keygen-2_1_06.jar
 
 ############################################################################################
 # python libraries
@@ -63,7 +64,7 @@ GENERAL_TOOL_TIDEVICE:
 # java
 ############################################################################################
 GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
-  version: 17.0.8 # 11.0.18
+  version: "17.0.8" # "11.0.18"
   download_url:
     case:
       - when: { system: darwin, machine: arm64 }
@@ -93,8 +94,8 @@ GENERAL_TOOL_JARSIGNER:
 # dex2jar
 ############################################################################################
 GENERAL_TOOL_DEX2JAR: &GENERAL_TOOL_DEX2JAR
-  version: 2.2-SNAPSHOT
-  version_suffix: -2021-10-31
+  version: "2.2-SNAPSHOT"
+  version_suffix: "-2021-10-31"
   download_url: https://github.com/pxb1988/dex2jar/releases/download/v{version}{version_suffix}/dex-tools-{version}{version_suffix}.zip
   unpack_path: dex2jar-{version}
   target_path:
@@ -129,8 +130,8 @@ GENERAL_TOOL_FASTBOOT:
 # aapt
 ############################################################################################
 GENERAL_TOOL_AAPT: &GENERAL_TOOL_AAPT
-  version: r33
-  version_name: android-13
+  version: "r33"
+  version_name: "android-13"
   download_url:
     case:
       - when: { system: darwin }
@@ -159,7 +160,7 @@ GENERAL_TOOL_ZIPALIGN:
 # jadx
 ############################################################################################
 GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
-  version: 1.4.7
+  version: "1.4.7"
   download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
   unpack_path: jadx-{version}
   target_path:
@@ -178,7 +179,7 @@ GENERAL_TOOL_JADX_GUI:
 # chromedriver
 ############################################################################################
 GENERAL_TOOL_CHROMEDRIVER:
-  version: 80.0.3987.106
+  version: "80.0.3987.106"
   base_url: http://chromedriver.storage.googleapis.com
   download_url:
     case:
@@ -204,7 +205,7 @@ GENERAL_TOOL_CHROMEDRIVER:
 # sib
 ############################################################################################
 GENERAL_TOOL_SIB:
-  version: 1.3.15-20230831
+  version: "1.3.15-20230831"
   download_url:
     case:
       - when: { system: darwin, machine: arm64 }
@@ -229,7 +230,7 @@ GENERAL_TOOL_SIB:
 # ipatool
 ############################################################################################
 GENERAL_TOOL_IPATOOL:
-  version: 2.1.3
+  version: "2.1.3"
   download_url:
     case:
       - when: { system: darwin, machine: arm64 }
