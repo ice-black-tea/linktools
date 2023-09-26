@@ -128,42 +128,20 @@ class Log {
 // script loader
 ////////////////////////////////////////////////////////////////////////
 
-interface Parameters {
-    [name: string]: any;
-}
-
-interface Script {
-    filename: string;
-    source: string;
-}
-
-class ScriptLoader {
-
-    load(scripts: Script[], parameters: Parameters) {
-        for (const script of scripts) {
-            try {
-                (1, eval)(script.source);
-            } catch (e) {
-                let message = e.hasOwnProperty("stack") ? e.stack : e;
-                throw new Error(`Unable to load ${script.filename}: ${message}`);
-            }
-        }
-    }
-}
-
-
-////////////////////////////////////////////////////////////////////////
-// local variables
-////////////////////////////////////////////////////////////////////////
+import { ScriptLoader } from "./loader";
 
 const scriptLoader = new ScriptLoader();
-const emitterWorker = new EmitterWorker();
-const debugSymbolAddressCache: { [key: string]: DebugSymbol; } = {};
 
 rpc.exports = {
     loadScripts: scriptLoader.load.bind(scriptLoader),
 };
 
+////////////////////////////////////////////////////////////////////////
+// local variables
+////////////////////////////////////////////////////////////////////////
+
+const emitterWorker = new EmitterWorker();
+const debugSymbolAddressCache: { [key: string]: DebugSymbol; } = {};
 
 ////////////////////////////////////////////////////////////////////////
 // global variables
@@ -192,7 +170,6 @@ declare global {
     const AndroidHelper: AndroidHelper;
     const ObjCHelper: ObjCHelper;
     const IOSHelper: IOSHelper;
-    const parameters: Parameters;
     function isFunction(obj: any): boolean;
     function ignoreError<T>(fn: () => T): T;
     function ignoreError<T>(fn: () => T, defaultValue: T): T;
