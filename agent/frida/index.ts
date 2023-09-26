@@ -140,14 +140,6 @@ interface Script {
 class ScriptLoader {
 
     load(scripts: Script[], parameters: Parameters) {
-        Object.defineProperties(globalThis, {
-            parameters: {
-                configurable: true,
-                enumerable: true,
-                value: parameters
-            }
-        });
-
         for (const script of scripts) {
             try {
                 (1, eval)(script.source);
@@ -203,7 +195,7 @@ declare global {
     const parameters: Parameters;
     function isFunction(obj: any): boolean;
     function ignoreError<T>(fn: () => T): T;
-    function ignoreError<T>(fn: () => T, defautValue: T): T;
+    function ignoreError<T>(fn: () => T, defaultValue: T): T;
     function parseBoolean(value: string | boolean);
     function parseBoolean(value: string | boolean, defaultValue: boolean);
     function pretty2String(obj: any): any;
@@ -249,12 +241,12 @@ Object.defineProperties(globalThis, {
     },
     ignoreError: {
         enumerable: false,
-        value: function <T>(fn: () => T, defautValue: T = void 0): T {
+        value: function <T>(fn: () => T, defaultValue: T = void 0): T {
             try {
                 return fn();
             } catch (e) {
                 log.d("Catch ignored error. " + e);
-                return defautValue;
+                return defaultValue;
             }
         }
     },

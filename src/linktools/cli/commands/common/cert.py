@@ -31,7 +31,7 @@ import hashlib
 import os
 from argparse import ArgumentParser
 from datetime import datetime
-from typing import Optional, Tuple, Type
+from typing import Optional, Type, List
 
 from rich import get_console
 from rich.table import Table
@@ -51,8 +51,8 @@ class Command(BaseCommand):
     """
 
     @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        return super().known_errors + tuple([OpenSSL.crypto.Error])
+    def known_errors(self) -> List[Type[BaseException]]:
+        return super().known_errors + [OpenSSL.crypto.Error]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("path", action="store", help="cert path")

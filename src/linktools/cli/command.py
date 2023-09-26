@@ -70,8 +70,8 @@ class BaseCommand(metaclass=abc.ABCMeta):
         return textwrap.dedent((self.__doc__ or "").strip())
 
     @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        return tuple()
+    def known_errors(self) -> List[Type[BaseException]]:
+        return list()
 
     @abc.abstractmethod
     def run(self, args: List[str]) -> Optional[int]:

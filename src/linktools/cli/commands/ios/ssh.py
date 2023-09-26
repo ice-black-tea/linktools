@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from argparse import ArgumentParser
-from typing import Optional, Tuple, Type
+from typing import Optional, Type, List
 
 import paramiko
 from paramiko.ssh_exception import SSHException
@@ -43,8 +43,8 @@ class Command(IOSCommand):
     """
 
     @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        return super().known_errors + tuple([SSHException])
+    def known_errors(self) -> List[Type[BaseException]]:
+        return super().known_errors + [SSHException]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-u", "--username", action="store", default="root",

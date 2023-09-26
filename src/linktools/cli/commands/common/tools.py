@@ -29,11 +29,12 @@
 import json
 import subprocess
 from argparse import ArgumentParser
-from typing import Optional, Tuple, Type
+from typing import Optional, Type, List
 
 from linktools import ToolError
 from linktools.cli import BaseCommand
 from linktools.cli.argparse import KeyValueAction
+from linktools.utils import DownloadError
 
 
 class Command(BaseCommand):
@@ -42,8 +43,8 @@ class Command(BaseCommand):
     """
 
     @property
-    def known_errors(self) -> Tuple[Type[BaseException]]:
-        return super().known_errors + tuple([ToolError])
+    def known_errors(self) -> List[Type[BaseException]]:
+        return super().known_errors + [ToolError, DownloadError]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("--set", action=KeyValueAction, nargs=1, dest="configs", default={},
