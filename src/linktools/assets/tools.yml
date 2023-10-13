@@ -44,9 +44,9 @@ GENERAL_TOOL_BURPSUITE:
   executable_cmdline:
     case:
       - when: { system: [ darwin, linux ] }
-        then: [ java, --illegal-access=permit, -Dfile.encoding=utf-8, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -noverify, -jar, "{absolute_path}" ]
+        then: [ java, -Dfile.encoding=utf-8, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -jar, "{absolute_path}" ]
       - when: { system: windows }
-        then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -noverify, -jar, "{absolute_path}" ]
+        then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -jar, "{absolute_path}" ]
       - else: ~
 
 GENERAL_TOOL_BURPSUITE_KEYGEN:
