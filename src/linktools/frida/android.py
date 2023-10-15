@@ -11,7 +11,7 @@ import fnmatch
 import lzma
 import os
 import shutil
-from typing import Optional
+from typing import Optional, Dict
 
 import frida
 
@@ -19,6 +19,7 @@ from .server import FridaServer
 from .. import environ, utils
 from ..android import Device
 from ..reactor import Stoppable
+from ..utils import DownloadHttpError
 
 _logger = environ.get_logger("frida.server.android")
 
@@ -34,7 +35,6 @@ class AndroidFridaServer(FridaServer):
         self._local_port = local_port
         self._remote_port = remote_port
         self._forward: Optional[Stoppable] = None
-        self._executable = self.Executable(self._device.abi, frida.__version__)
 
         self._server_prefix = "fs-ln-"
         self._server_name = f"{self._server_prefix}{utils.make_uuid()}"
@@ -52,30 +52,25 @@ class AndroidFridaServer(FridaServer):
     @classmethod
     def setup(cls, abis: [str] = ("arm", "arm64", "x86_64", "x86"), version: str = frida.__version__):
         for abi in abis:
-            exe = cls.Executable(abi, version)
-            exe.prepare()
+            for executable in cls._get_executables(abi, version):
+                try:
+                    executable.download()
+                except DownloadHttpError as e:
+                    if 400 <= e.code < 500:
+                        continue
+                    raise e
 
     def _start(self):
 
-        remote_name = f"fs-{self._device.abi}-{frida.__version__}"
-        remote_path = self._device.get_data_path(remote_name)
-
-        # 先下载frida server，然后把server推送到设备上
-        if not self._device.is_file_exist(remote_path):
-            _logger.info(f"Push frida server to remote: {remote_path}")
-            temp_path = self._device.get_storage_path("frida", remote_name)
-            self._executable.prepare()
-            self._device.push(self._executable.path, temp_path, log_output=True)
-            self._device.sudo("mv", temp_path, remote_path, log_output=True)
-            self._device.sudo("chmod", "755", remote_path, log_output=True)
-
-        # 转发端口
-        self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
-
         try:
+            server_path = self._prepare_executable()
+
+            # 转发端口
+            self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
+
             # 创建软链
             self._device.sudo("mkdir", "-p", self._server_dir)
-            self._device.sudo("ln", "-s", remote_path, self._server_path)
+            self._device.sudo("ln", "-s", server_path, self._server_path)
 
             # 接下来新开一个进程运行frida server，并且输出一下是否出错
             self._device.sudo(
@@ -100,19 +95,57 @@ class AndroidFridaServer(FridaServer):
                     self._device.sudo("kill", "-9", process.pid, ignore_errors=True)
         finally:
             # 把转发端口给移除了，不然会一直占用这个端口
-            self._forward.stop()
+            utils.ignore_error(self._forward.stop)
+            self._forward = None
+
+    @classmethod
+    def _get_executables(cls, abi: str, version: str):
+        result = []
+        configs = environ.get_config("ANDROID_TOOL_FRIDA_SERVER", type=list)
+        for config in configs:
+            config.update(version=version, abi=abi)
+            result.append(cls.Executable(config))
+        return result
+
+    def _prepare_executable(self):
+        executables = self._get_executables(self._device.abi, frida.__version__)
+
+        # 先判断设备上有没有现成的frida server，有的话直接返回
+        for executable in executables:
+            remote_path = self._device.get_data_path("fs", executable.name)
+            if self._device.is_file_exist(remote_path):
+                return remote_path
+
+        # 设备上如果没有，那需要下载了，默认按照配置里的顺序进行下载
+        for executable in executables:
+            remote_dir = self._device.get_data_path("fs")
+            remote_path = self._device.get_data_path("fs", executable.name)
+            remote_temp_path = self._device.get_storage_path("frida", executable.name)
+
+            # 先下载frida server，然后把server推送到设备上
+            try:
+                executable.download()
+            except DownloadHttpError as e:
+                if 400 <= e.code < 500:
+                    continue
+                raise e
+
+            _logger.info(f"Push {executable.name} to remote: {remote_path}")
+            self._device.push(executable.path, remote_temp_path, log_output=True)
+            self._device.sudo("mkdir", "-p", remote_dir, log_output=True)
+            self._device.sudo("mv", remote_temp_path, remote_path, log_output=True)
+            self._device.sudo("chmod", "755", remote_path, log_output=True)
+
+            return remote_path
 
     class Executable:
 
-        def __init__(self, abi: str, version: str):
-            cfg = environ.get_config("ANDROID_TOOL_FRIDA_SERVER", type=dict)
-            cfg.update(version=version, abi=abi)
-
-            self.url = cfg["url"].format(**cfg)
-            self.name = cfg["name"].format(**cfg)
+        def __init__(self, config: Dict[str, str]):
+            self.url = config["url"].format(**config)
+            self.name = config["name"].format(**config)
             self.path = environ.get_data_path("frida", self.name, create_parent=True)
 
-        def prepare(self):
+        def download(self):
             if os.path.exists(self.path):
                 return
             _logger.info("Download frida server ...")

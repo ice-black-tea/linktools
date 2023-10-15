@@ -76,7 +76,7 @@ class Log {
                     if (i > 0) {
                         message += " ";
                     }
-                    message += arguments[i];
+                    message += pretty2String(arguments[i]);
                 }
                 fn(message);
             }

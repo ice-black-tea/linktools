@@ -100,7 +100,8 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         try:
             self.start()
         except:
-            self.stop()
+            _logger.debug("Kill frida server ...")
+            utils.ignore_error(self._stop)
             raise
         return self
 

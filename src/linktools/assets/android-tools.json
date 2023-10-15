@@ -6,8 +6,14 @@
         "size": 82987,
         "time": "2023-10-08 22:47:42"
     },
-    "ANDROID_TOOL_FRIDA_SERVER": {
-        "name": "frida-server-{version}-android-{abi}",
-        "url": "https://github.com/frida/frida/releases/download/{version}/frida-server-{version}-android-{abi}.xz"
-    }
+    "ANDROID_TOOL_FRIDA_SERVER": [
+        {
+            "name": "strong-frida-server-{version}-android-{abi}",
+            "url": "https://github.com/hzzheyang/strongR-frida-android/releases/download/{version}/hluda-server-{version}-android-{abi}.xz"
+        },
+        {
+            "name": "frida-server-{version}-android-{abi}",
+            "url": "https://github.com/frida/frida/releases/download/{version}/frida-server-{version}-android-{abi}.xz"
+        }
+    ]
 }

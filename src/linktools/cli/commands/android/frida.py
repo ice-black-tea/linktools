@@ -28,19 +28,25 @@
 """
 import re
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, List, Type
 
 from linktools import utils, environ
+from linktools.cli import CommandError
 from linktools.cli.android import AndroidCommand
 from linktools.cli.argparse import range_type, KeyValueAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
+from linktools.utils import DownloadError
 
 
 class Command(AndroidCommand):
     """
     Easy to use frida (require Android device rooted)
     """
+
+    @property
+    def known_errors(self) -> List[Type[BaseException]]:
+        return super().known_errors + [DownloadError]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--package", action="store", default=None,
@@ -98,9 +104,9 @@ class Command(AndroidCommand):
             if utils.is_empty(package):
                 target_app = server.get_frontmost_application()
                 if target_app is None:
-                    environ.logger.error("Unknown frontmost application")
-                    return
+                    raise CommandError("Unknown frontmost application")
                 package = target_app.identifier
+            environ.logger.info(f"Target application: {package}")
 
             app = Application(
                 server,
@@ -128,9 +134,9 @@ class Command(AndroidCommand):
                 port = args.redirect_port or 8080
                 uid = device.get_uid(package)
                 with device.redirect(address, port, uid):
-                    app.run()
+                    return app.run()
             else:
-                app.run()
+                return app.run()
 
 
 command = Command()

@@ -27,17 +27,23 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, List, Type
 
 from linktools import utils, environ
+from linktools.cli import CommandError
 from linktools.cli.ios import IOSCommand
 from linktools.frida.ios import IOSFridaServer
+from linktools.utils import DownloadError
 
 
 class Command(IOSCommand):
     """
     Easy to use objection (require iOS device jailbreak)
     """
+
+    @property
+    def known_errors(self) -> List[Type[BaseException]]:
+        return super().known_errors + [DownloadError]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,
@@ -67,9 +73,10 @@ class Command(IOSCommand):
             if utils.is_empty(bundle_id):
                 target_app = server.get_frontmost_application()
                 if target_app is None:
-                    environ.logger.error("Unknown frontmost application")
-                    return 1
+                    raise CommandError("Unknown frontmost application")
                 bundle_id = target_app.identifier
+            environ.logger.info(f"Target application: {bundle_id}")
+
             objection_args += ["-g", bundle_id]
             objection_args += ["explore"]
 

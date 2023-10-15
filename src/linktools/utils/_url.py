@@ -115,6 +115,13 @@ class DownloadError(Exception):
     pass
 
 
+class DownloadHttpError(DownloadError):
+
+    def __init__(self, code, e):
+        super().__init__(e)
+        self.code = code
+
+
 class DownloadContextVar(property):
 
     def __init__(self, key, default=None):
@@ -136,7 +143,6 @@ class DownloadContext:
     file_name: str = DownloadContextVar("FileName")
     completed: bool = DownloadContextVar("IsCompleted", False)
     max_times: int = DownloadContextVar("MaxTimes")
-    last_error: Exception = DownloadContextVar("LastError")
 
     def __init__(self, path: str):
         self._db = shelve.open(path)
@@ -201,12 +207,16 @@ class DownloadContext:
 
     def _download_with_requests(self, timeout: float):
         import requests
+        from requests import HTTPError
 
         bs = 1024 * 8
 
         with requests.get(self.url, headers=self.headers, stream=True, timeout=timeout) as resp:
 
-            resp.raise_for_status()
+            try:
+                resp.raise_for_status()
+            except HTTPError as e:
+                raise DownloadHttpError(resp.status_code, e)
 
             if "Content-Length" in resp.headers:
                 self.file_size = int(resp.headers.get("Content-Length"))
@@ -221,11 +231,18 @@ class DownloadContext:
 
     def _download_with_urllib(self, timeout: float):
         from urllib.request import urlopen, Request
+        from urllib.error import HTTPError
 
         bs = 1024 * 8
 
         url = Request(self.url, headers=self.headers)
-        with contextlib.closing(urlopen(url=url, timeout=timeout)) as fp:
+
+        try:
+            resp = urlopen(url=url, timeout=timeout)
+        except HTTPError as e:
+            raise DownloadHttpError(e.code, e)
+
+        with contextlib.closing(resp) as fp:
 
             headers = fp.info()
             if "Content-Length" in headers:
@@ -296,23 +313,23 @@ class UrlFile:
                         context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
 
                     # 开始下载
+                    last_error = None
                     context.completed = False
-                    context.last_error = None
                     context.max_times = 1 + max(retry or 0, 0)
                     for i in range(context.max_times, 0, -1):
                         try:
-                            if context.last_error is not None:
+                            if last_error is not None:
                                 _logger.warning(
                                     f"Download remain retry times: {i}, "
-                                    f"last error: {context.last_error}")
+                                    f"{last_error.__class__.__name__}: {last_error}")
                             context.download(timeout)
                             context.completed = True
                             break
                         except Exception as e:
-                            context.last_error = e
+                            last_error = e
 
                     if not context.completed:
-                        raise context.last_error
+                        raise last_error
 
                 if save_dir:
                     # 如果指定了路径，先创建路径
@@ -328,8 +345,8 @@ class UrlFile:
                     # 把文件移动到指定目录之后，就可以清理缓存文件了
                     self.clear(timeout=timeout.remain)
 
-        except DownloadError as e:
-            raise e
+        except DownloadError:
+            raise
 
         except Exception as e:
             raise DownloadError(e)

@@ -28,19 +28,25 @@
 """
 import re
 from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, Type, List
 
 from linktools import utils, environ
+from linktools.cli import CommandError
 from linktools.cli.argparse import KeyValueAction
 from linktools.cli.ios import IOSCommand
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
+from linktools.utils import DownloadError
 
 
 class Command(IOSCommand):
     """
     Easy to use frida (require iOS device jailbreak)
     """
+
+    @property
+    def known_errors(self) -> List[Type[BaseException]]:
+        return super().known_errors + [DownloadError]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-b", "--bundle-id", action="store", default=None,
@@ -91,9 +97,9 @@ class Command(IOSCommand):
             if utils.is_empty(bundle_id):
                 target_app = server.get_frontmost_application()
                 if target_app is None:
-                    environ.logger.error("Unknown frontmost application")
-                    return
+                    raise CommandError("Unknown frontmost application")
                 bundle_id = target_app.identifier
+            environ.logger.info(f"Target application: {bundle_id}")
 
             app = Application(
                 server,
@@ -115,7 +121,7 @@ class Command(IOSCommand):
                 # 进程不存在，打开进程后注入
                 app.load_script(app.device.spawn(bundle_id), resume=True)
 
-            app.run()
+            return app.run()
 
 
 command = Command()

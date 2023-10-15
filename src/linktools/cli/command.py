@@ -51,6 +51,10 @@ from ..decorator import cached_property
 from ..utils import ignore_error
 
 
+class CommandError(Exception):
+    pass
+
+
 class BaseCommand(metaclass=abc.ABCMeta):
 
     @property
@@ -71,7 +75,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:
-        return list()
+        return [CommandError]
 
     @abc.abstractmethod
     def run(self, args: List[str]) -> Optional[int]:
