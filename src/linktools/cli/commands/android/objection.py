@@ -83,7 +83,7 @@ class Command(AndroidCommand):
                 if target_app is None:
                     raise CommandError("Unknown frontmost application")
                 package = target_app.identifier
-            environ.logger.info(f"Target application: {package}")
+            environ.logger.info(f"Frida inject target application: {package}")
 
             objection_args += ["-g", package]
             objection_args += ["explore"]

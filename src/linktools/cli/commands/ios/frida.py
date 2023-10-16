@@ -99,7 +99,7 @@ class Command(IOSCommand):
                 if target_app is None:
                     raise CommandError("Unknown frontmost application")
                 bundle_id = target_app.identifier
-            environ.logger.info(f"Target application: {bundle_id}")
+            environ.logger.info(f"Frida inject target application: {bundle_id}")
 
             app = Application(
                 server,

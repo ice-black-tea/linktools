@@ -146,11 +146,32 @@ export class JavaHelper {
         return void 0;
     }
 
+    private $prettyClassName(className: string) {
+        if (className.startsWith("[L") && className.endsWith(";")) {
+            return `${className.substring(2, className.length - 1)}[]`;
+        } else if (className.startsWith("[")) {
+            switch(className.substring(1, 2)) {
+                case "B": return "byte[]";
+                case "C": return "char[]";
+                case "D": return "double[]";
+                case "F": return "float[]";
+                case "I": return "int[]";
+                case "S": return "short[]";
+                case "J": return "long[]";
+                case "Z": return "boolean[]";
+                case "V": return "void[]";
+            }
+        }
+        return className;
+    }
+
     /**
      * 为method添加properties
      * @param method 方法对象
      */
     private $defineMethodProperties<T extends Java.Members<T> = {}>(method: Java.Method<T>): void {
+        const javaHelperThis = this;
+
         Object.defineProperties(method, {
             className: {
                 configurable: true,
@@ -162,13 +183,13 @@ export class JavaHelper {
                 configurable: true,
                 enumerable: true,
                 get() {
-                    const ret = this.returnType.className;
-                    const name = this.className + "." + this.methodName;
+                    const ret = javaHelperThis.$prettyClassName(this.returnType.className);
+                    const name = javaHelperThis.$prettyClassName(this.className) + "." + this.methodName;
                     let args = "";
                     if (this.argumentTypes.length > 0) {
-                        args = this.argumentTypes[0].className;
+                        args = javaHelperThis.$prettyClassName(this.argumentTypes[0].className);
                         for (let i = 1; i < this.argumentTypes.length; i++) {
-                            args = args + ", " + this.argumentTypes[i].className;
+                            args = args + ", " + javaHelperThis.$prettyClassName(this.argumentTypes[i].className);
                         }
                     }
                     return ret + " " + name + "(" + args + ")";

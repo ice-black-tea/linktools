@@ -9,7 +9,8 @@
     "ANDROID_TOOL_FRIDA_SERVER": [
         {
             "name": "strong-frida-server-{version}-android-{abi}",
-            "url": "https://github.com/hzzheyang/strongR-frida-android/releases/download/{version}/hluda-server-{version}-android-{abi}.xz"
+            "url": "https://github.com/hzzheyang/strongR-frida-android/releases/download/{version}/hluda-server-{version}-android-{abi}.xz",
+            "min_version": "15.1.8"
         },
         {
             "name": "frida-server-{version}-android-{abi}",

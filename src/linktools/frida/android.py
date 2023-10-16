@@ -66,7 +66,12 @@ class AndroidFridaServer(FridaServer):
             server_path = self._prepare_executable()
 
             # 转发端口
-            self._forward = self._device.forward(f"tcp:{self._local_port}", f"tcp:{self._remote_port}")
+            if self._forward is not None:
+                self._forward.stop()
+            self._forward = self._device.forward(
+                f"tcp:{self._local_port}",
+                f"tcp:{self._remote_port}"
+            )
 
             # 创建软链
             self._device.sudo("mkdir", "-p", self._server_dir)
@@ -95,8 +100,9 @@ class AndroidFridaServer(FridaServer):
                     self._device.sudo("kill", "-9", process.pid, ignore_errors=True)
         finally:
             # 把转发端口给移除了，不然会一直占用这个端口
-            utils.ignore_error(self._forward.stop)
-            self._forward = None
+            if self._forward is not None:
+                self._forward.stop()
+                self._forward = None
 
     @classmethod
     def _get_executables(cls, abi: str, version: str):
@@ -104,7 +110,10 @@ class AndroidFridaServer(FridaServer):
         configs = environ.get_config("ANDROID_TOOL_FRIDA_SERVER", type=list)
         for config in configs:
             config.update(version=version, abi=abi)
-            result.append(cls.Executable(config))
+            min_version = config.get("min_version", "0.0.0")
+            max_version = config.get("max_version", "99999.0.0")
+            if utils.parse_version(min_version) <= utils.parse_version(version) <= utils.parse_version(max_version):
+                result.append(cls.Executable(config))
         return result
 
     def _prepare_executable(self):

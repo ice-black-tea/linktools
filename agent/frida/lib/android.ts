@@ -203,7 +203,7 @@ export class AndroidHelper {
             } catch (e) {
                 if (helperThis.$useClassCallbackMap == null) {
                     helperThis.$useClassCallbackMap = new Map<string, UseClassCallBackSet>();
-                    helperThis.$regiesterUseClassCallback(helperThis.$useClassCallbackMap);
+                    helperThis.$registerUseClassCallback(helperThis.$useClassCallbackMap);
                 }
                 if (helperThis.$useClassCallbackMap.has(className)) {
                     let callbackSet = helperThis.$useClassCallbackMap.get(className);
@@ -223,7 +223,7 @@ export class AndroidHelper {
 
     $useClassCallbackMap: Map<string, UseClassCallBackSet> = null;
 
-    $regiesterUseClassCallback(map: Map<string, UseClassCallBackSet>) {
+    $registerUseClassCallback(map: Map<string, UseClassCallBackSet>) {
 
         const classLoaders = Java.use("java.util.HashSet").$new();
 
