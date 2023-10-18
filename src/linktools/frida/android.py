@@ -49,17 +49,6 @@ class AndroidFridaServer(FridaServer):
     def remote_port(self):
         return self._remote_port
 
-    @classmethod
-    def setup(cls, abis: [str] = ("arm", "arm64", "x86_64", "x86"), version: str = frida.__version__):
-        for abi in abis:
-            for executable in cls._get_executables(abi, version):
-                try:
-                    executable.download()
-                except DownloadHttpError as e:
-                    if 400 <= e.code < 500:
-                        continue
-                    raise e
-
     def _start(self):
 
         try:
@@ -146,6 +135,18 @@ class AndroidFridaServer(FridaServer):
             self._device.sudo("chmod", "755", remote_path, log_output=True)
 
             return remote_path
+
+    @classmethod
+    def setup(cls, abis: [str] = ("arm", "arm64", "x86_64", "x86"), version: str = frida.__version__):
+        for abi in abis:
+            for executable in cls._get_executables(abi, version):
+                try:
+                    executable.download()
+                except DownloadHttpError as e:
+                    if 400 <= e.code < 500:
+                        continue
+                    raise e
+                break
 
     class Executable:
 

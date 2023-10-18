@@ -258,7 +258,11 @@ class Config:
         """
         遍历配置名，默认不遍历内置配置
         """
-        for key in self._config.keys():
+        keys = set(self._config.keys())
+        for key in os.environ.keys():
+            if key.startswith(self._envvar_prefix):
+                keys.add(key[len(self._envvar_prefix):])
+        for key in sorted(keys):
             if all or key not in self._internal:
                 yield key
 
