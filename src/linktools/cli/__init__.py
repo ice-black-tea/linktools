@@ -27,4 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-from .command import BaseCommand, CommandError, walk_commands
+from .command import LogCommandMinix, DeviceCommandMixin, BaseCommand, CommandError, walk_commands
+from .android import AndroidCommandMixin, AndroidCommand
+from .ios import IOSCommandMixin, IOSCommand
