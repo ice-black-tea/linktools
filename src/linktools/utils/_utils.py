@@ -36,6 +36,7 @@ import re
 import socket
 import threading
 import time
+import typing
 import uuid
 from collections.abc import Iterable, Sized
 from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
@@ -43,6 +44,16 @@ from urllib.request import urlopen
 
 T = TypeVar("T")
 MISSING = ...
+
+if hasattr(typing, "ParamSpec"):
+    P = typing.ParamSpec("P")
+else:
+    class _FakeParamSpec(list):
+        args = lambda self: Any
+        kwargs = lambda self: Any
+
+
+    P = _FakeParamSpec([...])
 
 
 class Timeout:
@@ -81,7 +92,7 @@ class Timeout:
         return f"Timeout(timeout={self._timeout})"
 
 
-def timeoutable(fn: Callable[..., T]) -> Callable[..., T]:
+def timeoutable(fn: Callable[P, T]) -> Callable[P, T]:
     timeout_keyword = "timeout"
 
     timeout_index = -1
@@ -107,7 +118,7 @@ def timeoutable(fn: Callable[..., T]) -> Callable[..., T]:
         timeout_index = -1
 
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if 0 <= timeout_index < len(args):
             timeout = args[timeout_index]
             if isinstance(timeout, Timeout):
@@ -393,6 +404,22 @@ def get_path(root_path: str, *paths: [str], create: bool = False, create_parent:
         if not os.path.exists(dir_path):
             os.makedirs(dir_path, exist_ok=True)
     return target_path
+
+
+@typing.overload
+def read_file(path: str) -> bytes: ...
+
+
+@typing.overload
+def read_file(path: str, binary: typing.Literal[True]) -> bytes: ...
+
+
+@typing.overload
+def read_file(path: str, binary: typing.Literal[False]) -> str: ...
+
+
+@typing.overload
+def read_file(path: str, binary: bool) -> Union[str, bytes]: ...
 
 
 def read_file(path: str, binary: bool = True) -> Union[str, bytes]:

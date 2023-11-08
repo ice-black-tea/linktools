@@ -28,7 +28,9 @@
 """
 
 import abc
+import argparse
 import functools
+import inspect
 import logging
 import os
 import sys
@@ -37,7 +39,7 @@ import traceback
 from argparse import ArgumentParser, Action, Namespace, RawDescriptionHelpFormatter, SUPPRESS
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
-from typing import Tuple, Type, Optional, List, Generator, IO
+from typing import Tuple, Type, Optional, List, Generator, IO, Any, Callable, Iterable, Union, Set, Dict
 
 import rich
 from rich import get_console
@@ -48,7 +50,7 @@ from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
-from ..utils import ignore_error
+from ..utils import ignore_error, read_file, write_file, T, MISSING
 
 
 class CommandError(Exception):
@@ -57,8 +59,10 @@ class CommandError(Exception):
 
 class LogCommandMinix:
 
-    def add_log_arguments(self: "BaseCommand", parser: ArgumentParser):
+    def add_log_arguments(self: "BaseCommand", parser: ArgumentParser = None):
+
         environ = self.environ
+        parser = parser or self._argument_parser
 
         class VerboseAction(Action):
 
@@ -110,6 +114,7 @@ class DeviceCommandMixin:
 
         from ..device import Bridge, BridgeError
 
+        parser = parser or self._argument_parser
         cache_path = self.environ.get_temp_path("cache", "device", "mobile", create_parent=True)
 
         def parse_handler(fn):
@@ -117,8 +122,7 @@ class DeviceCommandMixin:
             def wrapper(*args, **kwargs):
                 device = fn(*args, **kwargs)
                 if device is not None:
-                    with open(cache_path, "wt+") as fd:
-                        fd.write(device.id)
+                    write_file(cache_path, device.id)
                 return device
 
             return wrapper
@@ -174,9 +178,8 @@ class DeviceCommandMixin:
                 @parse_handler
                 def wrapper():
                     if os.path.exists(cache_path):
-                        with open(cache_path, "rt") as fd:
-                            device_id = fd.read().strip()
-                        if len(device_id) > 0:
+                        device_id = read_file(cache_path, binary=False).strip()
+                        if device_id:
                             for device in Bridge.list_devices():
                                 if device.id == device_id:
                                     return device
@@ -191,7 +194,196 @@ class DeviceCommandMixin:
                            help="use last device")
 
 
-class BaseCommand(metaclass=abc.ABCMeta):
+_subcommand_index: int = 0
+_subcommand_mapping: Dict[str, Set[str]] = {}
+
+
+class _SubCommandInfo:
+
+    def __init__(self):
+        global _subcommand_index
+        _subcommand_index += 1
+        self.index = _subcommand_index
+        self.name: Optional[str] = None
+        self.help: Optional[str] = None
+        self.func: Optional[Callable[..., Optional[int]]] = None
+        self.arguments: List[_SubCommandArgumentInfo] = []
+
+    def __repr__(self):
+        return f"<SubCommandInfo name={self.name}>"
+
+
+class _SubCommandArgumentInfo:
+
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.action: Optional[Union[str, Type[Action]]] = kwargs.get("action")
+
+
+def subcommand(name=None, help=None):
+    def decorator(func):
+        if not hasattr(func, "__subcommand_info__"):
+            setattr(func, "__subcommand_info__", _SubCommandInfo())
+
+        subcommand_info: _SubCommandInfo = func.__subcommand_info__
+        subcommand_info.name = name or func.__name__
+        subcommand_info.help = help
+        subcommand_info.func = func
+
+        function = inspect.stack()[1].function
+        _subcommand_mapping.setdefault(function, set())
+        _subcommand_mapping[function].add(func.__name__)
+
+        return func
+
+    return decorator
+
+
+def subcommand_argument(
+        *name_or_flags: str,
+        action: Union[str, Type[Action]] = MISSING,
+        choices: Iterable[T] = MISSING,
+        const: Any = MISSING,
+        default: Any = MISSING,
+        dest: str = MISSING,
+        help: str = MISSING,
+        metavar: Union[str, tuple[str, ...]] = MISSING,
+        nargs: Union[int, str] = MISSING,
+        required: bool = MISSING,
+        type: Union[Type[Union[int, float]], Callable[[str], T], argparse.FileType] = MISSING,
+        **kwargs: Any):
+    def decorator(func):
+        if not hasattr(func, "__subcommand_info__"):
+            setattr(func, "__subcommand_info__", _SubCommandInfo())
+
+        subcommand_info: _SubCommandInfo = func.__subcommand_info__
+        subcommand_info.func = func
+        subcommand_info.arguments.append(_SubCommandArgumentInfo(
+            *name_or_flags,
+            action=action,
+            nargs=nargs,
+            const=const,
+            default=default,
+            type=type,
+            choices=choices,
+            required=required,
+            help=help,
+            metavar=metavar,
+            dest=dest,
+            **kwargs
+        ))
+
+        return func
+
+    return decorator
+
+
+class SubCommandMixin:
+
+    def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None) -> None:
+
+        parser = parser or self._argument_parser
+        target = target or self
+
+        class_set = set()
+        class_queue = list()
+
+        class_queue.append(target.__class__)
+        class_set.add(target.__class__)
+
+        command_info_map: Dict[str, List[_SubCommandInfo]] = {}
+        while class_queue:
+            clazz = class_queue.pop(0)
+            for pending_class in clazz.__bases__:
+                if pending_class not in class_set:
+                    class_queue.append(pending_class)
+                    class_set.add(pending_class)
+            if clazz.__name__ not in _subcommand_mapping:
+                continue
+            for func_name in _subcommand_mapping[clazz.__name__]:
+                if not hasattr(clazz, func_name):
+                    continue
+                func = getattr(clazz, func_name)
+                if not hasattr(func, "__subcommand_info__"):
+                    continue
+                command_info: _SubCommandInfo = func.__subcommand_info__
+                command_info_map.setdefault(command_info.name, list())
+                command_info_map[command_info.name].append(command_info)
+
+        command_infos: List[Tuple[int, _SubCommandInfo]] = []
+        for name, _command_infos in command_info_map.items():
+            command_infos.append((min([i.index for i in _command_infos]), _command_infos[0]))
+
+        subparsers = parser.add_subparsers(help="Commands", required=True)
+        for order, command_info in sorted(command_infos, key=lambda o: o[0]):
+            command_func = getattr(target, command_info.func.__name__)
+            command_parser = subparsers.add_parser(command_info.name, help=command_info.help)
+            command_parser.set_defaults(__subcommand_func__=command_func)
+            command_parser.set_defaults(__subcommand_info__=command_info)
+
+            for argument in command_info.arguments:
+                argument_args = argument.args
+                argument_kwargs = {k: v for k, v in argument.kwargs.items() if v is not MISSING}
+
+                dest = argument_kwargs.get("dest", None)
+                if not dest:
+                    prefix_chars = command_parser.prefix_chars
+                    if not argument_args or len(argument_args) == 1 and argument_args[0][0] not in prefix_chars:
+                        dest = argument_args[0]
+                        argument_kwargs["required"] = MISSING
+                    else:
+                        option_strings = []
+                        long_option_strings = []
+                        for option_string in argument_args:
+                            option_strings.append(option_string)
+                            if len(option_string) > 1 and option_string[1] in prefix_chars:
+                                long_option_strings.append(option_string)
+                        dest_option_string = long_option_strings[0] if long_option_strings else option_strings[0]
+                        dest = dest_option_string.lstrip(prefix_chars)
+                        if not dest:
+                            raise ValueError(f"Parse subcommand argument dest error, "
+                                             f"{command_info} argument `{', '.join(argument_args)}` require dest=...")
+                        dest = dest.replace('-', '_')
+                        argument_kwargs["dest"] = dest
+
+                signature = inspect.signature(command_func)
+                if dest not in signature.parameters:
+                    raise ValueError(f"Check subcommand argument error, "
+                                     f"{command_info} has no `{argument.action.dest}` argument")
+
+                parameter = signature.parameters[dest]
+                if "default" not in argument_kwargs:
+                    if parameter.default != signature.empty:
+                        argument_kwargs.setdefault("default", parameter.default)
+                        argument_kwargs.setdefault("required", False)
+                    else:
+                        argument_kwargs.setdefault("required", True)
+                if "action" not in argument_kwargs:
+                    if parameter.annotation != signature.empty:
+                        if parameter.annotation == bool:
+                            if argument_kwargs.get("default", False):
+                                argument_kwargs.setdefault("action", "store_false")
+                            else:
+                                argument_kwargs.setdefault("action", "store_true")
+                        else:
+                            argument_kwargs.setdefault("type", parameter.annotation)
+
+                argument.action = command_parser.add_argument(
+                    *argument_args,
+                    **{k: v for k, v in argument_kwargs.items() if v is not MISSING}
+                )
+
+    def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
+        command_info: _SubCommandInfo = args.__subcommand_info__
+        command_func = args.__subcommand_func__
+        kwargs = dict()
+        for argument in command_info.arguments:
+            kwargs[argument.action.dest] = getattr(args, argument.action.dest)
+        return command_func(**kwargs)
+
+
+class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
 
     @property
     def name(self):
@@ -248,8 +440,7 @@ class BaseCommand(metaclass=abc.ABCMeta):
         pass
 
     def init_base_arguments(self, parser: ArgumentParser) -> None:
-        if self.environ.version != NotImplemented:
-            parser.add_argument("--version", action="version", version=self.environ.version)
+        pass
 
     def main(self, *args, **kwargs) -> None:
         if rich.get_console().is_terminal:
@@ -266,7 +457,12 @@ class BaseCommand(metaclass=abc.ABCMeta):
                 datefmt="%H:%M:%S"
             )
 
-        LogCommandMinix.add_log_arguments(self, self._argument_parser)
+        LogCommandMinix.add_log_arguments(self)
+
+        if self.environ.version != NotImplemented:
+            self._argument_parser.add_argument(
+                "--version", action="version", version=self.environ.version
+            )
 
         exit(self(*args, **kwargs))
 

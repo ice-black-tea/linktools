@@ -70,9 +70,9 @@ class CommandInfo:
 class Command(BaseCommand):
     module_path = environ.get_cli_path("commands")
     module_categories = (
-        CategoryInfo(name="common", prefix="ct-", description=""),
-        CategoryInfo(name="android", prefix="at-", description=""),
-        CategoryInfo(name="ios", prefix="it-", description=""),
+        CategoryInfo(name="common", prefix="ct-", description="common toolkit"),
+        CategoryInfo(name="android", prefix="at-", description="android toolkit"),
+        CategoryInfo(name="ios", prefix="it-", description="ios toolkit"),
     )
 
     @cached_property
@@ -95,7 +95,7 @@ class Command(BaseCommand):
         for category, commands in self.commands.items():
             parser = subparsers.add_parser(
                 category.name,
-                description=category.description
+                help=category.description
             )
             parser.set_defaults(help=parser.print_help)
             catalog_subparsers = parser.add_subparsers()

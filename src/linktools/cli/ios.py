@@ -21,6 +21,7 @@ class IOSCommandMixin:
 
         from ..ios import Sib, SibError, Device as SibDevice
 
+        parser = parser or self._argument_parser
         cache_path = self.environ.get_temp_path("cache", "device", "ios", create_parent=True)
 
         def parse_handler(fn):

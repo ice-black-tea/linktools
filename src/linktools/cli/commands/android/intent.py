@@ -27,81 +27,85 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import os
-import sys
 from argparse import ArgumentParser
 from typing import Optional
 
 from linktools import utils
 from linktools.android import Device
+from linktools.cli import SubCommandMixin, subcommand, subcommand_argument
 from linktools.cli.android import AndroidCommand
 
 
-class Command(AndroidCommand):
+class Command(AndroidCommand, SubCommandMixin):
     """
     Common intent actions
     """
 
+    def __init__(self):
+        self.device: Optional[Device] = None
+
     def init_arguments(self, parser: ArgumentParser) -> None:
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--setting', dest='package', action='store_true',
-                           help='start setting activity')
-        group.add_argument('--setting-dev', dest='package', action='store_true',
-                           help='start development setting activity')
-        group.add_argument('--setting-dev2', dest='package', action='store_true',
-                           help='start development setting activity')
-        group.add_argument('--setting-app', dest='package', action='store', nargs='?', default="",
-                           help='start application setting activity (default: current running package)')
-        group.add_argument('--setting-cert', dest='path', action='store', default="",
-                           help='install cert (need \'/data/local/tmp\' write permission)')
-        group.add_argument('--install', dest='path', action='store', default="",
-                           help='install apk file (need \'/data/local/tmp\' write permission)')
-        group.add_argument('--browser', dest='url', action='store', default="",
-                           help='start browser activity and jump to url (need scheme, such as https://antiy.cn)')
+        self.add_subcommands(parser)
 
     def run(self, args: [str]) -> Optional[int]:
         args = self.parse_args(args)
-        device: Device = args.parse_device()
+        self.device = args.parse_device()
+        return self.run_subcommand(args)
 
-        if "--setting" in sys.argv:
-            device.shell("am", "start", "--user", "0",
-                         "-a", "android.settings.SETTINGS",
-                         log_output=True)
-        elif "--setting-dev" in sys.argv:
-            device.shell("am", "start", "--user", "0",
-                         "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
-                         log_output=True)
-        elif "--setting-dev2" in sys.argv:
-            device.shell("am", "start", "--user", "0",
-                         "-a", "android.intent.action.View",
-                         "com.android.settings/com.android.settings.DevelopmentSettings",
-                         log_output=True)
-        elif "--setting-app" in sys.argv:
-            package = args.package if not utils.is_empty(args.package) else device.get_current_package()
-            device.shell("am", "start", "--user", "0",
-                         "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
-                         "-d", "package:%s" % package,
-                         log_output=True)
-        elif "--setting-cert" in sys.argv:
-            remote_path = device.get_data_path("cert", os.path.basename(args.path))
-            device.push(args.path, remote_path,
-                        log_output=True)
-            device.shell("am", "start", "--user", "0",
-                         "-n", "com.android.certinstaller/.CertInstallerMain",
-                         "-a", "android.intent.action.VIEW",
-                         "-t", "application/x-x509-ca-cert",
-                         "-d", "file://%s" % remote_path,
-                         log_output=True)
-        elif "--install" in sys.argv:
-            device.install(args.path,
-                           opts=["-r", "-t", "-d", "-f"],
-                           log_output=True)
-        elif "--browser" in sys.argv:
-            device.shell("am", "start", "--user", "0",
-                         "-a", "android.intent.action.VIEW",
-                         "-d", args.url,
-                         log_output=True)
+    @subcommand("setting", help="start setting activity")
+    def on_setting(self):
+        self.device.shell("am", "start", "--user", "0",
+                          "-a", "android.settings.SETTINGS",
+                          log_output=True)
 
-        return
+    @subcommand("setting-dev", help="start development setting activity")
+    def on_setting_dev(self):
+        self.device.shell("am", "start", "--user", "0",
+                          "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS",
+                          log_output=True)
+
+    @subcommand("setting-dev2", help="start development setting activity")
+    def on_setting_dev2(self):
+        self.device.shell("am", "start", "--user", "0",
+                          "-a", "android.intent.action.View",
+                          "com.android.settings/com.android.settings.DevelopmentSettings",
+                          log_output=True)
+
+    @subcommand("setting-app", help="start application setting activity (default: current running package)")
+    @subcommand_argument("package")
+    def on_setting_app(self, package: str = None):
+        package = package if not utils.is_empty(package) else self.device.get_current_package()
+        self.device.shell("am", "start", "--user", "0",
+                          "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
+                          "-d", "package:%s" % package,
+                          log_output=True)
+
+    @subcommand("setting-cert", help="install cert (need \'/data/local/tmp\' write permission)")
+    @subcommand_argument("path")
+    def on_setting_cert(self, path: str):
+        remote_path = self.device.get_data_path("cert", os.path.basename(path))
+        self.device.push(path, remote_path, log_output=True)
+        self.device.shell("am", "start", "--user", "0",
+                          "-n", "com.android.certinstaller/.CertInstallerMain",
+                          "-a", "android.intent.action.VIEW",
+                          "-t", "application/x-x509-ca-cert",
+                          "-d", "file://%s" % remote_path,
+                          log_output=True)
+
+    @subcommand("install", help="install apk file (need \'/data/local/tmp\' write permission)")
+    @subcommand_argument("path")
+    def on_install(self, path: str):
+        self.device.install(path,
+                            opts=["-r", "-t", "-d", "-f"],
+                            log_output=True)
+
+    @subcommand("browser", help="start browser activity and jump to url")
+    @subcommand_argument("url", help="e.g. https://antiy.cn")
+    def on_browser(self, url: str):
+        self.device.shell("am", "start", "--user", "0",
+                          "-a", "android.intent.action.VIEW",
+                          "-d", url,
+                          log_output=True)
 
 
 command = Command()

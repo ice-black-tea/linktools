@@ -21,6 +21,7 @@ class AndroidCommandMixin:
 
         from ..android import Adb, AdbError, Device as AdbDevice
 
+        parser = parser or self._argument_parser
         cache_path = self.environ.get_temp_path("cache", "device", "android", create_parent=True)
 
         def parse_handler(fn):

@@ -28,6 +28,7 @@
 """
 
 from ._utils import (
+    T, P, MISSING,
     timeoutable, Timeout,
     InterruptableEvent,
     ignore_error,

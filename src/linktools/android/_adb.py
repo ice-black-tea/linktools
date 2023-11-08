@@ -130,16 +130,7 @@ class Device(BaseDevice):
         获取shell的uid
         :return: uid
         """
-        default = -1
-        out = self.shell("id", "-u")
-        uid = utils.int(out, default=default)
-        if uid != default:
-            return uid
-        out = self.shell("echo", "-n", "${USER_ID}")
-        uid = utils.int(out, default=default)
-        if uid != default:
-            return uid
-        raise AdbError("unknown adb uid: %s" % out)
+        return self.get_uid()
 
     def popen(self, *args: [Any], **kwargs) -> utils.Popen:
         """
@@ -521,15 +512,27 @@ class Device(BaseDevice):
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     @utils.timeoutable
-    def get_uid(self, package_name: str, timeout: utils.Timeout = None):
+    def get_uid(self, package_name: str = None, timeout: utils.Timeout = None) -> Optional[int]:
         """
         根据包名获取uid
         :param package_name: 包名
         :param timeout: 超时时间
         :return: uid
         """
-        info = self.get_package(package_name, simple=True, timeout=timeout)
-        return info.user_id if info else None
+        if package_name:
+            info = self.get_package(package_name, simple=True, timeout=timeout)
+            return info.user_id if info else None
+        else:
+            default = -1
+            out = self.shell("id", "-u", timeout=timeout)
+            uid = utils.int(out, default=default)
+            if uid != default:
+                return uid
+            out = self.shell("echo", "-n", "${USER_ID}", timeout=timeout)
+            uid = utils.int(out, default=default)
+            if uid != default:
+                return uid
+            raise AdbError("unknown adb uid: %s" % out)
 
     @utils.timeoutable
     def get_package(self, package_name: str, simple: bool = None, **kwargs) -> Optional[Package]:
