@@ -26,12 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional, List, Type
 
 from linktools import utils, environ
-from linktools.cli import CommandError
-from linktools.cli.ios import IOSCommand
+from linktools.cli import CommandError, IOSCommand
 from linktools.frida.ios import IOSFridaServer
 from linktools.utils import DownloadError
 
@@ -58,8 +57,7 @@ class Command(IOSCommand):
         parser.add_argument("-P", "--plugin-folder", action="store", default=environ.get_asset_path("objection"),
                             help="The folder to load plugins from.")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         device = args.parse_device()
 
         with IOSFridaServer(device=device, local_port=utils.pick_unused_port()) as server:

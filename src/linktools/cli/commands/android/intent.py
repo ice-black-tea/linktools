@@ -27,13 +27,12 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
 from linktools import utils
 from linktools.android import Device
-from linktools.cli import SubCommandMixin, subcommand, subcommand_argument
-from linktools.cli.android import AndroidCommand
+from linktools.cli import subcommand, subcommand_argument, AndroidCommand, SubCommandMixin
 
 
 class Command(AndroidCommand, SubCommandMixin):
@@ -47,8 +46,7 @@ class Command(AndroidCommand, SubCommandMixin):
     def init_arguments(self, parser: ArgumentParser) -> None:
         self.add_subcommands(parser)
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         self.device = args.parse_device()
         return self.run_subcommand(args)
 

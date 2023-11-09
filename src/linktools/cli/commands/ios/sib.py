@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools.cli.ios import IOSCommand
-from linktools.ios import Sib
+from linktools.cli import IOSCommand
 
 
 class Command(IOSCommand):
     """
-    Sib that supports multiple devices
+    Sib supports managing multiple ios devices
     """
 
     _GENERAL_COMMANDS = [
@@ -22,19 +21,15 @@ class Command(IOSCommand):
     ]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument('sib_args', nargs='...', help="sib args")
+        parser.add_argument('sib_args', nargs='...', metavar="args", help="sib args")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args, extra = self.parse_known_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
+        if args.sib_args and args.sib_args[0] not in self._GENERAL_COMMANDS:
+            device = args.parse_device()
+            process = device.popen(*args.sib_args, capture_output=False)
+            return process.call()
 
-        sib_args = [*extra, *args.sib_args]
-        if not extra:
-            if args.sib_args and args.sib_args[0] not in self._GENERAL_COMMANDS:
-                device = args.parse_device()
-                process = device.popen(*sib_args, capture_output=False)
-                return process.call()
-
-        process = Sib.popen(*sib_args, capture_output=False)
+        process = args.parse_device.bridge.popen(*args.sib_args, capture_output=False)
         return process.call()
 
 

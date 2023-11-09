@@ -21,11 +21,11 @@ limitations under the License.
 
 import re
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from subprocess import PIPE
 from typing import Optional
 
-from linktools.cli.android import AndroidCommand
+from linktools.cli import AndroidCommand
 
 __version__ = '2.1.0'
 
@@ -81,8 +81,7 @@ class Command(AndroidCommand):
         parser.add_argument('-a', '--all', dest='all', action='store_true', default=False,
                             help='print all log messages')
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         device = args.parse_device()
         package = args.package
         min_level = LOG_LEVELS_MAP[args.min_level.upper()]

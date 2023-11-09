@@ -48,41 +48,39 @@ class AdbError(BridgeError):
 class Adb(Bridge):
     _ALIVE_STATUS = ("bootloader", "device", "recovery", "sideload")
 
-    @classmethod
-    def list_devices(cls, alive: bool = None) -> Generator["Device", None, None]:
+    def list_devices(self, alive: bool = None) -> Generator["Device", None, None]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
         :return: 设备号数组
         """
-        result = cls.exec("devices")
+        result = self.exec("devices")
         lines = result.splitlines()
         for i in range(1, len(lines)):
             splits = lines[i].split(maxsplit=1)
             if len(splits) >= 2:
                 device, status = splits
                 if alive is None:
-                    yield Device(device)
-                elif alive == (status in cls._ALIVE_STATUS):
-                    yield Device(device)
+                    yield Device(device, adb=self)
+                elif alive == (status in self._ALIVE_STATUS):
+                    yield Device(device, adb=self)
 
-    @classmethod
-    def _get_tool(cls):
+    def _get_tool(self):
         return environ.get_tool("adb")
 
-    @classmethod
-    def _handle_error(cls, e):
+    def _handle_error(self, e):
         raise AdbError(e)
 
 
 class Device(BaseDevice):
 
-    def __init__(self, id: str = None):
+    def __init__(self, id: str = None, adb: Adb = None):
         """
         :param id: 设备号
         """
+        self._adb = adb or Adb()
         if id is None:
-            devices = tuple(Adb.list_devices(alive=True))
+            devices = tuple(self._adb.list_devices(alive=True))
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
             elif len(devices) > 1:
@@ -139,7 +137,7 @@ class Device(BaseDevice):
         :return: 打开的进程
         """
         args = ["-s", self.id, *args]
-        return Adb.popen(*args, **kwargs)
+        return self._adb.popen(*args, **kwargs)
 
     @utils.timeoutable
     def exec(self, *args: [Any], **kwargs) -> str:
@@ -149,7 +147,7 @@ class Device(BaseDevice):
         :return: adb输出结果
         """
         args = ["-s", self.id, *args]
-        return Adb.exec(*args, **kwargs)
+        return self._adb.exec(*args, **kwargs)
 
     @utils.timeoutable
     def shell(self, *args: [Any], privilege: bool = False, **kwargs) -> str:

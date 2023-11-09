@@ -26,16 +26,15 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools.android import Adb
-from linktools.cli.android import AndroidCommand
+from linktools.cli import AndroidCommand
 
 
 class Command(AndroidCommand):
     """
-    Adb that supports multiple devices
+    Adb supports managing multiple android devices
     """
 
     _GENERAL_COMMANDS = [
@@ -52,19 +51,16 @@ class Command(AndroidCommand):
     ]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("adb_args", nargs="...", help="adb args")
+        parser.add_argument("adb_args", nargs="...", metavar="args", help="adb args")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args, extra = self.parse_known_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
+        if args.adb_args and args.adb_args[0] not in self._GENERAL_COMMANDS:
+            device = args.parse_device()
+            process = device.popen(*args.adb_args, capture_output=False)
+            return process.call()
 
-        adb_args = [*extra, *args.adb_args]
-        if not extra:
-            if args.adb_args and args.adb_args[0] not in self._GENERAL_COMMANDS:
-                device = args.parse_device()
-                process = device.popen(*adb_args, capture_output=False)
-                return process.call()
-
-        process = Adb.popen(*adb_args, capture_output=False)
+        adb = args.parse_device.bridge
+        process = adb.popen(*args.adb_args, capture_output=False)
         return process.call()
 
 

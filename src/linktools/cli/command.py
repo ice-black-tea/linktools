@@ -28,41 +28,37 @@
 """
 
 import abc
-import argparse
-import functools
 import inspect
 import logging
 import os
 import sys
 import textwrap
 import traceback
-from argparse import ArgumentParser, Action, Namespace, RawDescriptionHelpFormatter, SUPPRESS
+from argparse import ArgumentParser, Action, Namespace, RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
 from typing import Tuple, Type, Optional, List, Generator, IO, Any, Callable, Iterable, Union, Set, Dict
 
 import rich
 from rich import get_console
-from rich.prompt import IntPrompt
-from rich.table import Table
 
 from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
-from ..utils import ignore_error, read_file, write_file, T, MISSING
+from ..utils import T, MISSING
 
 
 class CommandError(Exception):
     pass
 
 
-class LogCommandMinix:
+class LogCommandMixin:
 
-    def add_log_arguments(self: "BaseCommand", parser: ArgumentParser = None):
+    def add_log_options(self: "BaseCommand", parser: ArgumentParser = None):
 
         environ = self.environ
-        parser = parser or self._argument_parser
+        parser = parser or self.argument_parser
 
         class VerboseAction(Action):
 
@@ -95,7 +91,7 @@ class LogCommandMinix:
                         handler.show_level = value
                     environ.set_config("SHOW_LOG_LEVEL", value)
 
-        group = parser.add_argument_group(title="log arguments")
+        group = parser.add_argument_group(title="log options")
         group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
         group.add_argument("--debug", action=DebugAction, nargs=0, const=True, dest=SUPPRESS,
@@ -106,92 +102,6 @@ class LogCommandMinix:
                                help="show log time")
             group.add_argument("--level", action=LogLevelAction, dest=SUPPRESS,
                                help="show log level")
-
-
-class DeviceCommandMixin:
-
-    def add_device_arguments(self: "BaseCommand", parser: ArgumentParser):
-
-        from ..device import Bridge, BridgeError
-
-        parser = parser or self._argument_parser
-        cache_path = self.environ.get_temp_path("cache", "device", "mobile", create_parent=True)
-
-        def parse_handler(fn):
-            @functools.wraps(fn)
-            def wrapper(*args, **kwargs):
-                device = fn(*args, **kwargs)
-                if device is not None:
-                    write_file(cache_path, device.id)
-                return device
-
-            return wrapper
-
-        @parse_handler
-        def parse_device():
-            devices = tuple(Bridge.list_devices(alive=True))
-            if len(devices) == 0:
-                raise BridgeError("no devices/emulators found")
-
-            if len(devices) == 1:
-                return devices[0]
-
-            table = Table(show_lines=True)
-            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
-            table.add_column("ID", style="magenta")
-            table.add_column("Name", style="magenta")
-
-            offset = 1
-            for i in range(len(devices)):
-                table.add_row(
-                    str(i + offset),
-                    ignore_error(lambda: devices[i].id),
-                    ignore_error(lambda: devices[i].name) or "",
-                )
-
-            console = get_console()
-            console.print(table)
-
-            prompt = f"More than one device/emulator. {os.linesep}" \
-                     f"Enter device index"
-            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
-
-            return devices[index - offset]
-
-        class IDAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                @parse_handler
-                def wrapper():
-                    device_id = str(values)
-                    for device in Bridge.list_devices():
-                        if device.id == device_id:
-                            return device
-                    raise BridgeError(f"no devices/emulators with {device_id} found")
-
-                setattr(namespace, self.dest, wrapper)
-
-        class LastAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                @parse_handler
-                def wrapper():
-                    if os.path.exists(cache_path):
-                        device_id = read_file(cache_path, binary=False).strip()
-                        if device_id:
-                            for device in Bridge.list_devices():
-                                if device.id == device_id:
-                                    return device
-                    raise BridgeError("no device used last time")
-
-                setattr(namespace, self.dest, wrapper)
-
-        group = parser.add_argument_group(title="mobile device arguments").add_mutually_exclusive_group()
-        group.add_argument("-i", "--id", metavar="ID", dest="parse_device", action=IDAction,
-                           help="specify unique device identifier", default=parse_device)
-        group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
-                           help="use last device")
 
 
 _subcommand_index: int = 0
@@ -205,9 +115,14 @@ class _SubCommandInfo:
         _subcommand_index += 1
         self.index = _subcommand_index
         self.name: Optional[str] = None
-        self.help: Optional[str] = None
+        self.kwargs: Optional[Dict[str, Any]] = None
         self.func: Optional[Callable[..., Optional[int]]] = None
         self.arguments: List[_SubCommandArgumentInfo] = []
+
+    def save(self, name: str, **kwargs: Any):
+        self.name = name
+        self.kwargs = kwargs
+        return self
 
     def __repr__(self):
         return f"<SubCommandInfo name={self.name}>"
@@ -215,21 +130,61 @@ class _SubCommandInfo:
 
 class _SubCommandArgumentInfo:
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
+        self.args: Optional[Tuple[str]] = None
+        self.kwargs: Optional[Dict[str, Any]] = None
+        self.action: Optional[Union[str, Type[Action]]] = None
+
+    def save(self, *args: str, **kwargs: Any):
         self.args = args
         self.kwargs = kwargs
-        self.action: Optional[Union[str, Type[Action]]] = kwargs.get("action")
+        return self
 
 
-def subcommand(name=None, help=None):
+def _filter_kwargs(kwargs):
+    return {k: v for k, v in kwargs.items() if v is not MISSING}
+
+
+def subcommand(
+        name: str,
+        *,
+        help: str = MISSING,
+        aliases: List[str] = MISSING,
+        prog: str | None = MISSING,
+        usage: str | None = MISSING,
+        description: str | None = MISSING,
+        epilog: str | None = MISSING,
+        parents: List[ArgumentParser] = MISSING,
+        formatter_class: Type[HelpFormatter] = MISSING,
+        prefix_chars: str = MISSING,
+        fromfile_prefix_chars: str | None = MISSING,
+        argument_default: Any = MISSING,
+        conflict_handler: str = MISSING,
+        add_help: bool = MISSING,
+        allow_abbrev: bool = MISSING):
     def decorator(func):
         if not hasattr(func, "__subcommand_info__"):
             setattr(func, "__subcommand_info__", _SubCommandInfo())
 
         subcommand_info: _SubCommandInfo = func.__subcommand_info__
-        subcommand_info.name = name or func.__name__
-        subcommand_info.help = help
         subcommand_info.func = func
+        subcommand_info.save(
+            name,
+            help=help,
+            aliases=aliases,
+            prog=prog,
+            usage=usage,
+            description=description,
+            epilog=epilog,
+            parents=parents,
+            formatter_class=formatter_class,
+            prefix_chars=prefix_chars,
+            fromfile_prefix_chars=fromfile_prefix_chars,
+            argument_default=argument_default,
+            conflict_handler=conflict_handler,
+            add_help=add_help,
+            allow_abbrev=allow_abbrev
+        )
 
         function = inspect.stack()[1].function
         _subcommand_mapping.setdefault(function, set())
@@ -241,6 +196,7 @@ def subcommand(name=None, help=None):
 
 
 def subcommand_argument(
+        name_or_flag: str,
         *name_or_flags: str,
         action: Union[str, Type[Action]] = MISSING,
         choices: Iterable[T] = MISSING,
@@ -251,16 +207,12 @@ def subcommand_argument(
         metavar: Union[str, tuple[str, ...]] = MISSING,
         nargs: Union[int, str] = MISSING,
         required: bool = MISSING,
-        type: Union[Type[Union[int, float]], Callable[[str], T], argparse.FileType] = MISSING,
+        type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = MISSING,
         **kwargs: Any):
     def decorator(func):
-        if not hasattr(func, "__subcommand_info__"):
-            setattr(func, "__subcommand_info__", _SubCommandInfo())
-
-        subcommand_info: _SubCommandInfo = func.__subcommand_info__
-        subcommand_info.func = func
-        subcommand_info.arguments.append(_SubCommandArgumentInfo(
-            *name_or_flags,
+        subcommand_argument_info = _SubCommandArgumentInfo()
+        subcommand_argument_info.save(
+            *[name_or_flag, *name_or_flags],
             action=action,
             nargs=nargs,
             const=const,
@@ -272,7 +224,13 @@ def subcommand_argument(
             metavar=metavar,
             dest=dest,
             **kwargs
-        ))
+        )
+
+        if not hasattr(func, "__subcommand_info__"):
+            setattr(func, "__subcommand_info__", _SubCommandInfo())
+
+        subcommand_info: _SubCommandInfo = func.__subcommand_info__
+        subcommand_info.arguments.append(subcommand_argument_info)
 
         return func
 
@@ -283,7 +241,7 @@ class SubCommandMixin:
 
     def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None) -> None:
 
-        parser = parser or self._argument_parser
+        parser = parser or self.argument_parser
         target = target or self
 
         class_set = set()
@@ -317,21 +275,24 @@ class SubCommandMixin:
 
         subparsers = parser.add_subparsers(help="Commands", required=True)
         for order, command_info in sorted(command_infos, key=lambda o: o[0]):
+            command_actions = []
             command_func = getattr(target, command_info.func.__name__)
-            command_parser = subparsers.add_parser(command_info.name, help=command_info.help)
-            command_parser.set_defaults(__subcommand_func__=command_func)
+            command_parser = subparsers.add_parser(command_info.name, **_filter_kwargs(command_info.kwargs))
             command_parser.set_defaults(__subcommand_info__=command_info)
+            command_parser.set_defaults(__subcommand_func__=command_func)
+            command_parser.set_defaults(__subcommand_actions__=command_actions)
 
             for argument in command_info.arguments:
                 argument_args = argument.args
-                argument_kwargs = {k: v for k, v in argument.kwargs.items() if v is not MISSING}
+                argument_kwargs = _filter_kwargs(argument.kwargs)
 
+                # 解析dest，把注解的参数和方法参数对应上
                 dest = argument_kwargs.get("dest", None)
                 if not dest:
                     prefix_chars = command_parser.prefix_chars
                     if not argument_args or len(argument_args) == 1 and argument_args[0][0] not in prefix_chars:
                         dest = argument_args[0]
-                        argument_kwargs["required"] = MISSING
+                        argument_kwargs["required"] = MISSING  # 这种方式不能指定required，所以这里设置为MISSING
                     else:
                         option_strings = []
                         long_option_strings = []
@@ -347,11 +308,13 @@ class SubCommandMixin:
                         dest = dest.replace('-', '_')
                         argument_kwargs["dest"] = dest
 
+                # 验证一下dest是否在参数列表中，不在就报错
                 signature = inspect.signature(command_func)
                 if dest not in signature.parameters:
                     raise ValueError(f"Check subcommand argument error, "
                                      f"{command_info} has no `{argument.action.dest}` argument")
 
+                # 根据方法参数的注解，设置一些默认值
                 parameter = signature.parameters[dest]
                 if "default" not in argument_kwargs:
                     if parameter.default != signature.empty:
@@ -361,25 +324,26 @@ class SubCommandMixin:
                         argument_kwargs.setdefault("required", True)
                 if "action" not in argument_kwargs:
                     if parameter.annotation != signature.empty:
-                        if parameter.annotation == bool:
+                        if parameter.annotation in (int, float, str):
+                            argument_kwargs.setdefault("type", parameter.annotation)
+                        elif parameter.annotation == bool:
                             if argument_kwargs.get("default", False):
                                 argument_kwargs.setdefault("action", "store_false")
                             else:
                                 argument_kwargs.setdefault("action", "store_true")
-                        else:
-                            argument_kwargs.setdefault("type", parameter.annotation)
 
-                argument.action = command_parser.add_argument(
+                command_actions.append(command_parser.add_argument(
                     *argument_args,
-                    **{k: v for k, v in argument_kwargs.items() if v is not MISSING}
-                )
+                    **_filter_kwargs(argument_kwargs)
+                ))
 
     def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
-        command_info: _SubCommandInfo = args.__subcommand_info__
+        command_info = args.__subcommand_info__
         command_func = args.__subcommand_func__
+        command_actions = args.__subcommand_actions__
         kwargs = dict()
-        for argument in command_info.arguments:
-            kwargs[argument.action.dest] = getattr(args, argument.action.dest)
+        for action in command_actions:
+            kwargs[action.dest] = getattr(args, action.dest)
         return command_func(**kwargs)
 
 
@@ -405,41 +369,33 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
     def known_errors(self) -> List[Type[BaseException]]:
         return [CommandError]
 
-    @abc.abstractmethod
-    def run(self, args: List[str]) -> Optional[int]:
-        pass
-
-    def print_help(self, file: IO[str] = None):
-        return self._argument_parser.print_help(file=file)
-
     def parse_args(self, args: List[str]) -> Namespace:
-        return self._argument_parser.parse_args(args=args)
-
-    def parse_known_args(self, args: List[str]) -> Tuple[Namespace, List[str]]:
-        return self._argument_parser.parse_known_args(args=args)
+        return self.argument_parser.parse_args(args=args)
 
     @cached_property
-    def _argument_parser(self) -> ArgumentParser:
+    def argument_parser(self) -> ArgumentParser:
         description = self.description.strip()
         if description and self.environ.description != NotImplemented:
             description += os.linesep + os.linesep
             description += self.environ.description
-
         parser = ArgumentParser(
-            formatter_class=RawDescriptionHelpFormatter,
             description=description,
-            conflict_handler="resolve"
+            formatter_class=RawDescriptionHelpFormatter,
+            conflict_handler="resolve",
         )
         self.init_base_arguments(parser)
         self.init_arguments(parser)
-
         return parser
+
+    def init_base_arguments(self, parser: ArgumentParser) -> None:
+        pass
 
     @abc.abstractmethod
     def init_arguments(self, parser: ArgumentParser) -> None:
         pass
 
-    def init_base_arguments(self, parser: ArgumentParser) -> None:
+    @abc.abstractmethod
+    def run(self, args: Namespace) -> Optional[int]:
         pass
 
     def main(self, *args, **kwargs) -> None:
@@ -457,18 +413,20 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 datefmt="%H:%M:%S"
             )
 
-        LogCommandMinix.add_log_arguments(self)
+        LogCommandMixin.add_log_options(self)
 
         if self.environ.version != NotImplemented:
-            self._argument_parser.add_argument(
+            self.argument_parser.add_argument(
                 "--version", action="version", version=self.environ.version
             )
 
         exit(self(*args, **kwargs))
 
-    def __call__(self, args: [str] = None) -> int:
+    def __call__(self, args: Union[List[str], Namespace] = None) -> int:
         try:
-            args = args if args is not None else sys.argv[1:]
+            if not isinstance(args, Namespace):
+                args = args or sys.argv[1:]
+                args = self.argument_parser.parse_args(args)
             exit_code = self.run(args) or 0
 
         except SystemExit as e:
@@ -490,7 +448,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
             else:
                 self.logger.error(traceback.format_exc())
 
-        return exit_code
+        return exit_code or 0
 
 
 def walk_commands(path: str) -> Generator["BaseCommand", None, None]:

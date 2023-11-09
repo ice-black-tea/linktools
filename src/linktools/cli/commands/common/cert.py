@@ -29,7 +29,7 @@
 
 import hashlib
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Optional, Type, List
 
@@ -57,7 +57,7 @@ class Command(BaseCommand):
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("path", action="store", help="cert path")
 
-    def run(self, args: [str]) -> Optional[int]:
+    def run(self, args: Namespace) -> Optional[int]:
 
         def format_date(date: str):
             date = datetime.strptime(date, '%Y%m%d%H%M%SZ')
@@ -88,8 +88,6 @@ class Command(BaseCommand):
             hash_value = hash_obj.digest()
             hash_string = ''.join(f"{b:02x}" for b in reversed(hash_value[:4]))
             return f"0x{hash_string}"
-
-        args = self.parse_args(args)
 
         cert = OpenSSL.crypto.load_certificate(
             OpenSSL.crypto.FILETYPE_PEM,

@@ -29,11 +29,11 @@
 
 import datetime
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
 from linktools import utils, environ
-from linktools.cli.android import AndroidCommand
+from linktools.cli import AndroidCommand
 
 
 class Command(AndroidCommand):
@@ -56,8 +56,7 @@ class Command(AndroidCommand):
         group.add_argument('--screen', metavar='DEST', action='store', type=str, nargs='?', default=".",
                            help='capture screen and pull file')
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         device = args.parse_device()
 
         if args.package:

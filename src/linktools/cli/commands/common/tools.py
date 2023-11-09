@@ -28,7 +28,7 @@
 """
 import json
 import subprocess
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
 from linktools import ToolError
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         return super().known_errors + [ToolError, DownloadError]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("--set", action=KeyValueAction, nargs=1, dest="configs", default={},
+        parser.add_argument("--set", action=KeyValueAction, nargs=1, dest="configs",
                             help="set the config of tool")
 
         group = parser.add_mutually_exclusive_group()
@@ -60,22 +60,16 @@ class Command(BaseCommand):
         group.add_argument("-d", "--daemon", action="store_true", default=False,
                            help="execute tools as a daemon")
 
-        subparsers = parser.add_subparsers(title="tool arguments")
+        subparsers = parser.add_subparsers(title="tool arguments", required=True)
         for name in sorted([tool.name for tool in iter(self.environ.tools)]):
             tool_parser = subparsers.add_parser(name, prefix_chars=chr(0))
             tool_parser.add_argument("args", nargs="...")
             tool_parser.set_defaults(tool=name)
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
-        if not hasattr(args, "tool") or not args.tool:
-            self.print_help()
-            return -1
+    def run(self, args: Namespace) -> Optional[int]:
 
-        tool_name = args.tool
-        tool_args = args.args
-
-        tool = self.environ.get_tool(tool_name, **args.configs)
+        tool_name, tool_args = args.tool, args.args
+        tool = self.environ.get_tool(tool_name, **(args.configs or {}))
 
         if args.config:
             self.logger.info(json.dumps(tool.config, indent=2, ensure_ascii=False))

@@ -28,9 +28,11 @@
 """
 
 from .command import \
-    LogCommandMinix, DeviceCommandMixin, \
+    LogCommandMixin, \
     BaseCommand, CommandError, \
     SubCommandMixin, subcommand, subcommand_argument, \
     walk_commands
-from .android import AndroidCommandMixin, AndroidCommand
-from .ios import IOSCommandMixin, IOSCommand
+
+from .device import \
+    DeviceCommandMixin, AndroidCommandMixin, IOSCommandMixin, \
+    AndroidCommand, IOSCommand

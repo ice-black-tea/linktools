@@ -27,13 +27,12 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import re
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
 from linktools import utils, environ
-from linktools.cli import CommandError
+from linktools.cli import CommandError, IOSCommand
 from linktools.cli.argparse import KeyValueAction
-from linktools.cli.ios import IOSCommand
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
 from linktools.utils import DownloadError
@@ -55,7 +54,7 @@ class Command(IOSCommand):
                             help="inject after spawn (default: false)")
 
         parser.add_argument("-P", "--parameters",
-                            action=KeyValueAction, nargs="+", dest="user_parameters", default={},
+                            action=KeyValueAction, nargs="+", dest="user_parameters",
                             help="user script parameters")
 
         parser.add_argument("-l", "--load", metavar="SCRIPT",
@@ -72,8 +71,7 @@ class Command(IOSCommand):
         parser.add_argument("-a", "--auto-start", action="store_true", default=False,
                             help="automatically start when all processes exits")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
 
         user_parameters = args.user_parameters
         user_scripts = args.user_scripts

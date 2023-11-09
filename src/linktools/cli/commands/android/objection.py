@@ -26,12 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional, List, Type
 
 from linktools import utils, environ
-from linktools.cli import CommandError
-from linktools.cli.android import AndroidCommand
+from linktools.cli import CommandError, AndroidCommand
 from linktools.cli.argparse import range_type
 from linktools.frida.android import AndroidFridaServer
 from linktools.utils import DownloadError
@@ -66,8 +65,7 @@ class Command(AndroidCommand):
                             type=range_type(1, 65536),
                             help="redirect traffic to target port (default: 8080)")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         device = args.parse_device()
 
         with AndroidFridaServer(device=device, local_port=utils.pick_unused_port()) as server:

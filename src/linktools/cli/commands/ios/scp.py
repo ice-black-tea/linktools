@@ -2,14 +2,14 @@
 # -*- coding:utf-8 -*-
 
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
 import paramiko
 from paramiko.ssh_exception import SSHException
 
 from linktools import utils
-from linktools.cli.ios import IOSCommand
+from linktools.cli import IOSCommand
 from linktools.ios import Device
 from linktools.ssh import SSHClient
 
@@ -55,8 +55,7 @@ class Command(IOSCommand):
         parser.add_argument("target", action="store", type=SCPFile, default=None,
                             help=f"target file path, remote path needs to be prefixed with \"{_REMOTE_PATH_PREFIX}\"")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         device: Device = args.parse_device()
 
         local_port = utils.pick_unused_port()

@@ -4,7 +4,7 @@
 import getpass
 import os
 import shutil
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
 from linktools import utils, environ
@@ -34,8 +34,7 @@ class Command(BaseCommand):
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-c", "--command", action="store", default=None, help="shell command")
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
         if args.command:
             process = utils.Popen(args.command, shell=True)
             return process.call()

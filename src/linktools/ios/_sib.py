@@ -23,40 +23,38 @@ class SibError(BridgeError):
 class Sib(Bridge):
     _ALIVE_STATUS = ("online",)
 
-    @classmethod
-    def list_devices(cls, alive: bool = None) -> Generator["Device", None, None]:
+    def list_devices(self, alive: bool = None) -> Generator["Device", None, None]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
         :return: 设备号数组
         """
-        result = cls.exec("devices", "--detail")
+        result = self.exec("devices", "--detail")
         result = utils.ignore_error(json.loads, args=(result,)) or []
         for info in utils.get_list_item(result, "deviceList", default=[]):
             id = utils.get_item(info, "serialNumber")
             status = utils.get_item(info, "status")
             if alive is None:
                 yield Device(id, info)
-            elif alive == (status in cls._ALIVE_STATUS):
+            elif alive == (status in self._ALIVE_STATUS):
                 yield Device(id, info)
 
-    @classmethod
-    def _get_tool(cls):
+    def _get_tool(self):
         return environ.get_tool("sib")
 
-    @classmethod
-    def _handle_error(cls, e):
+    def _handle_error(self, e):
         raise SibError(e)
 
 
 class Device(BaseDevice):
 
-    def __init__(self, id: str = None, info: dict = None):
+    def __init__(self, id: str = None, info: dict = None, sib: Sib = None):
         """
         :param id: 设备号
         """
+        self._sib = sib or Sib()
         if id is None:
-            devices = list(Sib.list_devices(alive=True))
+            devices = list(self._sib.list_devices(alive=True))
             if len(devices) == 0:
                 raise SibError("no devices/emulators found")
             elif len(devices) > 1:
@@ -95,7 +93,7 @@ class Device(BaseDevice):
         """
         if self._info is not None:
             return self._info
-        for device in Sib.list_devices():
+        for device in self._sib.list_devices():
             if device.id == self.id:
                 return device.info
         raise SibError(f"device '{self.id}' not found")
@@ -111,7 +109,7 @@ class Device(BaseDevice):
         :return: 打开的进程
         """
         args = ["--udid", self.id, *args]
-        return Sib.popen(*args, **kwargs)
+        return self._sib.popen(*args, **kwargs)
 
     @utils.timeoutable
     def exec(self, *args: [Any], **kwargs) -> str:
@@ -121,7 +119,7 @@ class Device(BaseDevice):
         :return: sib输出结果
         """
         args = ["--udid", self.id, *args]
-        return Sib.exec(*args, **kwargs)
+        return self._sib.exec(*args, **kwargs)
 
     @utils.timeoutable
     def install(self, path: str, **kwargs) -> str:

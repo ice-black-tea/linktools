@@ -31,7 +31,7 @@ import os
 import re
 import shutil
 import zipfile
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
 import lief
@@ -205,8 +205,7 @@ class Command(BaseCommand):
         parser.add_argument('files', metavar="file", action='store', nargs='*', default=None,
                             help='target files path')
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
+    def run(self, args: Namespace) -> Optional[int]:
 
         flags = 0
         if args.ignore_case:

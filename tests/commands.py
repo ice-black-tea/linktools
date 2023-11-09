@@ -23,7 +23,7 @@ class TestCommands(unittest.TestCase):
                 self.add_subcommands(parser)
 
             def run(self, args):
-                self.run_subcommand(self.parse_args(args))
+                self.run_subcommand(args)
 
             @subcommand("aaa", help="test subcommand")
             def aaa(self):

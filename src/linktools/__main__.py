@@ -27,7 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Optional
 
 from rich import get_console
@@ -70,9 +70,9 @@ class CommandInfo:
 class Command(BaseCommand):
     module_path = environ.get_cli_path("commands")
     module_categories = (
-        CategoryInfo(name="common", prefix="ct-", description="common toolkit"),
-        CategoryInfo(name="android", prefix="at-", description="android toolkit"),
-        CategoryInfo(name="ios", prefix="it-", description="ios toolkit"),
+        CategoryInfo(name="common", prefix="ct-", description="e.g. grep, shell, etc."),
+        CategoryInfo(name="android", prefix="at-", description="e.g. adb, fastboot, etc."),
+        CategoryInfo(name="ios", prefix="it-", description="e.g. sib, ssh, etc."),
     )
 
     @cached_property
@@ -102,17 +102,15 @@ class Command(BaseCommand):
             for command in commands:
                 parser = catalog_subparsers.add_parser(
                     command.name,
+                    parents=[command.command.argument_parser],
                     help=command.description,
                     add_help=False,
-                    prefix_chars=chr(0)
                 )
-                parser.add_argument("args", nargs="...")
                 parser.set_defaults(func=command.command)
 
-    def run(self, args: [str]) -> Optional[int]:
-        args = self.parse_args(args)
-        if hasattr(args, "func") and hasattr(args, "args"):
-            return args.func(args.args)
+    def run(self, args: Namespace) -> Optional[int]:
+        if hasattr(args, "func"):
+            return args.func(args)
         elif hasattr(args, "help"):
             return args.help()
 
