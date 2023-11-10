@@ -60,15 +60,16 @@ class Command(BaseCommand):
         group.add_argument("-d", "--daemon", action="store_true", default=False,
                            help="execute tools as a daemon")
 
-        subparsers = parser.add_subparsers(title="tool arguments", required=True)
-        for name in sorted([tool.name for tool in iter(self.environ.tools)]):
-            tool_parser = subparsers.add_parser(name, prefix_chars=chr(0))
-            tool_parser.add_argument("args", nargs="...")
-            tool_parser.set_defaults(tool=name)
+        tool_names = sorted([tool.name for tool in iter(self.environ.tools)])
+        subparsers = parser.add_subparsers(metavar="TOOL", help=f"{{{','.join(tool_names)}}}", required=True)
+        for tool_name in tool_names:
+            tool_parser = subparsers.add_parser(tool_name, prefix_chars=chr(0))
+            tool_parser.add_argument("tool_args", metavar="args", nargs="...")
+            tool_parser.set_defaults(tool_name=tool_name)
 
     def run(self, args: Namespace) -> Optional[int]:
 
-        tool_name, tool_args = args.tool, args.args
+        tool_name, tool_args = args.tool_name, args.tool_args
         tool = self.environ.get_tool(tool_name, **(args.configs or {}))
 
         if args.config:

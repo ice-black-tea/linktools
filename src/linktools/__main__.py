@@ -91,13 +91,13 @@ class Command(BaseCommand):
         return command_infos
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        catalog_parsers = parser.add_subparsers(required=True)
+        catalog_parsers = parser.add_subparsers(metavar="CATALOG", required=True)
         for category_info, command_infos in self.command_infos.items():
             catalog_parser = catalog_parsers.add_parser(
                 category_info.name,
                 help=category_info.description
             )
-            command_parsers = catalog_parser.add_subparsers(required=True)
+            command_parsers = catalog_parser.add_subparsers(metavar="COMMAND", required=True)
             for command_info in command_infos:
                 command_parser = command_info.command.create_argument_parser(
                     command_info.name,

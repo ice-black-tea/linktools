@@ -53,7 +53,7 @@ else:
         kwargs = lambda self: Any
 
 
-    P = _FakeParamSpec([...])
+    P = _FakeParamSpec([])
 
 
 class Timeout:

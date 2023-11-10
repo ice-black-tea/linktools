@@ -150,14 +150,14 @@ def subcommand(
         *,
         help: str = MISSING,
         aliases: List[str] = MISSING,
-        prog: str | None = MISSING,
-        usage: str | None = MISSING,
-        description: str | None = MISSING,
-        epilog: str | None = MISSING,
+        prog: str = MISSING,
+        usage: str = MISSING,
+        description: str = MISSING,
+        epilog: str = MISSING,
         parents: List[ArgumentParser] = MISSING,
         formatter_class: Type[HelpFormatter] = MISSING,
         prefix_chars: str = MISSING,
-        fromfile_prefix_chars: str | None = MISSING,
+        fromfile_prefix_chars: str = MISSING,
         argument_default: Any = MISSING,
         conflict_handler: str = MISSING,
         add_help: bool = MISSING,
@@ -204,7 +204,7 @@ def subcommand_argument(
         default: Any = MISSING,
         dest: str = MISSING,
         help: str = MISSING,
-        metavar: Union[str, tuple[str, ...]] = MISSING,
+        metavar: Union[str, Tuple[str, ...]] = MISSING,
         nargs: Union[int, str] = MISSING,
         required: bool = MISSING,
         type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = MISSING,
@@ -275,7 +275,7 @@ class SubCommandMixin:
         parser = parser or self._argument_parser
         target = target or self
 
-        subparsers = parser.add_subparsers(help="Commands", required=True)
+        subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help", required=True)
         for _, command_info in SubCommandMixin._find_command_infos(target):
             command_actions = []
             command_func = getattr(target, command_info.func.__name__)
