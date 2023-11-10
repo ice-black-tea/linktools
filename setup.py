@@ -29,10 +29,9 @@
 import json
 import os
 import pkgutil
-from distutils.core import setup
 from types import ModuleType
 
-from setuptools import find_namespace_packages
+from setuptools import setup, find_namespace_packages
 
 
 def get_path(*paths):
