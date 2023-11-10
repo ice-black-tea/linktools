@@ -403,7 +403,7 @@ class IOSCommandMixin:
 
         group = parser.add_argument_group(title="sib options").add_mutually_exclusive_group()
         group.add_argument("-u", "--udid", metavar="UDID", dest="device_picker", action=UdidAction,
-                           help="specify unique device identifier", default=pick)
+                           help="specify unique device identifier", default=IOSPicker(pick))
         group.add_argument("-c", "--connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
                            help="use device with TCP/IP")
         group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,

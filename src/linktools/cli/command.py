@@ -121,7 +121,7 @@ class _SubCommandInfo:
 
     def save(self, name: str, **kwargs: Any):
         self.name = name
-        self.kwargs = kwargs
+        self.kwargs = _filter_kwargs(kwargs)
         return self
 
     def __repr__(self):
@@ -137,7 +137,7 @@ class _SubCommandArgumentInfo:
 
     def save(self, *args: str, **kwargs: Any):
         self.args = args
-        self.kwargs = kwargs
+        self.kwargs = _filter_kwargs(kwargs)
         return self
 
 
@@ -239,16 +239,11 @@ def subcommand_argument(
 
 class SubCommandMixin:
 
-    def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None) -> None:
-
-        parser = parser or self._argument_parser
-        target = target or self
-
-        class_set = set()
-        class_queue = list()
-
-        class_queue.append(target.__class__)
-        class_set.add(target.__class__)
+    @classmethod
+    def _find_command_infos(cls, clazz: Any):
+        class_set, class_queue = set(), list()
+        class_queue.append(clazz.__class__)
+        class_set.add(clazz.__class__)
 
         command_info_map: Dict[str, List[_SubCommandInfo]] = {}
         while class_queue:
@@ -273,8 +268,15 @@ class SubCommandMixin:
         for name, _command_infos in command_info_map.items():
             command_infos.append((min([i.index for i in _command_infos]), _command_infos[0]))
 
+        return sorted(command_infos, key=lambda o: o[0])
+
+    def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None):
+
+        parser = parser or self._argument_parser
+        target = target or self
+
         subparsers = parser.add_subparsers(help="Commands", required=True)
-        for order, command_info in sorted(command_infos, key=lambda o: o[0]):
+        for _, command_info in SubCommandMixin._find_command_infos(target):
             command_actions = []
             command_func = getattr(target, command_info.func.__name__)
             command_parser = subparsers.add_parser(command_info.name, **_filter_kwargs(command_info.kwargs))
@@ -286,7 +288,7 @@ class SubCommandMixin:
 
             for argument in command_info.arguments:
                 argument_args = argument.args
-                argument_kwargs = _filter_kwargs(argument.kwargs)
+                argument_kwargs = dict(argument.kwargs)
 
                 # 解析dest，把注解的参数和方法参数对应上
                 dest = argument_kwargs.get("dest", None)
@@ -339,7 +341,13 @@ class SubCommandMixin:
                     **_filter_kwargs(argument_kwargs)
                 ))
 
+        return subparsers
+
     def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
+        if not (hasattr(args, "__subcommand_info__") and
+                hasattr(args, "__subcommand_func__") and
+                hasattr(args, "__subcommand_actions__")):
+            raise CommandError("Not found subcommand")
         command_info = args.__subcommand_info__
         command_func = args.__subcommand_func__
         command_actions = args.__subcommand_actions__

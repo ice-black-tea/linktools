@@ -50,7 +50,8 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         try:
             processes = self.enumerate_processes()
             return processes is not None
-        except (frida.TransportError, frida.ServerNotRunningError, frida.InvalidArgumentError):
+        except (frida.TransportError, frida.ServerNotRunningError, frida.InvalidArgumentError) as e:
+            _logger.debug(f"Frida server is not running: {e}")
             return False
 
     def start(self) -> bool:
