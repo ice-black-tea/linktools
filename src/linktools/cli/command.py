@@ -42,7 +42,7 @@ from typing import Tuple, Type, Optional, List, Generator, Any, Callable, Iterab
 import rich
 from rich import get_console
 
-from .argparse import BooleanOptionalAction
+from .argparse import BooleanOptionalAction, add_subparsers
 from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
@@ -275,7 +275,7 @@ class SubCommandMixin:
         parser = parser or self._argument_parser
         target = target or self
 
-        subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help", required=True)
+        subparsers = add_subparsers(parser, metavar="COMMAND", help="Command Help", required=True)
         for _, command_info in SubCommandMixin._find_command_infos(target):
             command_actions = []
             command_func = getattr(target, command_info.func.__name__)

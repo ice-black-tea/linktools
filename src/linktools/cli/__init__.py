@@ -27,6 +27,8 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
+from . import argparse
+
 from .command import \
     LogCommandMixin, \
     BaseCommand, CommandError, \

@@ -122,3 +122,9 @@ def range_type(min: int, max: int):
         raise ValueError("value not in range %s-%s" % (min, max))
 
     return wrapper
+
+
+def add_subparsers(parser: argparse.ArgumentParser, **kwargs):
+    if sys.version_info < (3, 7):
+        kwargs.pop("required", None)
+    return parser.add_subparsers(**kwargs)

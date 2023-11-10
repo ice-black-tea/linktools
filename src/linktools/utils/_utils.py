@@ -34,6 +34,7 @@ import os
 import random
 import re
 import socket
+import sys
 import threading
 import time
 import typing
@@ -406,20 +407,21 @@ def get_path(root_path: str, *paths: [str], create: bool = False, create_parent:
     return target_path
 
 
-@typing.overload
-def read_file(path: str) -> bytes: ...
+if sys.version_info >= (3, 8):
+    @typing.overload
+    def read_file(path: str) -> bytes: ...
 
 
-@typing.overload
-def read_file(path: str, binary: typing.Literal[True]) -> bytes: ...
+    @typing.overload
+    def read_file(path: str, binary: typing.Literal[True]) -> bytes: ...
 
 
-@typing.overload
-def read_file(path: str, binary: typing.Literal[False]) -> str: ...
+    @typing.overload
+    def read_file(path: str, binary: typing.Literal[False]) -> str: ...
 
 
-@typing.overload
-def read_file(path: str, binary: bool) -> Union[str, bytes]: ...
+    @typing.overload
+    def read_file(path: str, binary: bool) -> Union[str, bytes]: ...
 
 
 def read_file(path: str, binary: bool = True) -> Union[str, bytes]:

@@ -33,7 +33,7 @@ from typing import Optional, Type, List
 
 from linktools import ToolError
 from linktools.cli import BaseCommand
-from linktools.cli.argparse import KeyValueAction
+from linktools.cli.argparse import KeyValueAction, add_subparsers
 from linktools.utils import DownloadError
 
 
@@ -61,7 +61,7 @@ class Command(BaseCommand):
                            help="execute tools as a daemon")
 
         tool_names = sorted([tool.name for tool in iter(self.environ.tools)])
-        subparsers = parser.add_subparsers(metavar="TOOL", help=f"{{{','.join(tool_names)}}}", required=True)
+        subparsers = add_subparsers(parser, metavar="TOOL", help=f"{{{','.join(tool_names)}}}", required=True)
         for tool_name in tool_names:
             tool_parser = subparsers.add_parser(tool_name, prefix_chars=chr(0))
             tool_parser.add_argument("tool_args", metavar="args", nargs="...")
