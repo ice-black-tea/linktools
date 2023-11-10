@@ -66,7 +66,7 @@ class Command(AndroidCommand):
                             help="redirect traffic to target port (default: 8080)")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
 
         with AndroidFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 

@@ -83,7 +83,7 @@ class Command(AndroidCommand):
         user_parameters = args.user_parameters
         user_scripts = args.user_scripts
 
-        device = args.parse_device()
+        device = args.device_picker.pick()
         package = args.package
 
         class Application(FridaApplication):

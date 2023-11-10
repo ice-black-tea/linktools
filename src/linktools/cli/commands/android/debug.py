@@ -51,7 +51,7 @@ class Command(AndroidCommand):
                             help='fetch all apps')
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
 
         device.shell("am", "force-stop", args.package, log_output=True)
         device.shell("am", "start", "-D", "-n", "{}/{}".format(args.package, args.activity), log_output=True)

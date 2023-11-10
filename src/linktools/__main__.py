@@ -28,7 +28,7 @@
 """
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Optional
+from typing import Optional, List, Dict
 
 from rich import get_console
 from rich.tree import Tree
@@ -76,46 +76,42 @@ class Command(BaseCommand):
     )
 
     @cached_property
-    def commands(self):
-        commands = {}
-        for category in self.module_categories:
-            commands[category] = []
-            path = os.path.join(self.module_path, category.name)
+    def command_infos(self) -> Dict[CategoryInfo, List[CommandInfo]]:
+        command_infos = {}
+        for category_info in self.module_categories:
+            command_infos[category_info] = []
+            path = os.path.join(self.module_path, category_info.name)
             for command in walk_commands(path):
-                commands[category].append(
+                command_infos[category_info].append(
                     CommandInfo(
-                        category=category,
+                        category=category_info,
                         command=command,
                     )
                 )
-        return commands
+        return command_infos
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        subparsers = parser.add_subparsers()
-        for category, commands in self.commands.items():
-            parser = subparsers.add_parser(
-                category.name,
-                help=category.description
+        catalog_parsers = parser.add_subparsers(required=True)
+        for category_info, command_infos in self.command_infos.items():
+            catalog_parser = catalog_parsers.add_parser(
+                category_info.name,
+                help=category_info.description
             )
-            parser.set_defaults(help=parser.print_help)
-            catalog_subparsers = parser.add_subparsers()
-            for command in commands:
-                parser = catalog_subparsers.add_parser(
-                    command.name,
-                    parents=[command.command.argument_parser],
-                    help=command.description,
-                    add_help=False,
+            command_parsers = catalog_parser.add_subparsers(required=True)
+            for command_info in command_infos:
+                command_parser = command_info.command.create_argument_parser(
+                    command_info.name,
+                    type=command_parsers.add_parser,
+                    help=command_info.description,
                 )
-                parser.set_defaults(func=command.command)
+                command_parser.set_defaults(func=command_info.command)
 
     def run(self, args: Namespace) -> Optional[int]:
-        if hasattr(args, "func"):
+        if hasattr(args, "func") and callable(args.func):
             return args.func(args)
-        elif hasattr(args, "help"):
-            return args.help()
 
         tree = Tree("📎 All commands")
-        for category, commands in self.commands.items():
+        for category, commands in self.command_infos.items():
             node = tree.add(f"📖 {category}")
             for command in commands:
                 node.add(f"👉 {command.category.prefix}[bold red]{command.name}[/bold red]: {command.description}")

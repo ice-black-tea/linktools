@@ -255,7 +255,7 @@ class Command(AndroidCommand):
                             help='order by target field')
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
 
         if not utils.is_empty(args.packages):
             packages = device.get_packages(*args.packages, simple=args.simple)

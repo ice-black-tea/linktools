@@ -56,7 +56,7 @@ class Command(IOSCommand):
                             help=f"target file path, remote path needs to be prefixed with \"{_REMOTE_PATH_PREFIX}\"")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device: Device = args.parse_device()
+        device: Device = args.device_picker.pick()
 
         local_port = utils.pick_unused_port()
         with device.forward(local_port, args.port):

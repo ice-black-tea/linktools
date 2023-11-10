@@ -45,7 +45,7 @@ class Command(AndroidCommand):
         parser.add_argument("agent_args", nargs="...", help="agent args")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
         adb_args = [
             "CLASSPATH=%s" % device.init_agent(),
             "app_process", "/", device.agent_info["main"],

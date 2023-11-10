@@ -58,7 +58,7 @@ class Command(IOSCommand):
                             help="The folder to load plugins from.")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
 
         with IOSFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
 

@@ -76,7 +76,7 @@ class Command(IOSCommand):
         user_parameters = args.user_parameters
         user_scripts = args.user_scripts
 
-        device = args.parse_device()
+        device = args.device_picker.pick()
         bundle_id = args.bundle_id
 
         class Application(FridaApplication):

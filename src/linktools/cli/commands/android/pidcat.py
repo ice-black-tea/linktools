@@ -82,7 +82,7 @@ class Command(AndroidCommand):
                             help='print all log messages')
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
         package = args.package
         min_level = LOG_LEVELS_MAP[args.min_level.upper()]
 

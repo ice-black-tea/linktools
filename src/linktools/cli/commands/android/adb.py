@@ -44,23 +44,26 @@ class Command(AndroidCommand):
         "connect",
         "disconnect",
         "keygen",
-        "wait-for-",
+        # "wait-for-",
         "start-server",
         "kill-server",
         "reconnect",
+        "attach",
+        "detach",
     ]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("adb_args", nargs="...", metavar="args", help="adb args")
 
     def run(self, args: Namespace) -> Optional[int]:
-        if args.adb_args and args.adb_args[0] not in self._GENERAL_COMMANDS:
-            device = args.parse_device()
-            process = device.popen(*args.adb_args, capture_output=False)
+        adb_args = args.adb_args
+        if adb_args and adb_args[0] not in self._GENERAL_COMMANDS and not adb_args[0].startswith("wait-for-"):
+            device = args.device_picker.pick()
+            process = device.popen(*adb_args, capture_output=False)
             return process.call()
 
-        adb = args.parse_device.bridge
-        process = adb.popen(*args.adb_args, capture_output=False)
+        adb = args.device_picker.bridge
+        process = adb.popen(*adb_args, capture_output=False)
         return process.call()
 
 

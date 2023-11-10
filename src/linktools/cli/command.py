@@ -37,7 +37,7 @@ import traceback
 from argparse import ArgumentParser, Action, Namespace, RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
-from typing import Tuple, Type, Optional, List, Generator, IO, Any, Callable, Iterable, Union, Set, Dict
+from typing import Tuple, Type, Optional, List, Generator, Any, Callable, Iterable, Union, Set, Dict
 
 import rich
 from rich import get_console
@@ -58,7 +58,7 @@ class LogCommandMixin:
     def add_log_options(self: "BaseCommand", parser: ArgumentParser = None):
 
         environ = self.environ
-        parser = parser or self.argument_parser
+        parser = parser or self._argument_parser
 
         class VerboseAction(Action):
 
@@ -241,7 +241,7 @@ class SubCommandMixin:
 
     def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None) -> None:
 
-        parser = parser or self.argument_parser
+        parser = parser or self._argument_parser
         target = target or self
 
         class_set = set()
@@ -278,9 +278,11 @@ class SubCommandMixin:
             command_actions = []
             command_func = getattr(target, command_info.func.__name__)
             command_parser = subparsers.add_parser(command_info.name, **_filter_kwargs(command_info.kwargs))
-            command_parser.set_defaults(__subcommand_info__=command_info)
-            command_parser.set_defaults(__subcommand_func__=command_func)
-            command_parser.set_defaults(__subcommand_actions__=command_actions)
+            command_parser.set_defaults(
+                __subcommand_info__=command_info,
+                __subcommand_func__=command_func,
+                __subcommand_actions__=command_actions,
+            )
 
             for argument in command_info.arguments:
                 argument_args = argument.args
@@ -369,23 +371,34 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
     def known_errors(self) -> List[Type[BaseException]]:
         return [CommandError]
 
-    def parse_args(self, args: List[str]) -> Namespace:
-        return self.argument_parser.parse_args(args=args)
-
-    @cached_property
-    def argument_parser(self) -> ArgumentParser:
-        description = self.description.strip()
-        if description and self.environ.description != NotImplemented:
-            description += os.linesep + os.linesep
-            description += self.environ.description
-        parser = ArgumentParser(
-            description=description,
-            formatter_class=RawDescriptionHelpFormatter,
+    def create_argument_parser(
+            self,
+            *args: Any,
+            type: Callable[..., ArgumentParser] = ArgumentParser,
+            formatter_class: Type[HelpFormatter] = RawDescriptionHelpFormatter,
             conflict_handler="resolve",
+            **kwargs: Any
+    ) -> ArgumentParser:
+        description = kwargs.pop("description", None)
+        if not description:
+            description = self.description.strip()
+            if description and self.environ.description != NotImplemented:
+                description += os.linesep + os.linesep
+                description += self.environ.description
+        parser = type(
+            *args,
+            description=description,
+            formatter_class=formatter_class,
+            conflict_handler=conflict_handler,
+            **kwargs
         )
         self.init_base_arguments(parser)
         self.init_arguments(parser)
         return parser
+
+    @cached_property
+    def _argument_parser(self) -> ArgumentParser:
+        return self.create_argument_parser()
 
     def init_base_arguments(self, parser: ArgumentParser) -> None:
         pass
@@ -416,7 +429,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         LogCommandMixin.add_log_options(self)
 
         if self.environ.version != NotImplemented:
-            self.argument_parser.add_argument(
+            self._argument_parser.add_argument(
                 "--version", action="version", version=self.environ.version
             )
 
@@ -426,7 +439,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         try:
             if not isinstance(args, Namespace):
                 args = args or sys.argv[1:]
-                args = self.argument_parser.parse_args(args)
+                args = self._argument_parser.parse_args(args, namespace=Namespace())
             exit_code = self.run(args) or 0
 
         except SystemExit as e:

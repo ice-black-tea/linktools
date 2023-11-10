@@ -56,7 +56,7 @@ class Command(IOSCommand):
         parser.add_argument('ssh_args', nargs='...', help="ssh args")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
 
         local_port = utils.pick_unused_port()
         with device.forward(local_port, args.port):

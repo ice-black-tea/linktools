@@ -43,7 +43,7 @@ class DeviceCache:
         return wrapper
 
 
-class DeviceParser:
+class DevicePicker:
 
     def __init__(self, func: Callable[[BridgeType], DeviceType] = None, options: List[str] = None):
         self.func = func
@@ -54,13 +54,16 @@ class DeviceParser:
     def bridge(self) -> BridgeType:
         return Bridge(*self.options)
 
+    def pick(self):
+        return self.func(self.bridge)
+
     def __call__(self):
         return self.func(self.bridge)
 
     @classmethod
-    def copy_on_write(cls, namespace: Namespace, dest: str) -> "DeviceParser":
+    def copy_on_write(cls, namespace: Namespace, dest: str) -> "DevicePicker":
         if hasattr(namespace, dest):
-            parser: DeviceParser = getattr(namespace, dest)
+            parser: DevicePicker = getattr(namespace, dest)
             if not parser:
                 parser = cls()
                 parser._default = False
@@ -79,14 +82,14 @@ class DeviceParser:
         return parser
 
 
-class AndroidParser(DeviceParser):
+class AndroidPicker(DevicePicker):
 
     @property
     def bridge(self):
         return Adb(*self.options)
 
 
-class IOSParser(DeviceParser):
+class IOSPicker(DevicePicker):
 
     @property
     def bridge(self):
@@ -97,7 +100,7 @@ class DeviceCommandMixin:
 
     def add_device_options(self: "BaseCommand", parser: ArgumentParser):
 
-        parser = parser or self.argument_parser
+        parser = parser or self._argument_parser
         cache = DeviceCache(
             self.environ.get_temp_path(
                 "cache", "device", "mobile",
@@ -106,7 +109,7 @@ class DeviceCommandMixin:
         )
 
         @cache
-        def parse_device(bridge: Bridge):
+        def pick(bridge: Bridge):
             devices = tuple(bridge.list_devices(alive=True))
             if len(devices) == 0:
                 raise BridgeError("no devices/emulators found")
@@ -141,21 +144,21 @@ class DeviceCommandMixin:
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(bridge: Bridge):
+                def pick(bridge: Bridge):
                     device_id = str(values)
                     for device in bridge.list_devices():
                         if device.id == device_id:
                             return device
                     raise BridgeError(f"no devices/emulators with {device_id} found")
 
-                device_parser = DeviceParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = DevicePicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class LastAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(bridge: Bridge):
+                def pick(bridge: Bridge):
                     device_id = cache.read()
                     if device_id:
                         raise BridgeError("no device used last time")
@@ -164,13 +167,13 @@ class DeviceCommandMixin:
                             return device
                     raise BridgeError("no device used last time")
 
-                device_parser = DeviceParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = DevicePicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         group = parser.add_argument_group(title="mobile device options").add_mutually_exclusive_group()
-        group.add_argument("-i", "--id", metavar="ID", dest="parse_device", action=IDAction,
-                           help="specify unique device identifier", default=DeviceParser(parse_device))
-        group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
+        group.add_argument("-i", "--id", metavar="ID", dest="device_picker", action=IDAction,
+                           help="specify unique device identifier", default=DevicePicker(pick))
+        group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
                            help="use last device")
 
 
@@ -178,7 +181,7 @@ class AndroidCommandMixin:
 
     def add_android_options(self: BaseCommand, parser: ArgumentParser) -> None:
 
-        parser = parser or self.argument_parser
+        parser = parser or self._argument_parser
         cache = DeviceCache(
             self.environ.get_temp_path(
                 "cache", "device", "android",
@@ -187,7 +190,7 @@ class AndroidCommandMixin:
         )
 
         @cache
-        def parse_device(adb: Adb):
+        def pick(adb: Adb):
             devices = tuple(adb.list_devices(alive=True))
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
@@ -222,37 +225,37 @@ class AndroidCommandMixin:
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(adb: Adb):
+                def pick(adb: Adb):
                     return AdbDevice(str(values), adb=adb)
 
-                device_parser = AndroidParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = AndroidPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class DeviceAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(adb: Adb):
+                def pick(adb: Adb):
                     return AdbDevice(adb.exec("-d", "get-serialno").strip(" \r\n"), adb=adb)
 
-                device_parser = AndroidParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = AndroidPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class EmulatorAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(adb: Adb):
+                def pick(adb: Adb):
                     return AdbDevice(adb.exec("-e", "get-serialno").strip(" \r\n"), adb=adb)
 
-                device_parser = AndroidParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = AndroidPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class ConnectAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(adb: Adb):
+                def pick(adb: Adb):
                     addr = str(values)
                     if addr.find(":") < 0:
                         addr = addr + ":5555"
@@ -260,26 +263,26 @@ class AndroidCommandMixin:
                         adb.exec("connect", addr, log_output=True)
                     return AdbDevice(addr, adb=adb)
 
-                device_parser = AndroidParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = AndroidPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class LastAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(adb: Adb):
+                def pick(adb: Adb):
                     device_id = cache.read()
                     if device_id:
                         return AdbDevice(device_id, adb=adb)
                     raise AdbError("no device used last time")
 
-                device_parser = AndroidParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = AndroidPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class OptionAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
-                device_parser = AndroidParser.copy_on_write(namespace, self.dest)
+                device_parser = AndroidPicker.copy_on_write(namespace, self.dest)
                 device_parser.options.append(option_string)
                 if isinstance(values, str):
                     device_parser.options.append(values)
@@ -288,42 +291,39 @@ class AndroidCommandMixin:
                 else:
                     device_parser.options.append(str(values))
 
-        options = parser.add_argument_group(title="adb options")
+        option_group = parser.add_argument_group(title="adb options")
 
-        options.add_argument("-a", dest="parse_device", nargs=0, action=OptionAction,
-                             default=AndroidParser(parse_device),
-                             help="listen on all network interfaces, not just localhost (adb -a option)")
+        option_group.add_argument("-a", "--all-interfaces", dest="device_picker", nargs=0, action=OptionAction,
+                                  default=AndroidPicker(pick),
+                                  help="listen on all network interfaces, not just localhost (adb -a option)")
 
-        group = options.add_mutually_exclusive_group()
-        group.add_argument("-d", "--device", dest="parse_device", nargs=0, action=DeviceAction,
-                           help="use USB device (adb -d option)")
-        group.add_argument("-s", "--serial", metavar="SERIAL", dest="parse_device", action=SerialAction,
-                           help="use device with given serial (adb -s option)")
-        group.add_argument("-e", "--emulator", dest="parse_device", nargs=0, action=EmulatorAction,
-                           help="use TCP/IP device (adb -e option)")
-        group.add_argument("-c", "--connect", metavar="IP[:PORT]", dest="parse_device", action=ConnectAction,
-                           help="use device with TCP/IP")
-        group.add_argument("-l", "--last", dest="parse_device", nargs=0, action=LastAction,
-                           help="use last device")
+        device_group = option_group.add_mutually_exclusive_group()
+        device_group.add_argument("-d", "--device", dest="device_picker", nargs=0, action=DeviceAction,
+                                  help="use USB device (adb -d option)")
+        device_group.add_argument("-s", "--serial", metavar="SERIAL", dest="device_picker", action=SerialAction,
+                                  help="use device with given serial (adb -s option)")
+        device_group.add_argument("-e", "--emulator", dest="device_picker", nargs=0, action=EmulatorAction,
+                                  help="use TCP/IP device (adb -e option)")
+        device_group.add_argument("-c", "--connect", metavar="IP[:PORT]", dest="device_picker", action=ConnectAction,
+                                  help="use device with TCP/IP")
+        device_group.add_argument("-l", "--last", dest="device_picker", nargs=0, action=LastAction,
+                                  help="use last device")
 
-        options.add_argument("-t", metavar="ID", dest="parse_device", action=OptionAction,
-                             help="use device with given transport ID (adb -t option)")
-
-        group = options.add_mutually_exclusive_group()
-        _group = group.add_argument_group()
-        _group.add_argument("-H", metavar="HOST", dest="parse_device", action=OptionAction,
-                            help="name of adb server host [default=localhost] (adb -H option)")
-        _group.add_argument("-P", metavar="PORT", dest="parse_device", action=OptionAction,
-                            help="smart socket PORT of adb server [default=5037] (adb -P option)")
-        group.add_argument("-L", metavar="SOCKET", dest="parse_device", action=OptionAction,
-                           help="listen on given socket for adb server [default=tcp:localhost:5037] (adb -L option)")
+        option_group.add_argument("-t", "--transport", metavar="ID", dest="device_picker", action=OptionAction,
+                                  help="use device with given transport ID (adb -t option)")
+        option_group.add_argument("-H", metavar="HOST", dest="device_picker", action=OptionAction,
+                                  help="name of adb server host [default=localhost] (adb -H option)")
+        option_group.add_argument("-P", metavar="PORT", dest="device_picker", action=OptionAction,
+                                  help="port of adb server [default=5037] (adb -P option)")
+        option_group.add_argument("-L", metavar="SOCKET", dest="device_picker", action=OptionAction,
+                                  help="listen on given socket for adb server [default=tcp:localhost:5037] (adb -L option)")
 
 
 class IOSCommandMixin:
 
     def add_ios_options(self: BaseCommand, parser: ArgumentParser):
 
-        parser = parser or self.argument_parser
+        parser = parser or self._argument_parser
         cache = DeviceCache(
             self.environ.get_temp_path(
                 "cache", "device", "ios",
@@ -332,7 +332,7 @@ class IOSCommandMixin:
         )
 
         @cache
-        def parse_device(sib: Sib):
+        def pick(sib: Sib):
             devices = tuple(sib.list_devices(alive=True))
             if len(devices) == 0:
                 raise SibError("no devices/emulators found")
@@ -367,30 +367,30 @@ class IOSCommandMixin:
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(sib: Sib):
+                def pick(sib: Sib):
                     return SibDevice(str(values), sib=sib)
 
-                device_parser = IOSParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = IOSPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class LastAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(sib: Sib):
+                def pick(sib: Sib):
                     device_id = cache.read()
                     if device_id:
                         return SibDevice(device_id, sib=sib)
                     raise SibError("no device used last time")
 
-                device_parser = IOSParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = IOSPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         class ConnectAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
                 @cache
-                def wrapper(sib: Sib):
+                def pick(sib: Sib):
                     address = str(values)
                     host, port = address.split(":", maxsplit=1)
                     sib.exec("remote", "connect", "--host", host, "--port", port, log_output=True)
@@ -398,15 +398,15 @@ class IOSCommandMixin:
                         if address == device.address:
                             return device
 
-                device_parser = IOSParser.copy_on_write(namespace, self.dest)
-                device_parser.func = wrapper
+                device_parser = IOSPicker.copy_on_write(namespace, self.dest)
+                device_parser.func = pick
 
         group = parser.add_argument_group(title="sib options").add_mutually_exclusive_group()
-        group.add_argument("-u", "--udid", metavar="UDID", dest="parse_device", action=UdidAction,
-                           help="specify unique device identifier", default=parse_device)
-        group.add_argument("-c", "--connect", metavar="IP:PORT", dest="parse_device", action=ConnectAction,
+        group.add_argument("-u", "--udid", metavar="UDID", dest="device_picker", action=UdidAction,
+                           help="specify unique device identifier", default=pick)
+        group.add_argument("-c", "--connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
                            help="use device with TCP/IP")
-        group.add_argument("-l", "--last", dest="parse_device", nargs=0, const=True, action=LastAction,
+        group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
                            help="use last device")
 
 

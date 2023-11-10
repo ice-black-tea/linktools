@@ -25,11 +25,12 @@ class Command(IOSCommand):
 
     def run(self, args: Namespace) -> Optional[int]:
         if args.sib_args and args.sib_args[0] not in self._GENERAL_COMMANDS:
-            device = args.parse_device()
+            device = args.device_picker.pick()
             process = device.popen(*args.sib_args, capture_output=False)
             return process.call()
 
-        process = args.parse_device.bridge.popen(*args.sib_args, capture_output=False)
+        sib = args.device_picker.bridge
+        process = sib.popen(*args.sib_args, capture_output=False)
         return process.call()
 
 

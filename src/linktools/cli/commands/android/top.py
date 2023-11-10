@@ -57,7 +57,7 @@ class Command(AndroidCommand):
                            help='capture screen and pull file')
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.parse_device()
+        device = args.device_picker.pick()
 
         if args.package:
             environ.logger.info(device.get_current_package())

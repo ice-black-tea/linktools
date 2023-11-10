@@ -47,7 +47,7 @@ class Command(AndroidCommand, SubCommandMixin):
         self.add_subcommands(parser)
 
     def run(self, args: Namespace) -> Optional[int]:
-        self.device = args.parse_device()
+        self.device = args.device_picker.pick()
         return self.run_subcommand(args)
 
     @subcommand("setting", help="start setting activity")
