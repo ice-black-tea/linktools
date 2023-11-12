@@ -34,15 +34,16 @@ import os
 import sys
 import textwrap
 import traceback
-from argparse import ArgumentParser, Action, Namespace, RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
+from argparse import ArgumentParser, Action, Namespace
+from argparse import RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
-from typing import Tuple, Type, Optional, List, Generator, Any, Callable, Iterable, Union, Set, Dict
+from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict
 
 import rich
 from rich import get_console
 
-from .argparse import BooleanOptionalAction, add_subparsers
+from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
@@ -275,7 +276,8 @@ class SubCommandMixin:
         parser = parser or self._argument_parser
         target = target or self
 
-        subparsers = add_subparsers(parser, metavar="COMMAND", help="Command Help", required=True)
+        subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
+        subparsers.required = True  # 兼容python3.6
         for _, command_info in SubCommandMixin._find_command_infos(target):
             command_actions = []
             command_func = getattr(target, command_info.func.__name__)

@@ -1,5 +1,32 @@
 #!/usr/bin/env python3
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+
+"""
+@author  : Hu Ji
+@file    : device.py 
+@time    : 2023/11/12
+@site    : https://github.com/ice-black-tea
+@software: PyCharm 
+
+              ,----------------,              ,---------,
+         ,-----------------------,          ,"        ,"|
+       ,"                      ,"|        ,"        ,"  |
+      +-----------------------+  |      ,"        ,"    |
+      |  .-----------------.  |  |     +---------+      |
+      |  |                 |  |  |     | -==----'|      |
+      |  | $ sudo rm -rf / |  |  |     |         |      |
+      |  |                 |  |  |/----|`---=    |      |
+      |  |                 |  |  |   ,/|==== ooo |      ;
+      |  |                 |  |  |  // |(((( [33]|    ,"
+      |  `-----------------'  |," .;'| |((((     |  ,"
+      +-----------------------+  ;;  | |         |,"
+         /_)______________(_/  //'   | +---------+
+    ___________________________/___  `,
+   /  oooooooooooooooo  .o.  oooo /,   \,"-----------
+  / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
+ /_==__==========__==_ooo__ooo=_/'   /___________,"
+"""
+
 import abc
 import functools
 import os
@@ -10,7 +37,7 @@ from rich import get_console
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from .command import BaseCommand
+from . import BaseCommand
 from ..android import Adb, AdbError, Device as AdbDevice
 from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
 from ..ios import Sib, SibError, Device as SibDevice
@@ -170,11 +197,14 @@ class DeviceCommandMixin:
                 device_parser = DevicePicker.copy_on_write(namespace, self.dest)
                 device_parser.func = pick
 
-        group = parser.add_argument_group(title="mobile device options").add_mutually_exclusive_group()
-        group.add_argument("-i", "--id", metavar="ID", dest="device_picker", action=IDAction,
-                           help="specify unique device identifier", default=DevicePicker(pick))
-        group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
-                           help="use last device")
+        option_group = parser.add_argument_group(title="mobile device options")
+        option_group.set_defaults(device_picker=DevicePicker(pick))
+
+        device_group = option_group.add_mutually_exclusive_group()
+        device_group.add_argument("-i", "--id", metavar="ID", dest="device_picker", action=IDAction,
+                                  help="specify unique device identifier")
+        device_group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
+                                  help="use last device")
 
 
 class AndroidCommandMixin:
@@ -292,9 +322,9 @@ class AndroidCommandMixin:
                     device_parser.options.append(str(values))
 
         option_group = parser.add_argument_group(title="adb options")
+        option_group.set_defaults(device_picker=AndroidPicker(pick))
 
         option_group.add_argument("-a", "--all-interfaces", dest="device_picker", nargs=0, action=OptionAction,
-                                  default=AndroidPicker(pick),
                                   help="listen on all network interfaces, not just localhost (adb -a option)")
 
         device_group = option_group.add_mutually_exclusive_group()
@@ -401,13 +431,24 @@ class IOSCommandMixin:
                 device_parser = IOSPicker.copy_on_write(namespace, self.dest)
                 device_parser.func = pick
 
-        group = parser.add_argument_group(title="sib options").add_mutually_exclusive_group()
-        group.add_argument("-u", "--udid", metavar="UDID", dest="device_picker", action=UdidAction,
-                           help="specify unique device identifier", default=IOSPicker(pick))
-        group.add_argument("-c", "--connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
-                           help="use device with TCP/IP")
-        group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
-                           help="use last device")
+        option_group = parser.add_argument_group(title="sib options")
+        option_group.set_defaults(device_picker=IOSPicker(pick))
+
+        device_group = option_group.add_mutually_exclusive_group()
+        device_group.add_argument("-u", "--udid", metavar="UDID", dest="device_picker", action=UdidAction,
+                                  help="specify unique device identifier")
+        device_group.add_argument("-c", "--connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
+                                  help="use device with TCP/IP")
+        device_group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
+                                  help="use last device")
+
+
+class AndroidNamespace(Namespace):
+    device_picker: AndroidPicker = None
+
+
+class IOSNamespace(Namespace):
+    device_picker: IOSPicker = None
 
 
 class AndroidCommand(BaseCommand, metaclass=abc.ABCMeta):
@@ -420,6 +461,10 @@ class AndroidCommand(BaseCommand, metaclass=abc.ABCMeta):
         super().init_base_arguments(parser)
         AndroidCommandMixin.add_android_options(self, parser)
 
+    @abc.abstractmethod
+    def run(self, args: AndroidNamespace) -> Optional[int]:
+        pass
+
 
 class IOSCommand(BaseCommand, metaclass=abc.ABCMeta):
 
@@ -430,3 +475,7 @@ class IOSCommand(BaseCommand, metaclass=abc.ABCMeta):
     def init_base_arguments(self, parser: ArgumentParser):
         super().init_base_arguments(parser)
         IOSCommandMixin.add_ios_options(self, parser)
+
+    @abc.abstractmethod
+    def run(self, args: IOSNamespace) -> Optional[int]:
+        pass

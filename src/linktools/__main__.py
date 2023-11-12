@@ -33,7 +33,6 @@ from typing import Optional, List, Dict
 from rich import get_console
 from rich.tree import Tree
 
-from linktools.cli.argparse import add_subparsers
 from ._environ import environ
 from .cli import BaseCommand, walk_commands
 from .decorator import cached_property
@@ -92,24 +91,26 @@ class Command(BaseCommand):
         return command_infos
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        catalog_parsers = add_subparsers(parser, metavar="CATALOG", required=True)
+        catalog_parsers = parser.add_subparsers(metavar="CATALOG")
+        catalog_parsers.required = True
         for category_info, command_infos in self.command_infos.items():
             catalog_parser = catalog_parsers.add_parser(
                 category_info.name,
                 help=category_info.description
             )
-            command_parsers = add_subparsers(catalog_parser, metavar="COMMAND", required=True)
+            command_parsers = catalog_parser.add_subparsers(metavar="COMMAND")
+            command_parsers.required = True
             for command_info in command_infos:
                 command_parser = command_info.command.create_argument_parser(
                     command_info.name,
                     type=command_parsers.add_parser,
                     help=command_info.description,
                 )
-                command_parser.set_defaults(func=command_info.command)
+                command_parser.set_defaults(run_command=command_info.command)
 
     def run(self, args: Namespace) -> Optional[int]:
-        if hasattr(args, "func") and callable(args.func):
-            return args.func(args)
+        if hasattr(args, "run_command") and callable(args.run_command):
+            return args.run_command(args)
 
         tree = Tree("📎 All commands")
         for category, commands in self.command_infos.items():
