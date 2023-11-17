@@ -31,7 +31,7 @@ import abc
 import functools
 import os
 from argparse import ArgumentParser, Action, Namespace
-from typing import Optional, Callable, List, Type
+from typing import Optional, Callable, List, Type, Generic
 
 from rich import get_console
 from rich.prompt import IntPrompt
@@ -70,21 +70,21 @@ class DeviceCache:
         return wrapper
 
 
-class DevicePicker:
+class DevicePicker(Generic[BridgeType, DeviceType]):
 
     def __init__(self, func: Callable[[BridgeType], DeviceType] = None, options: List[str] = None):
         self.func = func
         self.options = options or []
-        self._default = True
+        self._const = True
 
     @property
     def bridge(self) -> BridgeType:
         return Bridge(*self.options)
 
-    def pick(self):
+    def pick(self) -> DeviceType:
         return self.func(self.bridge)
 
-    def __call__(self):
+    def __call__(self) -> DeviceType:
         return self.func(self.bridge)
 
     @classmethod
@@ -93,30 +93,30 @@ class DevicePicker:
             parser: DevicePicker = getattr(namespace, dest)
             if not parser:
                 parser = cls()
-                parser._default = False
+                parser._const = False
                 setattr(namespace, dest, parser)
-            elif parser._default:
+            elif parser._const:
                 new_parser = cls()
                 new_parser.func = parser.func
                 new_parser.options = list(parser.options)
-                new_parser._default = False
+                new_parser._const = False
                 setattr(namespace, dest, new_parser)
                 return new_parser
         else:
             parser = cls()
-            parser._default = False
+            parser._const = False
             setattr(namespace, dest, parser)
         return parser
 
 
-class AndroidPicker(DevicePicker):
+class AndroidPicker(DevicePicker[Adb, AdbDevice]):
 
     @property
     def bridge(self):
         return Adb(*self.options)
 
 
-class IOSPicker(DevicePicker):
+class IOSPicker(DevicePicker[Sib, SibDevice]):
 
     @property
     def bridge(self):

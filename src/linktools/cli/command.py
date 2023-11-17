@@ -126,7 +126,7 @@ class _SubCommandInfo:
         return self
 
     def __repr__(self):
-        return f"<SubCommandInfo name={self.name}>"
+        return f"<SubCommandInfo func={self.func.__qualname__}>"
 
 
 class _SubCommandArgumentInfo:
@@ -187,9 +187,16 @@ def subcommand(
             allow_abbrev=allow_abbrev
         )
 
-        function = inspect.stack()[1].function
-        _subcommand_mapping.setdefault(function, set())
-        _subcommand_mapping[function].add(func.__name__)
+        index = func.__qualname__.rfind(".")
+        if index < 0:
+            raise ValueError(
+                f"subcommand decorator must be used in class method, "
+                f"but {func.__qualname__} is not")
+
+        class_name = f"{func.__module__}.{func.__qualname__[:index]}"
+        func_name = func.__qualname__[index + 1:]
+        _subcommand_mapping.setdefault(class_name, set())
+        _subcommand_mapping[class_name].add(func_name)
 
         return func
 
@@ -241,21 +248,13 @@ def subcommand_argument(
 class SubCommandMixin:
 
     @classmethod
-    def _find_command_infos(cls, clazz: Any):
-        class_set, class_queue = set(), list()
-        class_queue.append(clazz.__class__)
-        class_set.add(clazz.__class__)
-
+    def _find_command_infos(cls, target: Any):
         command_info_map: Dict[str, List[_SubCommandInfo]] = {}
-        while class_queue:
-            clazz = class_queue.pop(0)
-            for pending_class in clazz.__bases__:
-                if pending_class not in class_set:
-                    class_queue.append(pending_class)
-                    class_set.add(pending_class)
-            if clazz.__name__ not in _subcommand_mapping:
+        for clazz in target.__class__.mro():
+            class_name = f"{clazz.__module__}.{clazz.__qualname__}"
+            if class_name not in _subcommand_mapping:
                 continue
-            for func_name in _subcommand_mapping[clazz.__name__]:
+            for func_name in _subcommand_mapping[class_name]:
                 if not hasattr(clazz, func_name):
                     continue
                 func = getattr(clazz, func_name)
@@ -269,7 +268,8 @@ class SubCommandMixin:
         for name, _command_infos in command_info_map.items():
             command_infos.append((min([i.index for i in _command_infos]), _command_infos[0]))
 
-        return sorted(command_infos, key=lambda o: o[0])
+        for _, command_info in sorted(command_infos, key=lambda o: o[0]):
+            yield command_info
 
     def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None):
 
@@ -278,7 +278,7 @@ class SubCommandMixin:
 
         subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
         subparsers.required = True  # 兼容python3.6
-        for _, command_info in SubCommandMixin._find_command_infos(target):
+        for command_info in SubCommandMixin._find_command_infos(target):
             command_actions = []
             command_func = getattr(target, command_info.func.__name__)
             command_parser = subparsers.add_parser(command_info.name, **_filter_kwargs(command_info.kwargs))
@@ -449,7 +449,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         try:
             if not isinstance(args, Namespace):
                 args = args or sys.argv[1:]
-                args = self._argument_parser.parse_args(args, namespace=Namespace())
+                args = self._argument_parser.parse_args(args)
             exit_code = self.run(args) or 0
 
         except SystemExit as e:
