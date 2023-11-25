@@ -41,8 +41,8 @@ from linktools.cli import BaseCommand
 
 try:
     import OpenSSL
-except ImportError as e:
-    OpenSSL = utils.lazy_raise(e)
+except:
+    OpenSSL = utils.lazy_import("OpenSSL")
 
 
 class Command(BaseCommand):

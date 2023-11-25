@@ -5,6 +5,8 @@
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 
 import functools
+import sys
+from importlib.util import find_spec, LazyLoader, module_from_spec, spec_from_file_location
 from typing import TypeVar, Type, Callable
 
 _PROXY_FN = "_Proxy__fn"
@@ -295,14 +297,35 @@ def lazy_load(fn: Callable[..., _T], *args, **kwargs) -> _T:
     return _Proxy(functools.partial(fn, *args, **kwargs))
 
 
-def lazy_raise(e: Exception) -> _T:
+def lazy_import(name: str) -> _T:
     """
-    延迟抛出异常
-    :param e: exception
-    :return: proxy
+    延迟导入模块
+    :param name: 模块名
+    :return: module
     """
+    spec = find_spec(name)
+    loader = LazyLoader(spec.loader)
+    spec.loader = loader
+    module = module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module
 
-    def raise_error():
-        raise e
 
-    return lazy_load(raise_error)
+def lazy_import_file(name: str, path: str) -> _T:
+    """
+    延迟导入模块
+    :param name: 模块名
+    :param path: 模块路径
+    :return: module
+    """
+    spec = spec_from_file_location(name, path)
+    loader = LazyLoader(spec.loader)
+    spec.loader = loader
+    module = module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+

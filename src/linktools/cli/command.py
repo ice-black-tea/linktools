@@ -38,10 +38,12 @@ from argparse import ArgumentParser, Action, Namespace
 from argparse import RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
+from types import ModuleType
 from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict
 
 import rich
 from rich import get_console
+from rich.tree import Tree
 
 from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
@@ -51,6 +53,10 @@ from ..utils import T, MISSING
 
 
 class CommandError(Exception):
+    pass
+
+
+class SubCommandError(CommandError):
     pass
 
 
@@ -105,22 +111,27 @@ class LogCommandMixin:
                                help="show log level")
 
 
+def _filter_kwargs(kwargs):
+    return {k: v for k, v in kwargs.items() if v is not MISSING}
+
+
 _subcommand_index: int = 0
 _subcommand_mapping: Dict[str, Set[str]] = {}
 
 
-class _SubCommandInfo:
+class _SubMethodCommandInfo:
 
     def __init__(self):
         global _subcommand_index
         _subcommand_index += 1
+        self.name = None
+        self.pass_args = False
         self.index = _subcommand_index
-        self.name: Optional[str] = None
         self.kwargs: Optional[Dict[str, Any]] = None
         self.func: Optional[Callable[..., Optional[int]]] = None
-        self.arguments: List[_SubCommandArgumentInfo] = []
+        self.arguments: List[_SubMethodCommandArgumentInfo] = []
 
-    def save(self, name: str, **kwargs: Any):
+    def set_args(self, name: str, **kwargs: Any):
         self.name = name
         self.kwargs = _filter_kwargs(kwargs)
         return self
@@ -129,21 +140,17 @@ class _SubCommandInfo:
         return f"<SubCommandInfo func={self.func.__qualname__}>"
 
 
-class _SubCommandArgumentInfo:
+class _SubMethodCommandArgumentInfo:
 
     def __init__(self):
         self.args: Optional[Tuple[str]] = None
         self.kwargs: Optional[Dict[str, Any]] = None
         self.action: Optional[Union[str, Type[Action]]] = None
 
-    def save(self, *args: str, **kwargs: Any):
+    def set_args(self, *args: str, **kwargs: Any):
         self.args = args
         self.kwargs = _filter_kwargs(kwargs)
         return self
-
-
-def _filter_kwargs(kwargs):
-    return {k: v for k, v in kwargs.items() if v is not MISSING}
 
 
 def subcommand(
@@ -162,14 +169,16 @@ def subcommand(
         argument_default: Any = MISSING,
         conflict_handler: str = MISSING,
         add_help: bool = MISSING,
-        allow_abbrev: bool = MISSING):
+        allow_abbrev: bool = MISSING,
+        pass_args: bool = False):
     def decorator(func):
         if not hasattr(func, "__subcommand_info__"):
-            setattr(func, "__subcommand_info__", _SubCommandInfo())
+            setattr(func, "__subcommand_info__", _SubMethodCommandInfo())
 
-        subcommand_info: _SubCommandInfo = func.__subcommand_info__
+        subcommand_info = func.__subcommand_info__
         subcommand_info.func = func
-        subcommand_info.save(
+        subcommand_info.pass_args = pass_args
+        subcommand_info.set_args(
             name,
             help=help,
             aliases=aliases,
@@ -218,8 +227,8 @@ def subcommand_argument(
         type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = MISSING,
         **kwargs: Any):
     def decorator(func):
-        subcommand_argument_info = _SubCommandArgumentInfo()
-        subcommand_argument_info.save(
+        subcommand_argument_info = _SubMethodCommandArgumentInfo()
+        subcommand_argument_info.set_args(
             *[name_or_flag, *name_or_flags],
             action=action,
             nargs=nargs,
@@ -235,9 +244,9 @@ def subcommand_argument(
         )
 
         if not hasattr(func, "__subcommand_info__"):
-            setattr(func, "__subcommand_info__", _SubCommandInfo())
+            setattr(func, "__subcommand_info__", _SubMethodCommandInfo())
 
-        subcommand_info: _SubCommandInfo = func.__subcommand_info__
+        subcommand_info = func.__subcommand_info__
         subcommand_info.arguments.append(subcommand_argument_info)
 
         return func
@@ -245,125 +254,294 @@ def subcommand_argument(
     return decorator
 
 
+class SubCommand(metaclass=abc.ABCMeta):
+    ROOT_ID = ""
+
+    def __init__(self, name: str, description: str, id: str = None, parent_id: str = None):
+        self.id = id or name
+        self.parent_id = parent_id or self.ROOT_ID
+        self.name = name
+        self.description = description
+
+    @property
+    def has_parent(self):
+        return self.parent_id != self.ROOT_ID
+
+    @property
+    def is_group(self):
+        return isinstance(self, SubGroupCommand)
+
+    def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
+        return type(self.name, help=self.description)
+
+    @abc.abstractmethod
+    def run(self, args: Namespace):
+        pass
+
+    def __repr__(self):
+        return f"<SubCommand id={self.id}>"
+
+
+class SubGroupCommand(SubCommand):
+
+    def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
+        parser = type(self.name, help=self.description)
+        parser.set_defaults(**{f"__{self.id}.subcommand_help__": parser.print_help})
+        return parser
+
+    def run(self, args: Namespace):
+        attr_name = f"__{self.id}.subcommand_help__"
+        assert hasattr(args, attr_name)
+
+        func = getattr(args, attr_name)
+        return func()
+
+
+class _SubMethodCommand(SubCommand):
+
+    def __init__(self, info: _SubMethodCommandInfo, target: Any, id: str = None, parent_id: str = None):
+        super().__init__(
+            id=id,
+            parent_id=parent_id,
+            name=info.name,
+            description=info.kwargs.get("description", None) or info.kwargs.get("help", None) or ""
+        )
+        self.info = info
+        self.target = target
+
+    def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
+
+        actions = []
+        method = getattr(self.target, self.info.func.__name__)
+        parser = type(self.name, **self.info.kwargs)
+        parser.set_defaults(**{f"__{self.id}.subcommand_actions__": actions})
+
+        for argument in self.info.arguments:
+            argument_args = argument.args
+            argument_kwargs = dict(argument.kwargs)
+
+            # 解析dest，把注解的参数和方法参数对应上
+            dest = argument_kwargs.get("dest", None)
+            if not dest:
+                prefix_chars = parser.prefix_chars
+                if not argument_args or len(argument_args) == 1 and argument_args[0][0] not in prefix_chars:
+                    dest = argument_args[0]
+                    argument_kwargs["required"] = MISSING  # 这种方式不能指定required，所以这里设置为MISSING
+                else:
+                    option_strings = []
+                    long_option_strings = []
+                    for option_string in argument_args:
+                        option_strings.append(option_string)
+                        if len(option_string) > 1 and option_string[1] in prefix_chars:
+                            long_option_strings.append(option_string)
+                    dest_option_string = long_option_strings[0] if long_option_strings else option_strings[0]
+                    dest = dest_option_string.lstrip(prefix_chars)
+                    if not dest:
+                        raise ValueError(f"Parse subcommand argument dest error, "
+                                         f"{self.info} argument `{', '.join(argument_args)}` require dest=...")
+                    dest = dest.replace('-', '_')
+                    argument_kwargs["dest"] = dest
+
+            # 验证一下dest是否在参数列表中，不在就报错
+            signature = inspect.signature(method)
+            if dest not in signature.parameters:
+                raise ValueError(f"Check subcommand argument error, "
+                                 f"{self.info} has no `{argument.action.dest}` argument")
+
+            # 根据方法参数的注解，设置一些默认值
+            parameter = signature.parameters[dest]
+            if "default" not in argument_kwargs:
+                if parameter.default != signature.empty:
+                    argument_kwargs.setdefault("default", parameter.default)
+                    argument_kwargs.setdefault("required", False)
+                else:
+                    argument_kwargs.setdefault("required", True)
+            if "action" not in argument_kwargs:
+                if parameter.annotation != signature.empty:
+                    if parameter.annotation in (int, float, str):
+                        argument_kwargs.setdefault("type", parameter.annotation)
+                    elif parameter.annotation == bool:
+                        if argument_kwargs.get("default", False):
+                            argument_kwargs.setdefault("action", "store_false")
+                        else:
+                            argument_kwargs.setdefault("action", "store_true")
+
+            actions.append(parser.add_argument(
+                *argument_args,
+                **_filter_kwargs(argument_kwargs)
+            ))
+
+        return parser
+
+    def run(self, args: Namespace):
+        attr_name = f"__{self.id}.subcommand_actions__"
+        assert hasattr(args, attr_name)
+
+        actions = getattr(args, attr_name)
+        method = getattr(self.target, self.info.func.__name__)
+
+        method_args = []
+        if self.info.pass_args:
+            method_args.append(args)
+
+        method_kwargs = dict()
+        for action in actions:
+            method_kwargs[action.dest] = getattr(args, action.dest)
+        return method(*method_args, **method_kwargs)
+
+
+class _SubModuleCommand(SubGroupCommand):
+
+    def __init__(self, module_name: str, parent_module_name: str, module: ModuleType):
+        super().__init__(
+            id=module_name,
+            parent_id=parent_module_name,
+            name=getattr(module, "__name__", None) or module_name[module_name.rfind(".") + 1:],
+            description=getattr(module, "__description__", "")
+        )
+        self.module = module
+
+
+class _SubObjectCommand(SubCommand):
+
+    def __init__(self, module_name: str, parent_module_name: str, command: "BaseCommand"):
+        super().__init__(
+            id=module_name,
+            parent_id=parent_module_name,
+            name=command.name or module_name[module_name.rfind(".") + 1:],
+            description=command.description
+        )
+        self.command = command
+
+    def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
+        return self.command.create_parser(self.name, help=self.description, type=type)
+
+    def run(self, args: Namespace):
+        return self.command(args)
+
+
 class SubCommandMixin:
 
-    @classmethod
-    def _find_command_infos(cls, target: Any):
-        command_info_map: Dict[str, List[_SubCommandInfo]] = {}
-        for clazz in target.__class__.mro():
-            class_name = f"{clazz.__module__}.{clazz.__qualname__}"
-            if class_name not in _subcommand_mapping:
-                continue
-            for func_name in _subcommand_mapping[class_name]:
-                if not hasattr(clazz, func_name):
-                    continue
-                func = getattr(clazz, func_name)
-                if not hasattr(func, "__subcommand_info__"):
-                    continue
-                command_info: _SubCommandInfo = func.__subcommand_info__
-                command_info_map.setdefault(command_info.name, list())
-                command_info_map[command_info.name].append(command_info)
+    def print_subcommands(self: "BaseCommand", target: Any):
+        tree = Tree("📎 All commands")
 
-        command_infos: List[Tuple[int, _SubCommandInfo]] = []
-        for name, _command_infos in command_info_map.items():
-            command_infos.append((min([i.index for i in _command_infos]), _command_infos[0]))
+        nodes: Dict[str, Tree] = {}
+        for subcommand in self.walk_subcommands(target):
+            node = nodes.get(subcommand.parent_id) if subcommand.has_parent else tree
+            if subcommand.is_group:
+                if subcommand.description:
+                    nodes[subcommand.id] = node.add(
+                        f"📖 [underline red]{subcommand.name}[/underline red]: {subcommand.description}")
+                else:
+                    nodes[subcommand.id] = node.add(
+                        f"📖 [underline red]{subcommand.name}[/underline red]")
+            else:
+                if subcommand.description:
+                    node.add(
+                        f"👉 [bold red]{subcommand.name}[/bold red]: {subcommand.description}")
+                else:
+                    node.add(
+                        f"👉 [bold red]{subcommand.name}[/bold red]")
 
-        for _, command_info in sorted(command_infos, key=lambda o: o[0]):
-            yield command_info
+        console = get_console()
+        if self.environ.description != NotImplemented:
+            console.print(self.environ.description, highlight=False)
+        console.print(tree, highlight=False)
+
+    def walk_subcommands(self: "BaseCommand", target: Any) -> Generator[SubCommand, None, None]:
+
+        if isinstance(target, SubCommand):
+            yield target
+
+        elif isinstance(target, (list, tuple, set)):
+            for item in target:
+                yield from self.walk_subcommands(item)
+
+        elif isinstance(target, ModuleType):
+            prefix = target.__name__ + "."  # prefix: aaa.
+            for finder, name, is_package in walk_packages(path=target.__path__, prefix=prefix):  # name: aaa.bbb.ccc
+                module_name = name[len(prefix):]  # bbb.ccc
+                parent_module_name = name[len(prefix):name.rfind(".")]  # bbb
+                try:
+                    spec = finder.find_spec(name)
+                    module = module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                except Exception as e:
+                    self.logger.warning(
+                        f"Ignore {module_name}, caused by {e.__class__.__name__}: {e}",
+                        exc_info=e if environ.debug else None
+                    )
+                    continue
+                if is_package:
+                    yield _SubModuleCommand(module_name, parent_module_name, module)
+                elif hasattr(module, "command") and isinstance(module.command, BaseCommand):
+                    yield _SubObjectCommand(module_name, parent_module_name, module.command)
+
+        else:
+            subcommand_map: Dict[str, List[_SubMethodCommand]] = {}
+            for clazz in target.__class__.mro():
+                class_name = f"{clazz.__module__}.{clazz.__qualname__}"
+                if class_name not in _subcommand_mapping:
+                    continue
+                for func_name in _subcommand_mapping[class_name]:
+                    if not hasattr(clazz, func_name):
+                        continue
+                    func = getattr(clazz, func_name)
+                    if not hasattr(func, "__subcommand_info__"):
+                        continue
+                    info: _SubMethodCommandInfo = func.__subcommand_info__
+                    subcommand = _SubMethodCommand(info, target)
+                    subcommand_map.setdefault(subcommand.name, list())
+                    subcommand_map[info.name].append(subcommand)
+
+            command_infos: List[Tuple[int, _SubMethodCommand]] = []
+            for name, subcommands in subcommand_map.items():
+                command_infos.append((min([c.info.index for c in subcommands]), subcommands[0]))
+            for _, subcommand in sorted(command_infos, key=lambda o: o[0]):
+                yield subcommand
 
     def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None):
 
-        parser = parser or self._argument_parser
         target = target or self
 
+        parser = parser or self._argument_parser
         subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
-        subparsers.required = True  # 兼容python3.6
-        for command_info in SubCommandMixin._find_command_infos(target):
-            command_actions = []
-            command_func = getattr(target, command_info.func.__name__)
-            command_parser = subparsers.add_parser(command_info.name, **_filter_kwargs(command_info.kwargs))
-            command_parser.set_defaults(
-                __subcommand_info__=command_info,
-                __subcommand_func__=command_func,
-                __subcommand_actions__=command_actions,
-            )
 
-            for argument in command_info.arguments:
-                argument_args = argument.args
-                argument_kwargs = dict(argument.kwargs)
+        subparsers_map = {}
+        for subcommand in self.walk_subcommands(target):
+            parent_subparsers = subparsers
+            if subcommand.has_parent:
+                parent_subparsers = subparsers_map.get(subcommand.parent_id)
 
-                # 解析dest，把注解的参数和方法参数对应上
-                dest = argument_kwargs.get("dest", None)
-                if not dest:
-                    prefix_chars = command_parser.prefix_chars
-                    if not argument_args or len(argument_args) == 1 and argument_args[0][0] not in prefix_chars:
-                        dest = argument_args[0]
-                        argument_kwargs["required"] = MISSING  # 这种方式不能指定required，所以这里设置为MISSING
-                    else:
-                        option_strings = []
-                        long_option_strings = []
-                        for option_string in argument_args:
-                            option_strings.append(option_string)
-                            if len(option_string) > 1 and option_string[1] in prefix_chars:
-                                long_option_strings.append(option_string)
-                        dest_option_string = long_option_strings[0] if long_option_strings else option_strings[0]
-                        dest = dest_option_string.lstrip(prefix_chars)
-                        if not dest:
-                            raise ValueError(f"Parse subcommand argument dest error, "
-                                             f"{command_info} argument `{', '.join(argument_args)}` require dest=...")
-                        dest = dest.replace('-', '_')
-                        argument_kwargs["dest"] = dest
+            parser = subcommand.create_parser(type=parent_subparsers.add_parser)
+            parser.set_defaults(**{f"__{self.__module__}.subcommand__": subcommand})
 
-                # 验证一下dest是否在参数列表中，不在就报错
-                signature = inspect.signature(command_func)
-                if dest not in signature.parameters:
-                    raise ValueError(f"Check subcommand argument error, "
-                                     f"{command_info} has no `{argument.action.dest}` argument")
-
-                # 根据方法参数的注解，设置一些默认值
-                parameter = signature.parameters[dest]
-                if "default" not in argument_kwargs:
-                    if parameter.default != signature.empty:
-                        argument_kwargs.setdefault("default", parameter.default)
-                        argument_kwargs.setdefault("required", False)
-                    else:
-                        argument_kwargs.setdefault("required", True)
-                if "action" not in argument_kwargs:
-                    if parameter.annotation != signature.empty:
-                        if parameter.annotation in (int, float, str):
-                            argument_kwargs.setdefault("type", parameter.annotation)
-                        elif parameter.annotation == bool:
-                            if argument_kwargs.get("default", False):
-                                argument_kwargs.setdefault("action", "store_false")
-                            else:
-                                argument_kwargs.setdefault("action", "store_true")
-
-                command_actions.append(command_parser.add_argument(
-                    *argument_args,
-                    **_filter_kwargs(argument_kwargs)
-                ))
+            if subcommand.is_group:
+                _subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
+                subparsers_map[subcommand.id] = _subparsers
 
         return subparsers
 
     def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
-        if not (hasattr(args, "__subcommand_info__") and
-                hasattr(args, "__subcommand_func__") and
-                hasattr(args, "__subcommand_actions__")):
-            raise CommandError("Not found subcommand")
-        command_info = args.__subcommand_info__
-        command_func = args.__subcommand_func__
-        command_actions = args.__subcommand_actions__
-        kwargs = dict()
-        for action in command_actions:
-            kwargs[action.dest] = getattr(args, action.dest)
-        return command_func(**kwargs)
+
+        name = f"__{self.__module__}.subcommand__"
+        if hasattr(args, name):
+            subcommand = getattr(args, name)
+            if isinstance(subcommand, SubCommand):
+                return subcommand.run(args)
+
+        raise SubCommandError("Not found subcommand")
 
 
-class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
+class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
 
     @property
     def name(self):
-        return self.__module__
+        name = self.__module__
+        index = name.rfind(".")
+        if index >= 0:
+            name = name[index + 1:]
+        return name
 
     @property
     def environ(self) -> BaseEnviron:
@@ -381,7 +559,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
     def known_errors(self) -> List[Type[BaseException]]:
         return [CommandError]
 
-    def create_argument_parser(
+    def create_parser(
             self,
             *args: Any,
             type: Callable[..., ArgumentParser] = ArgumentParser,
@@ -408,7 +586,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
 
     @cached_property
     def _argument_parser(self) -> ArgumentParser:
-        return self.create_argument_parser()
+        return self.create_parser()
 
     def init_base_arguments(self, parser: ArgumentParser) -> None:
         pass
@@ -436,7 +614,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 datefmt="%H:%M:%S"
             )
 
-        LogCommandMixin.add_log_options(self)
+        self.add_log_options()
 
         if self.environ.version != NotImplemented:
             self._argument_parser.add_argument(
@@ -472,21 +650,3 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 self.logger.error(traceback.format_exc())
 
         return exit_code or 0
-
-
-def walk_commands(path: str) -> Generator["BaseCommand", None, None]:
-    for finder, name, is_pkg in sorted(walk_packages(path=[path]), key=lambda i: i[1]):
-        if is_pkg:
-            continue
-        try:
-            spec = finder.find_spec(name)
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
-            command = getattr(module, "command", None)
-            if command and isinstance(command, BaseCommand):
-                yield command
-        except Exception as e:
-            environ.logger.warning(
-                f"Ignore {name}, caused by {e.__class__.__name__}: {e}",
-                exc_info=e if environ.debug else None
-            )

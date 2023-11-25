@@ -42,7 +42,7 @@ from ._utils import (
 )
 
 from ._proxy import (
-    get_derived_type, lazy_load, lazy_raise,
+    get_derived_type, lazy_load, lazy_import, lazy_import_file
 )
 
 from ._subprocess import (

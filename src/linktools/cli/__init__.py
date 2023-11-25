@@ -30,10 +30,9 @@
 from . import argparse
 
 from .command import \
-    LogCommandMixin, \
     BaseCommand, CommandError, \
-    SubCommandMixin, subcommand, subcommand_argument, \
-    walk_commands
+    SubCommand, SubGroupCommand, \
+    subcommand, subcommand_argument, SubCommandError
 
 from .device import \
     DeviceCommandMixin, AndroidCommandMixin, IOSCommandMixin, \
