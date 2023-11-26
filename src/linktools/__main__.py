@@ -27,17 +27,16 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 from argparse import ArgumentParser, Namespace
-from typing import Optional
+from typing import Optional, List
 
-from .cli import BaseCommand, commands, SubCommandError
+from .cli import BaseCommand, commands, SubCommandError, SubCommand
 
 
 class Command(BaseCommand):
-
-    def __init__(self):
-        self.subcommands = list(self.walk_subcommands(commands))
+    subcommands: List[SubCommand]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
+        self.subcommands = list(self.walk_subcommands(commands))
         self.add_subcommands(parser=parser, target=self.subcommands)
 
     def run(self, args: Namespace) -> Optional[int]:

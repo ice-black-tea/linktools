@@ -42,6 +42,8 @@ from . import utils
 from ._environ import BaseEnviron
 
 T = TypeVar("T")
+EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
+
 MISSING = ...
 
 
@@ -469,7 +471,7 @@ class Config:
 
     class Lazy(ConfigProperty):
 
-        def __init__(self, func: Callable[[BaseEnviron], Any]):
+        def __init__(self, func: Callable[[EnvironType], T]):
             super().__init__()
             self.func = func
 

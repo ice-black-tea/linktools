@@ -38,7 +38,7 @@ from argparse import ArgumentParser, Action, Namespace
 from argparse import RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
-from types import ModuleType
+from types import ModuleType, GeneratorType
 from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict
 
 import rich
@@ -269,7 +269,7 @@ class SubCommand(metaclass=abc.ABCMeta):
 
     @property
     def is_group(self):
-        return isinstance(self, SubGroupCommand)
+        return isinstance(self, SubCommandGroup)
 
     def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
         return type(self.name, help=self.description)
@@ -282,22 +282,21 @@ class SubCommand(metaclass=abc.ABCMeta):
         return f"<SubCommand id={self.id}>"
 
 
-class SubGroupCommand(SubCommand):
+class SubCommandGroup(SubCommand):
 
     def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
         parser = type(self.name, help=self.description)
-        parser.set_defaults(**{f"__{self.id}.subcommand_help__": parser.print_help})
+        parser.set_defaults(**{f"__subcommand_help_{id(self):x}__": parser.print_help})
         return parser
 
     def run(self, args: Namespace):
-        attr_name = f"__{self.id}.subcommand_help__"
+        attr_name = f"__subcommand_help_{id(self):x}__"
         assert hasattr(args, attr_name)
-
         func = getattr(args, attr_name)
         return func()
 
 
-class _SubMethodCommand(SubCommand):
+class _SubCommandMethod(SubCommand):
 
     def __init__(self, info: _SubMethodCommandInfo, target: Any, id: str = None, parent_id: str = None):
         super().__init__(
@@ -314,7 +313,7 @@ class _SubMethodCommand(SubCommand):
         actions = []
         method = getattr(self.target, self.info.func.__name__)
         parser = type(self.name, **self.info.kwargs)
-        parser.set_defaults(**{f"__{self.id}.subcommand_actions__": actions})
+        parser.set_defaults(**{f"__subcommand_actions_{id(self):x}__": actions})
 
         for argument in self.info.arguments:
             argument_args = argument.args
@@ -374,11 +373,11 @@ class _SubMethodCommand(SubCommand):
         return parser
 
     def run(self, args: Namespace):
-        attr_name = f"__{self.id}.subcommand_actions__"
-        assert hasattr(args, attr_name)
-
-        actions = getattr(args, attr_name)
         method = getattr(self.target, self.info.func.__name__)
+
+        attr_name = f"__subcommand_actions_{id(self):x}__"
+        assert hasattr(args, attr_name)
+        actions = getattr(args, attr_name)
 
         method_args = []
         if self.info.pass_args:
@@ -387,29 +386,20 @@ class _SubMethodCommand(SubCommand):
         method_kwargs = dict()
         for action in actions:
             method_kwargs[action.dest] = getattr(args, action.dest)
+
         return method(*method_args, **method_kwargs)
 
 
-class _SubModuleCommand(SubGroupCommand):
+class SubCommandWrapper(SubCommand):
 
-    def __init__(self, module_name: str, parent_module_name: str, module: ModuleType):
+    def __init__(self, command: "BaseCommand",
+                 id: str = None, parent_id: str = None,
+                 name: str = None, description: str = None):
         super().__init__(
-            id=module_name,
-            parent_id=parent_module_name,
-            name=getattr(module, "__name__", None) or module_name[module_name.rfind(".") + 1:],
-            description=getattr(module, "__description__", "")
-        )
-        self.module = module
-
-
-class _SubObjectCommand(SubCommand):
-
-    def __init__(self, module_name: str, parent_module_name: str, command: "BaseCommand"):
-        super().__init__(
-            id=module_name,
-            parent_id=parent_module_name,
-            name=command.name or module_name[module_name.rfind(".") + 1:],
-            description=command.description
+            id=id,
+            parent_id=parent_id,
+            name=name or command.name,
+            description=description or command.description
         )
         self.command = command
 
@@ -429,19 +419,15 @@ class SubCommandMixin:
         for subcommand in self.walk_subcommands(target):
             node = nodes.get(subcommand.parent_id) if subcommand.has_parent else tree
             if subcommand.is_group:
+                text = f"📖 [underline red]{subcommand.name}[/underline red]"
                 if subcommand.description:
-                    nodes[subcommand.id] = node.add(
-                        f"📖 [underline red]{subcommand.name}[/underline red]: {subcommand.description}")
-                else:
-                    nodes[subcommand.id] = node.add(
-                        f"📖 [underline red]{subcommand.name}[/underline red]")
+                    text = f"{text}: {subcommand.description}"
+                nodes[subcommand.id] = node.add(text)
             else:
+                text = f"👉 [bold red]{subcommand.name}[/bold red]"
                 if subcommand.description:
-                    node.add(
-                        f"👉 [bold red]{subcommand.name}[/bold red]: {subcommand.description}")
-                else:
-                    node.add(
-                        f"👉 [bold red]{subcommand.name}[/bold red]")
+                    text = f"{text}: {subcommand.description}"
+                nodes[subcommand.id] = node.add(text)
 
         console = get_console()
         if self.environ.description != NotImplemented:
@@ -453,7 +439,7 @@ class SubCommandMixin:
         if isinstance(target, SubCommand):
             yield target
 
-        elif isinstance(target, (list, tuple, set)):
+        elif isinstance(target, (list, tuple, set, GeneratorType)):
             for item in target:
                 yield from self.walk_subcommands(item)
 
@@ -462,6 +448,7 @@ class SubCommandMixin:
             for finder, name, is_package in walk_packages(path=target.__path__, prefix=prefix):  # name: aaa.bbb.ccc
                 module_name = name[len(prefix):]  # bbb.ccc
                 parent_module_name = name[len(prefix):name.rfind(".")]  # bbb
+
                 try:
                     spec = finder.find_spec(name)
                     module = module_from_spec(spec)
@@ -472,13 +459,16 @@ class SubCommandMixin:
                         exc_info=e if environ.debug else None
                     )
                     continue
+
                 if is_package:
-                    yield _SubModuleCommand(module_name, parent_module_name, module)
+                    _name = getattr(module, "__command__", None) or name[name.rfind(".") + 1:]  # ccc
+                    _description = getattr(module, "__description__", None) or ""
+                    yield SubCommandGroup(_name, _description, id=module_name, parent_id=parent_module_name)
                 elif hasattr(module, "command") and isinstance(module.command, BaseCommand):
-                    yield _SubObjectCommand(module_name, parent_module_name, module.command)
+                    yield SubCommandWrapper(module.command, id=module_name, parent_id=parent_module_name)
 
         else:
-            subcommand_map: Dict[str, List[_SubMethodCommand]] = {}
+            subcommand_map: Dict[str, List[_SubCommandMethod]] = {}
             for clazz in target.__class__.mro():
                 class_name = f"{clazz.__module__}.{clazz.__qualname__}"
                 if class_name not in _subcommand_mapping:
@@ -490,41 +480,46 @@ class SubCommandMixin:
                     if not hasattr(func, "__subcommand_info__"):
                         continue
                     info: _SubMethodCommandInfo = func.__subcommand_info__
-                    subcommand = _SubMethodCommand(info, target)
+                    subcommand = _SubCommandMethod(info, target)
                     subcommand_map.setdefault(subcommand.name, list())
                     subcommand_map[info.name].append(subcommand)
 
-            command_infos: List[Tuple[int, _SubMethodCommand]] = []
+            command_infos: List[Tuple[int, _SubCommandMethod]] = []
             for name, subcommands in subcommand_map.items():
                 command_infos.append((min([c.info.index for c in subcommands]), subcommands[0]))
             for _, subcommand in sorted(command_infos, key=lambda o: o[0]):
                 yield subcommand
 
-    def add_subcommands(self: "BaseCommand", parser: ArgumentParser = None, target: Any = None):
+    def add_subcommands(
+            self: "BaseCommand",
+            parser: ArgumentParser = None,
+            target: Any = None,
+            required: bool = False) -> None:
 
         target = target or self
-
         parser = parser or self._argument_parser
-        subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
 
         subparsers_map = {}
+        subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
+        subparsers.required = required
+
         for subcommand in self.walk_subcommands(target):
+
             parent_subparsers = subparsers
             if subcommand.has_parent:
                 parent_subparsers = subparsers_map.get(subcommand.parent_id)
 
             parser = subcommand.create_parser(type=parent_subparsers.add_parser)
-            parser.set_defaults(**{f"__{self.__module__}.subcommand__": subcommand})
+            parser.set_defaults(**{f"__subcommand_{id(self):x}__": subcommand})
 
             if subcommand.is_group:
                 _subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
+                _subparsers.required = True
                 subparsers_map[subcommand.id] = _subparsers
-
-        return subparsers
 
     def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
 
-        name = f"__{self.__module__}.subcommand__"
+        name = f"__subcommand_{id(self):x}__"
         if hasattr(args, name):
             subcommand = getattr(args, name)
             if isinstance(subcommand, SubCommand):

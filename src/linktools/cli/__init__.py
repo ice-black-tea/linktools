@@ -31,7 +31,7 @@ from . import argparse
 
 from .command import \
     BaseCommand, CommandError, \
-    SubCommand, SubGroupCommand, \
+    SubCommand, SubCommandGroup, SubCommandWrapper, \
     subcommand, subcommand_argument, SubCommandError
 
 from .device import \

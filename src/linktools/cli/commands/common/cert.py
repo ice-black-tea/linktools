@@ -33,16 +33,12 @@ from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Optional, Type, List
 
+import OpenSSL
 from rich import get_console
 from rich.table import Table
 
 from linktools import utils
 from linktools.cli import BaseCommand
-
-try:
-    import OpenSSL
-except:
-    OpenSSL = utils.lazy_import("OpenSSL")
 
 
 class Command(BaseCommand):

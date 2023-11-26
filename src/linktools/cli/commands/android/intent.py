@@ -40,8 +40,7 @@ class Command(AndroidCommand):
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        subparser = self.add_subcommands(parser)
-        subparser.required = True
+        self.add_subcommands(parser, required=True)
 
     def run(self, args: Namespace) -> Optional[int]:
         return self.run_subcommand(args)

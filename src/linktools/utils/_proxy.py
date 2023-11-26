@@ -297,6 +297,14 @@ def lazy_load(fn: Callable[..., _T], *args, **kwargs) -> _T:
     return _Proxy(functools.partial(fn, *args, **kwargs))
 
 
+def raise_error(e: BaseException):
+    raise e
+
+
+def lazy_raise(e: BaseException) -> _T:
+    return lazy_load(raise_error, e)
+
+
 def lazy_import(name: str) -> _T:
     """
     延迟导入模块
@@ -304,6 +312,8 @@ def lazy_import(name: str) -> _T:
     :return: module
     """
     spec = find_spec(name)
+    if not spec:
+        raise ModuleNotFoundError(f"No module named '{name}'")
     loader = LazyLoader(spec.loader)
     spec.loader = loader
     module = module_from_spec(spec)
@@ -320,12 +330,11 @@ def lazy_import_file(name: str, path: str) -> _T:
     :return: module
     """
     spec = spec_from_file_location(name, path)
+    if not spec:
+        raise ModuleNotFoundError(f"No module named '{name}'")
     loader = LazyLoader(spec.loader)
     spec.loader = loader
     module = module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
-
-
-
