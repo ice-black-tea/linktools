@@ -5,6 +5,7 @@
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 
 import functools
+import os
 import sys
 from importlib.util import find_spec, LazyLoader, module_from_spec, spec_from_file_location
 from typing import TypeVar, Type, Callable
@@ -329,6 +330,10 @@ def lazy_import_file(name: str, path: str) -> _T:
     :param path: 模块路径
     :return: module
     """
+    if os.path.isdir(path):
+        path = os.path.join(path, "__init__.py")
+    if not os.path.exists(path):
+        raise ModuleNotFoundError(f"No such file or directory: '{path}'")
     spec = spec_from_file_location(name, path)
     if not spec:
         raise ModuleNotFoundError(f"No module named '{name}'")

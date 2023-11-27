@@ -33,17 +33,15 @@ from .cli import BaseCommand, commands, SubCommandError, SubCommand
 
 
 class Command(BaseCommand):
-    subcommands: List[SubCommand]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        self.subcommands = list(self.walk_subcommands(commands))
-        self.add_subcommands(parser=parser, target=self.subcommands)
+        self.add_subcommands(parser=parser, target=commands)
 
     def run(self, args: Namespace) -> Optional[int]:
         try:
             return self.run_subcommand(args)
         except SubCommandError:
-            return self.print_subcommands(self.subcommands)
+            return self.print_subcommands(args)
 
 
 command = Command()

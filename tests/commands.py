@@ -1,23 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import os
 import unittest
+from argparse import ArgumentParser, Namespace
+from typing import Optional
 
-from linktools.__main__ import Command
-from linktools.cli import walk_commands, BaseCommand, SubCommandMixin, subcommand, subcommand_argument
+from linktools.cli import BaseCommand, subcommand, subcommand_argument, commands, SubCommandWrapper
 
 
 class TestCommands(unittest.TestCase):
 
     def test_help(self):
-        for category in Command.module_categories:
-            path = os.path.join(Command.module_path, category.name)
-            for command in walk_commands(path):
-                with self.subTest(command.name, command=command):
-                    self.assertEqual(command(["--help"]), 0)
+        class Command(BaseCommand):
+
+            def __init__(self):
+                self.subcommands = list(self.walk_subcommands(commands))
+
+            def init_arguments(self, parser: ArgumentParser) -> None:
+                self.add_subcommands(parser, self.subcommands)
+
+            def run(self, args: Namespace) -> Optional[int]:
+                self.run_subcommand(args)
+                return 0
+
+        command = Command()
+        with self.subTest(command.name, command=command):
+            self.assertEqual(command(["--help"]), 0)
+
+        for subcommand in command.subcommands:
+            if isinstance(subcommand, SubCommandWrapper):
+                with self.subTest(subcommand.name, command=subcommand.command):
+                    self.assertEqual(subcommand.command(["--help"]), 0)
 
     def test_sub_command(self):
-        class SubCommand(BaseCommand, SubCommandMixin):
+        class SubCommand(BaseCommand):
 
             def init_arguments(self, parser):
                 self.add_subcommands(parser)

@@ -1,1 +1,2 @@
-__description__ = "e.g. adb, fastboot, etc."
+__command__ = "android"
+__description__ = "Run android commands, or quickly run them using the at- prefix"

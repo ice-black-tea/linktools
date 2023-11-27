@@ -412,28 +412,6 @@ class SubCommandWrapper(SubCommand):
 
 class SubCommandMixin:
 
-    def print_subcommands(self: "BaseCommand", target: Any):
-        tree = Tree("📎 All commands")
-
-        nodes: Dict[str, Tree] = {}
-        for subcommand in self.walk_subcommands(target):
-            node = nodes.get(subcommand.parent_id) if subcommand.has_parent else tree
-            if subcommand.is_group:
-                text = f"📖 [underline red]{subcommand.name}[/underline red]"
-                if subcommand.description:
-                    text = f"{text}: {subcommand.description}"
-                nodes[subcommand.id] = node.add(text)
-            else:
-                text = f"👉 [bold red]{subcommand.name}[/bold red]"
-                if subcommand.description:
-                    text = f"{text}: {subcommand.description}"
-                nodes[subcommand.id] = node.add(text)
-
-        console = get_console()
-        if self.environ.description != NotImplemented:
-            console.print(self.environ.description, highlight=False)
-        console.print(tree, highlight=False)
-
     def walk_subcommands(self: "BaseCommand", target: Any) -> Generator[SubCommand, None, None]:
 
         if isinstance(target, SubCommand):
@@ -494,16 +472,20 @@ class SubCommandMixin:
             self: "BaseCommand",
             parser: ArgumentParser = None,
             target: Any = None,
-            required: bool = False) -> None:
+            required: bool = False) -> List[SubCommand]:
+
+        subcommands = []
 
         target = target or self
         parser = parser or self._argument_parser
+        parser.set_defaults(**{f"__subcommands_{id(self):x}__": subcommands})
 
         subparsers_map = {}
         subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
         subparsers.required = required
 
         for subcommand in self.walk_subcommands(target):
+            subcommands.append(subcommand)
 
             parent_subparsers = subparsers
             if subcommand.has_parent:
@@ -517,6 +499,8 @@ class SubCommandMixin:
                 _subparsers.required = True
                 subparsers_map[subcommand.id] = _subparsers
 
+        return subcommands
+
     def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
 
         name = f"__subcommand_{id(self):x}__"
@@ -526,6 +510,32 @@ class SubCommandMixin:
                 return subcommand.run(args)
 
         raise SubCommandError("Not found subcommand")
+
+    def print_subcommands(self: "BaseCommand", args: Namespace):
+
+        name = f"__subcommands_{id(self):x}__"
+        if not hasattr(args, name):
+            raise SubCommandError("No subcommand has been added yet")
+
+        tree = Tree("📎 All commands")
+        nodes: Dict[str, Tree] = {}
+        for subcommand in getattr(args, name):
+            node = nodes.get(subcommand.parent_id) if subcommand.has_parent else tree
+            if subcommand.is_group:
+                text = f"📖 [underline red]{subcommand.name}[/underline red]"
+                if subcommand.description:
+                    text = f"{text}: {subcommand.description}"
+                nodes[subcommand.id] = node.add(text)
+            else:
+                text = f"👉 [bold red]{subcommand.name}[/bold red]"
+                if subcommand.description:
+                    text = f"{text}: {subcommand.description}"
+                nodes[subcommand.id] = node.add(text)
+
+        console = get_console()
+        if self.environ.description != NotImplemented:
+            console.print(self.environ.description, highlight=False)
+        console.print(tree, highlight=False)
 
 
 class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
