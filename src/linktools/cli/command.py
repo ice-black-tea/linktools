@@ -116,10 +116,10 @@ def _filter_kwargs(kwargs):
 
 
 _subcommand_index: int = 0
-_subcommand_mapping: Dict[str, Set[str]] = {}
+_subcommand_map: Dict[str, Set[str]] = {}
 
 
-class _SubMethodCommandInfo:
+class _SubCommandMethodInfo:
 
     def __init__(self):
         global _subcommand_index
@@ -129,7 +129,7 @@ class _SubMethodCommandInfo:
         self.index = _subcommand_index
         self.kwargs: Optional[Dict[str, Any]] = None
         self.func: Optional[Callable[..., Optional[int]]] = None
-        self.arguments: List[_SubMethodCommandArgumentInfo] = []
+        self.arguments: List[_SubCommandMethodArgumentInfo] = []
 
     def set_args(self, name: str, **kwargs: Any):
         self.name = name
@@ -137,10 +137,10 @@ class _SubMethodCommandInfo:
         return self
 
     def __repr__(self):
-        return f"<SubCommandInfo func={self.func.__qualname__}>"
+        return f"<SubCommandMethod func={self.func.__qualname__}>"
 
 
-class _SubMethodCommandArgumentInfo:
+class _SubCommandMethodArgumentInfo:
 
     def __init__(self):
         self.args: Optional[Tuple[str]] = None
@@ -173,7 +173,7 @@ def subcommand(
         pass_args: bool = False):
     def decorator(func):
         if not hasattr(func, "__subcommand_info__"):
-            setattr(func, "__subcommand_info__", _SubMethodCommandInfo())
+            setattr(func, "__subcommand_info__", _SubCommandMethodInfo())
 
         subcommand_info = func.__subcommand_info__
         subcommand_info.func = func
@@ -198,14 +198,18 @@ def subcommand(
 
         index = func.__qualname__.rfind(".")
         if index < 0:
-            raise ValueError(
+            raise SubCommandError(
                 f"subcommand decorator must be used in class method, "
                 f"but {func.__qualname__} is not")
 
         class_name = f"{func.__module__}.{func.__qualname__[:index]}"
         func_name = func.__qualname__[index + 1:]
-        _subcommand_mapping.setdefault(class_name, set())
-        _subcommand_mapping[class_name].add(func_name)
+
+        _subcommand_map.setdefault(class_name, set())
+        if func_name in _subcommand_map[class_name]:
+            raise SubCommandError(
+                f"Redeclared subcommand method '{func.__qualname__}' defined")
+        _subcommand_map[class_name].add(func_name)
 
         return func
 
@@ -227,7 +231,7 @@ def subcommand_argument(
         type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = MISSING,
         **kwargs: Any):
     def decorator(func):
-        subcommand_argument_info = _SubMethodCommandArgumentInfo()
+        subcommand_argument_info = _SubCommandMethodArgumentInfo()
         subcommand_argument_info.set_args(
             *[name_or_flag, *name_or_flags],
             action=action,
@@ -244,7 +248,7 @@ def subcommand_argument(
         )
 
         if not hasattr(func, "__subcommand_info__"):
-            setattr(func, "__subcommand_info__", _SubMethodCommandInfo())
+            setattr(func, "__subcommand_info__", _SubCommandMethodInfo())
 
         subcommand_info = func.__subcommand_info__
         subcommand_info.arguments.append(subcommand_argument_info)
@@ -298,7 +302,7 @@ class SubCommandGroup(SubCommand):
 
 class _SubCommandMethod(SubCommand):
 
-    def __init__(self, info: _SubMethodCommandInfo, target: Any, id: str = None, parent_id: str = None):
+    def __init__(self, info: _SubCommandMethodInfo, target: Any, id: str = None, parent_id: str = None):
         super().__init__(
             id=id,
             parent_id=parent_id,
@@ -336,16 +340,18 @@ class _SubCommandMethod(SubCommand):
                     dest_option_string = long_option_strings[0] if long_option_strings else option_strings[0]
                     dest = dest_option_string.lstrip(prefix_chars)
                     if not dest:
-                        raise ValueError(f"Parse subcommand argument dest error, "
-                                         f"{self.info} argument `{', '.join(argument_args)}` require dest=...")
+                        raise SubCommandError(
+                            f"Parse subcommand argument dest error, "
+                            f"{self.info} argument `{', '.join(argument_args)}` require dest=...")
                     dest = dest.replace('-', '_')
                     argument_kwargs["dest"] = dest
 
             # 验证一下dest是否在参数列表中，不在就报错
             signature = inspect.signature(method)
             if dest not in signature.parameters:
-                raise ValueError(f"Check subcommand argument error, "
-                                 f"{self.info} has no `{argument.action.dest}` argument")
+                raise SubCommandError(
+                    f"Check subcommand argument error, "
+                    f"{self.info} has no `{argument.action.dest}` argument")
 
             # 根据方法参数的注解，设置一些默认值
             parameter = signature.parameters[dest]
@@ -449,15 +455,15 @@ class SubCommandMixin:
             subcommand_map: Dict[str, List[_SubCommandMethod]] = {}
             for clazz in target.__class__.mro():
                 class_name = f"{clazz.__module__}.{clazz.__qualname__}"
-                if class_name not in _subcommand_mapping:
+                if class_name not in _subcommand_map:
                     continue
-                for func_name in _subcommand_mapping[class_name]:
+                for func_name in _subcommand_map[class_name]:
                     if not hasattr(clazz, func_name):
                         continue
                     func = getattr(clazz, func_name)
                     if not hasattr(func, "__subcommand_info__"):
                         continue
-                    info: _SubMethodCommandInfo = func.__subcommand_info__
+                    info: _SubCommandMethodInfo = func.__subcommand_info__
                     subcommand = _SubCommandMethod(info, target)
                     subcommand_map.setdefault(subcommand.name, list())
                     subcommand_map[info.name].append(subcommand)
@@ -610,7 +616,7 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
                 level=logging.INFO,
                 format="%(message)s",
                 datefmt="[%X]",
-                handlers=[LogHandler()]
+                handlers=[LogHandler(self.environ)]
             )
         else:
             logging.basicConfig(

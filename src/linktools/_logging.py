@@ -41,7 +41,7 @@ from rich.table import Column
 from rich.text import Text
 
 from . import utils
-from ._environ import environ
+from ._environ import BaseEnviron
 
 
 class LogConfig:
@@ -119,7 +119,7 @@ class LogManager(utils.get_derived_type(logging.Manager)):
 
 class LogHandler(RichHandler):
 
-    def __init__(self):
+    def __init__(self, environ: BaseEnviron):
         super().__init__(
             show_path=False,
             show_level=environ.get_config("SHOW_LOG_LEVEL"),
@@ -169,8 +169,9 @@ class LogHandler(RichHandler):
 
     @classmethod
     def get_instance(cls) -> Optional["LogHandler"]:
-        c = environ.get_logger()
+        c = logging.getLogger()
         while c:
+            print(c.handlers)
             if c.handlers:
                 for handler in c.handlers:
                     if isinstance(handler, LogHandler):
