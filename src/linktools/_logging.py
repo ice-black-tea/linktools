@@ -171,7 +171,6 @@ class LogHandler(RichHandler):
     def get_instance(cls) -> Optional["LogHandler"]:
         c = logging.getLogger()
         while c:
-            print(c.handlers)
             if c.handlers:
                 for handler in c.handlers:
                     if isinstance(handler, LogHandler):
