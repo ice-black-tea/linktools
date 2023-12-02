@@ -27,13 +27,10 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import argparse
-import sys
 
 from .. import utils
 
-if sys.version_info >= (3, 9):
-    BooleanOptionalAction = argparse.BooleanOptionalAction
-else:
+if not hasattr(argparse, "BooleanOptionalAction"):
     class BooleanOptionalAction(argparse.Action):
         def __init__(self,
                      option_strings,
@@ -70,6 +67,9 @@ else:
 
         def format_usage(self):
             return ' | '.join(self.option_strings)
+
+else:
+    BooleanOptionalAction = argparse.BooleanOptionalAction
 
 
 class KeyValueAction(argparse.Action):

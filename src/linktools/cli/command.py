@@ -31,7 +31,6 @@ import abc
 import inspect
 import logging
 import os
-import sys
 import textwrap
 import traceback
 from argparse import ArgumentParser, Action, Namespace
@@ -502,7 +501,7 @@ class SubCommandMixin:
 
             if subcommand.is_group:
                 _subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
-                _subparsers.required = True
+                _subparsers.required = False
                 subparsers_map[subcommand.id] = _subparsers
 
         return subcommands
@@ -637,8 +636,14 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
     def __call__(self, args: Union[List[str], Namespace] = None) -> int:
         try:
             if not isinstance(args, Namespace):
-                args = args or sys.argv[1:]
-                args = self._argument_parser.parse_args(args)
+                parser = self._argument_parser
+                try:
+                    import argcomplete
+                    argcomplete.autocomplete(parser)
+                except ModuleNotFoundError:
+                    pass
+                args = parser.parse_args(args)
+
             exit_code = self.run(args) or 0
 
         except SystemExit as e:
