@@ -9,8 +9,8 @@ from typing import Any, Generator
 
 from .. import utils
 from .._environ import environ
-from ..device import BridgeError, Bridge, BaseDevice
 from ..decorator import cached_property
+from ..device import BridgeError, Bridge, BaseDevice
 from ..reactor import Stoppable
 
 _logger = environ.get_logger("android.adb")
@@ -153,6 +153,8 @@ class Device(BaseDevice):
                     break
 
         class Forward(Stoppable):
+            local_port = property(lambda self: local_port)
+            remote_port = property(lambda self: remote_port)
 
             def stop(self):
                 try:
@@ -163,6 +165,36 @@ class Device(BaseDevice):
                     _logger.error(f"Proxy process did not finish normally")
 
         return Forward()
+
+    def reverse(self, remote_port: int, local_port: int, ssh_port: int = 22, ssh_username: str = "root"):
+        from linktools.ssh import SSHClient
+
+        forward = self.forward(
+            local_port=utils.pick_unused_port(range(20000, 30000)),
+            remote_port=ssh_port,
+        )
+
+        ssh_client = SSHClient()
+        ssh_client.connect_with_pwd(
+            "localhost",
+            port=forward.local_port,
+            username=ssh_username
+        )
+        reverse = ssh_client.reverse(
+            forward_host="localhost",
+            forward_port=local_port,
+            remote_port=remote_port
+        )
+
+        class Reverse(Stoppable):
+
+            remote_port = property(lambda self: reverse.remote_port)
+
+            def stop(self):
+                reverse.stop()
+                forward.stop()
+
+        return Reverse()
 
     def __repr__(self):
         return f"iOSDevice<{self.id}>"
