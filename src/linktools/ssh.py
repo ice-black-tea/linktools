@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import contextlib
+import getpass
 import select
 import sys
 import threading
@@ -12,16 +13,16 @@ from rich import get_console
 from rich.prompt import Prompt
 from scp import SCPClient
 
-try:
-    import SocketServer
-except ImportError:
-    import socketserver as SocketServer
-
 from . import utils
 from ._environ import environ
 from ._logging import create_log_progress
 from .reactor import Stoppable
 from .utils import list2cmdline, ignore_error
+
+try:
+    import SocketServer
+except ImportError:
+    import socketserver as SocketServer
 
 _logger = environ.get_logger("utils.ssh")
 
@@ -29,6 +30,9 @@ _logger = environ.get_logger("utils.ssh")
 class SSHClient(paramiko.SSHClient):
 
     def connect_with_pwd(self, hostname, port=22, username=None, password=None, **kwargs):
+        if username is None:
+            username = getpass.getuser()
+
         try:
             super().connect(
                 hostname,
