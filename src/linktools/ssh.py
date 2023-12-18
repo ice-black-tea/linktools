@@ -2,10 +2,11 @@
 # -*- coding:utf-8 -*-
 import contextlib
 import getpass
+import os
 import select
 import sys
 import threading
-from socket import socket
+import socket
 
 import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
@@ -117,18 +118,20 @@ class SSHClient(paramiko.SSHClient):
         import tty
 
         orig_tty = None
+        stdin_fileno = sys.stdin.fileno()
 
         try:
-            orig_tty = termios.tcgetattr(sys.stdin.fileno())
-            tty.setraw(sys.stdin.fileno())
-            tty.setcbreak(sys.stdin.fileno())
+            orig_tty = termios.tcgetattr(stdin_fileno)
+            tty.setraw(stdin_fileno)
+            tty.setcbreak(stdin_fileno)
         except Exception as e:
             _logger.debug(f"Set tty error: {e}")
 
         try:
-            channel.settimeout(1)
+            channel.settimeout(0.0)
+
             while True:
-                rlist, wlist, xlist = select.select([channel, sys.stdin], [], [], 1)
+                rlist, wlist, xlist = select.select([channel, sys.stdin], [], [], 1.0)
                 if channel in rlist:
                     try:
                         data = channel.recv(1024)
@@ -139,10 +142,10 @@ class SSHClient(paramiko.SSHClient):
                     except socket.timeout:
                         pass
                 if sys.stdin in rlist:
-                    data = sys.stdin.read(1)
+                    data = os.read(stdin_fileno, 1)
                     if len(data) == 0:
                         break
-                    channel.send(data.encode())
+                    channel.send(data)
         finally:
             if orig_tty:
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_tty)
@@ -212,6 +215,7 @@ class SSHClient(paramiko.SSHClient):
             allow_reuse_address = True
 
         channels = []
+        lock = threading.RLock()
         transport = self.get_transport()
 
         class ForwardHandler(SocketServer.BaseRequestHandler):
@@ -234,7 +238,9 @@ class SSHClient(paramiko.SSHClient):
                         % (forward_host, forward_port)
                     )
 
-                channels.append(channel)
+                with lock:
+                    channels.append(channel)
+
                 try:
                     _logger.debug(
                         "Connected!  Tunnel open %r -> %r -> %r"
@@ -267,6 +273,9 @@ class SSHClient(paramiko.SSHClient):
                     utils.ignore_error(self.request.close)
                     _logger.debug("Tunnel closed from %r" % (peername,))
 
+                    with lock:
+                        channels.remove(channel)
+
         forward_server = ForwardServer(("", local_port), ForwardHandler)
         forward_thread = threading.Thread(target=forward_server.serve_forever)
         forward_thread.daemon = True
@@ -275,22 +284,30 @@ class SSHClient(paramiko.SSHClient):
         class Forward(Stoppable):
 
             local_port = property(lambda self: local_port)
+            forward_host = property(lambda self: forward_host)
+            forward_port = property(lambda self: forward_port)
 
             def stop(self):
                 try:
                     forward_server.shutdown()
                     forward_thread.join()
-                    for channel in channels:
-                        utils.ignore_error(channel.close)
                 except Exception as e:
                     _logger.error(f"Cancel port forward failed: %r" % e)
+
+                with lock:
+                    for channel in channels:
+                        utils.ignore_error(channel.close)
 
         return Forward()
 
     def reverse(self, forward_host: str, forward_port: int, remote_port: int = None):
 
+        channels = []
+        lock = threading.RLock()
+
         def forward_handler(channel):
-            sock = socket()
+
+            sock = socket.socket()
             try:
                 sock.connect((forward_host, forward_port))
             except Exception as e:
@@ -300,6 +317,9 @@ class SSHClient(paramiko.SSHClient):
                     "Forwarding request to %s:%d failed: %r"
                     % (forward_host, forward_port, e)
                 )
+
+            with lock:
+                channels.append(channel)
 
             try:
                 _logger.debug(
@@ -328,6 +348,9 @@ class SSHClient(paramiko.SSHClient):
                 utils.ignore_error(sock.close)
                 _logger.debug("Tunnel closed from %r" % (channel.origin_addr,))
 
+                with lock:
+                    channels.remove(channel)
+
         class ForwardThread(threading.Thread):
 
             def __init__(self):
@@ -335,19 +358,19 @@ class SSHClient(paramiko.SSHClient):
                 self.event = threading.Event()
 
             def run(self):
-                channels = []
                 while not self.event.is_set():
-                    channel = transport.accept(1)
+                    channel = transport.accept(.5)
                     if channel is None:
                         continue
-                    channels.append(channel)
-                    thr = threading.Thread(
+                    thread = threading.Thread(
                         target=forward_handler, args=(channel,)
                     )
-                    thr.daemon = True
-                    thr.start()
-                for channel in channels:
-                    utils.ignore_error(channel.close)
+                    thread.daemon = True
+                    thread.start()
+
+                with lock:
+                    for channel in channels:
+                        utils.ignore_error(channel.close)
 
         transport = self.get_transport()
         remote_port = transport.request_port_forward("", remote_port or 0)
@@ -359,6 +382,8 @@ class SSHClient(paramiko.SSHClient):
         class Reverse(Stoppable):
 
             remote_port = property(lambda self: remote_port)
+            forward_host = property(lambda self: forward_host)
+            forward_port = property(lambda self: forward_port)
 
             def stop(self):
                 try:

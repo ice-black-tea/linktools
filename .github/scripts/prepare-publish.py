@@ -74,7 +74,7 @@ if __name__ == '__main__':
     subprocess.check_call(
         "npm install && npm run build",
         shell=True,
-        cwd=os.path.join(root_path, "agent", "frida")
+        cwd=os.path.join(root_path, "agents", "frida")
     )
 
     ######################################################################
@@ -83,5 +83,5 @@ if __name__ == '__main__':
     subprocess.check_call(
         "./gradlew --no-daemon :tools:buildTools",
         shell=True,
-        cwd=os.path.join(root_path, "agent", "android")
+        cwd=os.path.join(root_path, "agents", "android")
     )

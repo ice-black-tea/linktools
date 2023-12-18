@@ -7,6 +7,8 @@ import time
 from subprocess import TimeoutExpired
 from typing import Any, Generator
 
+import paramiko
+
 from .. import utils
 from .._environ import environ
 from ..decorator import cached_property
@@ -166,7 +168,7 @@ class Device(BaseDevice):
 
         return Forward()
 
-    def reverse(self, remote_port: int, local_port: int, ssh_port: int = 22, ssh_username: str = "root"):
+    def reverse(self, remote_port: int, local_port: int, ssh_port: int = 22, ssh_username: str = "root", ssh_password: str = "alpine"):
         from linktools.ssh import SSHClient
 
         forward = self.forward(
@@ -175,6 +177,7 @@ class Device(BaseDevice):
         )
 
         ssh_client = SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh_client.connect_with_pwd(
             "localhost",
             port=forward.local_port,
@@ -188,6 +191,7 @@ class Device(BaseDevice):
 
         class Reverse(Stoppable):
 
+            local_port = property(lambda self: local_port)
             remote_port = property(lambda self: reverse.remote_port)
 
             def stop(self):

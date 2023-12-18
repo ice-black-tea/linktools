@@ -425,7 +425,7 @@ adb arguments:
 
 **输出效果**
 
-![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/imgs/apps.png)
+![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/images/apps.png)
 
 </details>
 

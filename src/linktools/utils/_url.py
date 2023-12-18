@@ -27,7 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-import cgi
 import contextlib
 import json
 import os
@@ -94,14 +93,6 @@ def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:
     return result
 
 
-def cookie_to_dict(cookie: str) -> Dict[str, str]:
-    cookies = {}
-    for item in cookie.split(";"):
-        key_value = item.split("=", 1)
-        cookies[key_value[0].strip()] = key_value[1].strip() if len(key_value) > 1 else ''
-    return cookies
-
-
 def guess_file_name(url: str) -> str:
     if not url:
         return ""
@@ -109,6 +100,48 @@ def guess_file_name(url: str) -> str:
         return os.path.split(parse.urlparse(url).path)[1]
     except:
         return ""
+
+
+def _parseparam(s):
+    while s[:1] == ';':
+        s = s[1:]
+        end = s.find(';')
+        while end > 0 and (s.count('"', 0, end) - s.count('\\"', 0, end)) % 2:
+            end = s.find(';', end + 1)
+        if end < 0:
+            end = len(s)
+        f = s[:end]
+        yield f.strip()
+        s = s[end:]
+
+
+def parse_header(line):
+    """Parse a Content-type like header.
+
+    Return the main content-type and a dictionary of options.
+
+    """
+    parts = _parseparam(';' + line)
+    key = parts.__next__()
+    pdict = {}
+    for p in parts:
+        i = p.find('=')
+        if i >= 0:
+            name = p[:i].strip().lower()
+            value = p[i + 1:].strip()
+            if len(value) >= 2 and value[0] == value[-1] == '"':
+                value = value[1:-1]
+                value = value.replace('\\\\', '\\').replace('\\"', '"')
+            pdict[name] = value
+    return key, pdict
+
+
+def parser_cookie(cookie: str) -> Dict[str, str]:
+    cookies = {}
+    for item in cookie.split(";"):
+        key_value = item.split("=", 1)
+        cookies[key_value[0].strip()] = key_value[1].strip() if len(key_value) > 1 else ''
+    return cookies
 
 
 class DownloadError(Exception):
@@ -221,7 +254,7 @@ class DownloadContext:
             if "Content-Length" in resp.headers:
                 self.file_size = int(resp.headers.get("Content-Length"))
             if "Content-Disposition" in resp.headers:
-                _, params = cgi.parse_header(resp.headers["Content-Disposition"])
+                _, params = parse_header(resp.headers["Content-Disposition"])
                 if "filename" in params:
                     self.file_name = params["filename"]
 
@@ -248,7 +281,7 @@ class DownloadContext:
             if "Content-Length" in headers:
                 self.file_size = int(headers["Content-Length"])
             if "Content-Disposition" in headers:
-                _, params = cgi.parse_header(headers["Content-Disposition"])
+                _, params = parse_header(headers["Content-Disposition"])
                 if "filename" in params:
                     self.file_name = params["filename"]
 

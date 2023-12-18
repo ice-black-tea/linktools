@@ -51,7 +51,7 @@ from ._subprocess import (
 )
 
 from ._url import (
-    make_url, cookie_to_dict, guess_file_name, user_agent,
+    make_url, parse_header, parser_cookie, guess_file_name, user_agent,
     DownloadError, DownloadHttpError, UrlFile,
     NotFoundError, get_chrome_driver,
 )
