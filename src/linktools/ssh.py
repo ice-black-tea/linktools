@@ -129,7 +129,6 @@ class SSHClient(paramiko.SSHClient):
 
         try:
             channel.settimeout(0.0)
-
             while True:
                 rlist, wlist, xlist = select.select([channel, sys.stdin], [], [], 1.0)
                 if channel in rlist:
@@ -158,7 +157,7 @@ class SSHClient(paramiko.SSHClient):
             while True:
                 try:
                     data = sock.recv(1024)
-                    if not data:
+                    if len(data) == 0:
                         sys.stdout.flush()
                         break
                     sys.stdout.write(data.decode())
@@ -166,14 +165,16 @@ class SSHClient(paramiko.SSHClient):
                 except OSError:
                     break
 
-        writer = threading.Thread(target=write_all, args=(channel,))
-        writer.start()
+        write_thread = threading.Thread(target=write_all, args=(channel,))
+        write_thread.start()
+
+        stdin_fileno = sys.stdin.fileno()
         while True:
             try:
-                data = sys.stdin.read(1)
+                data = os.read(stdin_fileno, 1)
                 if len(data) == 0:
                     break
-                channel.send(data.encode())
+                channel.send(data)
             except OSError:
                 break
 
@@ -228,15 +229,18 @@ class SSHClient(paramiko.SSHClient):
                         self.request.getpeername(),
                     )
                 except Exception as e:
-                    raise SSHException(
+                    _logger.error(
                         "Incoming request to %s:%d failed: %s"
                         % (forward_host, forward_port, repr(e))
                     )
+                    return
+
                 if channel is None:
-                    raise SSHException(
+                    _logger.error(
                         "Incoming request to %s:%d was rejected by the SSH server."
                         % (forward_host, forward_port)
                     )
+                    return
 
                 with lock:
                     channels.append(channel)
@@ -271,7 +275,10 @@ class SSHClient(paramiko.SSHClient):
                     peername = utils.ignore_error(self.request.getpeername)
                     utils.ignore_error(channel.close)
                     utils.ignore_error(self.request.close)
-                    _logger.debug("Tunnel closed from %r" % (peername,))
+                    _logger.debug(
+                        "Tunnel closed from %r" %
+                        (peername,)
+                    )
 
                     with lock:
                         channels.remove(channel)
@@ -292,7 +299,10 @@ class SSHClient(paramiko.SSHClient):
                     forward_server.shutdown()
                     forward_thread.join()
                 except Exception as e:
-                    _logger.error(f"Cancel port forward failed: %r" % e)
+                    _logger.error(
+                        "Cancel port forward failed: %r"
+                        % e
+                    )
 
                 with lock:
                     for channel in channels:
@@ -313,10 +323,11 @@ class SSHClient(paramiko.SSHClient):
             except Exception as e:
                 utils.ignore_error(channel.close)
                 utils.ignore_error(sock.close)
-                raise SSHException(
+                _logger.error(
                     "Forwarding request to %s:%d failed: %r"
                     % (forward_host, forward_port, e)
                 )
+                return
 
             with lock:
                 channels.append(channel)
@@ -346,7 +357,10 @@ class SSHClient(paramiko.SSHClient):
             finally:
                 utils.ignore_error(channel.close)
                 utils.ignore_error(sock.close)
-                _logger.debug("Tunnel closed from %r" % (channel.origin_addr,))
+                _logger.debug(
+                    "Tunnel closed from %r"
+                    % (channel.origin_addr,)
+                )
 
                 with lock:
                     channels.remove(channel)
@@ -368,9 +382,8 @@ class SSHClient(paramiko.SSHClient):
                     thread.daemon = True
                     thread.start()
 
-                with lock:
-                    for channel in channels:
-                        utils.ignore_error(channel.close)
+            def shutdown(self):
+                self.event.set()
 
         transport = self.get_transport()
         remote_port = transport.request_port_forward("", remote_port or 0)
@@ -388,9 +401,16 @@ class SSHClient(paramiko.SSHClient):
             def stop(self):
                 try:
                     transport.cancel_port_forward("", remote_port)
-                    forward_thread.event.set()
+                    forward_thread.shutdown()
                     forward_thread.join()
                 except Exception as e:
-                    _logger.error(f"Cancel port forward failed: %r" % e)
+                    _logger.error(
+                        f"Cancel port forward failed: %r"
+                        % e
+                    )
+
+                with lock:
+                    for channel in channels:
+                        utils.ignore_error(channel.close)
 
         return Reverse()

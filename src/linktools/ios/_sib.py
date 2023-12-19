@@ -168,7 +168,8 @@ class Device(BaseDevice):
 
         return Forward()
 
-    def reverse(self, remote_port: int, local_port: int, ssh_port: int = 22, ssh_username: str = "root", ssh_password: str = "alpine"):
+    def reverse(self, remote_port: int, local_port: int, *,
+                ssh_port: int = 22, ssh_username: str = "root"):
         from linktools.ssh import SSHClient
 
         forward = self.forward(
@@ -181,7 +182,7 @@ class Device(BaseDevice):
         ssh_client.connect_with_pwd(
             "localhost",
             port=forward.local_port,
-            username=ssh_username
+            username=ssh_username,
         )
         reverse = ssh_client.reverse(
             forward_host="localhost",
