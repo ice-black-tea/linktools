@@ -86,7 +86,7 @@ class SSHClient(paramiko.SSHClient):
 
             threads = [
                 threading.Thread(target=iter_lines, args=(stdout, sys.stdout)),
-                threading.Thread(target=iter_lines, args=(stderr, sys.stdout)),
+                threading.Thread(target=iter_lines, args=(stderr, sys.stderr)),
             ]
 
             for thread in threads:
