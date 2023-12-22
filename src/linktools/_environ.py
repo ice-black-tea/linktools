@@ -285,7 +285,7 @@ class Environ(BaseEnviron):
 
         # 初始化下载相关参数
         config.set(
-            "DOWNLOAD_USER_AGENT",
+            "DEFAULT_USER_AGENT",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/98.0.4758.109 "

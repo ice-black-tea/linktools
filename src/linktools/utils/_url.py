@@ -41,7 +41,7 @@ from ._utils import Timeout, get_md5, ignore_error, parse_version, timeoutable
 from .._environ import environ
 from .._logging import create_log_progress
 from ..decorator import cached_property, singleton
-from ..references.fake_useragent import UserAgent, VERSION as FAKE_USERAGENT_VERSION
+from ..references.fake_useragent import UserAgent
 
 _logger = environ.get_logger("utils.url")
 
@@ -54,15 +54,16 @@ class _UserAgent(UserAgent):
 
     def __init__(self):
         super().__init__(
-            path=environ.get_asset_path(f"fake_useragent_{FAKE_USERAGENT_VERSION}.json")
+            path=environ.get_asset_path(f"fake_useragent.json"),
+            fallback=environ.get_config("DEFAULT_USER_AGENT", type=str),
         )
 
 
 def user_agent(style=None) -> str:
+
+    ua = _UserAgent()
+
     try:
-
-        ua = _UserAgent()
-
         if style:
             return ua[style]
 
@@ -71,7 +72,7 @@ def user_agent(style=None) -> str:
     except Exception as e:
         _logger.debug(f"fetch user agent error: {e}")
 
-    return environ.get_config("DOWNLOAD_USER_AGENT", type=str)
+    return ua.fallback
 
 
 def make_url(url: str, *paths: str, **kwargs: QueryType) -> str:
