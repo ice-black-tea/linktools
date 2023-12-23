@@ -1,2 +1,2 @@
-__command__ = "common"
-__description__ = "Scripts with the prefix \"ct-\""
+__command__ = "ct"
+__description__ = "Common scripts"

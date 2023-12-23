@@ -1,9 +1,9 @@
 {
-  "install_requires": [
+  "dependencies": [
     "rich",
-    "filelock>=3.4.0"
+    "filelock >= 3.4.0"
   ],
-  "extras_require": {
+  "optional-dependencies": {
     "requests": [
       "requests[socks]"
     ],

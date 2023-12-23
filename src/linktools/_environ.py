@@ -33,7 +33,7 @@ import pathlib
 import sys
 from typing import TypeVar, Type, Any
 
-from . import utils, version
+from . import utils, version as __version__
 from .decorator import cached_property, cached_classproperty
 
 T = TypeVar("T")
@@ -174,14 +174,14 @@ class BaseEnviron(abc.ABC):
         # 初始化内部配置
         config.update(
             DEBUG=False,
-            STORAGE_PATH=str(pathlib.Path.home() / f".{version.__name__}"),
+            STORAGE_PATH=str(pathlib.Path.home() / f".{__version__.__name__}"),
             ENVVAR_PREFIX=None,
             RELOAD_CONFIG=False,
             SHOW_LOG_TIME=False,
             SHOW_LOG_LEVEL=True,
         )
 
-        if version.__release__:
+        if __version__.__release__:
             # 只有发布版本才会有这个文件
             config.update_from_file(
                 os.path.join(asset_path, "tools.json"),
@@ -275,9 +275,9 @@ class BaseEnviron(abc.ABC):
 
 
 class Environ(BaseEnviron):
-    name = version.__name__
-    description = version.__description__
-    version = version.__version__
+    name = __version__.__name__
+    version = __version__.__version__
+    description = __version__.__description__
     root_path = root_path
 
     def _create_config(self):

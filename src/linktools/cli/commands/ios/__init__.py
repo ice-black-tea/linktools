@@ -1,2 +1,2 @@
-__command__ = "ios"
-__description__ = "Scripts with the prefix \"it-\""
+__command__ = "it"
+__description__ = "iOS scripts"

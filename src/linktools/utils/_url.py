@@ -35,8 +35,6 @@ import shutil
 from typing import Dict, Union, List, Tuple
 from urllib import parse
 
-from filelock import FileLock
-
 from ._utils import Timeout, get_md5, ignore_error, parse_version, timeoutable
 from .._environ import environ
 from .._logging import create_log_progress
@@ -303,8 +301,8 @@ class UrlFile:
         self._context_path = os.path.join(self._root_path, "context")
 
     @cached_property
-    def _lock(self) -> FileLock:
-        # noinspection PyTypeChecker
+    def _lock(self):
+        from filelock import FileLock
         return FileLock(
             environ.get_temp_path("download", "lock", self._ident, create_parent=True)
         )
@@ -420,14 +418,14 @@ class NotFoundError(Exception):
 
 
 def get_chrome_driver(version: str):
-    chrome_driver = environ.get_tool("chromedriver", cmdline=None)
+    chrome_driver = environ.get_tool("chromedriver")
     base_url = chrome_driver.config.get("base_url")
 
     versions = parse_version(version)
     if versions[0] >= 70:
         file = UrlFile(f"{base_url}/LATEST_RELEASE_{versions[0]}")
         with open(file.save(), "rt") as fd:
-            return chrome_driver.copy(version=fd.read())
+            return chrome_driver.copy(version=fd.read(), cmdline=None)
 
     path = environ.get_asset_path("chrome-driver.json")
     with open(path, "rt") as fd:
@@ -435,6 +433,6 @@ def get_chrome_driver(version: str):
 
     for key, value in version_map.items():
         if versions[0] == parse_version(value)[0]:
-            return chrome_driver.copy(version=key)
+            return chrome_driver.copy(version=key, cmdline=None)
 
     raise NotFoundError(version)

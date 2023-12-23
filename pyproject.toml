@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linktools"
+description = "linktools toolkit"
+requires-python = ">=3.6"
+authors = [{name = "Hu Ji", email = "669898595@qq.com"}]
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {text = "Apache 2.0"}
+dynamic = ["version", "dependencies", "optional-dependencies", "scripts"]
+
+[project.urls]
+Homepage = "https://github.com/ice-black-tea/Zelda"
+Repository = "https://github.com/ice-black-tea/Zelda.git"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["linktools*"]
+namespaces = false

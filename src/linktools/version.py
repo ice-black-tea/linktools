@@ -30,14 +30,10 @@
 __release__ = False
 __version__ = "0.0.1.dev0"
 __name__ = "linktools"
-__author__ = "Hu Ji"
-__email__ = "669898595@qq.com"
-__url__ = "https://github.com/ice-black-tea/Zelda"
-__summary__ = f"{__name__} toolkit"
 __description__ = f"""\
     ___       __   __              __    
    / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \\/ //_/ __/ __ \\/ __ \\/ / ___/  {__summary__}
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @{__author__} 
+  / / / __ \\/ //_/ __/ __ \\/ __ \\/ / ___/  linktools toolkit
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
 /_/_/_/ /_/_/|_|\\__/\\____/\\____/_/____/  
 """
