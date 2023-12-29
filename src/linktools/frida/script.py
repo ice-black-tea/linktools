@@ -37,15 +37,15 @@ from rich.prompt import Confirm
 from rich.table import Table
 
 from .. import utils, environ
+from ..metadata import __missing__
 
 _logger = environ.get_logger("frida.app")
 
 
 class FridaUserScript(metaclass=abc.ABCMeta):
-    __missing__ = ...
 
     def __init__(self):
-        self._source: Union[str, object] = self.__missing__
+        self._source: Union[str, object] = __missing__
         self._lock = threading.RLock()
 
     @property
@@ -54,13 +54,13 @@ class FridaUserScript(metaclass=abc.ABCMeta):
 
     def load(self) -> Optional[str]:
         with self._lock:
-            if self._source is self.__missing__:
+            if self._source is __missing__:
                 self._source = self._load()
             return self._source
 
     def clear(self) -> None:
         with self._lock:
-            self._source = self.__missing__
+            self._source = __missing__
 
     @property
     @abc.abstractmethod

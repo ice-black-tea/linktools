@@ -30,14 +30,12 @@ import abc
 import json
 import os
 import pathlib
-import sys
 from typing import TypeVar, Type, Any
 
-from . import utils, version as __version__
+from . import utils, metadata
 from .decorator import cached_property, cached_classproperty
 
 T = TypeVar("T")
-MISSING = ...
 
 root_path = os.path.dirname(__file__)
 asset_path = os.path.join(root_path, "assets")
@@ -174,31 +172,23 @@ class BaseEnviron(abc.ABC):
         # 初始化内部配置
         config.update(
             DEBUG=False,
-            STORAGE_PATH=str(pathlib.Path.home() / f".{__version__.__name__}"),
+            STORAGE_PATH=str(pathlib.Path.home() / f".{metadata.__name__}"),
             ENVVAR_PREFIX=None,
             RELOAD_CONFIG=False,
             SHOW_LOG_TIME=False,
             SHOW_LOG_LEVEL=True,
         )
 
-        if __version__.__release__:
-            # 只有发布版本才会有这个文件
+        yaml_path = os.path.join(root_path, "template", "tools.yml")
+        if metadata.__release__ or not os.path.exists(yaml_path):
             config.update_from_file(
                 os.path.join(asset_path, "tools.json"),
                 json.load
             )
         else:
-            # 不是发布版本的话，使用tools.yml配置代替
-            try:
-                import yaml
-            except:
-                utils.Popen(
-                    sys.executable, "-m", "pip", "install", "pyyaml",
-                    stdout=None, stderr=None,
-                ).check_call()
-                import yaml
+            import yaml
             config.update_from_file(
-                os.path.join(asset_path, "tools.yml"),
+                yaml_path,
                 yaml.safe_load
             )
 
@@ -219,7 +209,7 @@ class BaseEnviron(abc.ABC):
         config: Config = self._create_config()
         return config
 
-    def get_config(self, key: str, type: Type[T] = None, default: Any = MISSING) -> T:
+    def get_config(self, key: str, type: Type[T] = None, default: Any = metadata.__missing__) -> T:
         """
         获取指定配置，优先会从环境变量中获取
         """
@@ -275,9 +265,9 @@ class BaseEnviron(abc.ABC):
 
 
 class Environ(BaseEnviron):
-    name = __version__.__name__
-    version = __version__.__version__
-    description = __version__.__description__
+    name = metadata.__name__
+    version = metadata.__version__
+    description = metadata.__description__
     root_path = root_path
 
     def _create_config(self):

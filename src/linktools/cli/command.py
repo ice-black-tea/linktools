@@ -38,7 +38,7 @@ from argparse import RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormat
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
 from types import ModuleType, GeneratorType
-from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict
+from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict, TypeVar
 
 import rich
 from rich import get_console
@@ -48,7 +48,9 @@ from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
 from .._logging import LogHandler
 from ..decorator import cached_property
-from ..utils import T, MISSING
+from ..metadata import __missing__
+
+T = TypeVar("T")
 
 
 class CommandError(Exception):
@@ -111,7 +113,7 @@ class LogCommandMixin:
 
 
 def _filter_kwargs(kwargs):
-    return {k: v for k, v in kwargs.items() if v is not MISSING}
+    return {k: v for k, v in kwargs.items() if v is not __missing__}
 
 
 _subcommand_index: int = 0
@@ -155,20 +157,20 @@ class _SubCommandMethodArgumentInfo:
 def subcommand(
         name: str,
         *,
-        help: str = MISSING,
-        aliases: List[str] = MISSING,
-        prog: str = MISSING,
-        usage: str = MISSING,
-        description: str = MISSING,
-        epilog: str = MISSING,
-        parents: List[ArgumentParser] = MISSING,
-        formatter_class: Type[HelpFormatter] = MISSING,
-        prefix_chars: str = MISSING,
-        fromfile_prefix_chars: str = MISSING,
-        argument_default: Any = MISSING,
-        conflict_handler: str = MISSING,
-        add_help: bool = MISSING,
-        allow_abbrev: bool = MISSING,
+        help: str = __missing__,
+        aliases: List[str] = __missing__,
+        prog: str = __missing__,
+        usage: str = __missing__,
+        description: str = __missing__,
+        epilog: str = __missing__,
+        parents: List[ArgumentParser] = __missing__,
+        formatter_class: Type[HelpFormatter] = __missing__,
+        prefix_chars: str = __missing__,
+        fromfile_prefix_chars: str = __missing__,
+        argument_default: Any = __missing__,
+        conflict_handler: str = __missing__,
+        add_help: bool = __missing__,
+        allow_abbrev: bool = __missing__,
         pass_args: bool = False):
     def decorator(func):
         if not hasattr(func, "__subcommand_info__"):
@@ -218,16 +220,16 @@ def subcommand(
 def subcommand_argument(
         name_or_flag: str,
         *name_or_flags: str,
-        action: Union[str, Type[Action]] = MISSING,
-        choices: Iterable[T] = MISSING,
-        const: Any = MISSING,
-        default: Any = MISSING,
-        dest: str = MISSING,
-        help: str = MISSING,
-        metavar: Union[str, Tuple[str, ...]] = MISSING,
-        nargs: Union[int, str] = MISSING,
-        required: bool = MISSING,
-        type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = MISSING,
+        action: Union[str, Type[Action]] = __missing__,
+        choices: Iterable[T] = __missing__,
+        const: Any = __missing__,
+        default: Any = __missing__,
+        dest: str = __missing__,
+        help: str = __missing__,
+        metavar: Union[str, Tuple[str, ...]] = __missing__,
+        nargs: Union[int, str] = __missing__,
+        required: bool = __missing__,
+        type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = __missing__,
         **kwargs: Any):
     def decorator(func):
         subcommand_argument_info = _SubCommandMethodArgumentInfo()
@@ -328,7 +330,7 @@ class _SubCommandMethod(SubCommand):
                 prefix_chars = parser.prefix_chars
                 if not argument_args or len(argument_args) == 1 and argument_args[0][0] not in prefix_chars:
                     dest = argument_args[0]
-                    argument_kwargs["required"] = MISSING  # 这种方式不能指定required，所以这里设置为MISSING
+                    argument_kwargs["required"] = __missing__  # 这种方式不能指定required，所以这里设置为MISSING
                 else:
                     option_strings = []
                     long_option_strings = []
@@ -494,7 +496,9 @@ class SubCommandMixin:
 
             parent_subparsers = subparsers
             if subcommand.has_parent:
-                parent_subparsers = subparsers_map.get(subcommand.parent_id)
+                parent_subparsers = subparsers_map.get(subcommand.parent_id, None)
+                if not parent_subparsers:
+                    raise SubCommandError(f"Subcommand {subcommand} has no parent subparser")
 
             parser = subcommand.create_parser(type=parent_subparsers.add_parser)
             parser.set_defaults(**{f"__subcommand_{id(self):x}__": subcommand})

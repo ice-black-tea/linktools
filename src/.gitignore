@@ -1,8 +1,3 @@
-.DS_Store
-*.pyc
-*.user
-/.idea/
-/*.egg-info/
-/build/
-/dist/
-/__pycache__/
+linktools/metadata.py
+linktools/assets/tools.json
+linktools/assets/frida.min.js

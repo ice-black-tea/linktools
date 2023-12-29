@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
+from . import metadata
 from . import utils
 from . import decorator
 from ._tools import ToolContainer, Tool, ToolError, ToolNotFound, ToolExecError

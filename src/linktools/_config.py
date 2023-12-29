@@ -40,11 +40,10 @@ from rich.prompt import Prompt, IntPrompt, FloatPrompt, Confirm, PromptType, Inv
 
 from . import utils
 from ._environ import BaseEnviron
+from .metadata import __missing__
 
 T = TypeVar("T")
 EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
-
-MISSING = ...
 
 
 def _cast_bool(obj: Any) -> bool:
@@ -68,12 +67,6 @@ def _cast_str(obj: Any) -> str:
     return str(obj)
 
 
-CAST_DICT: Dict[Type[T], Callable[..., T]] = {
-    bool: _cast_bool,
-    str: _cast_str,
-}
-
-
 class ConfigError(Exception):
     pass
 
@@ -82,19 +75,19 @@ class ConfigProperty(abc.ABC):
     __lock__ = threading.RLock()
 
     def __init__(self, type: Type = None, cached: bool = False):
-        self._data: Union[str, object] = MISSING
+        self._data: Union[str, object] = __missing__
         self._type = type
         self._cached = cached
 
     def load(self, env: BaseEnviron, key: str, type: Type = None) -> Any:
-        if self._data is not MISSING:
+        if self._data is not __missing__:
             return self._data
         with self.__lock__:
-            if self._data is not MISSING:
+            if self._data is not __missing__:
                 return self._data
             type = type or self._type
             if self._cached:
-                cache = MISSING
+                cache = __missing__
                 path = env.get_data_path("configs", f"cached_{env.name}", key, create_parent=True)
                 if os.path.exists(path):
                     cache = utils.read_file(path, binary=False)
@@ -106,7 +99,7 @@ class ConfigProperty(abc.ABC):
                 utils.write_file(path, str(result))
                 self._data = result
             else:
-                result = self._load(env, key, MISSING)
+                result = self._load(env, key, __missing__)
                 if isinstance(result, ConfigProperty):
                     result = result.load(env, key, type=type)
                 elif type and not isinstance(result, type):
@@ -176,6 +169,10 @@ class Config:
         self._internal = internal
         self._config = pickle.loads(pickle.dumps(self._internal))
         self._envvar_prefix = f"{self._environ.name.upper()}_"
+        self._cast_types: Dict[Type, Callable[[Any], Any]] = {
+            bool: _cast_bool,
+            str: _cast_str
+        }
 
     @property
     def envvar_prefix(self):
@@ -192,7 +189,7 @@ class Config:
         self._envvar_prefix = value
 
     def cast(self, obj: str, type: Type[T] = None):
-        cast = CAST_DICT.get(type, type)
+        cast = self._cast_types.get(type, type)
         return cast(obj) if cast is not None else obj
 
     def get_namespace(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
@@ -212,12 +209,12 @@ class Config:
             rv[key] = self.get(k)
         return rv
 
-    def get(self, key: str, type: Type[T] = None, default: Union[T, ConfigProperty] = MISSING) -> T:
+    def get(self, key: str, type: Type[T] = None, default: Union[T, ConfigProperty] = __missing__) -> T:
         """
         获取指定配置，优先会从环境变量中获取
         """
 
-        last_error = MISSING
+        last_error = __missing__
         try:
 
             env_key = f"{self.envvar_prefix}{key}"
@@ -234,8 +231,8 @@ class Config:
         except Exception as e:
             last_error = e
 
-        if default is MISSING:
-            if last_error is not MISSING:
+        if default is __missing__:
+            if last_error is not __missing__:
                 raise last_error
             raise ConfigError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
@@ -244,16 +241,16 @@ class Config:
 
         return default
 
-    def get_str(self, key: str, default: Union[str, ConfigProperty] = MISSING) -> str:
+    def get_str(self, key: str, default: Union[str, ConfigProperty] = __missing__) -> str:
         return self.get(key, type=str, default=default)
 
-    def get_bool(self, key: str, default: Union[bool, ConfigProperty] = MISSING) -> bool:
+    def get_bool(self, key: str, default: Union[bool, ConfigProperty] = __missing__) -> bool:
         return self.get(key, type=bool, default=default)
 
-    def get_int(self, key: str, default: Union[int, ConfigProperty] = MISSING) -> int:
+    def get_int(self, key: str, default: Union[int, ConfigProperty] = __missing__) -> int:
         return self.get(key, type=int, default=default)
 
-    def get_float(self, key: str, default: Union[float, ConfigProperty] = MISSING) -> float:
+    def get_float(self, key: str, default: Union[float, ConfigProperty] = __missing__) -> float:
         return self.get(key, type=float, default=default)
 
     def keys(self, all: bool = False) -> Generator[str, None, None]:
@@ -378,7 +375,7 @@ class Config:
                 password: bool = False,
                 choices: Optional[List[str]] = None,
                 type: Type = str,
-                default: Any = MISSING,
+                default: Any = __missing__,
                 cached: bool = False,
                 always_ask: bool = False,
                 allow_empty: bool = False,
@@ -395,11 +392,11 @@ class Config:
         def _load(self, env: BaseEnviron, key: Any, cache: Any):
 
             default = cache
-            if default is not MISSING and not self.always_ask:
+            if default is not __missing__ and not self.always_ask:
                 if not env.get_config("RELOAD_CONFIG", type=bool):
                     return default
 
-            if default is MISSING:
+            if default is __missing__:
                 default = self.default
                 if isinstance(default, ConfigProperty):
                     default = default.load(env, key)
@@ -408,7 +405,7 @@ class Config:
                 self.prompt or f"Please input {key}",
                 password=self.password,
                 choices=self.choices,
-                default=default,
+                default=default if default is not __missing__ else ...,
                 show_default=True,
                 show_choices=True
             )
@@ -418,7 +415,7 @@ class Config:
         def __init__(
                 self,
                 prompt: str = None,
-                default: Any = MISSING,
+                default: Any = __missing__,
                 cached: bool = False,
                 always_ask: bool = False,
         ):
@@ -432,39 +429,39 @@ class Config:
         def _load(self, env: BaseEnviron, key: Any, cache: Any):
 
             default = cache
-            if default is not MISSING and not self.always_ask:
+            if default is not __missing__ and not self.always_ask:
                 if not env.get_config("RELOAD_CONFIG", type=bool):
                     return default
 
-            if default is MISSING:
+            if default is __missing__:
                 default = self.default
                 if isinstance(default, ConfigProperty):
                     default = default.load(env, key)
 
             return self.prompt_class.ask(
                 self.prompt or f"Please confirm {key}",
-                default=default,
+                default=default if default is not __missing__ else ...,
                 show_default=True,
             )
 
     class Alias(ConfigProperty):
 
-        _NOT_FOUND = object()
+        __missing__ = object()
 
-        def __init__(self, key: str, type: Type = str, default: Any = MISSING, cached: bool = False):
+        def __init__(self, key: str, type: Type = str, default: Any = __missing__, cached: bool = False):
             super().__init__(type=type, cached=cached)
             self.key = key
             self.default = default
 
         def _load(self, env: BaseEnviron, key: Any, cache: Any):
-            if cache is not MISSING:
+            if cache is not __missing__:
                 return cache
 
-            if self.default is MISSING:
+            if self.default is __missing__:
                 return env.get_config(self.key)
 
-            result = env.get_config(self.key, default=self._NOT_FOUND)
-            if result is self._NOT_FOUND:
+            result = env.get_config(self.key, default=self.__missing__)
+            if result is self.__missing__:
                 result = self.default
 
             return result

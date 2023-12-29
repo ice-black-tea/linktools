@@ -42,8 +42,9 @@ from collections.abc import Iterable, Sized
 from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
 from urllib.request import urlopen
 
+from ..metadata import __missing__
+
 T = TypeVar("T")
-MISSING = ...
 
 
 class Timeout:
@@ -172,7 +173,7 @@ def ignore_error(
 
 
 # noinspection PyShadowingBuiltins
-def cast(type: Type[T], obj: Any, default: Any = MISSING) -> Optional[T]:
+def cast(type: Type[T], obj: Any, default: Any = __missing__) -> Optional[T]:
     """
     类型转换
     :param type: 目标类型
@@ -180,7 +181,7 @@ def cast(type: Type[T], obj: Any, default: Any = MISSING) -> Optional[T]:
     :param default: 默认值
     :return: 转换后的值
     """
-    if default is MISSING:
+    if default is __missing__:
         return type(obj)
     try:
         return type(obj)
@@ -188,7 +189,7 @@ def cast(type: Type[T], obj: Any, default: Any = MISSING) -> Optional[T]:
         return default
 
 
-def cast_int(obj: Any, default: Any = MISSING) -> int:
+def cast_int(obj: Any, default: Any = __missing__) -> int:
     """
     转为int
     :param obj: 需要转换的值
@@ -198,7 +199,7 @@ def cast_int(obj: Any, default: Any = MISSING) -> int:
     return cast(int, obj, default)
 
 
-def cast_bool(obj: Any, default: Any = MISSING) -> bool:
+def cast_bool(obj: Any, default: Any = __missing__) -> bool:
     """
     转为bool
     :param obj: 需要转换的值

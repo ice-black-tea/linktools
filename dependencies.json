@@ -3,6 +3,9 @@
     "rich",
     "filelock >= 3.4.0"
   ],
+  "dev-dependencies": [
+    "pyyaml"
+  ],
   "optional-dependencies": {
     "requests": [
       "requests[socks]"

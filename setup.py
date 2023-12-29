@@ -29,8 +29,9 @@
 import json
 import os
 import pkgutil
-from types import ModuleType
 
+import yaml
+from jinja2 import Template
 from setuptools import setup
 
 
@@ -50,21 +51,46 @@ class ConsoleScripts(list):
         return self
 
 
+def get_path(*paths):
+    return os.path.join(
+        os.path.abspath(os.path.dirname(__file__)),
+        *paths
+    )
+
+
 if __name__ == '__main__':
 
-    def get_path(*paths):
-        return os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            *paths
+    release = os.environ.get("RELEASE", "false").lower() == "true"
+    version = os.environ.get("VERSION", "0.0.1.dev0")
+    if version.startswith("v"):
+        version = version[len("v"):]
+
+    with open(get_path("src", "linktools", "template", "tools.yml"), "rb") as fd_in, \
+            open(get_path("src", "linktools", "assets", "tools.json"), "wt") as fd_out:
+        json.dump(
+            {k: v
+             for k, v in yaml.safe_load(fd_in).items()
+             if k[0].isupper()
+             },
+            fd_out
         )
 
-    version = ModuleType("version")
-    with open(get_path("src", "linktools", "version.py"), mode="rb") as fd:
-        exec(compile(fd.read(), "version", "exec"), version.__dict__)
+    with open(get_path("src", "linktools", "template", "metadata"), "rt", encoding="utf-8") as fd_in, \
+            open(get_path("src", "linktools", "metadata.py"), "wt", encoding="utf-8") as fd_out:
+        fd_out.write(
+            Template(fd_in.read()).render(
+                release="True" if release else "False",
+                version=version,
+            )
+        )
 
     with open(get_path("dependencies.json"), "rt", encoding="utf-8") as fd:
         data = json.load(fd)
+        # install_requires = dependencies + dev-dependencies
         install_requires = data.get("dependencies")
+        if not release:
+            install_requires.extend(data.get("dev-dependencies"))
+        # extras_require = optional-dependencies
         extras_require = data.get("optional-dependencies")
         all_requires = []
         for requires in extras_require.values():
@@ -89,7 +115,7 @@ if __name__ == '__main__':
     )
 
     setup(
-        version=version.__version__,
+        version=version,
         install_requires=install_requires,
         extras_require=extras_require,
         entry_points={"console_scripts": scripts},

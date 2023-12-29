@@ -19,36 +19,47 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.x'
+
+    # build frida.min.js
     - name: Set up Node
+      if: ${{ !env.ACT }}
       uses: actions/setup-node@v3
       with:
         node-version: 16
+    - name: Build frida scripts
+      if: ${{ !env.ACT }}
+      run: cd agents/frida && npm install && npm run build
+
+    # build android-tools.apk
     - name: Set up JDK 11
+      if: ${{ !env.ACT }}
       uses: actions/setup-java@v3
       with:
         distribution: temurin
         java-version: 11
     - name: Setup Android SDK
+      if: ${{ !env.ACT }}
       uses: android-actions/setup-android@v2
+    - name: Build android tools
+      if: ${{ !env.ACT }}
+      run: cd agents/android && ./gradlew --no-daemon :tools:buildTools
+
+    # build python package
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install --upgrade setuptools
-        pip install --upgrade wheel
+        pip install --upgrade build
     - name: Get previous tag
       id: tag
       uses: WyriHaximus/github-action-get-previous-tag@v1
-    - name: Prepare package
-      run: |
-        pip install -r .github/scripts/prepare-publish-requirements.txt
-        VERSION=${{ steps.tag.outputs.tag }} python .github/scripts/prepare-publish.py
     - name: Build package
-      if: ${{ !env.ACT }}
-      run: python setup.py sdist bdist_wheel
+      run: VERSION=${{ steps.tag.outputs.tag }} RELEASE=true python -m build --sdist --wheel
+
+    # publish python package
     - name: Publish package
       if: ${{ !env.ACT }}
       uses: pypa/gh-action-pypi-publish@v1.6.4
@@ -56,7 +67,10 @@ jobs:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: dist/
+
+    # push artifacts
     - name: Commit files
+      if: ${{ !env.ACT }}
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
@@ -64,6 +78,7 @@ jobs:
         git add src/linktools/assets/android-tools.json src/linktools/assets/android-tools.apk
         git commit -m "Auto commit artifacts (${{ steps.tag.outputs.tag }})"
     - name: Push changes
+      if: ${{ !env.ACT }}
       uses: ad-m/github-push-action@master
       with:
         branch: master

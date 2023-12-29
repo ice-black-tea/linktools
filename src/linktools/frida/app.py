@@ -22,7 +22,7 @@ from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .. import utils, environ
 from ..reactor import Reactor
-from ..version import __release__
+from ..metadata import __release__
 
 _logger = environ.get_logger("frida.app")
 

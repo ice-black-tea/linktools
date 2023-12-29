@@ -38,9 +38,9 @@ from typing import Dict, Union, Mapping, Iterator, Any, Tuple, List
 from . import utils
 from ._environ import environ, BaseEnviron
 from .decorator import cached_property
+from .metadata import __missing__
 
 logger = environ.get_logger("tools")
-MISSING = ...
 
 
 class Parser(object):
@@ -195,14 +195,14 @@ class Tool(metaclass=ToolMeta):
     __default__: Dict
     __parser__: Parser
 
-    name: str = ToolProperty(default=MISSING)
+    name: str = ToolProperty(default=__missing__)
     depends_on: tuple = ToolProperty(default=[])
-    download_url: str = ToolProperty(default=MISSING)
-    target_path: bool = ToolProperty(default=MISSING)
-    root_path: str = ToolProperty(default=MISSING)
-    unpack_path: str = ToolProperty(default=MISSING)
-    absolute_path: str = ToolProperty(default=MISSING)
-    cmdline: str = ToolProperty(default=MISSING)
+    download_url: str = ToolProperty(default=__missing__)
+    target_path: bool = ToolProperty(default=__missing__)
+    root_path: str = ToolProperty(default=__missing__)
+    unpack_path: str = ToolProperty(default=__missing__)
+    absolute_path: str = ToolProperty(default=__missing__)
+    cmdline: str = ToolProperty(default=__missing__)
     executable: bool = ToolProperty(default=True)
     executable_cmdline: tuple = ToolProperty(default=[])
 
@@ -236,7 +236,7 @@ class Tool(metaclass=ToolMeta):
 
         # download url
         download_url = utils.get_item(cfg, "download_url") or ""
-        if download_url is MISSING:
+        if download_url is __missing__:
             download_url = ""
         assert isinstance(download_url, str), \
             f"Tool<{cfg['name']}>.download_url type error, " \
@@ -244,21 +244,21 @@ class Tool(metaclass=ToolMeta):
         cfg["download_url"] = download_url.format(tools=self._container, **cfg)
 
         unpack_path = utils.get_item(cfg, "unpack_path") or ""
-        if unpack_path is MISSING:
+        if unpack_path is __missing__:
             unpack_path = ""
         assert isinstance(unpack_path, str), \
             f"Tool<{cfg['name']}>.unpack_path type error, " \
             f"str was expects, got {type(unpack_path)}"
 
         target_path = utils.get_item(cfg, "target_path") or ""
-        if target_path is MISSING:
+        if target_path is __missing__:
             target_path = ""
         assert isinstance(target_path, str), \
             f"Tool<{cfg['name']}>.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
         absolute_path = utils.get_item(cfg, "absolute_path") or ""
-        if absolute_path is MISSING:
+        if absolute_path is __missing__:
             absolute_path = ""
         assert isinstance(absolute_path, str), \
             f"Tool<{cfg['name']}>.absolute_path type error, " \
@@ -287,7 +287,7 @@ class Tool(metaclass=ToolMeta):
 
         # set executable cmdline
         cmdline = utils.get_item(cfg, "cmdline") or ""
-        if cmdline is MISSING:
+        if cmdline is __missing__:
             cmdline = cfg["name"]
         assert isinstance(cmdline, str), \
             f"Tool<{cfg['name']}>.cmdline type error, " \

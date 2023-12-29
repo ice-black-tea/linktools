@@ -3,7 +3,7 @@
 
 """
 @author  : Hu Ji
-@file    : version.py
+@file    : meta.py
 @time    : 2018/11/25
 @site    :
 @software: PyCharm
@@ -27,13 +27,14 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
-__release__ = False
-__version__ = "0.0.1.dev0"
 __name__ = "linktools"
+__missing__ = object()
+__release__ = {{ release }}
+__version__ = "{{ version }}"
 __description__ = f"""\
-    ___       __   __              __    
+    ___       __   __              __
    / (_)___  / /__/ /_____  ____  / /____
   / / / __ \\/ //_/ __/ __ \\/ __ \\/ / ___/  linktools toolkit
  / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
-/_/_/_/ /_/_/|_|\\__/\\____/\\____/_/____/  
+/_/_/_/ /_/_/|_|\\__/\\____/\\____/_/____/
 """

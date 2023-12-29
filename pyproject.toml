@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0.0"]
+requires = ["setuptools>=62.3.0", "pyyaml", "jinja2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,4 +18,12 @@ Repository = "https://github.com/ice-black-tea/Zelda.git"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["linktools*"]
-namespaces = false
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+linktools = ["assets/**"]
+
+[tool.setuptools.exclude-package-data]
+linktools = ["template/**"]

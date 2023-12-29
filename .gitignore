@@ -1,8 +1,9 @@
 .DS_Store
 *.pyc
 *.user
-/.idea/
-/*.egg-info/
+*.egg-info
+.idea
 /build/
 /dist/
 /__pycache__/
+/venv/
