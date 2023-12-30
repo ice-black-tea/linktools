@@ -28,7 +28,7 @@
 """
 
 __name__ = "linktools"
-__missing__ = object()
+__missing__ = Ellipsis
 __release__ = {{ release }}
 __version__ = "{{ version }}"
 __description__ = f"""\
