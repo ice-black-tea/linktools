@@ -46,32 +46,34 @@ alias jadx="JAVA_OPTS=-Xmx8g ct-tools --set version=1.4.7 jadx-gui" # 指定jadx
 $ python3 -m linktools
     ___       __   __              __
    / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )     by: @Hu Ji
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji (669898595@qq.com)
 /_/_/_/ /_/_/|_|\__/\____/\____/_/____/
 
 📎 All commands
-├── 📖 common
-│   ├── 👉 ct-grep: Match files with regular expression
-│   ├── 👉 ct-shell: Shell with environment variables already initialized
-│   └── 👉 ct-tools: Tools downloaded from the web
-├── 📖 android
-│   ├── 👉 at-adb: Adb that supports multiple devices
-│   ├── 👉 at-agent: Debug android-tools.apk
-│   ├── 👉 at-app: Fetch application info
-│   ├── 👉 at-debug: Debug app by jdb
-│   ├── 👉 at-frida: Easy to use frida (require Android device rooted)
-│   ├── 👉 at-info: Fetch device information
-│   ├── 👉 at-intent: Common intent actions
-│   ├── 👉 at-objection: Easy to use objection (require Android device rooted)
-│   ├── 👉 at-pidcat: Filter logcat by package name
-│   └── 👉 at-top: Fetch current running app's basic information
-└── 📖 ios
-    ├── 👉 it-frida: Easy to use frida (require iOS device jailbreak)
-    ├── 👉 it-objection: Easy to use objection (require iOS device jailbreak)
-    ├── 👉 it-scp: OpenSSH secure file copy (require iOS device jailbreak)
-    ├── 👉 it-sib: Sib that supports multiple devices
-    └── 👉 it-ssh: OpenSSH remote login client (require iOS device jailbreak)
+├── 📖 at: Android scripts
+│   ├── 👉 adb: Adb supports managing multiple android devices
+│   ├── 👉 agent: Debug android-tools.apk
+│   ├── 👉 app: Fetch application info
+│   ├── 👉 debug: Debug app by jdb
+│   ├── 👉 frida: Easy to use frida (require Android device rooted)
+│   ├── 👉 info: Fetch device information
+│   ├── 👉 intent: Common intent actions
+│   ├── 👉 objection: Easy to use objection (require Android device rooted)
+│   ├── 👉 pidcat: Filter logcat by package name
+│   └── 👉 top: Fetch current running app's basic information
+├── 📖 ct: Common scripts
+│   ├── 👉 cert: Display X.509 certificate information.
+│   ├── 👉 grep: Match files with regular expression
+│   ├── 👉 shell: Shell with environment variables already initialized
+│   └── 👉 tools: Download and use tools
+└── 📖 it: iOS scripts
+    ├── 👉 frida: Easy to use frida (require iOS device jailbreak)
+    ├── 👉 ipa: Parser ipa file
+    ├── 👉 objection: Easy to use objection (require iOS device jailbreak)
+    ├── 👉 scp: OpenSSH secure file copy (require iOS device jailbreak)
+    ├── 👉 sib: Sib supports managing multiple ios devices
+    └── 👉 ssh: OpenSSH remote login client (require iOS device jailbreak)
 ```
 
 ### 通用功能（脚本前缀为ct-）
