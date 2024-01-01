@@ -539,8 +539,10 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         self._manager = FridaManager(self._reactor)
 
         # 初始化内置脚本
-        script_name = "frida.js" if not __release__ or environ.debug else "frida.min.js"
-        self._internal_script = FridaScriptFile(environ.get_asset_path(script_name))
+        script_path = environ.get_asset_path("frida.min.js")
+        if not __release__ or environ.debug or not os.path.exists(script_path):
+            script_path = environ.get_asset_path("frida.js")
+        self._internal_script = FridaScriptFile(script_path)
 
         # 初始化需要注入进程的匹配规则
         if isinstance(target_identifiers, str):

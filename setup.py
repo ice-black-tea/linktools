@@ -35,6 +35,13 @@ from jinja2 import Template
 from setuptools import setup
 
 
+def get_path(*paths):
+    return os.path.join(
+        os.path.abspath(os.path.dirname(__file__)),
+        *paths
+    )
+
+
 class ConsoleScripts(list):
 
     def append_script(self, script_name, module_name):
@@ -51,13 +58,6 @@ class ConsoleScripts(list):
         return self
 
 
-def get_path(*paths):
-    return os.path.join(
-        os.path.abspath(os.path.dirname(__file__)),
-        *paths
-    )
-
-
 if __name__ == '__main__':
 
     release = os.environ.get("RELEASE", "false").lower() == "true"
@@ -68,17 +68,19 @@ if __name__ == '__main__':
     with open(get_path("src", "linktools", "template", "tools.yml"), "rb") as fd_in, \
             open(get_path("src", "linktools", "assets", "tools.json"), "wt") as fd_out:
         json.dump(
-            {k: v
-             for k, v in yaml.safe_load(fd_in).items()
-             if k[0].isupper()
-             },
+            {
+                key: value
+                for key, value in yaml.safe_load(fd_in).items()
+                if key[0].isupper()
+            },
             fd_out
         )
 
     with open(get_path("src", "linktools", "template", "metadata"), "rt", encoding="utf-8") as fd_in, \
             open(get_path("src", "linktools", "metadata.py"), "wt", encoding="utf-8") as fd_out:
+        template = Template(fd_in.read())
         fd_out.write(
-            Template(fd_in.read()).render(
+            template.render(
                 release="True" if release else "False",
                 version=version,
             )
