@@ -28,13 +28,13 @@
 """
 
 __name__ = "linktools"
-__missing__ = Ellipsis
 __release__ = {{ release }}
 __version__ = "{{ version }}"
+__missing__ = Ellipsis
 __description__ = f"""\
     ___       __   __              __
    / (_)___  / /__/ /_____  ____  / /____
   / / / __ \\/ //_/ __/ __ \\/ __ \\/ / ___/  linktools toolkit (v{{ version }})
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji (669898595@qq.com)
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
 /_/_/_/ /_/_/|_|\\__/\\____/\\____/_/____/
 """
