@@ -5,9 +5,7 @@ import json
 import subprocess
 import time
 from subprocess import TimeoutExpired
-from typing import Any, Generator
-
-import paramiko
+from typing import Any, Generator, List
 
 from .. import utils
 from .._environ import environ
@@ -23,7 +21,13 @@ class SibError(BridgeError):
 
 
 class Sib(Bridge):
-    _ALIVE_STATUS = ("online",)
+
+    def __init__(self, options: List[str] = None):
+        super().__init__(
+            tool=environ.get_tool("sib"),
+            options=options,
+            error_type=SibError
+        )
 
     def list_devices(self, alive: bool = None) -> Generator["Device", None, None]:
         """
@@ -38,14 +42,8 @@ class Sib(Bridge):
             status = utils.get_item(info, "status")
             if alive is None:
                 yield Device(id, info)
-            elif alive == (status in self._ALIVE_STATUS):
+            elif alive == (status in ("online",)):
                 yield Device(id, info)
-
-    def _get_tool(self):
-        return environ.get_tool("sib")
-
-    def _handle_error(self, e):
-        raise SibError(e)
 
 
 class Device(BaseDevice):
@@ -170,6 +168,8 @@ class Device(BaseDevice):
 
     def reverse(self, remote_port: int, local_port: int, *,
                 ssh_port: int = 22, ssh_username: str = "root"):
+
+        import paramiko
         from linktools.ssh import SSHClient
 
         forward = self.forward(
@@ -191,7 +191,6 @@ class Device(BaseDevice):
         )
 
         class Reverse(Stoppable):
-
             local_port = property(lambda self: local_port)
             remote_port = property(lambda self: reverse.remote_port)
 

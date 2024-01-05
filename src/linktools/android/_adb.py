@@ -30,7 +30,7 @@
 import json
 import re
 import time
-from typing import Optional, Any, Generator
+from typing import Optional, Any, Generator, List
 
 from ._struct import Package, UnixSocket, InetSocket, Process
 from .. import utils, environ
@@ -46,7 +46,13 @@ class AdbError(BridgeError):
 
 
 class Adb(Bridge):
-    _ALIVE_STATUS = ("bootloader", "device", "recovery", "sideload")
+
+    def __init__(self, options: List[str] = None):
+        super().__init__(
+            tool=environ.get_tool("adb"),
+            options=options,
+            error_type=AdbError
+        )
 
     def list_devices(self, alive: bool = None) -> Generator["Device", None, None]:
         """
@@ -62,14 +68,8 @@ class Adb(Bridge):
                 device, status = splits
                 if alive is None:
                     yield Device(device, adb=self)
-                elif alive == (status in self._ALIVE_STATUS):
+                elif alive == (status in ("bootloader", "device", "recovery", "sideload")):
                     yield Device(device, adb=self)
-
-    def _get_tool(self):
-        return environ.get_tool("adb")
-
-    def _handle_error(self, e):
-        raise AdbError(e)
 
 
 class Device(BaseDevice):

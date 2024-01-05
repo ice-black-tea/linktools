@@ -16,7 +16,7 @@ from scp import SCPClient
 
 from . import utils
 from ._environ import environ
-from ._logging import create_log_progress
+from ._rich import create_progress
 from .reactor import Stoppable
 from .utils import list2cmdline, ignore_error
 
@@ -189,7 +189,7 @@ class SSHClient(paramiko.SSHClient):
     @contextlib.contextmanager
     def _open_scp(self):
 
-        with create_log_progress() as progress:
+        with create_progress() as progress:
             task_id = progress.add_task("", total=0)
             progress.advance(task_id, 0)
 

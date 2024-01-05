@@ -33,7 +33,7 @@ import platform
 import shutil
 import sys
 import warnings
-from typing import Dict, Union, Mapping, Iterator, Any, Tuple, List
+from typing import Dict, Union, Mapping, Iterator, Any, Tuple, List, Type
 
 from . import utils
 from ._environ import environ, BaseEnviron
@@ -382,6 +382,7 @@ class Tool(metaclass=ToolMeta):
             timeout: utils.Timeout = None,
             ignore_errors: bool = False,
             log_output: bool = False,
+            error_type: Type[Exception] = ToolExecError
     ) -> str:
         """
         执行命令
@@ -389,6 +390,7 @@ class Tool(metaclass=ToolMeta):
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
         :param log_output: 把输出打印到logger中
+        :param error_type: 抛出异常类型
         :return: 返回stdout输出内容
         """
         process = self.popen(*args, capture_output=True)
@@ -406,7 +408,7 @@ class Tool(metaclass=ToolMeta):
                 elif isinstance(err, str):
                     err = err.strip()
                 if err:
-                    raise ToolExecError(err)
+                    raise error_type(err)
 
             if isinstance(out, bytes):
                 out = out.decode(errors="ignore")

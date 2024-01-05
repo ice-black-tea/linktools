@@ -37,7 +37,7 @@ from urllib import parse
 
 from ._utils import Timeout, get_md5, ignore_error, parse_version, timeoutable
 from .._environ import environ
-from .._logging import create_log_progress
+from .._rich import create_progress
 from ..decorator import cached_property, singleton
 from ..references.fake_useragent import UserAgent
 
@@ -207,7 +207,7 @@ class DownloadContext:
         except ModuleNotFoundError:
             fn = self._download_with_urllib
 
-        with create_log_progress() as progress:
+        with create_progress() as progress:
             task_id = progress.add_task(self.file_name, total=0)
             progress.advance(task_id, initial)
 

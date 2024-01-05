@@ -28,6 +28,7 @@
 """
 import abc
 import json
+import logging
 import os
 import pathlib
 from typing import TypeVar, Type, Any
@@ -40,6 +41,29 @@ T = TypeVar("T")
 root_path = os.path.dirname(__file__)
 asset_path = os.path.join(root_path, "assets")
 cli_path = os.path.join(root_path, "cli")
+
+
+class Logger(logging.Logger):
+    _empty = tuple()
+
+    def _log(self, level, msg, args, **kwargs):
+        msg = str(msg)
+        msg += ''.join([str(i) for i in args])
+
+        kwargs["extra"] = kwargs.get("extra") or {}
+        self._move_args(
+            kwargs, kwargs["extra"],
+            "style", "indent", "markup", "highlighter"
+        )
+
+        return super()._log(level, msg, self._empty, **kwargs)
+
+    @classmethod
+    def _move_args(cls, from_, to_, *keys):
+        for key in keys:
+            value = from_.pop(key, None)
+            if value is not None:
+                to_[key] = value
 
 
 class BaseEnviron(abc.ABC):
@@ -147,21 +171,24 @@ class BaseEnviron(abc.ABC):
         return utils.get_path(self.temp_path, *paths, create=create, create_parent=False)
 
     @cached_property
+    def _log_manager(self):
+        manager = logging.Manager(logging.root)
+        manager.setLoggerClass(Logger)
+        return manager
+
+    @cached_property
     def logger(self):
         """
         模块根logger
         """
-        from ._logging import get_logger
-
-        return get_logger(prefix=self.name)
+        return self._log_manager.getLogger(self.name)
 
     def get_logger(self, name: str = None):
         """
         获取模块名作为前缀的logger
         """
-        from ._logging import get_logger
-
-        return get_logger(name=name, prefix=self.name)
+        name = f"{self.name}.{name}" if name else self.name
+        return self._log_manager.getLogger(name)
 
     @cached_classproperty
     def _internal_config(self):

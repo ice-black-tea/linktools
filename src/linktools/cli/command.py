@@ -46,7 +46,7 @@ from rich.tree import Tree
 
 from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
-from .._logging import LogHandler
+from .._rich import LogHandler
 from ..decorator import cached_property
 from ..metadata import __missing__
 

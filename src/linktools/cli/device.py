@@ -79,7 +79,7 @@ class DevicePicker(Generic[BridgeType, DeviceType]):
 
     @property
     def bridge(self) -> BridgeType:
-        return Bridge(*self.options)
+        return Bridge(options=self.options)
 
     def pick(self) -> DeviceType:
         return self.func(self.bridge)
@@ -113,14 +113,14 @@ class AndroidPicker(DevicePicker[Adb, AdbDevice]):
 
     @property
     def bridge(self):
-        return Adb(*self.options)
+        return Adb(self.options)
 
 
 class IOSPicker(DevicePicker[Sib, SibDevice]):
 
     @property
     def bridge(self):
-        return Sib(*self.options)
+        return Sib(self.options)
 
 
 class DeviceCommandMixin:

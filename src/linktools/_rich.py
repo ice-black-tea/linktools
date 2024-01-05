@@ -34,87 +34,13 @@ from typing import Optional, Union
 
 from rich.console import ConsoleRenderable
 from rich.logging import RichHandler
-from rich.progress import Task, \
-    Progress, ProgressColumn, \
-    TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn, TaskProgressColumn, TimeRemainingColumn
+from rich.progress import Task, Progress, \
+    ProgressColumn, TextColumn, BarColumn, DownloadColumn, \
+    TransferSpeedColumn, TaskProgressColumn, TimeRemainingColumn
 from rich.table import Column
 from rich.text import Text
 
-from . import utils
 from ._environ import BaseEnviron
-
-
-class LogConfig:
-    __styles = {
-        logging.DEBUG: {
-            "level": "black on blue",
-            "message": "deep_sky_blue1",
-        },
-        logging.INFO: {
-            "level": "black on green",
-            "message": None,
-        },
-        logging.WARNING: {
-            "level": "black on yellow",
-            "message": "magenta1",
-        },
-        logging.ERROR: {
-            "level": "black on red1",
-            "message": "red1",
-        },
-        logging.CRITICAL: {
-            "level": "black on red1",
-            "message": "red1",
-        },
-    }
-
-    def get_time_style(self, level_no):
-        style = self.__styles.get(level_no)
-        if style:
-            return style.get("time")
-        return None
-
-    def get_level_style(self, level_no):
-        style = self.__styles.get(level_no)
-        if style:
-            return style.get("level")
-        return None
-
-    def get_message_style(self, level_no):
-        style = self.__styles.get(level_no)
-        if style:
-            return style.get("message")
-        return None
-
-    def get_time_text(self, time: Union[float, datetime, None] = None, format: str = None, style: str = None) -> Text:
-        if not time:
-            time = datetime.now()
-        elif isinstance(time, (int, float)):
-            time = datetime.fromtimestamp(time)
-        if not format:
-            format = "[%x %X]"
-        if not style:
-            style = "log.time"
-        return Text(time.strftime(format), style=style)
-
-    def get_level_text(self, level_no: int, level_name: str = None, style: str = None) -> Text:
-        if not level_name:
-            level_name = logging.getLevelName(level_no)
-        if not style:
-            style = self.get_level_style(level_no)
-            if not style:
-                style = "log.level"
-        return Text(f" {level_name[:1]} ", style=style)
-
-
-class LogManager(utils.get_derived_type(logging.Manager)):
-
-    def __init__(self, manager):
-        super().__init__(manager)
-        object.__setattr__(self, "loggerClass", Logger)
-
-    def getLogger(self, name):
-        return logging.Manager.getLogger(self, name)
 
 
 class LogHandler(RichHandler):
@@ -125,10 +51,33 @@ class LogHandler(RichHandler):
             show_level=environ.get_config("SHOW_LOG_LEVEL"),
             show_time=environ.get_config("SHOW_LOG_TIME"),
             omit_repeated_times=False,
-            log_time_format=_config.get_time_text
+            log_time_format=self.make_time_text
             # markup=True,
             # highlighter=NullHighlighter()
         )
+
+        self._styles = {
+            logging.DEBUG: {
+                "level": "black on blue",
+                "message": "deep_sky_blue1",
+            },
+            logging.INFO: {
+                "level": "black on green",
+                "message": None,
+            },
+            logging.WARNING: {
+                "level": "black on yellow",
+                "message": "magenta1",
+            },
+            logging.ERROR: {
+                "level": "black on red1",
+                "message": "red1",
+            },
+            logging.CRITICAL: {
+                "level": "black on red1",
+                "message": "red1",
+            },
+        }
 
     @property
     def show_level(self):
@@ -146,10 +95,48 @@ class LogHandler(RichHandler):
     def show_time(self, value: bool):
         self._log_render.show_time = value
 
+    def get_time_style(self, level_no):
+        style = self._styles.get(level_no)
+        if style:
+            return style.get("time")
+        return None
+
+    def get_level_style(self, level_no):
+        style = self._styles.get(level_no)
+        if style:
+            return style.get("level")
+        return None
+
+    def get_message_style(self, level_no):
+        style = self._styles.get(level_no)
+        if style:
+            return style.get("message")
+        return None
+
+    def make_time_text(self, time: Union[float, datetime, None] = None, format: str = None, style: str = None) -> Text:
+        if not time:
+            time = datetime.now()
+        elif isinstance(time, (int, float)):
+            time = datetime.fromtimestamp(time)
+        if not format:
+            format = "[%x %X]"
+        if not style:
+            style = "log.time"
+        return Text(time.strftime(format), style=style)
+
+    def make_level_text(self, level_no: int, level_name: str = None, style: str = None) -> Text:
+        if not level_name:
+            level_name = logging.getLevelName(level_no)
+        if not style:
+            style = self.get_level_style(level_no)
+            if not style:
+                style = "log.level"
+        return Text(f" {level_name[:1]} ", style=style)
+
     def get_level_text(self, record: logging.LogRecord) -> Text:
         level_name = record.levelname
         level_no = record.levelno
-        return _config.get_level_text(level_no, level_name)
+        return self.make_level_text(level_no, level_name)
 
     def render_message(self, record: logging.LogRecord, message: str) -> ConsoleRenderable:
         indent = getattr(record, "indent", 0)
@@ -158,7 +145,7 @@ class LogHandler(RichHandler):
             message = message.replace(os.linesep, os.linesep + " " * indent)
 
         use_markup = getattr(record, "markup", self.markup)
-        style = getattr(record, "style", _config.get_message_style(record.levelno))
+        style = getattr(record, "style", self.get_message_style(record.levelno))
         message_text = Text.from_markup(message, style=style) if use_markup else Text(message, style=style)
 
         highlighter = getattr(record, "highlighter", False)
@@ -184,28 +171,25 @@ class LogHandler(RichHandler):
 
 class LogColumn(ProgressColumn):
 
-    def __init__(self, table_column: Optional[Column] = None):
-        super().__init__(table_column=table_column or Column(no_wrap=True))
-        self._log_handler = LogHandler.get_instance()
-
     def render(self, task: Task = None) -> Union[str, Text]:
-        if not self._log_handler:
+        handler = LogHandler.get_instance()
+        if not handler:
             return ""
         result = Text()
-        if self._log_handler.show_time:
+        if handler.show_time:
             date_format = None
-            if self._log_handler.formatter:
-                date_format = self._log_handler.formatter.datefmt
-            result.append(_config.get_time_text(format=date_format))
+            if handler.formatter:
+                date_format = handler.formatter.datefmt
+            result.append(handler.make_time_text(format=date_format))
             result.append(" ")
-        if self._log_handler.show_level:
-            result.append(_config.get_level_text(logging.WARNING))
+        if handler.show_level:
+            result.append(handler.make_level_text(logging.WARNING))
         return result
 
 
-def create_log_progress():
+def create_progress():
     return Progress(
-        LogColumn(),
+        LogColumn(table_column=Column(no_wrap=True)),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         DownloadColumn(),
@@ -214,37 +198,3 @@ def create_log_progress():
         TextColumn("eta"),
         TimeRemainingColumn(),
     )
-
-
-def get_logger(name: str = None, prefix: str = None) -> "Logger":
-    if prefix:
-        name = f"{prefix}.{name}" if name else prefix
-    logger = _manager.getLogger(name)
-    return logger
-
-
-class Logger(logging.Logger):
-    _EMPTY_ARGS = tuple()
-
-    def _log(self, level, msg, args, **kwargs):
-        msg = str(msg)
-        msg += ''.join([str(i) for i in args])
-
-        kwargs["extra"] = kwargs.get("extra") or {}
-        self._move_args(
-            kwargs, kwargs["extra"],
-            "style", "indent", "markup", "highlighter"
-        )
-
-        return super()._log(level, msg, self._EMPTY_ARGS, **kwargs)
-
-    @classmethod
-    def _move_args(cls, from_, to_, *keys):
-        for key in keys:
-            value = from_.pop(key, None)
-            if value is not None:
-                to_[key] = value
-
-
-_config = LogConfig()
-_manager = LogManager(logging.Logger.manager)
