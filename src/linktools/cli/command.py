@@ -40,13 +40,12 @@ from pkgutil import walk_packages
 from types import ModuleType, GeneratorType
 from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict, TypeVar
 
-import rich
 from rich import get_console
 from rich.tree import Tree
 
 from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
-from .._rich import LogHandler
+from .._rich import LogHandler, is_terminal
 from ..decorator import cached_property
 from ..metadata import __missing__
 
@@ -614,7 +613,7 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
         pass
 
     def main(self, *args, **kwargs) -> None:
-        if rich.get_console().is_terminal:
+        if is_terminal():
             logging.basicConfig(
                 level=logging.INFO,
                 format="%(message)s",

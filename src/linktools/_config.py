@@ -36,10 +36,9 @@ import threading
 from types import ModuleType
 from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, TypeVar
 
-from rich.prompt import Prompt, IntPrompt, FloatPrompt, Confirm, PromptType, InvalidResponse
-
 from . import utils
 from ._environ import BaseEnviron
+from ._rich import prompt, confirm
 from .metadata import __missing__
 
 T = TypeVar("T")
@@ -346,35 +345,12 @@ class Config:
 
     class Prompt(ConfigProperty):
 
-        _prompt_types: Dict[Type, Type[Prompt]] = {
-            str: Prompt,
-            int: IntPrompt,
-            float: FloatPrompt,
-        }
-
-        @classmethod
-        def _create_prompt_class(cls, type: Type, allow_empty: bool):
-            base_prompt_types = cls._prompt_types.get(type)
-            if base_prompt_types is None:
-                support_types = [str(key) for key in cls._prompt_types.keys()]
-                raise ConfigError(f"prompt only supports {support_types} type")
-
-            class ConfigPrompt(base_prompt_types):
-
-                def process_response(self, value: str) -> PromptType:
-                    value = value.strip()
-                    if not allow_empty and utils.is_empty(value):
-                        raise InvalidResponse(self.validate_error_message)
-                    return super().process_response(value)
-
-            return ConfigPrompt
-
         def __init__(
                 self,
                 prompt: str = None,
                 password: bool = False,
                 choices: Optional[List[str]] = None,
-                type: Type = str,
+                type: Type[Union[str, int, float]] = str,
                 default: Any = __missing__,
                 cached: bool = False,
                 always_ask: bool = False,
@@ -382,12 +358,13 @@ class Config:
         ):
             super().__init__(type=type, cached=cached)
 
-            self.prompt_class = self._create_prompt_class(type, allow_empty)
+            self.type = type
             self.prompt = prompt
             self.password = password
             self.choices = choices
             self.default = default
             self.always_ask = always_ask
+            self.allow_empty = allow_empty
 
         def _load(self, env: BaseEnviron, key: Any, cache: Any):
 
@@ -401,11 +378,13 @@ class Config:
                 if isinstance(default, ConfigProperty):
                     default = default.load(env, key)
 
-            return self.prompt_class.ask(
+            return prompt(
                 self.prompt or f"Please input {key}",
+                type=self.type,
                 password=self.password,
                 choices=self.choices,
-                default=default if default is not __missing__ else ...,
+                default=default,
+                allow_empty=self.allow_empty,
                 show_default=True,
                 show_choices=True
             )
@@ -421,7 +400,6 @@ class Config:
         ):
             super().__init__(type=bool, cached=cached)
 
-            self.prompt_class = Confirm
             self.prompt = prompt
             self.default = default
             self.always_ask = always_ask
@@ -438,19 +416,19 @@ class Config:
                 if isinstance(default, ConfigProperty):
                     default = default.load(env, key)
 
-            return self.prompt_class.ask(
+            return confirm(
                 self.prompt or f"Please confirm {key}",
-                default=default if default is not __missing__ else ...,
+                default=default,
                 show_default=True,
             )
 
     class Alias(ConfigProperty):
 
-        __missing__ = object()
+        DEFAULT = object()
 
-        def __init__(self, key: str, type: Type = str, default: Any = __missing__, cached: bool = False):
+        def __init__(self, *keys: str, type: Type = str, default: Any = __missing__, cached: bool = False):
             super().__init__(type=type, cached=cached)
-            self.key = key
+            self.keys = keys
             self.default = default
 
         def _load(self, env: BaseEnviron, key: Any, cache: Any):
@@ -458,13 +436,22 @@ class Config:
                 return cache
 
             if self.default is __missing__:
-                return env.get_config(self.key)
+                last_error = None
+                for key in self.keys:
+                    try:
+                        return env.get_config(key)
+                    except Exception as e:
+                        last_error = e
+                if last_error is not None:
+                    raise last_error
 
-            result = env.get_config(self.key, default=self.__missing__)
-            if result is self.__missing__:
-                result = self.default
+            else:
+                for key in self.keys:
+                    result = env.get_config(key, default=self.DEFAULT)
+                    if result is not self.DEFAULT:
+                        return result
 
-            return result
+                return self.default
 
     class Lazy(ConfigProperty):
 

@@ -37,7 +37,7 @@ from ._utils import (
     get_md5, get_sha1, get_sha256, make_uuid, gzip_compress,
     get_path, read_file, write_file,
     get_lan_ip, get_wan_ip,
-    parse_version,
+    parse_version, get_char_width
 )
 
 from ._proxy import (

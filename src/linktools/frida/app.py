@@ -12,9 +12,8 @@ import logging
 import os
 import re
 import threading
-from typing import Optional, Union, Dict, Collection, Callable, Any
+from typing import TYPE_CHECKING, Optional, Union, Dict, Collection, Callable, Any
 
-import _frida
 import frida
 from frida.core import Session, Script
 
@@ -23,6 +22,9 @@ from .server import FridaServer
 from .. import utils, environ
 from ..reactor import Reactor
 from ..metadata import __release__
+
+if TYPE_CHECKING:
+    import _frida
 
 _logger = environ.get_logger("frida.app")
 

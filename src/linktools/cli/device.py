@@ -33,11 +33,8 @@ import os
 from argparse import ArgumentParser, Action, Namespace
 from typing import Optional, Callable, List, Type, Generic
 
-from rich import get_console
-from rich.prompt import IntPrompt
-from rich.table import Table
-
 from . import BaseCommand
+from .._rich import prompt
 from ..android import Adb, AdbError, Device as AdbDevice
 from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
 from ..ios import Sib, SibError, Device as SibDevice
@@ -144,26 +141,16 @@ class DeviceCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            table = Table(show_lines=True)
-            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
-            table.add_column("ID", style="magenta")
-            table.add_column("Name", style="magenta")
-
             offset = 1
+            text = f"More than one device/emulator. {os.linesep}"
             for i in range(len(devices)):
-                table.add_row(
-                    str(i + offset),
-                    ignore_error(lambda: devices[i].id),
-                    ignore_error(lambda: devices[i].name) or "",
-                )
-
-            console = get_console()
-            console.print(table)
-
-            prompt = f"More than one device/emulator. {os.linesep}" \
-                     f"Enter device index"
+                text += f"{'>>' if i == 0 else '  '} {f'{i + offset}:':2} " \
+                        f"{ignore_error(lambda: devices[i].id)} " \
+                        f"{ignore_error(lambda: f'({devices[i].name})') or ''}" \
+                        f"{os.linesep}"
+            text += f"Enter device index [{offset}~{len(devices) + offset - 1}]"
             choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
+            index = prompt(text, type=int, choices=choices, default=offset, show_choices=False)
 
             return devices[index - offset]
 
@@ -225,29 +212,21 @@ class AndroidCommandMixin:
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
 
+            devices = devices * 5
+
             if len(devices) == 1:
                 return devices[0]
 
-            table = Table(show_lines=True)
-            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
-            table.add_column("Serial", style="magenta")
-            table.add_column("Model", style="magenta")
-
             offset = 1
+            text = f"More than one device/emulator. {os.linesep}"
             for i in range(len(devices)):
-                table.add_row(
-                    str(i + offset),
-                    ignore_error(lambda: devices[i].id),
-                    ignore_error(lambda: devices[i].name) or "",
-                )
-
-            console = get_console()
-            console.print(table)
-
-            prompt = f"More than one device/emulator. {os.linesep}" \
-                     f"Enter device index"
+                text += f"{'>>' if i == 0 else '  '} {f'{i + offset}:':2} " \
+                        f"{ignore_error(lambda: devices[i].id)} " \
+                        f"{ignore_error(lambda: f'({devices[i].name})') or ''}" \
+                        f"{os.linesep}"
+            text += f"Enter device index [{offset}~{len(devices) + offset - 1}]"
             choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
+            index = prompt(text, type=int, choices=choices, default=offset, show_choices=False)
 
             return devices[index - offset]
 
@@ -370,26 +349,16 @@ class IOSCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            table = Table(show_lines=True)
-            table.add_column("Index", justify="right", style="cyan", no_wrap=True)
-            table.add_column("UDID", style="magenta")
-            table.add_column("Name", style="magenta")
-
             offset = 1
+            text = f"More than one device/emulator. {os.linesep}"
             for i in range(len(devices)):
-                table.add_row(
-                    str(i + offset),
-                    ignore_error(lambda: devices[i].id),
-                    ignore_error(lambda: devices[i].name) or "",
-                )
-
-            console = get_console()
-            console.print(table)
-
-            prompt = f"More than one device/emulator. {os.linesep}" \
-                     f"Enter device index"
+                text += f"{'>>' if i == 0 else '  '} {f'{i + offset}:':2} " \
+                        f"{ignore_error(lambda: devices[i].id)} " \
+                        f"{ignore_error(lambda: f'({devices[i].name})') or ''}" \
+                        f"{os.linesep}"
+            text += f"Enter device index [{offset}~{len(devices) + offset - 1}]"
             choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = IntPrompt.ask(prompt, choices=choices, default=offset, console=console)
+            index = prompt(text, type=int, choices=choices, default=offset, show_choices=False)
 
             return devices[index - offset]
 

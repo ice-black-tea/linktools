@@ -30,17 +30,24 @@
 import logging
 import os
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional, Union, List, Dict, Type, TypeVar, TextIO
 
-from rich.console import ConsoleRenderable
+import rich
+from rich.console import ConsoleRenderable, Console
 from rich.logging import RichHandler
 from rich.progress import Task, Progress, \
     ProgressColumn, TextColumn, BarColumn, DownloadColumn, \
     TransferSpeedColumn, TaskProgressColumn, TimeRemainingColumn
+from rich.prompt import Prompt, IntPrompt, InvalidResponse, FloatPrompt, Confirm, PromptBase
 from rich.table import Column
-from rich.text import Text
+from rich.text import Text, TextType
 
 from ._environ import BaseEnviron
+from .metadata import __missing__
+
+
+def is_terminal() -> bool:
+    return rich.get_console().is_terminal
 
 
 class LogHandler(RichHandler):
@@ -131,7 +138,7 @@ class LogHandler(RichHandler):
             style = self.get_level_style(level_no)
             if not style:
                 style = "log.level"
-        return Text(f" {level_name[:1]} ", style=style)
+        return Text(f" {level_name[:1].upper()} ", style=style)
 
     def get_level_text(self, record: logging.LogRecord) -> Text:
         level_name = record.levelname
@@ -171,6 +178,9 @@ class LogHandler(RichHandler):
 
 class LogColumn(ProgressColumn):
 
+    def __init__(self):
+        super().__init__(table_column=Column(no_wrap=True))
+
     def render(self, task: Task = None) -> Union[str, Text]:
         handler = LogHandler.get_instance()
         if not handler:
@@ -183,13 +193,13 @@ class LogColumn(ProgressColumn):
             result.append(handler.make_time_text(format=date_format))
             result.append(" ")
         if handler.show_level:
-            result.append(handler.make_level_text(logging.WARNING))
+            result.append(handler.make_level_text(logging.INFO, "⇲"))
         return result
 
 
 def create_progress():
     return Progress(
-        LogColumn(table_column=Column(no_wrap=True)),
+        LogColumn(),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         DownloadColumn(),
@@ -197,4 +207,102 @@ def create_progress():
         TaskProgressColumn(),
         TextColumn("eta"),
         TimeRemainingColumn(),
+        refresh_per_second=.1,
+    )
+
+
+PromptType = TypeVar("PromptType", bound=PromptBase)
+PromptResultType = TypeVar("PromptResultType", str, int, float, bool)
+_prompt_types: Dict[Type[PromptResultType], Type[PromptType]] = {
+    str: Prompt,
+    int: IntPrompt,
+    float: FloatPrompt,
+    bool: Confirm,
+}
+
+
+def _create_prompt_class(type: Type[PromptResultType], allow_empty: bool) -> Type[PromptType]:
+    prompt_type = _prompt_types.get(type, None)
+    if prompt_type is None:
+        raise TypeError(f"Unknown prompt type: {prompt_type}")
+
+    class RichPrompt(prompt_type):
+
+        @classmethod
+        def get_input(
+                cls,
+                console: Console,
+                prompt: TextType,
+                password: bool,
+                stream: Optional[TextIO] = None,
+        ) -> str:
+
+            prefix = []
+            prefix_len = 0
+
+            handler = LogHandler.get_instance()
+            if handler.show_time:
+                time = handler.make_time_text()
+                prefix.append(time)
+                prefix_len += time.cell_len + 1
+            if handler.show_level:
+                level = handler.make_level_text(logging.INFO, "↳")
+                prefix.append(level)
+                prefix_len += level.cell_len + 1
+
+            lines = prompt.split(include_separator=True, allow_blank=True)
+            console.print(*(*prefix, lines[0]), sep=" ", end="")
+            for i in range(1, len(lines)):
+                lines[i].pad_left(prefix_len)
+                console.print(lines[i], new_line_start=True, end="")
+
+            return console.input(password=password, stream=stream)
+
+        def on_validate_error(self, value: str, error: InvalidResponse) -> None:
+            prefix = Text("")
+            handler = LogHandler.get_instance()
+            if handler.show_time:
+                prefix = prefix + handler.make_time_text() + " "
+            if handler.show_level:
+                prefix = prefix + handler.make_level_text(logging.ERROR, "↳") + " "
+            self.console.print(prefix, error, sep="")
+
+        def process_response(self, value: str) -> PromptType:
+            value = value.strip()
+            if not allow_empty and not value:
+                raise InvalidResponse(self.validate_error_message)
+            return super().process_response(value)
+
+    return RichPrompt
+
+
+def prompt(
+        text: str,
+        type: Type[PromptResultType] = str,
+        default: PromptResultType = __missing__,
+        allow_empty: bool = False,
+        choices: Optional[List[str]] = None,
+        password: bool = False,
+        show_default: bool = True,
+        show_choices: bool = True
+) -> PromptResultType:
+    return _create_prompt_class(type, allow_empty=allow_empty).ask(
+        text,
+        password=password,
+        choices=choices,
+        default=default if default is not __missing__ else ...,
+        show_default=show_default,
+        show_choices=show_choices
+    )
+
+
+def confirm(
+        text: str,
+        default: PromptResultType = __missing__,
+        show_default: bool = True,
+) -> bool:
+    return _create_prompt_class(bool, allow_empty=False).ask(
+        text,
+        default=default if default is not __missing__ else ...,
+        show_default=show_default,
     )

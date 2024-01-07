@@ -4,19 +4,17 @@ import contextlib
 import getpass
 import os
 import select
+import socket
 import sys
 import threading
-import socket
 
 import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
-from rich import get_console
-from rich.prompt import Prompt
 from scp import SCPClient
 
 from . import utils
 from ._environ import environ
-from ._rich import create_progress
+from ._rich import create_progress, prompt
 from .reactor import Stoppable
 from .utils import list2cmdline, ignore_error
 
@@ -57,10 +55,8 @@ class SSHClient(paramiko.SSHClient):
 
             auth_exception = None
             for i in range(3):
-                console = get_console()
-                password = Prompt.ask(
+                password = prompt(
                     f"{username}@{hostname}'s password",
-                    console=console,
                     password=True
                 )
                 try:

@@ -32,11 +32,8 @@ import os
 import threading
 from typing import Union, Optional
 
-from rich import get_console
-from rich.prompt import Confirm
-from rich.table import Table
-
 from .. import utils, environ
+from .._rich import confirm
 from ..metadata import __missing__
 
 _logger = environ.get_logger("frida.app")
@@ -164,21 +161,14 @@ class FridaShareScript(FridaUserScript):
             if len(source_lines) > line_count:
                 source_summary += "... ..."
 
-            table = Table(show_lines=True)
-            table.add_column("Property", justify="right", style="cyan", no_wrap=True)
-            table.add_column("Content", style="magenta")
-            table.add_row("Url", self._url)
-            table.add_row("Original md5", cached_md5)
-            table.add_row("Current md5", source_md5)
-            table.add_row("Source", source_summary)
-
-            console = get_console()
-            console.print(table)
-
             prompt = f"This is the first time you're running this particular snippet, " \
-                     f"or the snippet's source code has changed. {os.linesep}" \
+                     f"or the snippet's source code has changed.{os.linesep}" \
+                     f"Url: {self._url}{os.linesep}" \
+                     f"Original md5: {cached_md5}{os.linesep}" \
+                     f"Current md5: {source_md5}{os.linesep}" \
+                     f"Source: {os.linesep}{source_summary}{os.linesep}" \
                      f"Are you sure you'd like to trust it?"
-            if Confirm.ask(prompt, console=console):
+            if confirm(prompt):
                 with open(cached_md5_path, "wt") as fd:
                     fd.write(source_md5)
                 _logger.info(f"Load trusted {self}")
