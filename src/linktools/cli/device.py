@@ -212,8 +212,6 @@ class AndroidCommandMixin:
             if len(devices) == 0:
                 raise AdbError("no devices/emulators found")
 
-            devices = devices * 5
-
             if len(devices) == 1:
                 return devices[0]
 
