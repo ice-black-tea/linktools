@@ -43,6 +43,11 @@ class Command(IOSCommand):
     Easy to use frida (require iOS device jailbreak)
     """
 
+    def main(self, *args, **kwargs) -> None:
+        self.environ.config.set_default("SHOW_LOG_LEVEL", True)
+        self.environ.config.set_default("SHOW_LOG_TIME", True)
+        return super().main(*args, **kwargs)
+
     @property
     def known_errors(self) -> List[Type[BaseException]]:
         return super().known_errors + [DownloadError]

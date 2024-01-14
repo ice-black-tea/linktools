@@ -52,6 +52,11 @@ class Command(AndroidCommand):
         "detach",
     ]
 
+    def main(self, *args, **kwargs) -> None:
+        self.environ.config.set_default("SHOW_LOG_LEVEL", False)
+        self.environ.config.set_default("SHOW_LOG_TIME", False)
+        return super().main(*args, **kwargs)
+
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("adb_args", nargs="...", metavar="args", help="adb args")
 

@@ -200,10 +200,6 @@ class BaseEnviron(abc.ABC):
         config.update(
             DEBUG=False,
             STORAGE_PATH=str(pathlib.Path.home() / f".{metadata.__name__}"),
-            ENVVAR_PREFIX=None,
-            RELOAD_CONFIG=False,
-            SHOW_LOG_TIME=False,
-            SHOW_LOG_LEVEL=True,
         )
 
         yaml_path = os.path.join(root_path, "template", "tools.yml")

@@ -16,6 +16,11 @@ class Command(BaseCommand):
     Shell with environment variables already initialized
     """
 
+    def main(self, *args, **kwargs) -> None:
+        self.environ.config.set_default("SHOW_LOG_LEVEL", False)
+        self.environ.config.set_default("SHOW_LOG_TIME", False)
+        return super().main(*args, **kwargs)
+
     def __init__(self):
         self._shell_path = None
         if environ.system in ["darwin", "linux"]:

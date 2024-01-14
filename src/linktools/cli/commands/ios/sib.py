@@ -20,6 +20,11 @@ class Command(IOSCommand):
         "remote",
     ]
 
+    def main(self, *args, **kwargs) -> None:
+        self.environ.config.set_default("SHOW_LOG_LEVEL", False)
+        self.environ.config.set_default("SHOW_LOG_TIME", False)
+        return super().main(*args, **kwargs)
+
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('sib_args', nargs='...', metavar="args", help="sib args")
 

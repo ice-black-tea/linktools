@@ -42,6 +42,11 @@ class Command(BaseCommand):
     Download and use tools
     """
 
+    def main(self, *args, **kwargs) -> None:
+        self.environ.config.set_default("SHOW_LOG_LEVEL", False)
+        self.environ.config.set_default("SHOW_LOG_TIME", False)
+        return super().main(*args, **kwargs)
+
     @property
     def known_errors(self) -> List[Type[BaseException]]:
         return super().known_errors + [ToolError, DownloadError]

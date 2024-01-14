@@ -379,7 +379,7 @@ class Config:
 
             default = cache
             if default is not __missing__ and not self.always_ask:
-                if not env.get_config("RELOAD_CONFIG", type=bool):
+                if not env.get_config("RELOAD_CONFIG", type=bool, default=False):
                     return default
 
             if default is __missing__:
@@ -417,7 +417,7 @@ class Config:
 
             default = cache
             if default is not __missing__ and not self.always_ask:
-                if not env.get_config("RELOAD_CONFIG", type=bool):
+                if not env.get_config("RELOAD_CONFIG", type=bool, default=False):
                     return default
 
             if default is __missing__:

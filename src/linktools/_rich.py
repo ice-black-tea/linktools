@@ -55,8 +55,8 @@ class LogHandler(RichHandler):
     def __init__(self, environ: BaseEnviron):
         super().__init__(
             show_path=False,
-            show_level=environ.get_config("SHOW_LOG_LEVEL"),
-            show_time=environ.get_config("SHOW_LOG_TIME"),
+            show_level=environ.get_config("SHOW_LOG_LEVEL", type=bool, default=True),
+            show_time=environ.get_config("SHOW_LOG_TIME", type=bool, default=False),
             omit_repeated_times=False,
             log_time_format=self.make_time_text
             # markup=True,
@@ -125,10 +125,13 @@ class LogHandler(RichHandler):
             time = datetime.now()
         elif isinstance(time, (int, float)):
             time = datetime.fromtimestamp(time)
-        if not format:
-            format = "[%x %X]"
         if not style:
             style = "log.time"
+        if not format:
+            if self.formatter:
+                format = self.formatter.datefmt
+            if not format:
+                format = "[%x %X]"
         return Text(time.strftime(format), style=style)
 
     def make_level_text(self, level_no: int, level_name: str = None, style: str = None) -> Text:
@@ -182,24 +185,31 @@ class LogColumn(ProgressColumn):
         super().__init__(table_column=Column(no_wrap=True))
 
     def render(self, task: Task = None) -> Union[str, Text]:
-        handler = LogHandler.get_instance()
-        if not handler:
-            return ""
         result = Text()
-        if handler.show_time:
-            date_format = None
-            if handler.formatter:
-                date_format = handler.formatter.datefmt
-            result.append(handler.make_time_text(format=date_format))
-            result.append(" ")
-        if handler.show_level:
-            result.append(handler.make_level_text(logging.INFO, "⇲"))
+
+        handler = LogHandler.get_instance()
+        if handler:
+            if handler.show_time:
+                if len(result) > 0:
+                    result.append(" ")
+                result.append(handler.make_time_text())
+
+            if handler.show_level:
+                if len(result) > 0:
+                    result.append(" ")
+                result.append(handler.make_level_text(logging.INFO))
+
         return result
 
 
 def create_progress():
-    return Progress(
-        LogColumn(),
+    columns = []
+
+    handler = LogHandler.get_instance()
+    if handler and (handler.show_time or handler.show_level):
+        columns.append(LogColumn())
+
+    columns.extend([
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         DownloadColumn(),
@@ -207,8 +217,9 @@ def create_progress():
         TaskProgressColumn(),
         TextColumn("eta"),
         TimeRemainingColumn(),
-        refresh_per_second=.1,
-    )
+    ])
+
+    return Progress(*columns, refresh_per_second=.1)
 
 
 PromptType = TypeVar("PromptType", bound=PromptBase)
