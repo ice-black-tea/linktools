@@ -187,9 +187,18 @@ class Config:
         """
         self._envvar_prefix = value
 
-    def cast(self, obj: str, type: Type[T] = None):
-        cast = self._cast_types.get(type, type)
-        return cast(obj) if cast is not None else obj
+    def cast(self, obj: str, type: Type[T], default: T = __missing__) -> T:
+        if type is not None and type is not __missing__:
+            cast = self._cast_types.get(type, type)
+            if default is not __missing__:
+                try:
+                    return cast(obj)
+                except:
+                    return default
+            else:
+                return cast(obj)
+
+        return obj
 
     def get_namespace(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
         """
