@@ -352,7 +352,7 @@ class UrlFile:
                         try:
                             if last_error is not None:
                                 _logger.warning(
-                                    f"Download remain retry times: {i}, "
+                                    f"Download retry {context.max_times - i}, "
                                     f"{last_error.__class__.__name__}: {last_error}")
                             context.download(timeout)
                             context.completed = True

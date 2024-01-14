@@ -36,10 +36,9 @@ import re
 import socket
 import threading
 import time
-import typing
 import uuid
 from collections.abc import Iterable, Sized
-from typing import Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
+from typing import TYPE_CHECKING, Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
 from urllib.request import urlopen
 
 from ..metadata import __missing__
@@ -83,8 +82,10 @@ class Timeout:
         return f"Timeout(timeout={self._timeout})"
 
 
-if typing.TYPE_CHECKING:
-    P = typing.ParamSpec("P")
+if TYPE_CHECKING:
+    from typing import ParamSpec
+
+    P = ParamSpec("P")
 
 
 def timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
@@ -349,7 +350,7 @@ def get_list_item(obj: Any, *keys: Any, type: Type[T] = None, default: List[T] =
 
 
 def get_md5(data: Union[str, bytes]) -> str:
-    if type(data) == str:
+    if isinstance(data, str):
         data = bytes(data, "utf8")
     m = hashlib.md5()
     m.update(data)
@@ -357,7 +358,7 @@ def get_md5(data: Union[str, bytes]) -> str:
 
 
 def get_sha1(data: Union[str, bytes]) -> str:
-    if type(data) == str:
+    if isinstance(data, str):
         data = bytes(data, "utf8")
     s1 = hashlib.sha1()
     s1.update(data)
@@ -365,7 +366,7 @@ def get_sha1(data: Union[str, bytes]) -> str:
 
 
 def get_sha256(data: Union[str, bytes]) -> str:
-    if type(data) == str:
+    if isinstance(data, str):
         data = bytes(data, "utf8")
     s1 = hashlib.sha256()
     s1.update(data)
@@ -377,7 +378,7 @@ def make_uuid() -> str:
 
 
 def gzip_compress(data: Union[str, bytes]) -> bytes:
-    if type(data) == str:
+    if isinstance(data, str):
         data = bytes(data, "utf8")
     return gzip.compress(data)
 
@@ -401,20 +402,22 @@ def get_path(root_path: str, *paths: [str], create: bool = False, create_parent:
     return target_path
 
 
-if typing.TYPE_CHECKING:
-    @typing.overload
+if TYPE_CHECKING:
+    from typing import Literal, overload
+
+    @overload
     def read_file(path: str) -> bytes: ...
 
 
-    @typing.overload
-    def read_file(path: str, binary: typing.Literal[True]) -> bytes: ...
+    @overload
+    def read_file(path: str, binary: Literal[True]) -> bytes: ...
 
 
-    @typing.overload
-    def read_file(path: str, binary: typing.Literal[False]) -> str: ...
+    @overload
+    def read_file(path: str, binary: Literal[False]) -> str: ...
 
 
-    @typing.overload
+    @overload
     def read_file(path: str, binary: bool) -> Union[str, bytes]: ...
 
 
@@ -462,7 +465,7 @@ def parse_version(version: str) -> Tuple[int, ...]:
     return tuple(result)
 
 
-widths = [
+_widths = [
     (126, 1), (159, 0), (687, 1), (710, 0), (711, 1),
     (727, 0), (733, 1), (879, 0), (1154, 1), (1161, 0),
     (4347, 1), (4447, 2), (7467, 1), (7521, 0), (8369, 1),
@@ -475,11 +478,11 @@ widths = [
 
 
 def get_char_width(char):
-    global widths
+    global _widths
     o = ord(char)
     if o == 0xe or o == 0xf:
         return 0
-    for num, wid in widths:
+    for num, wid in _widths:
         if o <= num:
             return wid
     return 1

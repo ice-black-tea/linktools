@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Generator, TypeVar, Type
 
-from . import utils, Tool, ToolExecError
+from . import utils, Tool
 
 BridgeType = TypeVar("BridgeType", bound="Bridge")
 DeviceType = TypeVar("DeviceType", bound="BaseDevice")
