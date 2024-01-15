@@ -52,7 +52,7 @@ GENERAL_TOOL_BURPSUITE:
 GENERAL_TOOL_BURPSUITE_KEYGEN:
   <<: *JAR
   name: burpsuite-keygen
-  download_url: https://github.com/ice-black-tea/tools/releases/download/burp-loader-keygen-2_1_06/burp-loader-keygen-2_1_06.jar
+  download_url: https://github.com/ice-black-tea/archives/releases/download/burp-loader-keygen-2_1_06/burp-loader-keygen-2_1_06.jar
 
 ############################################################################################
 # python libraries
