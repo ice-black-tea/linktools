@@ -30,6 +30,7 @@
 from . import metadata
 from . import utils
 from . import decorator
+from ._url import DownloadError, DownloadHttpError
 from ._tools import ToolContainer, Tool, ToolError, ToolNotFound, ToolExecError
 from ._config import Config, ConfigError
 from ._environ import BaseEnviron, environ

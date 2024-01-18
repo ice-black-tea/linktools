@@ -30,12 +30,11 @@ import re
 from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
-from linktools import utils, environ
+from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, IOSCommand
 from linktools.cli.argparse import KeyValueAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
-from linktools.utils import DownloadError
 
 
 class Command(IOSCommand):

@@ -30,12 +30,11 @@ import re
 from argparse import ArgumentParser, Namespace
 from typing import Optional, List, Type
 
-from linktools import utils, environ
+from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, AndroidCommand
 from linktools.cli.argparse import range_type, KeyValueAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
-from linktools.utils import DownloadError
 
 
 class Command(AndroidCommand):

@@ -183,7 +183,7 @@ class Device(BaseDevice):
         apk_path = path_or_url
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
             environ.logger.info(f"Download file: {path_or_url}")
-            file = utils.UrlFile(path_or_url)
+            file = environ.get_url_file(path_or_url)
             apk_path = file.save()
             environ.logger.info(f"Save file to local: {apk_path}")
 

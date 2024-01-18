@@ -31,10 +31,9 @@ import subprocess
 from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
-from linktools import ToolError
+from linktools import ToolError, DownloadError
 from linktools.cli import BaseCommand
 from linktools.cli.argparse import KeyValueAction
-from linktools.utils import DownloadError
 
 
 class Command(BaseCommand):

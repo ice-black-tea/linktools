@@ -129,7 +129,7 @@ class FridaShareScript(FridaUserScript):
 
     def _load(self):
 
-        with utils.UrlFile(self._url) as file:  # 文件锁，避免多进程同时操作
+        with environ.get_url_file(self._url) as file:  # 文件锁，避免多进程同时操作
 
             if not self._cached:
                 file.clear()

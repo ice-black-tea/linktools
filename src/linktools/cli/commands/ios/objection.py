@@ -29,10 +29,9 @@
 from argparse import ArgumentParser, Namespace
 from typing import Optional, List, Type
 
-from linktools import utils, environ
+from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, IOSCommand
 from linktools.frida.ios import IOSFridaServer
-from linktools.utils import DownloadError
 
 
 class Command(IOSCommand):

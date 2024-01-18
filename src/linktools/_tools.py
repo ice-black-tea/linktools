@@ -336,7 +336,7 @@ class Tool(metaclass=ToolMeta):
                 f"{self._container.system} ({self._container.machine})")
         else:
             logger.info(f"Download {self}: {self.download_url}")
-            url_file = utils.UrlFile(self.download_url)
+            url_file = environ.get_url_file(self.download_url)
             temp_dir = environ.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):

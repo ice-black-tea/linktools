@@ -37,7 +37,8 @@ from ._utils import (
     get_md5, get_sha1, get_sha256, make_uuid, gzip_compress,
     get_path, read_file, write_file,
     get_lan_ip, get_wan_ip,
-    parse_version, get_char_width
+    parse_version, get_char_width,
+    make_url, parse_header, parser_cookie, guess_file_name, user_agent,
 )
 
 from ._proxy import (
@@ -47,12 +48,6 @@ from ._proxy import (
 from ._subprocess import (
     Popen,
     list2cmdline,
-)
-
-from ._url import (
-    make_url, parse_header, parser_cookie, guess_file_name, user_agent,
-    DownloadError, DownloadHttpError, UrlFile,
-    NotFoundError, get_chrome_driver,
 )
 
 from ._port import (

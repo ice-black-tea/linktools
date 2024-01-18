@@ -17,9 +17,9 @@ import frida
 
 from .server import FridaServer
 from .. import environ, utils
+from .._url import DownloadHttpError
 from ..android import Device
 from ..reactor import Stoppable
-from ..utils import DownloadHttpError
 
 _logger = environ.get_logger("frida.server.android")
 
@@ -159,7 +159,7 @@ class AndroidFridaServer(FridaServer):
             if os.path.exists(self.path):
                 return
             _logger.info("Download frida server ...")
-            with utils.UrlFile(self.url) as file:
+            with environ.get_url_file(self.url) as file:
                 if os.path.exists(self.path):
                     return
                 with lzma.open(file.save(), "rb") as read, open(self.path, "wb") as write:
