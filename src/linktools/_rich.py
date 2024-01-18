@@ -219,7 +219,7 @@ def create_progress():
         TimeRemainingColumn(),
     ])
 
-    return Progress(*columns, refresh_per_second=.1)
+    return Progress(*columns)
 
 
 PromptType = TypeVar("PromptType", bound=PromptBase)

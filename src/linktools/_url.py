@@ -108,7 +108,7 @@ class DownloadContext:
             task_id = progress.add_task(self.file_name, total=0)
             progress.advance(task_id, initial)
 
-            with open(self.file_path, 'ab') as fp:
+            with open(self.file_path, "ab") as fp:
                 offset = 0
                 for data in fn(timeout.remain):
                     advance = len(data)
@@ -127,8 +127,8 @@ class DownloadContext:
 
             if self.file_size is not None and self.file_size > offset:
                 raise DownloadError(
-                    f"download size {initial + self.file_size} bytes was expected,"
-                    f" got {initial + offset} bytes"
+                    f"download size {initial + self.file_size} bytes was expected, "
+                    f"got {initial + offset} bytes"
                 )
 
             if os.path.getsize(self.file_path) == 0:
@@ -191,10 +191,10 @@ class DownloadContext:
 class UrlFile:
 
     def __init__(self, environ: BaseEnviron, url: str):
-        self._environ = environ
         self._url = url
+        self._environ = environ
         self._ident = f"{get_md5(url)}_{utils.guess_file_name(url)[-100:]}"
-        self._root_path = environ.get_temp_path("download", self._ident)
+        self._root_path = self._environ.get_temp_path("download", self._ident)
         self._file_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")
 
@@ -202,7 +202,7 @@ class UrlFile:
     def _lock(self):
         from filelock import FileLock
         return FileLock(
-            self.environ.get_temp_path("download", "lock", self._ident, create_parent=True)
+            self._environ.get_temp_path("download", "lock", self._ident, create_parent=True)
         )
 
     @timeoutable
