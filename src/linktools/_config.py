@@ -38,8 +38,8 @@ from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Ma
 
 from . import utils
 from ._environ import BaseEnviron
-from ._rich import prompt, confirm
 from .metadata import __missing__
+from .rich import prompt, confirm
 
 T = TypeVar("T")
 EnvironType = TypeVar("EnvironType", bound=BaseEnviron)

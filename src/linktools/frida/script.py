@@ -33,8 +33,8 @@ import threading
 from typing import Union, Optional
 
 from .. import utils, environ
-from .._rich import confirm
 from ..metadata import __missing__
+from ..rich import confirm
 
 _logger = environ.get_logger("frida.app")
 

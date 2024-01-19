@@ -45,9 +45,9 @@ from rich.tree import Tree
 
 from .argparse import BooleanOptionalAction
 from .._environ import BaseEnviron, environ
-from .._rich import LogHandler, is_terminal
 from ..decorator import cached_property
 from ..metadata import __missing__
+from ..rich import LogHandler, is_terminal
 
 T = TypeVar("T")
 

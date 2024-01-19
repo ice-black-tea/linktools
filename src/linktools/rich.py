@@ -179,7 +179,7 @@ class LogHandler(RichHandler):
         return None
 
 
-class LogColumn(ProgressColumn):
+class _LogColumn(ProgressColumn):
 
     def __init__(self):
         super().__init__(table_column=Column(no_wrap=True))
@@ -207,7 +207,7 @@ def create_progress():
 
     handler = LogHandler.get_instance()
     if handler and (handler.show_time or handler.show_level):
-        columns.append(LogColumn())
+        columns.append(_LogColumn())
 
     columns.extend([
         TextColumn("[progress.description]{task.description}"),
@@ -257,7 +257,7 @@ def _create_prompt_class(type: Type[PromptResultType], allow_empty: bool) -> Typ
                 prefix.append(time)
                 prefix_len += time.cell_len + 1
             if handler.show_level:
-                level = handler.make_level_text(logging.INFO, "↳")
+                level = handler.make_level_text(logging.WARNING, "↳")
                 prefix.append(level)
                 prefix_len += level.cell_len + 1
 

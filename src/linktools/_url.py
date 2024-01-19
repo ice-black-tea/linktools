@@ -34,8 +34,8 @@ import shutil
 
 from . import utils
 from ._environ import BaseEnviron
-from ._rich import create_progress
 from .decorator import cached_property
+from .rich import create_progress
 from .utils import Timeout, get_md5, ignore_error, timeoutable
 
 

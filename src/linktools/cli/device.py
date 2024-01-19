@@ -34,10 +34,10 @@ from argparse import ArgumentParser, Action, Namespace
 from typing import Optional, Callable, List, Type, Generic
 
 from . import BaseCommand
-from .._rich import prompt
 from ..android import Adb, AdbError, Device as AdbDevice
 from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
 from ..ios import Sib, SibError, Device as SibDevice
+from ..rich import prompt
 from ..utils import ignore_error
 
 
