@@ -41,7 +41,7 @@ from ._utils import (
     make_url, parse_header, parser_cookie, guess_file_name, user_agent,
 )
 
-from ._proxy import (
+from ._lazy import (
     get_derived_type, lazy_load, lazy_raise, lazy_import, lazy_import_file
 )
 

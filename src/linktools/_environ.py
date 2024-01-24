@@ -232,10 +232,7 @@ class BaseEnviron(abc.ABC):
         """
         环境相关配置
         """
-        from ._config import Config
-
-        config: Config = self._create_config()
-        return config
+        return self._create_config()
 
     def get_config(self, key: str, type: Type[T] = None, default: T = metadata.__missing__) -> T:
         """
@@ -275,10 +272,7 @@ class BaseEnviron(abc.ABC):
         """
         工具集
         """
-        from ._tools import ToolContainer
-
-        tools: ToolContainer = self._create_tools()
-        return tools
+        return self._create_tools()
 
     def get_tool(self, name: str, **kwargs) -> "Tool":
         """

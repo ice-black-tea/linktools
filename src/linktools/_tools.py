@@ -36,11 +36,9 @@ import warnings
 from typing import Dict, Union, Mapping, Iterator, Any, Tuple, List, Type
 
 from . import utils
-from ._environ import environ, BaseEnviron
+from ._environ import BaseEnviron
 from .decorator import cached_property
 from .metadata import __missing__
-
-logger = environ.get_logger("tools")
 
 
 class Parser(object):
@@ -276,7 +274,7 @@ class Tool(metaclass=ToolMeta):
         paths = ["tools"]
         if not utils.is_empty(cfg["unpack_path"]):
             paths.append(cfg["unpack_path"])
-        cfg["root_path"] = environ.get_data_dir(*paths)
+        cfg["root_path"] = self._container.environ.get_data_dir(*paths)
 
         if absolute_path:
             cfg["absolute_path"] = absolute_path.format(tools=self._container, **cfg)
@@ -335,32 +333,32 @@ class Tool(metaclass=ToolMeta):
                 f"{self} does not support on "
                 f"{self._container.system} ({self._container.machine})")
         else:
-            logger.info(f"Download {self}: {self.download_url}")
-            url_file = environ.get_url_file(self.download_url)
-            temp_dir = environ.get_temp_path("tools", "cache")
+            self._container.logger.info(f"Download {self}: {self.download_url}")
+            url_file = self._container.environ.get_url_file(self.download_url)
+            temp_dir = self._container.environ.get_temp_path("tools", "cache")
             temp_path = url_file.save(save_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
-                logger.debug(f"Unpack {self} to {self.root_path}")
+                self._container.logger.debug(f"Unpack {self} to {self.root_path}")
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
-                logger.debug(f"Move {self} to {self.absolute_path}")
+                self._container.logger.debug(f"Move {self} to {self.absolute_path}")
                 shutil.move(temp_path, self.absolute_path)
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
-            logger.debug(f"Chmod 755 {self.absolute_path}")
+            self._container.logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
         if not self.exists:
-            logger.debug(f"{self} does not exist, skip")
+            self._container.logger.debug(f"{self} does not exist, skip")
             return
         if not utils.is_empty(self.unpack_path):
-            logger.debug(f"Delete {self.root_path}")
+            self._container.logger.debug(f"Delete {self.root_path}")
             shutil.rmtree(self.root_path, ignore_errors=True)
         elif self.absolute_path.startswith(self.root_path):
-            logger.debug(f"Delete {self.absolute_path}")
+            self._container.logger.debug(f"Delete {self.absolute_path}")
             os.remove(self.absolute_path)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Popen:
@@ -398,8 +396,8 @@ class Tool(metaclass=ToolMeta):
         try:
             out, err = process.exec(
                 timeout=timeout,
-                on_stdout=logger.info if log_output else None,
-                on_stderr=logger.error if log_output else None
+                on_stdout=self._container.logger.info if log_output else None,
+                on_stderr=self._container.logger.error if log_output else None
             )
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):
@@ -429,6 +427,8 @@ class ToolContainer(object):
 
     def __init__(self, env: BaseEnviron, **kwargs):
         self.environ = env
+        self.logger = env.get_logger("tools")
+
         self.config = kwargs
         self.config.setdefault("system", platform.system().lower())
         self.config.setdefault("machine", platform.machine().lower())
