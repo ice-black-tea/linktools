@@ -509,13 +509,21 @@ class SubCommandMixin:
 
         return subcommands
 
-    def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
+    def parse_subcommand(self: "BaseCommand", args: Namespace) -> Optional[SubCommand]:
 
         name = f"__subcommand_{id(self):x}__"
         if hasattr(args, name):
             subcommand = getattr(args, name)
             if isinstance(subcommand, SubCommand):
-                return subcommand.run(args)
+                return subcommand
+
+        return None
+
+    def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
+
+        subcommand = self.parse_subcommand(args)
+        if subcommand:
+            return subcommand.run(args)
 
         raise SubCommandError("Not found subcommand")
 

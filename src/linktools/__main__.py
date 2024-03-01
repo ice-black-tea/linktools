@@ -38,10 +38,10 @@ class Command(BaseCommand):
         self.add_subcommands(parser=parser, target=commands)
 
     def run(self, args: Namespace) -> Optional[int]:
-        try:
-            return self.run_subcommand(args)
-        except SubCommandError:
+        subcommand = self.parse_subcommand(args)
+        if not subcommand:
             return self.print_subcommands(args)
+        return subcommand.run(args)
 
 
 command = Command()

@@ -49,8 +49,6 @@ from ..references.fake_useragent import UserAgent
 
 T = TypeVar("T")
 
-_logger = environ.get_logger("utils")
-
 
 class Timeout:
 
@@ -515,7 +513,7 @@ def user_agent(style=None) -> str:
         return ua.random
 
     except Exception as e:
-        _logger.debug(f"fetch user agent error: {e}")
+        environ.logger.debug(f"fetch user agent error: {e}")
 
     return ua.fallback
 

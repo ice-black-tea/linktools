@@ -12,7 +12,6 @@ from . import Timeout, timeoutable
 from .._environ import environ
 from ..decorator import cached_property
 
-_logger = environ.get_logger("utils.subprocess")
 
 list2cmdline = subprocess.list2cmdline
 
@@ -61,7 +60,7 @@ class Output:
                 self._queue.put((flag, data))
         except OSError as e:
             if e.errno != errno.EBADF:
-                _logger.debug(f"Handle output error: {e}")
+                environ.logger.debug(f"Handle output error: {e}")
         finally:
             event.set()
             self._queue.put((None, None))
@@ -109,7 +108,7 @@ class Popen(subprocess.Popen):
             kwargs["env"] = env
 
         args = [str(arg) for arg in args]
-        _logger.debug(f"Exec cmdline: {list2cmdline(args)}")
+        environ.logger.debug(f"Exec cmdline: {list2cmdline(args)}")
 
         super().__init__(args, **kwargs)
 

@@ -48,29 +48,6 @@ asset_path = os.path.join(root_path, "assets")
 cli_path = os.path.join(root_path, "cli")
 
 
-class Logger(logging.Logger):
-    _empty = tuple()
-
-    def _log(self, level, msg, args, **kwargs):
-        msg = str(msg)
-        msg += ''.join([str(i) for i in args])
-
-        kwargs["extra"] = kwargs.get("extra") or {}
-        self._move_args(
-            kwargs, kwargs["extra"],
-            "style", "indent", "markup", "highlighter"
-        )
-
-        return super()._log(level, msg, self._empty, **kwargs)
-
-    @classmethod
-    def _move_args(cls, from_, to_, *keys):
-        for key in keys:
-            value = from_.pop(key, None)
-            if value is not None:
-                to_[key] = value
-
-
 class BaseEnviron(abc.ABC):
 
     @property
@@ -175,11 +152,42 @@ class BaseEnviron(abc.ABC):
         """
         return utils.get_path(self.temp_path, *paths, create=create, create_parent=False)
 
-    @cached_property
+    @cached_classproperty
     def _log_manager(self) -> logging.Manager:
-        manager = logging.Manager(logging.root)
-        manager.setLoggerClass(Logger)
-        return manager
+
+        empty_args = tuple()
+
+        class Logger(logging.Logger):
+
+            def _log(self, level, msg, args, **kwargs):
+                msg = str(msg)
+                msg += ''.join([str(i) for i in args])
+
+                kwargs["extra"] = kwargs.get("extra") or {}
+                self._move_args(
+                    kwargs, kwargs["extra"],
+                    "style", "indent", "markup", "highlighter"
+                )
+
+                return super()._log(level, msg, empty_args, **kwargs)
+
+            @classmethod
+            def _move_args(cls, from_, to_, *keys):
+                for key in keys:
+                    value = from_.pop(key, None)
+                    if value is not None:
+                        to_[key] = value
+
+        class LogManager(utils.get_derived_type(logging.Manager)):
+
+            def __init__(self, manager):
+                super().__init__(manager)
+                object.__setattr__(self, "loggerClass", Logger)
+
+            def getLogger(self, name):
+                return logging.Manager.getLogger(self, name)
+
+        return LogManager(logging.root.manager)
 
     @cached_property
     def logger(self) -> logging.Logger:
