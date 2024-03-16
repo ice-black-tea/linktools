@@ -42,20 +42,19 @@ class Command(AndroidCommand):
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("-p", "--privilege", action="store_true", default=False,
                             help="run with root privilege")
+        parser.add_argument("-u", "--user", action="store",
+                            help="run with user privilege")
         parser.add_argument("agent_args", nargs="...", help="agent args")
 
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
-        adb_args = [
-            "CLASSPATH=%s" % device.init_agent(),
-            "app_process", "/", device.agent_info["main"],
-            *args.agent_args
-        ]
-        cmdline = utils.list2cmdline([str(arg) for arg in adb_args])
-        adb_args = ["shell", cmdline] \
-            if not args.privilege or device.uid == 0 \
-            else ["shell", "su", "-c", cmdline]
-        process = device.popen(*adb_args)
+        process = device.popen(
+            *device.make_shell_args(
+                *device.make_agent_args(*args.agent_args),
+                privilege=args.privilege,
+                user=args.user
+            )
+        )
         return process.call()
 
 

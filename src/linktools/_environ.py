@@ -38,7 +38,7 @@ from .decorator import cached_property, cached_classproperty
 
 if TYPE_CHECKING:
     from ._config import ConfigDict, Config
-    from ._tools import ToolContainer, Tool
+    from ._tools import Tools, Tool
     from ._url import UrlFile
 
 T = TypeVar("T")
@@ -254,10 +254,10 @@ class BaseEnviron(abc.ABC):
         """
         self.config.set(key, value)
 
-    def _create_tools(self) -> "ToolContainer":
-        from ._tools import ToolContainer
+    def _create_tools(self) -> "Tools":
+        from ._tools import Tools
 
-        tools = ToolContainer(self)
+        tools = Tools(self)
 
         # set environment variable
         index = 0
@@ -276,7 +276,7 @@ class BaseEnviron(abc.ABC):
         return tools
 
     @cached_property
-    def tools(self) -> "ToolContainer":
+    def tools(self) -> "Tools":
         """
         工具集
         """

@@ -207,7 +207,7 @@ class Tool(metaclass=ToolMeta):
     exists: bool = property(lambda self: self.absolute_path and os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: None if not self.absolute_path else os.path.dirname(self.absolute_path))
 
-    def __init__(self, container: "ToolContainer", config: Union[dict, str], **kwargs):
+    def __init__(self, container: "Tools", config: Union[dict, str], **kwargs):
         self._container = container
         self._config = config
 
@@ -423,7 +423,7 @@ class Tool(metaclass=ToolMeta):
         return f"Tool<{self.name}>"
 
 
-class ToolContainer(object):
+class Tools(object):
 
     def __init__(self, env: BaseEnviron, **kwargs):
         self.environ = env

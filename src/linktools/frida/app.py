@@ -845,10 +845,11 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         """
         _logger.debug(f"{spawn} added")
 
-        for identifier in self._target_identifiers:
-            if identifier.search(spawn.identifier):
-                self.load_script(spawn.pid, resume=True)
-                return
+        if spawn and spawn.identifier:
+            for identifier in self._target_identifiers:
+                if identifier.search(spawn.identifier):
+                    self.load_script(spawn.pid, resume=True)
+                    return
         try:
             self.device.resume(spawn.pid)
         except Exception as e:

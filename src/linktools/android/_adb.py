@@ -149,18 +149,26 @@ class Device(BaseDevice):
         args = ["-s", self.id, *args]
         return self._adb.exec(*args, **kwargs)
 
+    def make_shell_args(self, *args: [Any], privilege: bool = False, user: str = None):
+        cmd = utils.list2cmdline([str(arg) for arg in args])
+        if privilege and self.uid != 0:
+            args = ["shell", "su", "-c", cmd]
+        elif user:
+            args = ["shell", "su", user, "-c", cmd]
+        else:
+            args = ["shell", cmd]
+        return args
+
     @utils.timeoutable
-    def shell(self, *args: [Any], privilege: bool = False, **kwargs) -> str:
+    def shell(self, *args: [Any], privilege: bool = False, user: str = None, **kwargs) -> str:
         """
         执行shell
         :param args: shell命令
         :param privilege: 是否以root权限运行
+        :param user: 以指定user运行
         :return: adb输出结果
         """
-        cmd = utils.list2cmdline([str(arg) for arg in args])
-        args = ["shell", cmd] \
-            if not privilege or self.uid == 0 \
-            else ["shell", "su", "-c", cmd]
+        args = self.make_shell_args(*args, privilege=privilege, user=user)
         return self.exec(*args, **kwargs)
 
     @utils.timeoutable
@@ -411,9 +419,13 @@ class Device(BaseDevice):
 
     @cached_classproperty
     def agent_info(self) -> dict:
-        return environ.get_config("ANDROID_TOOL_BRIDGE_APK", type=dict)
+        agent_info = environ.get_config("ANDROID_TOOL_BRIDGE_APK", type=dict)
+        agent_info["start_flag"] = f"__start_flag_{agent_info['md5']}__"
+        agent_info["end_flag"] = f"__end_flag_{agent_info['md5']}__"
+        return agent_info
 
-    def init_agent(self):
+    @cached_property
+    def agent_path(self) -> str:
         """
         初始化agent
         :return: agent路径
@@ -434,6 +446,33 @@ class Device(BaseDevice):
 
         return target_path
 
+    def make_agent_args(self, *args: [str], flag: bool = False) -> [str]:
+        """
+        生成agent参数
+        :param args: 参数
+        :param flag: 是否添加flag
+        :return: 参数列表
+        """
+        agent_info = self.agent_info
+        start_flag = agent_info["start_flag"]
+        end_flag = agent_info["end_flag"]
+        main_class = agent_info["main"]
+
+        agent_args = [
+            "CLASSPATH=%s" % self.agent_path,
+            "app_process", "/", main_class,
+        ]
+
+        if flag:
+            agent_args.extend([
+                "--start-flag", start_flag,
+                "--end-flag", end_flag
+            ])
+
+        agent_args.extend(args)
+
+        return agent_args
+
     @utils.timeoutable
     def call_agent(self, *args: [str], **kwargs) -> str:
         """
@@ -441,16 +480,13 @@ class Device(BaseDevice):
         :param args: 参数
         :return: 输出结果
         """
-        apk_md5 = self.agent_info["md5"]
-        main_class = self.agent_info["main"]
-        start_flag = f"__start_flag_{apk_md5}__"
-        end_flag = f"__end_flag_{apk_md5}__"
+        agent_info = self.agent_info
+        start_flag = agent_info["start_flag"]
+        end_flag = agent_info["end_flag"]
 
         # call apk
-        args = ["--start-flag", start_flag, "--end-flag", end_flag, *args]
         result = self.shell(
-            "CLASSPATH=%s" % self.init_agent(),
-            "app_process", "/", main_class, *args,
+            *self.make_agent_args(*args, flag=True),
             **kwargs
         )
 
