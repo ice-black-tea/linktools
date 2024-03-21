@@ -258,6 +258,13 @@ def subcommand_argument(
     return decorator
 
 
+class _SubCommandInfo:
+
+    def __init__(self, subcommand: Union["SubCommand", "_SubCommandInfo"]):
+        self.node: SubCommand = subcommand.node if isinstance(subcommand, _SubCommandInfo) else subcommand
+        self.children: List[_SubCommandInfo] = []
+
+
 class SubCommand(metaclass=abc.ABCMeta):
     ROOT_ID = ""
 
@@ -273,7 +280,7 @@ class SubCommand(metaclass=abc.ABCMeta):
 
     @property
     def is_group(self):
-        return isinstance(self, SubCommandGroup)
+        return False
 
     def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
         return type(self.name, help=self.description)
@@ -287,6 +294,10 @@ class SubCommand(metaclass=abc.ABCMeta):
 
 
 class SubCommandGroup(SubCommand):
+
+    @property
+    def is_group(self):
+        return True
 
     def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
         parser = type(self.name, help=self.description)
@@ -478,20 +489,21 @@ class SubCommandMixin:
             self: "BaseCommand",
             parser: ArgumentParser = None,
             target: Any = None,
-            required: bool = False) -> List[SubCommand]:
+            required: bool = False) -> List[_SubCommandInfo]:
 
-        subcommands = []
+        subcommand_infos: List[_SubCommandInfo] = []
 
         target = target or self
         parser = parser or self._argument_parser
-        parser.set_defaults(**{f"__subcommands_{id(self):x}__": subcommands})
+        parser.set_defaults(**{f"__subcommands_{id(self):x}__": subcommand_infos})
 
         subparsers_map = {}
         subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
         subparsers.required = required
 
         for subcommand in self.walk_subcommands(target):
-            subcommands.append(subcommand)
+            subcommand_info = _SubCommandInfo(subcommand)
+            subcommand_infos.append(subcommand_info)
 
             parent_subparsers = subparsers
             if subcommand.has_parent:
@@ -507,7 +519,15 @@ class SubCommandMixin:
                 _subparsers.required = False
                 subparsers_map[subcommand.id] = _subparsers
 
-        return subcommands
+            # BaseCommand 类型单独处理，因为有可能在init_arguments中添加了子命令
+            if isinstance(subcommand, SubCommandWrapper):
+                sub_subcommand_infos = parser.get_default(f"__subcommands_{id(subcommand.command):x}__")
+                if sub_subcommand_infos:
+                    subcommand_info.children.extend(
+                        sub_subcommand_infos
+                    )
+
+        return subcommand_infos
 
     def parse_subcommand(self: "BaseCommand", args: Namespace) -> Optional[SubCommand]:
 
@@ -527,31 +547,53 @@ class SubCommandMixin:
 
         raise SubCommandError("Not found subcommand")
 
-    def print_subcommands(self: "BaseCommand", args: Namespace):
+    def print_subcommands(self: "BaseCommand", args: Namespace, root: SubCommand = None) -> None:
 
         name = f"__subcommands_{id(self):x}__"
         if not hasattr(args, name):
             raise SubCommandError("No subcommand has been added yet")
 
-        tree = Tree("📎 All commands")
-        nodes: Dict[str, Tree] = {}
-        for subcommand in getattr(args, name):
-            node = nodes.get(subcommand.parent_id) if subcommand.has_parent else tree
-            if subcommand.is_group:
-                text = f"📖 [underline red]{subcommand.name}[/underline red]"
-                if subcommand.description:
-                    text = f"{text}: {subcommand.description}"
-                nodes[subcommand.id] = node.add(text)
-            else:
-                text = f"👉 [bold red]{subcommand.name}[/bold red]"
-                if subcommand.description:
-                    text = f"{text}: {subcommand.description}"
-                nodes[subcommand.id] = node.add(text)
+        root_id = SubCommand.ROOT_ID
+        description = "All commands"
+        if root and root.description:
+            root_id = root.id
+            description = root.description
+        elif self.description:
+            description = self.description
+        tree = self._make_subcommand_tree(
+            Tree(f"📎 {description}"),
+            getattr(args, name),
+            root_id,
+        )
 
         console = get_console()
         if self.environ.description != NotImplemented:
             console.print(self.environ.description, highlight=False)
         console.print(tree, highlight=False)
+
+    def _make_subcommand_tree(self: "BaseCommand", tree: Tree, infos: List[_SubCommandInfo], root_id: str) -> Tree:
+        nodes: Dict[str, Tree] = {}
+        for info in infos:
+            if info.node.parent_id == root_id:
+                node = tree
+            elif info.node.parent_id in nodes:
+                node = nodes.get(info.node.parent_id)
+            else:
+                self.logger.debug(f"Not found parent node id `{info.node.parent_id}`, skip")
+                continue
+            if info.node.is_group or info.children:
+                text = f"📖 [underline red]{info.node.name}[/underline red]"
+                if info.node.description:
+                    text = f"{text}: {info.node.description}"
+                nodes[info.node.id] = node.add(text)
+            else:
+                text = f"👉 [bold red]{info.node.name}[/bold red]"
+                if info.node.description:
+                    text = f"{text}: {info.node.description}"
+                nodes[info.node.id] = node.add(text)
+            if info.children:
+                self._make_subcommand_tree(nodes[info.node.id], info.children, SubCommand.ROOT_ID)
+        return tree
 
 
 class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):

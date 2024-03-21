@@ -32,7 +32,7 @@ import re
 import time
 from typing import Optional, Any, Generator, List
 
-from ._struct import Package, UnixSocket, InetSocket, Process
+from .struct import Package, UnixSocket, InetSocket, Process
 from .. import utils, environ
 from ..decorator import cached_property, cached_classproperty
 from ..device import BridgeError, Bridge, BaseDevice

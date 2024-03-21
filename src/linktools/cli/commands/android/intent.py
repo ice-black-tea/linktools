@@ -40,10 +40,13 @@ class Command(AndroidCommand):
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        self.add_subcommands(parser, required=True)
+        self.add_subcommands(parser)
 
     def run(self, args: Namespace) -> Optional[int]:
-        return self.run_subcommand(args)
+        subcommand = self.parse_subcommand(args)
+        if not subcommand:
+            return self.print_subcommands(args)
+        return subcommand.run(args)
 
     @subcommand("setting", help="start setting activity", pass_args=True)
     def on_setting(self, args: Namespace):
@@ -78,7 +81,7 @@ class Command(AndroidCommand):
                      "-d", "package:%s" % package,
                      log_output=True)
 
-    @subcommand("setting-cert", help="install cert (need \'/data/local/tmp\' write permission)", pass_args=True)
+    @subcommand("setting-cert", help="install cert (require \'/data/local/tmp\' write permission)", pass_args=True)
     @subcommand_argument("path")
     def on_setting_cert(self, args: Namespace, path: str):
         device = args.device_picker.pick()
@@ -91,7 +94,7 @@ class Command(AndroidCommand):
                      "-d", "file://%s" % remote_path,
                      log_output=True)
 
-    @subcommand("install", help="install apk file (need \'/data/local/tmp\' write permission)", pass_args=True)
+    @subcommand("install", help="install apk file (require \'/data/local/tmp\' write permission)", pass_args=True)
     @subcommand_argument("path")
     def on_install(self, args: Namespace, path: str):
         device = args.device_picker.pick()

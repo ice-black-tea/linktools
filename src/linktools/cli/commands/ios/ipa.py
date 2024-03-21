@@ -11,7 +11,7 @@ from linktools.ios import IPA
 
 class Command(BaseCommand):
     """
-    Parser ipa file
+    Parse ipa file
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:

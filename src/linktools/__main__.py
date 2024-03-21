@@ -39,8 +39,8 @@ class Command(BaseCommand):
 
     def run(self, args: Namespace) -> Optional[int]:
         subcommand = self.parse_subcommand(args)
-        if not subcommand:
-            return self.print_subcommands(args)
+        if not subcommand or subcommand.is_group:
+            return self.print_subcommands(args, subcommand)
         return subcommand.run(args)
 
 
