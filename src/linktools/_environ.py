@@ -27,6 +27,7 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import abc
+import getpass
 import json
 import logging
 import os
@@ -41,11 +42,10 @@ if TYPE_CHECKING:
     from ._tools import Tools, Tool
     from ._url import UrlFile
 
-T = TypeVar("T")
+    T = TypeVar("T")
 
 root_path = os.path.dirname(__file__)
 asset_path = os.path.join(root_path, "assets")
-cli_path = os.path.join(root_path, "cli")
 
 
 class BaseEnviron(abc.ABC):
@@ -87,11 +87,25 @@ class BaseEnviron(abc.ABC):
         return self.tools.system
 
     @property
+    def machine(self) -> str:
+        """
+        机器类型，e.g. 'i386'
+        """
+        return self.tools.machine
+
+    @property
+    def user(self):
+        """
+        当前用户
+        """
+        return getpass.getuser()
+
+    @property
     def debug(self) -> bool:
         """
         debug模式
         """
-        return self.get_config("DEBUG", type=bool)
+        return self.get_config("DEBUG", type=bool, default=False)
 
     @debug.setter
     def debug(self, value: bool) -> None:
@@ -105,20 +119,30 @@ class BaseEnviron(abc.ABC):
         """
         存放文件目录
         """
-        path = self.get_config("DATA_PATH", type=str, default=None)
-        if not path:
-            path = os.path.join(self.get_config("STORAGE_PATH", type=str), "data")
-        return path
+        prefix = f"{metadata.__name__}_".upper()
+        path = os.environ.get(f"{prefix}_DATA_PATH", None)
+        if path:  # 优先使用环境变量中的${DATA_PATH}
+            return path
+        path = os.environ.get(f"{prefix}_STORAGE_PATH", None)
+        if path:  # 其次使用环境变量中的${STORAGE_PATH}/data
+            return os.path.join(path, "data")
+        # 最后使用默认路径${HOME}/.linktools/data
+        return os.path.join(str(pathlib.Path.home()), f".{metadata.__name__}", "data")
 
     @cached_property
     def temp_path(self) -> str:
         """
         存放临时文件目录
         """
-        path = self.get_config("TEMP_PATH", type=str, default=None)
-        if not path:
-            path = os.path.join(self.get_config("STORAGE_PATH", type=str), "temp")
-        return path
+        prefix = f"{metadata.__name__}_".upper()
+        path = os.environ.get(f"{prefix}_TEMP_PATH", None)
+        if path:  # 优先使用环境变量中的${TEMP_PATH}
+            return path
+        path = os.environ.get(f"{prefix}_STORAGE_PATH", None)
+        if path:  # 其次使用环境变量中的${STORAGE_PATH}/temp
+            return os.path.join(path, "temp")
+        # 最后使用默认路径${HOME}/.linktools/temp
+        return os.path.join(str(pathlib.Path.home()), f".{metadata.__name__}", "temp")
 
     def get_path(self, *paths: str) -> str:
         """
@@ -204,16 +228,10 @@ class BaseEnviron(abc.ABC):
         return self._log_manager.getLogger(name)
 
     @cached_classproperty
-    def _internal_config(self) -> "ConfigDict":
+    def _default_config(self) -> "ConfigDict":
         from ._config import ConfigDict
 
         config = ConfigDict()
-
-        # 初始化内部配置
-        config.update(
-            DEBUG=False,
-            STORAGE_PATH=str(pathlib.Path.home() / f".{metadata.__name__}"),
-        )
 
         yaml_path = os.path.join(root_path, "template", "tools.yml")
         if metadata.__release__ or not os.path.exists(yaml_path):
@@ -233,16 +251,26 @@ class BaseEnviron(abc.ABC):
     def _create_config(self) -> "Config":
         from ._config import Config
 
-        return Config(self, self._internal_config)
+        return Config(self, self._default_config)
 
     @cached_property
     def config(self) -> "Config":
         """
         环境相关配置
         """
-        return self._create_config()
+        config = self._create_config()
+        config.load_default()
+        return config
 
-    def get_config(self, key: str, type: Type[T] = None, default: T = metadata.__missing__) -> T:
+    def wrap_config(self) -> "Config":
+        """
+        环境相关配置，与environ.config共享数据
+        """
+        from ._config import ConfigWrapper
+
+        return ConfigWrapper(self.config)
+
+    def get_config(self, key: str, type: "Type[T]" = None, default: Any = metadata.__missing__) -> "T":
         """
         获取指定配置，优先会从环境变量中获取
         """
@@ -326,7 +354,7 @@ class Environ(BaseEnviron):
             "DEFAULT_USER_AGENT",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/98.0.4758.109 "
+            "Chrome/123.0.0.0 "
             "Safari/537.36"
         )
 
@@ -337,9 +365,6 @@ class Environ(BaseEnviron):
         )
 
         return config
-
-    def get_cli_path(self, *paths: str) -> str:
-        return utils.get_path(cli_path, *paths)
 
     def get_asset_path(self, *paths: str) -> str:
         return utils.get_path(asset_path, *paths)

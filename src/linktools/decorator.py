@@ -28,32 +28,37 @@
 """
 import functools
 import threading
-import typing
+from typing import TYPE_CHECKING, TypeVar, Type, Any, Callable, Tuple
 
-_T = typing.TypeVar('_T')
-_MISSING = ...
+from .metadata import __missing__
+
+if TYPE_CHECKING:
+    from typing import ParamSpec
+
+    T = TypeVar("T")
+    P = ParamSpec("P")
 
 
-def singleton(cls: typing.Type[_T]) -> typing.Callable[..., _T]:
-    instance = _MISSING
+def singleton(cls: "Type[T]") -> "Callable[P, T]":
+    instance = __missing__
     lock = threading.RLock()
 
     @functools.wraps(cls)
     def wrapper(*args, **kwargs):
         nonlocal instance
-        if instance is _MISSING:
+        if instance is __missing__:
             with lock:
-                if instance is _MISSING:
+                if instance is __missing__:
                     instance = cls(*args, **kwargs)
         return instance
 
     return wrapper
 
 
-def try_except(errors: typing.Tuple[typing.Type[BaseException]] = (Exception,), default: typing.Any = None):
-    def decorator(fn: typing.Callable[..., _T]) -> typing.Callable[..., _T]:
+def try_except(errors: "Tuple[Type[BaseException]]" = (Exception,), default: "Any" = None):
+    def decorator(fn: "Callable[P, T]") -> "Callable[P, T]":
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs) -> _T:
+        def wrapper(*args: "P.args", **kwargs: "P.kwargs") -> "T":
             try:
                 return fn(*args, **kwargs)
             except errors:
@@ -68,9 +73,9 @@ def synchronized(lock=None):
     if lock is None:
         lock = threading.Lock()
 
-    def decorator(fn: typing.Callable[..., _T]) -> typing.Callable[..., _T]:
+    def decorator(fn: "Callable[P, T]") -> "Callable[P, T]":
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs) -> _T:
+        def wrapper(*args: "P.args", **kwargs: "P.kwargs") -> "T":
             lock.acquire()
             try:
                 return fn(*args, **kwargs)
@@ -113,12 +118,12 @@ class cached_property:
                 f"instance to cache {self.attrname!r} property."
             )
             raise TypeError(msg) from None
-        val = cache.get(self.attrname, _MISSING)
-        if val is _MISSING:
+        val = cache.get(self.attrname, __missing__)
+        if val is __missing__:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, _MISSING)
-                if val is _MISSING:
+                val = cache.get(self.attrname, __missing__)
+                if val is __missing__:
                     val = self.func(instance)
                     try:
                         cache[self.attrname] = val
@@ -151,13 +156,13 @@ class cached_classproperty:
         self.func = func
         self.__doc__ = func.__doc__
         self.lock = threading.RLock()
-        self.val = _MISSING
+        self.val = __missing__
 
     def __get__(self, instance, owner=None):
-        if self.val is _MISSING:
+        if self.val is __missing__:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                if self.val is _MISSING:
+                if self.val is __missing__:
                     self.val = self.func(owner)
 
         return self.val

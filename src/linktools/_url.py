@@ -31,12 +31,15 @@ import contextlib
 import os
 import shelve
 import shutil
+from typing import TYPE_CHECKING
 
-from . import utils
-from ._environ import BaseEnviron
 from .decorator import cached_property
 from .rich import create_progress
-from .utils import Timeout, get_md5, ignore_error, timeoutable
+from .utils import get_md5, ignore_error, timeoutable, parse_header, guess_file_name, user_agent
+
+if TYPE_CHECKING:
+    from ._environ import BaseEnviron
+    from .utils import Timeout
 
 
 class DownloadError(Exception):
@@ -72,7 +75,7 @@ class DownloadContext:
     completed: bool = DownloadContextVar("IsCompleted", False)
     max_times: int = DownloadContextVar("MaxTimes")
 
-    def __init__(self, environ: BaseEnviron, path: str):
+    def __init__(self, environ: "BaseEnviron", path: str):
         self._environ = environ
         self._db = shelve.open(path)
 
@@ -83,7 +86,7 @@ class DownloadContext:
     def __exit__(self, *args, **kwargs):
         self._db.__exit__(*args, **kwargs)
 
-    def download(self, timeout: Timeout):
+    def download(self, timeout: "Timeout"):
         self._environ.logger.debug(f"Download file to temp path {self.file_path}")
 
         initial = 0
@@ -105,7 +108,7 @@ class DownloadContext:
             fn = self._download_with_urllib
 
         with create_progress() as progress:
-            task_id = progress.add_task(self.file_name, total=0)
+            task_id = progress.add_task(self.file_name, total=None)
             progress.advance(task_id, initial)
 
             with open(self.file_path, "ab") as fp:
@@ -150,7 +153,7 @@ class DownloadContext:
             if "Content-Length" in resp.headers:
                 self.file_size = int(resp.headers.get("Content-Length"))
             if "Content-Disposition" in resp.headers:
-                _, params = utils.parse_header(resp.headers["Content-Disposition"])
+                _, params = parse_header(resp.headers["Content-Disposition"])
                 if "filename" in params:
                     self.file_name = params["filename"]
 
@@ -177,7 +180,7 @@ class DownloadContext:
             if "Content-Length" in headers:
                 self.file_size = int(headers["Content-Length"])
             if "Content-Disposition" in headers:
-                _, params = utils.parse_header(headers["Content-Disposition"])
+                _, params = parse_header(headers["Content-Disposition"])
                 if "filename" in params:
                     self.file_name = params["filename"]
 
@@ -190,10 +193,10 @@ class DownloadContext:
 
 class UrlFile:
 
-    def __init__(self, environ: BaseEnviron, url: str):
+    def __init__(self, environ: "BaseEnviron", url: str):
         self._url = url
         self._environ = environ
-        self._ident = f"{get_md5(url)}_{utils.guess_file_name(url)[-100:]}"
+        self._ident = f"{get_md5(url)}_{guess_file_name(url)[-100:]}"
         self._root_path = self._environ.get_temp_path("download", self._ident)
         self._file_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")
@@ -206,11 +209,11 @@ class UrlFile:
         )
 
     @timeoutable
-    def save(self, save_dir: str = None, save_name: str = None, timeout: Timeout = None, retry: int = 2, **kwargs) -> str:
+    def save(self, to_dir: str = None, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
         """
         从指定url下载文件
-        :param save_dir: 文件路径，如果为空，则保存到temp目录
-        :param save_name: 文件名，如果为空，则默认为下载的文件名
+        :param to_dir: 文件路径，如果为空，则保存到temp目录
+        :param name: 文件名，如果为空，则默认为下载的文件名
         :param timeout: 超时时间
         :param retry: 重试次数
         :return: 文件路径
@@ -238,9 +241,9 @@ class UrlFile:
                     context.file_size = None
 
                     if not context.file_name:
-                        context.file_name = save_name or utils.guess_file_name(self._url)
+                        context.file_name = name or guess_file_name(self._url)
                     if not context.user_agent:
-                        context.user_agent = kwargs.pop("user_agent", None) or utils.user_agent("chrome")
+                        context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
 
                     # 开始下载
                     last_error = None
@@ -261,14 +264,14 @@ class UrlFile:
                     if not context.completed:
                         raise last_error
 
-                if save_dir:
+                if to_dir:
                     # 如果指定了路径，先创建路径
-                    if not os.path.exists(save_dir):
-                        self._environ.logger.debug(f"{save_dir} does not exist, create")
-                        os.makedirs(save_dir)
+                    if not os.path.exists(to_dir):
+                        self._environ.logger.debug(f"{to_dir} does not exist, create")
+                        os.makedirs(to_dir)
 
                     # 然后把文件保存到指定路径下
-                    target_path = os.path.join(save_dir, save_name or context.file_name)
+                    target_path = os.path.join(to_dir, name or context.file_name)
                     self._environ.logger.debug(f"Rename {self._file_path} to {target_path}")
                     os.rename(self._file_path, target_path)
 

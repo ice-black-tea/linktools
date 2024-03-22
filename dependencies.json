@@ -28,6 +28,11 @@
     ],
     "ssl": [
       "pyOpenSSL"
+    ],
+    "container": [
+      "GitPython",
+      "jinja2",
+      "pyyaml"
     ]
   }
 }

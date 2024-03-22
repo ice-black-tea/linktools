@@ -28,21 +28,26 @@
 """
 
 import abc
+import configparser
 import errno
 import json
 import os
 import pickle
 import threading
 from types import ModuleType
-from typing import Type, Optional, Any, Dict, Generator, Tuple, Callable, IO, Mapping, Union, List, TypeVar
+from typing import \
+    TYPE_CHECKING, TypeVar, Type, Optional, Generator, \
+    Any, Tuple, IO, Mapping, Union, List, Dict, Callable
 
-from . import utils
-from ._environ import BaseEnviron
+from .decorator import cached_property
 from .metadata import __missing__
-from .rich import prompt, confirm
+from .rich import prompt, confirm, choose
 
-T = TypeVar("T")
-EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
+if TYPE_CHECKING:
+    from ._environ import BaseEnviron
+
+    T = TypeVar("T")
+    EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
 
 
 def _cast_bool(obj: Any) -> bool:
@@ -50,9 +55,9 @@ def _cast_bool(obj: Any) -> bool:
         return obj
     if isinstance(obj, str):
         data = obj.lower()
-        if data in ("true", "yes", "y", "1"):
+        if data in ("true", "yes", "y", "on", "1"):
             return True
-        elif data in ("false", "no", "n", "0"):
+        elif data in ("false", "no", "n", "off", "0"):
             return False
         raise TypeError(f"str '{obj}' cannot be converted to type bool")
     return bool(obj)
@@ -66,19 +71,30 @@ def _cast_str(obj: Any) -> str:
     return str(obj)
 
 
+_cast_types: "Dict[Type[T], Callable[[Any], T]]" = dict()
+_cast_types[bool] = _cast_bool
+_cast_types[str] = _cast_str
+
+
 class ConfigError(Exception):
     pass
+
+
+class ConfigParser(configparser.ConfigParser):
+
+    def optionxform(self, optionstr):
+        return optionstr
 
 
 class ConfigProperty(abc.ABC):
     __lock__ = threading.RLock()
 
-    def __init__(self, type: Type = None, cached: bool = False):
+    def __init__(self, type: Type = None, cached: Union[bool, str] = False):
         self._data: Union[str, object] = __missing__
         self._type = type
         self._cached = cached
 
-    def load(self, env: BaseEnviron, key: str, type: Type = None) -> Any:
+    def load(self, config: "Config", key: str, type: Type = None) -> Any:
         if self._data is not __missing__:
             return self._data
         with self.__lock__:
@@ -86,28 +102,45 @@ class ConfigProperty(abc.ABC):
                 return self._data
             type = type or self._type
             if self._cached:
-                cache = __missing__
-                path = env.get_data_path("configs", f"cached_{env.name}", key, create_parent=True)
-                if os.path.exists(path):
-                    cache = utils.read_file(path, binary=False)
-                result = self._load(env, key, cache)
+                # load cache from config file
+                config_parser = ConfigParser()
+                if os.path.exists(config.path):
+                    config_parser.read(config.path)
+                config_section = f"{config.namespace}.CACHE".upper()
+                if isinstance(self._cached, str):
+                    config_section = self._cached
+                config_cache = __missing__
+                if config_parser.has_option(config_section, key):
+                    config_cache = config_parser.get(config_section, key)
+
+                # load config value
+                result = self._load(config, key, config_cache)
                 if isinstance(result, ConfigProperty):
-                    result = result.load(env, key, type=type)
+                    result = result.load(config, key, type=type)
                 elif type and not isinstance(result, type):
-                    result = env.config.cast(result, type)
-                utils.write_file(path, str(result))
+                    result = config.cast(result, type)
+
+                # update cache to config file
+                if config_section == config_parser.default_section:
+                    pass
+                elif not config_parser.has_section(config_section):
+                    config_parser.add_section(config_section)
+                config_parser.set(config_section, key, str(result))
+                with open(config.path, "wt") as fd:
+                    config_parser.write(fd)
+
                 self._data = result
             else:
-                result = self._load(env, key, __missing__)
+                result = self._load(config, key, __missing__)
                 if isinstance(result, ConfigProperty):
-                    result = result.load(env, key, type=type)
+                    result = result.load(config, key, type=type)
                 elif type and not isinstance(result, type):
-                    result = env.config.cast(result, type)
+                    result = config.cast(result, type)
                 self._data = result
             return self._data
 
     @abc.abstractmethod
-    def _load(self, env: BaseEnviron, key: Any, cache: Any):
+    def _load(self, config: "Config", key: str, cache: Any):
         pass
 
 
@@ -119,7 +152,7 @@ class ConfigDict(dict):
         d.prompt = Config.Prompt
         d.lazy = Config.Lazy
         d.alias = Config.Alias
-        d.error = Config.Error
+        d.sample = Config.Sample
         d.confirm = Config.Confirm
         try:
             with open(filename, "rb") as config_file:
@@ -163,18 +196,14 @@ class ConfigDict(dict):
 
 class Config:
 
-    def __init__(self, env: BaseEnviron, internal: ConfigDict):
-        self._environ = env
-        self._internal = internal
-        self._config = pickle.loads(pickle.dumps(self._internal))
+    def __init__(self, environ: "BaseEnviron", default: ConfigDict, share: bool = False):
+        self._environ = environ
+        self._config = default if share else pickle.loads(pickle.dumps(default))
         self._envvar_prefix = f"{self._environ.name.upper()}_"
-        self._cast_types: Dict[Type, Callable[[Any], Any]] = {
-            bool: _cast_bool,
-            str: _cast_str
-        }
+        self._namespace = configparser.DEFAULTSECT
 
     @property
-    def envvar_prefix(self):
+    def envvar_prefix(self) -> str:
         """
         环境变量前缀
         """
@@ -187,44 +216,60 @@ class Config:
         """
         self._envvar_prefix = value
 
-    def cast(self, obj: str, type: Type[T], default: T = __missing__) -> T:
-        if type is not None and type is not __missing__:
-            cast = self._cast_types.get(type, type)
-            if default is not __missing__:
-                try:
-                    return cast(obj)
-                except:
-                    return default
-            else:
-                return cast(obj)
+    @property
+    def namespace(self) -> str:
+        """
+        配置文件的对应的节
+        """
+        return self._namespace
 
+    @namespace.setter
+    def namespace(self, value: str):
+        """
+        配置文件的节
+        """
+        self._namespace = value
+
+    @cached_property
+    def path(self) -> str:
+        """
+        存放配置的目录
+        """
+        return self._environ.get_data_path(f"{self._environ.name}.cfg", create_parent=True)
+
+    def load_default(self):
+        """
+        从缓存中加载配置
+        """
+        if os.path.exists(self.path):
+            try:
+                config_parser = ConfigParser()
+                config_parser.read(self.path)
+                for key, value in config_parser.items(configparser.DEFAULTSECT):
+                    self.set(key, value)
+            except Exception as e:
+                self._environ.logger.warning(f"Load config from {self.path} failed: {e}")
+
+    def cast(self, obj: Optional[str], type: "Type[T]", default: Any = __missing__) -> "T":
+        """
+        类型转换
+        """
+        if type is not None and type is not __missing__:
+            cast = _cast_types.get(type, type)
+            try:
+                return cast(obj)
+            except Exception as e:
+                if default is not __missing__:
+                    return default
+                raise e
         return obj
 
-    def get_namespace(self, namespace: str, lowercase: bool = True, trim_namespace: bool = True) -> Dict[str, Any]:
-        """
-        根据命名空间获取配置列表
-        """
-        rv = {}
-        for k in self._config:
-            if not k.startswith(namespace):
-                continue
-            if trim_namespace:
-                key = k[len(namespace):]
-            else:
-                key = k
-            if lowercase:
-                key = key.lower()
-            rv[key] = self.get(k)
-        return rv
-
-    def get(self, key: str, type: Type[T] = None, default: Union[T, ConfigProperty] = __missing__) -> T:
+    def get(self, key: str, type: "Type[T]" = None, default: Any = __missing__) -> "T":
         """
         获取指定配置，优先会从环境变量中获取
         """
-
         last_error = __missing__
         try:
-
             env_key = f"{self.envvar_prefix}{key}"
             if env_key in os.environ:
                 value = os.environ.get(env_key)
@@ -233,7 +278,7 @@ class Config:
             if key in self._config:
                 value = self._config.get(key)
                 if isinstance(value, ConfigProperty):
-                    return value.load(self._environ, key, type=type)
+                    return value.load(self, key, type=type)
                 return self.cast(value, type=type)
 
         except Exception as e:
@@ -245,23 +290,11 @@ class Config:
             raise ConfigError(f"Not found environment variable \"{self.envvar_prefix}{key}\" or config \"{key}\"")
 
         if isinstance(default, ConfigProperty):
-            return default.load(self._environ, key, type=type)
+            return default.load(self, key, type=type)
 
         return default
 
-    def get_str(self, key: str, default: Union[str, ConfigProperty] = __missing__) -> str:
-        return self.get(key, type=str, default=default)
-
-    def get_bool(self, key: str, default: Union[bool, ConfigProperty] = __missing__) -> bool:
-        return self.get(key, type=bool, default=default)
-
-    def get_int(self, key: str, default: Union[int, ConfigProperty] = __missing__) -> int:
-        return self.get(key, type=int, default=default)
-
-    def get_float(self, key: str, default: Union[float, ConfigProperty] = __missing__) -> float:
-        return self.get(key, type=float, default=default)
-
-    def keys(self, all: bool = False) -> Generator[str, None, None]:
+    def keys(self) -> Generator[str, None, None]:
         """
         遍历配置名，默认不遍历内置配置
         """
@@ -270,14 +303,13 @@ class Config:
             if key.startswith(self._envvar_prefix):
                 keys.add(key[len(self._envvar_prefix):])
         for key in sorted(keys):
-            if all or key not in self._internal:
-                yield key
+            yield key
 
-    def items(self, all: bool = False) -> Generator[Tuple[str, Any], None, None]:
+    def items(self) -> Generator[Tuple[str, Any], None, None]:
         """
         遍历配置项，默认不遍历内置配置
         """
-        for key in self.keys(all=all):
+        for key in self.keys():
             yield key, self.get(key)
 
     def set(self, key: str, value: Any) -> None:
@@ -341,16 +373,11 @@ class Config:
                 self.update_from_file(os.path.join(root, name))
         return True
 
-    def update_from_envvar(self, prefix: str = None) -> bool:
-        """
-        加载所有以"{prefix}"为前缀的环境变量到配置中
-        """
-        if prefix is None:
-            prefix = self.envvar_prefix
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                self._config[key[len(prefix):]] = value
-        return True
+    def __getitem__(self, key: str) -> Any:
+        return self.get(key)
+
+    def __setitem__(self, key: str, value: Any):
+        self.set(key, value)
 
     class Prompt(ConfigProperty):
 
@@ -361,7 +388,7 @@ class Config:
                 choices: Optional[List[str]] = None,
                 type: Type[Union[str, int, float]] = str,
                 default: Any = __missing__,
-                cached: bool = False,
+                cached: Union[bool, str] = False,
                 always_ask: bool = False,
                 allow_empty: bool = False,
         ):
@@ -375,17 +402,30 @@ class Config:
             self.always_ask = always_ask
             self.allow_empty = allow_empty
 
-        def _load(self, env: BaseEnviron, key: Any, cache: Any):
+        def _load(self, config: "Config", key: str, cache: Any):
 
             default = cache
             if default is not __missing__ and not self.always_ask:
-                if not env.get_config("RELOAD_CONFIG", type=bool, default=False):
+                if not config.get("RELOAD_CONFIG", type=bool, default=False):
                     return default
 
             if default is __missing__:
                 default = self.default
                 if isinstance(default, ConfigProperty):
-                    default = default.load(env, key)
+                    default = default.load(config, key)
+
+            if default is not __missing__:
+                default = config.cast(default, self.type)
+
+            if self.choices:
+                index = choose(
+                    self.prompt or f"Please choose {key}",
+                    choices=self.choices,
+                    default=default,
+                    show_default=True,
+                    show_choices=True
+                )
+                return self.choices[index]
 
             return prompt(
                 self.prompt or f"Please input {key}",
@@ -404,7 +444,7 @@ class Config:
                 self,
                 prompt: str = None,
                 default: Any = __missing__,
-                cached: bool = False,
+                cached: Union[bool, str] = False,
                 always_ask: bool = False,
         ):
             super().__init__(type=bool, cached=cached)
@@ -413,17 +453,20 @@ class Config:
             self.default = default
             self.always_ask = always_ask
 
-        def _load(self, env: BaseEnviron, key: Any, cache: Any):
+        def _load(self, config: "Config", key: str, cache: Any):
 
             default = cache
             if default is not __missing__ and not self.always_ask:
-                if not env.get_config("RELOAD_CONFIG", type=bool, default=False):
+                if not config.get("RELOAD_CONFIG", type=bool, default=False):
                     return default
 
             if default is __missing__:
                 default = self.default
                 if isinstance(default, ConfigProperty):
-                    default = default.load(env, key)
+                    default = default.load(config, key)
+
+            if default is not __missing__:
+                default = config.cast(default, bool)
 
             return confirm(
                 self.prompt or f"Please confirm {key}",
@@ -435,12 +478,18 @@ class Config:
 
         DEFAULT = object()
 
-        def __init__(self, *keys: str, type: Type = str, default: Any = __missing__, cached: bool = False):
+        def __init__(
+                self,
+                *keys: str,
+                type: Type = str,
+                default: Any = __missing__,
+                cached: Union[bool, str] = False
+        ):
             super().__init__(type=type, cached=cached)
             self.keys = keys
             self.default = default
 
-        def _load(self, env: BaseEnviron, key: Any, cache: Any):
+        def _load(self, config: "Config", key: str, cache: Any):
             if cache is not __missing__:
                 return cache
 
@@ -448,7 +497,7 @@ class Config:
                 last_error = None
                 for key in self.keys:
                     try:
-                        return env.get_config(key)
+                        return config.get(key)
                     except Exception as e:
                         last_error = e
                 if last_error is not None:
@@ -456,7 +505,7 @@ class Config:
 
             else:
                 for key in self.keys:
-                    result = env.get_config(key, default=self.DEFAULT)
+                    result = config.get(key, default=self.DEFAULT)
                     if result is not self.DEFAULT:
                         return result
 
@@ -464,22 +513,45 @@ class Config:
 
     class Lazy(ConfigProperty):
 
-        def __init__(self, func: Callable[[EnvironType], T]):
+        def __init__(self, func: "Callable[[Config], T]"):
             super().__init__()
             self.func = func
 
-        def _load(self, env: BaseEnviron, key: Any, cache: Any):
-            return self.func(env)
+        def _load(self, config: "Config", key: str, cache: Any):
+            return self.func(config)
 
-    class Error(ConfigProperty):
+    class Sample(ConfigProperty):
 
-        def __init__(self, message: str = None):
+        def __init__(self, data: Union[str, Dict[str, str]] = None):
             super().__init__()
-            self.message = message
+            self.data = data
 
-        def _load(self, env: BaseEnviron, key: Any, cache: Any):
-            raise ConfigError(
-                self.message or
-                f"Please set \"{env.config.envvar_prefix}{key}\" as an environment variable, "
-                f"or set \"{key}\" in config file"
-            )
+        def _load(self, config: "Config", key: str, cache: Any):
+            message = \
+                f"Cannot find config \"{key}\". {os.linesep}" \
+                f"You can use any of the following methods to fix it: {os.linesep}" \
+                f"1. set \"{config.envvar_prefix}{key}\" as an environment variable,{os.linesep}" \
+                f"2. set \"{key}\" in the default section of {config.path}, such as: {os.linesep}" \
+                f"   [DEFAULT] {os.linesep}" \
+                f"   KEY1 = value1 {os.linesep}" \
+                f"   KEY2 = value2 {os.linesep}"
+            if self.data:
+                if isinstance(self.data, Dict):
+                    for key, value in self.data.items():
+                        message += f"=> {key} = {value} {os.linesep}"
+                else:
+                    message += f"=> {self.data} {os.linesep}"
+            else:
+                message += f"=> {key} = <value> <= add this line under the [DEFAULT] section {os.linesep}"
+
+            raise ConfigError(message.rstrip())
+
+
+class ConfigWrapper(Config):
+
+    def __init__(self, config: "Config"):
+        super().__init__(
+            config._environ,
+            config._config,
+            share=True
+        )

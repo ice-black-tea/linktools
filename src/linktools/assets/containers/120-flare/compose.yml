@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  flare:
+    container_name: flare
+    image: soulteary/flare
+    user: "{{ DOCKER_PUID }}:{{ DOCKER_PGID }}"
+    restart: unless-stopped
+    {% if int(FLARE_EXPOSE_PORT, 0) > 0 %}
+    ports:
+      - "{{ FLARE_EXPOSE_PORT }}:5005"
+    {% endif %}
+    {% if bool(FLARE_DISABLE_LOGIN) %}
+    command: flare --disable_login=1 --visibility=private
+    environment:
+      - FLARE_DISABLE_LOGIN=1
+      - FLARE_GUIDE=1
+    {% else %}
+    command: flare --disable_login=0 --visibility=private
+    environment:
+      - FLARE_DISABLE_LOGIN=0
+      - FLARE_USER={{ FLARE_USER }}
+      - FLARE_PASS={{ FLARE_PASSWORD }}
+      - FLARE_GUIDE=1
+    {% endif %}
+    volumes:
+      - "{{ container.get_app_path() }}/app:/app"
+    networks:
+      - nginx
+
+networks:
+  nginx:
+    name: nginx

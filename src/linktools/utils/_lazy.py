@@ -8,7 +8,13 @@ import functools
 import os
 import sys
 from importlib.util import find_spec, LazyLoader, module_from_spec, spec_from_file_location
-from typing import TypeVar, Type, Callable
+from typing import TYPE_CHECKING, TypeVar, Type, Callable, Iterable
+
+if TYPE_CHECKING:
+    from typing import ParamSpec
+
+    T = TypeVar("T")
+    P = ParamSpec("P")
 
 _PROXY_FN = "_Proxy__fn"
 _PROXY_OBJECT = "_Proxy__object"
@@ -254,10 +260,7 @@ class _Proxy(object):
         return self._get_current_object().__reduce__()
 
 
-_T = TypeVar('_T')
-
-
-def get_derived_type(t: Type[_T]) -> Type[_T]:
+def get_derived_type(t: "Type[T]") -> "Type[T]":
     """
     生成委托类型，常用于自定义类继承委托类，替换某些方法, 如：
 
@@ -279,7 +282,7 @@ def get_derived_type(t: Type[_T]) -> Type[_T]:
 
     class Derived(_Proxy):
 
-        def __init__(self, obj: _T):
+        def __init__(self, obj: "T"):
             super().__init__(_PROXY_MISSING)
             object.__setattr__(self, "__super__", obj)
 
@@ -289,7 +292,7 @@ def get_derived_type(t: Type[_T]) -> Type[_T]:
     return Derived
 
 
-def lazy_load(fn: Callable[..., _T], *args, **kwargs) -> _T:
+def lazy_load(fn: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs") -> "T":
     """
     延迟加载
     :param fn: 延迟加载的方法
@@ -298,15 +301,29 @@ def lazy_load(fn: Callable[..., _T], *args, **kwargs) -> _T:
     return _Proxy(functools.partial(fn, *args, **kwargs))
 
 
+def lazy_iter(fn: "Callable[P, Iterable[T]]", *args: "P.args", **kwargs: "P.kwargs") -> "Iterable[T]":
+    """
+    延迟迭代
+    :param fn: 延迟迭代的方法
+    :return: proxy
+    """
+    class IterProxy(Iterable):
+
+        def __iter__(self):  # 用于 for 循环语句
+            return fn(*args, **kwargs)
+
+    return IterProxy()
+
+
 def raise_error(e: BaseException):
     raise e
 
 
-def lazy_raise(e: BaseException) -> _T:
+def lazy_raise(e: BaseException) -> "T":
     return lazy_load(raise_error, e)
 
 
-def lazy_import(name: str) -> _T:
+def lazy_import(name: str) -> "T":
     """
     延迟导入模块
     :param name: 模块名
@@ -323,7 +340,7 @@ def lazy_import(name: str) -> _T:
     return module
 
 
-def lazy_import_file(name: str, path: str) -> _T:
+def lazy_import_file(name: str, path: str) -> "T":
     """
     延迟导入模块
     :param name: 模块名

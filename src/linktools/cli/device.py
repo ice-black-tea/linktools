@@ -37,7 +37,7 @@ from . import BaseCommand
 from ..android import Adb, AdbError, Device as AdbDevice
 from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
 from ..ios import Sib, SibError, Device as SibDevice
-from ..rich import prompt
+from ..rich import choose
 from ..utils import ignore_error
 
 
@@ -141,18 +141,21 @@ class DeviceCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            offset = 1
-            text = f"More than one device/emulator. {os.linesep}"
+            choices = []
             for i in range(len(devices)):
-                text += f"{'>>' if i == 0 else '  '} {f'{i + offset}:':2} " \
-                        f"{ignore_error(lambda: devices[i].id)} " \
-                        f"{ignore_error(lambda: f'({devices[i].name})') or ''}" \
-                        f"{os.linesep}"
-            text += f"Enter device index [{offset}~{len(devices) + offset - 1}]"
-            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = prompt(text, type=int, choices=choices, default=offset, show_choices=False)
+                choices.append(
+                    f"{ignore_error(lambda: devices[i].id)} "
+                    f"{ignore_error(lambda: f'({devices[i].name})') or ''}"
+                )
 
-            return devices[index - offset]
+            index = choose(
+                "Choose device",
+                title="More than one device/emulator",
+                choices=choices,
+                default=0
+            )
+
+            return devices[index]
 
         class IDAction(Action):
 
@@ -215,18 +218,21 @@ class AndroidCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            offset = 1
-            text = f"More than one device/emulator. {os.linesep}"
+            choices = []
             for i in range(len(devices)):
-                text += f"{'>>' if i == 0 else '  '} {f'{i + offset}:':2} " \
-                        f"{ignore_error(lambda: devices[i].id)} " \
-                        f"{ignore_error(lambda: f'({devices[i].name})') or ''}" \
-                        f"{os.linesep}"
-            text += f"Enter device index [{offset}~{len(devices) + offset - 1}]"
-            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = prompt(text, type=int, choices=choices, default=offset, show_choices=False)
+                choices.append(
+                    f"{ignore_error(lambda: devices[i].id)} "
+                    f"{ignore_error(lambda: f'({devices[i].name})') or ''}"
+                )
 
-            return devices[index - offset]
+            index = choose(
+                "Choose device",
+                title="More than one device/emulator",
+                choices=choices,
+                default=0
+            )
+
+            return devices[index]
 
         class SerialAction(Action):
 
@@ -347,18 +353,21 @@ class IOSCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            offset = 1
-            text = f"More than one device/emulator. {os.linesep}"
+            choices = []
             for i in range(len(devices)):
-                text += f"{'>>' if i == 0 else '  '} {f'{i + offset}:':2} " \
-                        f"{ignore_error(lambda: devices[i].id)} " \
-                        f"{ignore_error(lambda: f'({devices[i].name})') or ''}" \
-                        f"{os.linesep}"
-            text += f"Enter device index [{offset}~{len(devices) + offset - 1}]"
-            choices = [str(i) for i in range(offset, len(devices) + offset, 1)]
-            index = prompt(text, type=int, choices=choices, default=offset, show_choices=False)
+                choices.append(
+                    f"{ignore_error(lambda: devices[i].id)} "
+                    f"{ignore_error(lambda: f'({devices[i].name})') or ''}"
+                )
 
-            return devices[index - offset]
+            index = choose(
+                "Choose device",
+                title="More than one device/emulator",
+                choices=choices,
+                default=0
+            )
+
+            return devices[index]
 
         class UdidAction(Action):
 

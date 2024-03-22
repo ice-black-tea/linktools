@@ -30,7 +30,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Optional, Union, List, Dict, Type, TypeVar, TextIO
+from typing import TYPE_CHECKING, Optional, Union, List, Dict, Type, TypeVar, TextIO, Iterable
 
 import rich
 from rich.console import ConsoleRenderable, Console
@@ -42,8 +42,10 @@ from rich.prompt import Prompt, IntPrompt, InvalidResponse, FloatPrompt, Confirm
 from rich.table import Column
 from rich.text import Text, TextType
 
-from ._environ import BaseEnviron
 from .metadata import __missing__
+
+if TYPE_CHECKING:
+    from ._environ import BaseEnviron
 
 
 def is_terminal() -> bool:
@@ -52,7 +54,7 @@ def is_terminal() -> bool:
 
 class LogHandler(RichHandler):
 
-    def __init__(self, environ: BaseEnviron):
+    def __init__(self, environ: "BaseEnviron"):
         super().__init__(
             show_path=False,
             show_level=environ.get_config("SHOW_LOG_LEVEL", type=bool, default=True),
@@ -165,7 +167,7 @@ class LogHandler(RichHandler):
         return message_text
 
     @classmethod
-    def get_instance(cls) -> Optional["LogHandler"]:
+    def get_instance(cls) -> "Optional[LogHandler]":
         c = logging.getLogger()
         while c:
             if c.handlers:
@@ -202,6 +204,24 @@ class _LogColumn(ProgressColumn):
         return result
 
 
+def create_simple_progress(*fields: str):
+    columns = []
+
+    handler = LogHandler.get_instance()
+    if handler and (handler.show_time or handler.show_level):
+        columns.append(_LogColumn())
+
+    columns.extend([
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+    ])
+
+    for field in fields:
+        columns.append(TextColumn(f"{{task.fields[{field}]}}"))
+
+    return Progress(*columns)
+
+
 def create_progress():
     columns = []
 
@@ -222,9 +242,11 @@ def create_progress():
     return Progress(*columns)
 
 
-PromptType = TypeVar("PromptType", bound=PromptBase)
-PromptResultType = TypeVar("PromptResultType", str, int, float, bool)
-_prompt_types: Dict[Type[PromptResultType], Type[PromptType]] = {
+if TYPE_CHECKING:
+    PromptType = TypeVar("PromptType", bound=PromptBase)
+    PromptResultType = TypeVar("PromptResultType", str, int, float, bool)
+
+_prompt_types: "Dict[Type[PromptResultType], Type[PromptType]]" = {
     str: Prompt,
     int: IntPrompt,
     float: FloatPrompt,
@@ -232,7 +254,7 @@ _prompt_types: Dict[Type[PromptResultType], Type[PromptType]] = {
 }
 
 
-def _create_prompt_class(type: Type[PromptResultType], allow_empty: bool) -> Type[PromptType]:
+def _create_prompt_class(type: "Type[PromptResultType]", allow_empty: bool) -> "Type[PromptType]":
     prompt_type = _prompt_types.get(type, None)
     if prompt_type is None:
         raise TypeError(f"Unknown prompt type: {prompt_type}")
@@ -278,7 +300,7 @@ def _create_prompt_class(type: Type[PromptResultType], allow_empty: bool) -> Typ
                 prefix = prefix + handler.make_level_text(logging.ERROR, "↳") + " "
             self.console.print(prefix, error, sep="")
 
-        def process_response(self, value: str) -> PromptType:
+        def process_response(self, value: str) -> "PromptType":
             value = value.strip()
             if not allow_empty and not value:
                 raise InvalidResponse(self.validate_error_message)
@@ -288,17 +310,17 @@ def _create_prompt_class(type: Type[PromptResultType], allow_empty: bool) -> Typ
 
 
 def prompt(
-        text: str,
-        type: Type[PromptResultType] = str,
-        default: PromptResultType = __missing__,
+        prompt: str,
+        type: "Type[PromptResultType]" = str,
+        default: "PromptResultType" = __missing__,
         allow_empty: bool = False,
         choices: Optional[List[str]] = None,
         password: bool = False,
         show_default: bool = True,
         show_choices: bool = True
-) -> PromptResultType:
+) -> "PromptResultType":
     return _create_prompt_class(type, allow_empty=allow_empty).ask(
-        text,
+        prompt,
         password=password,
         choices=choices,
         default=default if default is not __missing__ else ...,
@@ -307,13 +329,53 @@ def prompt(
     )
 
 
+def choose(
+        prompt: str,
+        choices: Iterable[str],
+        title: str = None,
+        default: Union[int, str] = __missing__,
+        show_default: bool = True,
+        show_choices: bool = True
+) -> int:
+    choices = tuple(choices)
+
+    if isinstance(default, str):
+        default = choices.index(default) \
+            if default in choices \
+            else __missing__
+    index = default \
+        if default is not __missing__ and 0 <= default < len(choices) \
+        else 0
+
+    begin = 1
+    text = Text()
+    if title:
+        text.append(f"{title}{os.linesep}")
+    for i in range(len(choices)):
+        text.append(f"{'>> ' if i == index else '   '}")
+        text.append(f"{f'{i + begin}:':2} ", "prompt.choices")
+        text.append(f"{choices[i]}{os.linesep}")
+    text.append(prompt)
+    if show_choices:
+        text.append(" ")
+        text.append(f"[{begin}~{len(choices) + begin - 1}]" if len(choices) > 1 else f"[{begin}]", "prompt.choices")
+
+    return _create_prompt_class(int, allow_empty=False).ask(
+        text,
+        choices=[str(i) for i in range(begin, len(choices) + begin, 1)],
+        default=default + begin if default is not __missing__ else ...,
+        show_default=show_default,
+        show_choices=False,
+    ) - begin
+
+
 def confirm(
-        text: str,
-        default: PromptResultType = __missing__,
+        prompt: str,
+        default: "PromptResultType" = __missing__,
         show_default: bool = True,
 ) -> bool:
     return _create_prompt_class(bool, allow_empty=False).ask(
-        text,
+        prompt,
         default=default if default is not __missing__ else ...,
         show_default=show_default,
     )

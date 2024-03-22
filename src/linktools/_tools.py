@@ -33,12 +33,14 @@ import platform
 import shutil
 import sys
 import warnings
-from typing import Dict, Union, Mapping, Iterator, Any, Tuple, List, Type
+from typing import TYPE_CHECKING, Dict, Union, Mapping, Iterator, Any, Tuple, List, Type
 
 from . import utils
-from ._environ import BaseEnviron
 from .decorator import cached_property
 from .metadata import __missing__
+
+if TYPE_CHECKING:
+    from ._environ import BaseEnviron
 
 
 class Parser(object):
@@ -336,7 +338,7 @@ class Tool(metaclass=ToolMeta):
             self._container.logger.info(f"Download {self}: {self.download_url}")
             url_file = self._container.environ.get_url_file(self.download_url)
             temp_dir = self._container.environ.get_temp_path("tools", "cache")
-            temp_path = url_file.save(save_dir=temp_dir)
+            temp_path = url_file.save(to_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
                 self._container.logger.debug(f"Unpack {self} to {self.root_path}")
                 shutil.unpack_archive(temp_path, self.root_path)
@@ -425,7 +427,7 @@ class Tool(metaclass=ToolMeta):
 
 class Tools(object):
 
-    def __init__(self, env: BaseEnviron, **kwargs):
+    def __init__(self, env: "BaseEnviron", **kwargs):
         self.environ = env
         self.logger = env.get_logger("tools")
 
@@ -445,10 +447,15 @@ class Tools(object):
     @cached_property
     def items(self) -> Mapping[str, Tool]:
         items = {}
-        for key, value in self.environ.config.get_namespace("GENERAL_TOOL_").items():
+        for key in self.environ.config.keys():
+            if not key.startswith("GENERAL_TOOL_"):
+                continue
+            value = self.environ.config.get(key)
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue
+            key = key[len("GENERAL_TOOL_"):]
+            key = key.lower()
             name = value.setdefault("name", key)
             items[name] = Tool(self, value)
         return items

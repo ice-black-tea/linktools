@@ -32,6 +32,7 @@ from ._utils import (
     InterruptableEvent,
     ignore_error,
     cast, cast_int as int, cast_bool as bool,
+    coalesce,
     is_contain, is_empty,
     get_item, pop_item, get_list_item,
     get_md5, get_sha1, get_sha256, make_uuid, gzip_compress,
@@ -42,7 +43,7 @@ from ._utils import (
 )
 
 from ._lazy import (
-    get_derived_type, lazy_load, lazy_raise, lazy_import, lazy_import_file
+    get_derived_type, lazy_load, lazy_iter, lazy_raise, lazy_import, lazy_import_file
 )
 
 from ._subprocess import (

@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce
+    restart: unless-stopped
+    {% if int(PORTAINER_EXPOSE_PORT, 0) > 0 %}
+    ports:
+      - "{{ PORTAINER_EXPOSE_PORT }}:9000"
+    {% endif %}
+    volumes:
+      - "{{ manager.container_host }}:/var/run/docker.sock"
+      - "{{ container.get_app_path() }}/data:/data"
+    networks:
+      - nginx
+    logging:
+      options:
+        max-size: 1m
+
+networks:
+  nginx:
+    name: nginx

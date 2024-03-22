@@ -38,18 +38,22 @@ from argparse import RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormat
 from importlib.util import module_from_spec
 from pkgutil import walk_packages
 from types import ModuleType, GeneratorType
-from typing import Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict, TypeVar
+from typing import TYPE_CHECKING, Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict
 
 from rich import get_console
 from rich.tree import Tree
 
 from .argparse import BooleanOptionalAction
-from .._environ import BaseEnviron, environ
+from .._environ import environ
 from ..decorator import cached_property
 from ..metadata import __missing__
 from ..rich import LogHandler, is_terminal
 
-T = TypeVar("T")
+if TYPE_CHECKING:
+    from typing import TypeVar
+    from .._environ import BaseEnviron
+
+    T = TypeVar("T")
 
 
 class CommandError(Exception):
@@ -171,6 +175,9 @@ def subcommand(
         add_help: bool = __missing__,
         allow_abbrev: bool = __missing__,
         pass_args: bool = False):
+    """
+    子命令装饰器
+    """
     def decorator(func):
         if not hasattr(func, "__subcommand_info__"):
             setattr(func, "__subcommand_info__", _SubCommandMethodInfo())
@@ -220,7 +227,7 @@ def subcommand_argument(
         name_or_flag: str,
         *name_or_flags: str,
         action: Union[str, Type[Action]] = __missing__,
-        choices: Iterable[T] = __missing__,
+        choices: "Iterable[T]" = __missing__,
         const: Any = __missing__,
         default: Any = __missing__,
         dest: str = __missing__,
@@ -228,8 +235,11 @@ def subcommand_argument(
         metavar: Union[str, Tuple[str, ...]] = __missing__,
         nargs: Union[int, str] = __missing__,
         required: bool = __missing__,
-        type: Union[Type[Union[int, float, str]], Callable[[str], T], FileType] = __missing__,
+        type: "Union[Type[Union[int, float, str]], Callable[[str], T], FileType]" = __missing__,
         **kwargs: Any):
+    """
+    子命令参数装饰器，与@subcommand配合使用
+    """
     def decorator(func):
         subcommand_argument_info = _SubCommandMethodArgumentInfo()
         subcommand_argument_info.set_args(
@@ -266,6 +276,10 @@ class _SubCommandInfo:
 
 
 class SubCommand(metaclass=abc.ABCMeta):
+    """
+    子命令接口
+    """
+
     ROOT_ID = ""
 
     def __init__(self, name: str, description: str, id: str = None, parent_id: str = None):
@@ -276,21 +290,33 @@ class SubCommand(metaclass=abc.ABCMeta):
 
     @property
     def has_parent(self):
+        """
+        是否有父命令
+        """
         return self.parent_id != self.ROOT_ID
 
     @property
     def is_group(self):
+        """
+        是否是命令组
+        """
         return False
 
     def create_parser(self, type: Callable[..., ArgumentParser]) -> ArgumentParser:
+        """
+        创建ArgumentParser对象
+        """
         return type(self.name, help=self.description)
 
     @abc.abstractmethod
     def run(self, args: Namespace):
+        """
+        业务逻辑入口
+        """
         pass
 
     def __repr__(self):
-        return f"<SubCommand id={self.id}>"
+        return f"<{self.__class__.__name__} id={self.id}>"
 
 
 class SubCommandGroup(SubCommand):
@@ -330,7 +356,7 @@ class _SubCommandMethod(SubCommand):
         parser = type(self.name, **self.info.kwargs)
         parser.set_defaults(**{f"__subcommand_actions_{id(self):x}__": actions})
 
-        for argument in self.info.arguments:
+        for argument in reversed(self.info.arguments):
             argument_args = argument.args
             argument_kwargs = dict(argument.kwargs)
 
@@ -430,7 +456,13 @@ class SubCommandWrapper(SubCommand):
 class SubCommandMixin:
 
     def walk_subcommands(self: "BaseCommand", target: Any) -> Generator[SubCommand, None, None]:
-
+        """
+        根据target对象，遍历所有的子命令，规则如下：
+        1. 如果target是SubCommand类型，则直接返回
+        2. 如果target是list、tuple、set、generator类型，则递归遍历
+        3. 如果target是模块类型，则遍历模块下的所有子命令
+        4. 如果target是其他类型，则遍历target下的所有包含@subcommand注解的方法
+        """
         if isinstance(target, SubCommand):
             yield target
 
@@ -490,7 +522,9 @@ class SubCommandMixin:
             parser: ArgumentParser = None,
             target: Any = None,
             required: bool = False) -> List[_SubCommandInfo]:
-
+        """
+        向parser中添加子命令，规则参考walk_subcommands方法
+        """
         subcommand_infos: List[_SubCommandInfo] = []
 
         target = target or self
@@ -530,7 +564,9 @@ class SubCommandMixin:
         return subcommand_infos
 
     def parse_subcommand(self: "BaseCommand", args: Namespace) -> Optional[SubCommand]:
-
+        """
+        解析子出args中的子命令
+        """
         name = f"__subcommand_{id(self):x}__"
         if hasattr(args, name):
             subcommand = getattr(args, name)
@@ -540,30 +576,41 @@ class SubCommandMixin:
         return None
 
     def run_subcommand(self: "BaseCommand", args: Namespace) -> Optional[int]:
-
+        """
+        解析并运行args中的子命令
+        """
         subcommand = self.parse_subcommand(args)
         if subcommand:
             return subcommand.run(args)
 
         raise SubCommandError("Not found subcommand")
 
-    def print_subcommands(self: "BaseCommand", args: Namespace, root: SubCommand = None) -> None:
-
+    def print_subcommands(
+            self: "BaseCommand",
+            args: Namespace,
+            root: SubCommand = None,
+            max_level: int = None
+    ) -> None:
+        """
+        打印args中的子命令
+        """
         name = f"__subcommands_{id(self):x}__"
         if not hasattr(args, name):
             raise SubCommandError("No subcommand has been added yet")
 
         root_id = SubCommand.ROOT_ID
         description = "All commands"
-        if root and root.description:
+        if root:
             root_id = root.id
-            description = root.description
+            if root.description:
+                description = root.description
         elif self.description:
             description = self.description
         tree = self._make_subcommand_tree(
             Tree(f"📎 {description}"),
             getattr(args, name),
             root_id,
+            max_level,
         )
 
         console = get_console()
@@ -571,28 +618,45 @@ class SubCommandMixin:
             console.print(self.environ.description, highlight=False)
         console.print(tree, highlight=False)
 
-    def _make_subcommand_tree(self: "BaseCommand", tree: Tree, infos: List[_SubCommandInfo], root_id: str) -> Tree:
-        nodes: Dict[str, Tree] = {}
+    def _make_subcommand_tree(
+            self: "BaseCommand",
+            tree: Tree,
+            infos: List[_SubCommandInfo],
+            root_id: str,
+            max_level: Optional[int]
+    ) -> Tree:
+        nodes: Dict[str, Tuple[Tree, int]] = {}
+
         for info in infos:
             if info.node.parent_id == root_id:
-                node = tree
+                parent_node, parent_node_level = tree, 0
             elif info.node.parent_id in nodes:
-                node = nodes.get(info.node.parent_id)
+                parent_node, parent_node_level = nodes.get(info.node.parent_id)
             else:
                 self.logger.debug(f"Not found parent node id `{info.node.parent_id}`, skip")
                 continue
+
+            current_node_level = parent_node_level + 1
+            current_node_expanded = max_level is None or max_level > current_node_level
+
             if info.node.is_group or info.children:
-                text = f"📖 [underline red]{info.node.name}[/underline red]"
+                logo = "📖" if current_node_expanded else "📘"
+                text = f"{logo} [underline red]{info.node.name}[/underline red]"
                 if info.node.description:
                     text = f"{text}: {info.node.description}"
-                nodes[info.node.id] = node.add(text)
+                current_node = parent_node.add(text, expanded=current_node_expanded)
+                nodes[info.node.id] = current_node, current_node_level
             else:
                 text = f"👉 [bold red]{info.node.name}[/bold red]"
                 if info.node.description:
                     text = f"{text}: {info.node.description}"
-                nodes[info.node.id] = node.add(text)
+                current_node = parent_node.add(text, expanded=current_node_expanded)
+                nodes[info.node.id] = current_node, current_node_level
+
             if info.children:
-                self._make_subcommand_tree(nodes[info.node.id], info.children, SubCommand.ROOT_ID)
+                current_max_level = max_level - current_node_level if max_level is not None else None
+                self._make_subcommand_tree(current_node, info.children, SubCommand.ROOT_ID, current_max_level)
+
         return tree
 
 
@@ -600,6 +664,9 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
 
     @property
     def name(self):
+        """
+        命令名
+        """
         name = self.__module__
         index = name.rfind(".")
         if index >= 0:
@@ -607,19 +674,31 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
         return name
 
     @property
-    def environ(self) -> BaseEnviron:
+    def environ(self) -> "BaseEnviron":
+        """
+        环境信息
+        """
         return environ
 
     @property
     def logger(self) -> logging.Logger:
+        """
+        日志记录器
+        """
         return self.environ.logger
 
     @cached_property
     def description(self) -> str:
+        """
+        命令描述，默认从docstring中获取
+        """
         return textwrap.dedent((self.__doc__ or "").strip())
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:
+        """
+        已知错误类型
+        """
         return [CommandError]
 
     def create_parser(
@@ -630,6 +709,9 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
             conflict_handler="resolve",
             **kwargs: Any
     ) -> ArgumentParser:
+        """
+        创建命令行解析器
+        """
         description = kwargs.pop("description", None)
         if not description:
             description = self.description.strip()
@@ -652,17 +734,29 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
         return self.create_parser()
 
     def init_base_arguments(self, parser: ArgumentParser) -> None:
+        """
+        初始化基础参数，在调用create_parser时执行
+        """
         pass
 
     @abc.abstractmethod
     def init_arguments(self, parser: ArgumentParser) -> None:
+        """
+        初始化参数，在调用create_parser时执行
+        """
         pass
 
     @abc.abstractmethod
     def run(self, args: Namespace) -> Optional[int]:
+        """
+        业务逻辑入口
+        """
         pass
 
     def main(self, *args, **kwargs) -> None:
+        """
+        main命令入口
+        """
         if is_terminal():
             logging.basicConfig(
                 level=logging.INFO,
@@ -684,9 +778,32 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
                 "--version", action="version", version=self.environ.version
             )
 
-        exit(self(*args, **kwargs))
+        try:
+            exit_code = self(*args, **kwargs)
+        except SystemExit as e:
+            exit_code = e.code
+
+        except (KeyboardInterrupt, EOFError) as e:
+            exit_code = 1
+            error_type, error_message = e.__class__.__name__, str(e).strip()
+            self.logger.error(
+                f"{error_type}: {error_message}" if error_message else error_type,
+            )
+
+        except:
+            exit_code = 1
+            if environ.debug:
+                console = get_console()
+                console.print_exception(show_locals=True)
+            else:
+                self.logger.error(traceback.format_exc())
+
+        exit(exit_code)
 
     def __call__(self, args: Union[List[str], Namespace] = None) -> int:
+        """
+        内部调用命令入口
+        """
         try:
             if not isinstance(args, Namespace):
                 parser = self._argument_parser
@@ -699,9 +816,6 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
 
             exit_code = self.run(args) or 0
 
-        except SystemExit as e:
-            exit_code = e.code
-
         except (KeyboardInterrupt, EOFError, *self.known_errors) as e:
             exit_code = 1
             error_type, error_message = e.__class__.__name__, str(e).strip()
@@ -710,12 +824,4 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
                 exc_info=True if environ.debug else None,
             )
 
-        except:
-            exit_code = 1
-            if environ.debug:
-                console = get_console()
-                console.print_exception(show_locals=True)
-            else:
-                self.logger.error(traceback.format_exc())
-
-        return exit_code or 0
+        return exit_code

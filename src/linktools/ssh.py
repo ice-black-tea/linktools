@@ -23,7 +23,7 @@ try:
 except ImportError:
     import socketserver as SocketServer
 
-_logger = environ.get_logger("utils.ssh")
+_logger = environ.get_logger("ssh")
 
 
 class SSHClient(paramiko.SSHClient):
@@ -186,12 +186,15 @@ class SSHClient(paramiko.SSHClient):
     def _open_scp(self):
 
         with create_progress() as progress:
-            task_id = progress.add_task("", total=0)
-            progress.advance(task_id, 0)
+            tasks = {}
 
             def update_progress(filename, size, sent):
                 if isinstance(filename, bytes):
                     filename = filename.decode()
+                task_id = tasks.get(filename, None)
+                if task_id is None:
+                    task_id = progress.add_task(filename, total=size)
+                    tasks[filename] = task_id
                 progress.update(
                     task_id,
                     completed=sent,
