@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     T = TypeVar("T")
     P = ParamSpec("P")
 
+DEFAULT_ENCODING = "utf-8"
+
 
 class Timeout:
 
@@ -425,28 +427,42 @@ if TYPE_CHECKING:
 
 
     @overload
-    def read_file(path: str, binary: Literal[True]) -> bytes: ...
+    def read_file(path: str, text: Literal[False]) -> bytes: ...
 
 
     @overload
-    def read_file(path: str, binary: Literal[False]) -> str: ...
+    def read_file(path: str, text: Literal[True], encoding=DEFAULT_ENCODING) -> str: ...
 
 
     @overload
-    def read_file(path: str, binary: bool) -> Union[str, bytes]: ...
+    def read_file(path: str, text: bool, encoding=DEFAULT_ENCODING) -> Union[str, bytes]: ...
 
 
-def read_file(path: str, binary: bool = True) -> Union[str, bytes]:
-    with open(path, "rb" if binary else "rt") as f:
-        return f.read()
+def read_file(path: str, text: bool = False, encoding=DEFAULT_ENCODING) -> Union[str, bytes]:
+    """
+    读取文件数据
+    """
+    with open(path, "rb") as fd:
+        data = fd.read()
+    if text:
+        data = data.decode(encoding)
+    return data
 
 
-def write_file(path: str, data: [str, bytes]) -> None:
-    with open(path, "wb" if isinstance(data, bytes) else "wt") as f:
-        f.write(data)
+def write_file(path: str, data: [str, bytes], encoding=DEFAULT_ENCODING) -> None:
+    """
+    写入文件数据
+    """
+    if isinstance(data, str):
+        data = bytes(data, DEFAULT_ENCODING)
+    with open(path, "wb") as fd:
+        fd.write(data)
 
 
 def get_lan_ip() -> Optional[str]:
+    """
+    获取本地IP地址
+    """
     s = None
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -460,6 +476,9 @@ def get_lan_ip() -> Optional[str]:
 
 
 def get_wan_ip() -> Optional[str]:
+    """
+    获取外网IP地址
+    """
     try:
         with urlopen("http://ifconfig.me/ip") as response:
             return response.read().decode().strip()
@@ -468,6 +487,9 @@ def get_wan_ip() -> Optional[str]:
 
 
 def parse_version(version: str) -> Tuple[int, ...]:
+    """
+    将字符串版本号解析成元组
+    """
     result = []
     for x in version.split("."):
         if x.isdigit():
@@ -493,6 +515,9 @@ _widths = [
 
 
 def get_char_width(char):
+    """
+    获取字符宽度
+    """
     global _widths
     o = ord(char)
     if o == 0xe or o == 0xf:
@@ -514,6 +539,9 @@ class _UserAgent(UserAgent):
 
 
 def user_agent(style=None) -> str:
+    """
+    随机获取一个User-Agent
+    """
     ua = _UserAgent()
 
     try:
@@ -534,6 +562,9 @@ if TYPE_CHECKING:
 
 
 def make_url(url: str, *paths: str, **kwargs: "QueryType") -> str:
+    """
+    拼接URL
+    """
     result = url
 
     for path in paths:
@@ -553,6 +584,9 @@ def make_url(url: str, *paths: str, **kwargs: "QueryType") -> str:
 
 
 def guess_file_name(url: str) -> str:
+    """
+    根据url推测文件名
+    """
     if not url:
         return ""
     try:
@@ -596,6 +630,9 @@ def parse_header(line):
 
 
 def parser_cookie(cookie: str) -> Dict[str, str]:
+    """
+    解析cookie成字典
+    """
     cookies = {}
     for item in cookie.split(";"):
         key_value = item.split("=", 1)
@@ -608,18 +645,30 @@ _MACHINE = platform.machine().lower()
 
 
 def get_system():
+    """
+    获取系统类型
+    """
     return _SYSTEM
 
 
 def get_machine():
+    """
+    获取机器类型
+    """
     return _MACHINE
 
 
 def get_user():
+    """
+    获取当前用户
+    """
     return getpass.getuser()
 
 
 def get_uid(user: str = None):
+    """
+    获取用户ID，如果没有指定用户则返回当前用户ID
+    """
     if get_system() in ("darwin", "linux"):
         if user:
             import pwd
@@ -631,6 +680,9 @@ def get_uid(user: str = None):
 
 
 def get_gid(user: str = None):
+    """
+    获取用户组ID，如果没有指定用户则返回当前用户组ID
+    """
     if get_system() in ("darwin", "linux"):
         if user:
             import pwd

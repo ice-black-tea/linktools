@@ -96,9 +96,8 @@ class FridaScriptFile(FridaUserScript):
         return self._path
 
     def _load(self) -> Optional[str]:
-        with open(self._path, "rb") as f:
-            _logger.info(f"Load {self}")
-            return f.read().decode("utf-8")
+        _logger.info(f"Load {self}")
+        return utils.read_file(self._path, text=True)
 
 
 class FridaEvalCode(FridaUserScript):
@@ -137,9 +136,7 @@ class FridaShareScript(FridaUserScript):
             _logger.info(f"Download {self}")
             target_path = file.save()
 
-            with open(target_path, "rb") as f:
-                source = f.read().decode("utf-8")
-
+            source = utils.read_file(target_path, text=True)
             if self._trusted:
                 _logger.info(f"Load trusted {self}")
                 return source
@@ -147,8 +144,7 @@ class FridaShareScript(FridaUserScript):
             cached_md5 = ""
             cached_md5_path = target_path + ".md5"
             if os.path.exists(cached_md5_path):
-                with open(cached_md5_path, "rt") as fd:
-                    cached_md5 = fd.read()
+                cached_md5 = utils.read_file(cached_md5_path, text=True)
 
             source_md5 = utils.get_md5(source)
             if cached_md5 == source_md5:
@@ -169,8 +165,7 @@ class FridaShareScript(FridaUserScript):
                      f"Source: {os.linesep}{source_summary}{os.linesep}" \
                      f"Are you sure you'd like to trust it?"
             if confirm(prompt):
-                with open(cached_md5_path, "wt") as fd:
-                    fd.write(source_md5)
+                utils.write_file(cached_md5_path, source_md5)
                 _logger.info(f"Load trusted {self}")
                 return source
             else:

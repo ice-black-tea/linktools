@@ -111,7 +111,7 @@ class GrepMatcher:
     def on_file(self, filename: str):
         if os.path.exists(filename):
             try:
-                with open(filename, 'rb') as fd:
+                with open(filename, "rb") as fd:
                     buffer = fd.read(1024)
                 mimetype = magic.from_buffer(buffer, mime=True)
                 if not GrepHandler.handle(self, filename, mimetype):

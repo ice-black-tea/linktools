@@ -236,8 +236,10 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                 f"{self.name}.yml",
                 create_parent=True,
             )
-            with open(destination, "wt") as fd:
-                yaml.dump(self.docker_compose, fd)
+            utils.write_file(
+                destination,
+                yaml.dump(self.docker_compose)
+            )
         return destination
 
     def get_docker_file_path(self) -> Optional[str]:
@@ -249,8 +251,10 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                 f"{self.name}.Dockerfile",
                 create_parent=True,
             )
-            with open(destination, "wt") as fd:
-                fd.write(self.docker_file)
+            utils.write_file(
+                destination,
+                self.docker_file
+            )
         return destination
 
     @subcommand("shell", help="exec into container using command sh", prefix_chars=chr(0))
@@ -403,12 +407,10 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         context.setdefault("int", lambda obj, default=0: self.manager.config.cast(obj, type=int, default=default))
         context.setdefault("float", lambda obj, default=0.0: self.manager.config.cast(obj, type=float, default=default))
 
-        with open(source, "rt") as fd:
-            template = Template(fd.read())
+        template = Template(utils.read_file(source, text=True))
         result = template.render(context)
-        if destination is not None:
-            with open(destination, "wt") as fd:
-                fd.write(result)
+        if destination:
+            utils.write_file(destination, result)
 
         return result
 

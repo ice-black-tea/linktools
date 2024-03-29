@@ -39,6 +39,7 @@ from typing import \
     TYPE_CHECKING, TypeVar, Type, Optional, Generator, \
     Any, Tuple, IO, Mapping, Union, List, Dict, Callable
 
+from . import utils
 from .decorator import cached_property
 from .metadata import __missing__
 from .rich import prompt, confirm, choose
@@ -158,8 +159,8 @@ class ConfigDict(dict):
         d.sample = Config.Sample
         d.confirm = Config.Confirm
         try:
-            with open(filename, "rb") as config_file:
-                exec(compile(config_file.read(), filename, "exec"), d.__dict__)
+            data = utils.read_file(filename, text=False)
+            exec(compile(data, filename, "exec"), d.__dict__)
         except OSError as e:
             if silent and e.errno in (errno.ENOENT, errno.EISDIR, errno.ENOTDIR):
                 return False

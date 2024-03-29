@@ -529,15 +529,18 @@ class ContainerManager:
     def _load_config(self, path: str) -> Union[Dict, List, Tuple]:
         if os.path.exists(path):
             try:
-                with open(path, "rt") as fd:
-                    return json.load(fd)
+                return json.loads(
+                    utils.read_file(path, text=True)
+                )
             except Exception as e:
                 self.logger.warning(f"Failed to load config file {path}: {e}")
         return {}
 
     def _dump_config(self, path: str, config: Union[Dict, List, Tuple]):
         try:
-            with open(path, "wt") as fd:
-                json.dump(config, fd, indent=2, ensure_ascii=False)
+            utils.write_file(
+                path,
+                json.dumps(config, indent=2, ensure_ascii=False)
+            )
         except Exception as e:
             self.logger.warning(f"Failed to dump config file {path}: {e}")

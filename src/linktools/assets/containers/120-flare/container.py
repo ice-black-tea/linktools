@@ -29,7 +29,7 @@
 
 import yaml
 
-from linktools import Config
+from linktools import Config, utils
 from linktools.container import BaseContainer
 from linktools.container.container import ExposeMixin, ExposeLink, ExposeCategory
 from linktools.decorator import cached_property
@@ -58,7 +58,8 @@ class Container(BaseContainer):
         return [
             self.expose_other("在线工具集合", "tools", "", "https://tool.lu/"),
             self.expose_other("在线正则表达式", "regex", "", "https://regex101.com/"),
-            self.expose_other("正则表达式手册", "regex", "", "https://tool.oschina.net/uploads/apidocs/jquery/regexp.html"),
+            self.expose_other("正则表达式手册", "regex", "",
+                              "https://tool.oschina.net/uploads/apidocs/jquery/regexp.html"),
             self.expose_other("在线json解析", "codeJson", "", "https://www.json.cn/"),
             self.expose_other("DNS查询", "dns", "", "https://tool.chinaz.com/dns/"),
             self.expose_other("图标下载", "progressDownload", "", "https://materialdesignicons.com/"),
@@ -82,34 +83,38 @@ class Container(BaseContainer):
                         apps.append(expose)
                     bookmarks.append(expose)
 
-        with open(self.get_app_path("app", "apps.yml", create_parent=True), "wt") as fd:
-            data = {"links": []}
-            for app in apps:
-                data["links"].append({
-                    "name": app.name,
-                    "desc": app.desc,
-                    "icon": app.icon,
-                    "link": app.url,
-                })
-            yaml.dump(data, fd)
+        data = {"links": []}
+        for app in apps:
+            data["links"].append({
+                "name": app.name,
+                "desc": app.desc,
+                "icon": app.icon,
+                "link": app.url,
+            })
+        utils.write_file(
+            self.get_app_path("app", "apps.yml", create_parent=True),
+            yaml.dump(data),
+        )
 
-        with open(self.get_app_path("app", "bookmarks.yml", create_parent=True), "wt") as fd:
-            data = {"categories": [], "links": []}
-            for category, links in categories.items():
-                if not links:
-                    continue
-                data["categories"].append({
-                    "id": category.name,
-                    "title": category.desc,
+        data = {"categories": [], "links": []}
+        for category, links in categories.items():
+            if not links:
+                continue
+            data["categories"].append({
+                "id": category.name,
+                "title": category.desc,
+            })
+            for link in links:
+                data["links"].append({
+                    "category": category.name,
+                    "name": link.name,
+                    "icon": link.icon,
+                    "link": link.url,
                 })
-                for link in links:
-                    data["links"].append({
-                        "category": category.name,
-                        "name": link.name,
-                        "icon": link.icon,
-                        "link": link.url,
-                    })
-            yaml.dump(data, fd)
+        utils.write_file(
+            self.get_app_path("app", "bookmarks.yml", create_parent=True),
+            yaml.dump(data),
+        )
 
         self.manager.change_owner(
             self.get_app_path("app"),
@@ -119,5 +124,4 @@ class Container(BaseContainer):
         self.write_nginx_conf(
             self.manager.config.get("FLARE_DOAMIN"),
             self.get_path("nginx.conf"),
-            name="flare",
         )

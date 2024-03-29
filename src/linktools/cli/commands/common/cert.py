@@ -87,7 +87,7 @@ class Command(BaseCommand):
 
         cert = OpenSSL.crypto.load_certificate(
             OpenSSL.crypto.FILETYPE_PEM,
-            utils.read_file(os.path.expanduser(args.path), binary=True)
+            utils.read_file(os.path.expanduser(args.path), text=False)
         )
 
         issuer = cert.get_issuer()

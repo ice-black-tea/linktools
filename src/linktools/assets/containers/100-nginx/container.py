@@ -40,9 +40,10 @@ class Container(BaseContainer):
     @cached_property
     def keys(self):
         # dnsapi.txt 内容从 https://github.com/acmesh-official/acme.sh/wiki/dnsapi 拷贝
-        with open(os.path.join(os.path.dirname(__file__), "dnsapi.txt"), "rt") as fd:
-            pattern = re.compile(r'export +(\w+)="?')
-            return sorted(list(set(pattern.findall(fd.read()))))
+        path = os.path.join(os.path.dirname(__file__), "dnsapi.txt")
+        data = utils.read_file(path, text=True)
+        pattern = re.compile(r'export +(\w+)="?')
+        return sorted(list(set(pattern.findall(data))))
 
     @cached_property
     def configs(self):

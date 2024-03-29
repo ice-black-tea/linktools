@@ -34,6 +34,7 @@ from argparse import ArgumentParser, Action, Namespace
 from typing import Optional, Callable, List, Type, Generic
 
 from . import BaseCommand
+from .. import utils
 from ..android import Adb, AdbError, Device as AdbDevice
 from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
 from ..ios import Sib, SibError, Device as SibDevice
@@ -48,13 +49,11 @@ class DeviceCache:
 
     def read(self) -> Optional[str]:
         if os.path.exists(self.path):
-            with open(self.path, "rt") as fd:
-                return fd.read().strip()
+            return utils.read_file(self.path, text=True).strip()
         return None
 
     def write(self, cache: str) -> None:
-        with open(self.path, "wt") as fd:
-            fd.write(cache)
+        utils.write_file(self.path, cache)
 
     def __call__(self, fn: Callable[..., BaseDevice]):
         @functools.wraps(fn)
