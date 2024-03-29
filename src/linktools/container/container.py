@@ -183,13 +183,29 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def docker_compose(self) -> Optional[Dict[str, Any]]:
         for name in self.manager.docker_compose_names:
             path = self.get_path(name)
-            if os.path.exists(path):
-                data = self.render_template(path)
-                data = yaml.safe_load(data)
-                if "services" in data and isinstance(data["services"], dict):
-                    for name, service in data["services"].items():
-                        if isinstance(service, dict):
-                            service.setdefault("container_name", name)
+            if not os.path.exists(path):
+                continue
+            data = self.render_template(path)
+            data = yaml.safe_load(data)
+            if "services" in data and isinstance(data["services"], dict):
+                for name, service in data["services"].items():
+                    if not isinstance(service, dict):
+                        continue
+                    service.setdefault("container_name", name)
+                    service.setdefault("restart", "unless-stopped")
+                    service.setdefault("logging", {
+                        "driver": "json-file",
+                        "options": {
+                            "max-size": "10m",
+                        }
+                    })
+                    if "image" not in service and "build" not in service:
+                        path = self.get_docker_file_path()
+                        if path:
+                            service["build"] = {
+                                "context": self.get_path(),
+                                "dockerfile": path
+                            }
                 return data
         return None
 
@@ -399,13 +415,15 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
 
         context.update(kwargs)
         context.setdefault("DEBUG", self.manager.debug)
-        context.setdefault("manager", self.manager)
-        context.setdefault("config", self.manager.config)
-        context.setdefault("container", self)
+
         context.setdefault("bool", lambda obj, default=False: self.manager.config.cast(obj, type=bool, default=default))
         context.setdefault("str", lambda obj, default="": self.manager.config.cast(obj, type=str, default=default))
         context.setdefault("int", lambda obj, default=0: self.manager.config.cast(obj, type=int, default=default))
         context.setdefault("float", lambda obj, default=0.0: self.manager.config.cast(obj, type=float, default=default))
+
+        context.setdefault("manager", self.manager)
+        context.setdefault("config", self.manager.config)
+        context.setdefault("container", self)
 
         template = Template(utils.read_file(source, text=True))
         result = template.render(context)

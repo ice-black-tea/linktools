@@ -27,7 +27,6 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import abc
-import getpass
 import json
 import logging
 import os
@@ -284,13 +283,14 @@ class BaseEnviron(abc.ABC):
         index = 0
         dir_names = os.environ["PATH"].split(os.pathsep)
         for tool in tools:
+            if not tool.executable:
+                continue
             # dirname(executable[0]) -> environ["PATH"]
-            if tool.executable:
-                dir_name = tool.dirname
-                if dir_name and dir_name not in dir_names:
-                    # insert to head
-                    dir_names.insert(index, tool.dirname)
-                    index += 1
+            dir_name = tool.dirname
+            if dir_name and dir_name not in dir_names:
+                # insert to head
+                dir_names.insert(index, tool.dirname)
+                index += 1
         # add all paths to environment variables
         os.environ["PATH"] = os.pathsep.join(dir_names)
 

@@ -78,7 +78,7 @@ class ContainerManager:
         )
 
     @property
-    def debug(self):
+    def debug(self) -> bool:
         return os.environ.get("DEBUG", self.environ.debug)
 
     @property
@@ -90,7 +90,7 @@ class ContainerManager:
         return self.environ.machine
 
     @cached_property
-    def container_type(self):
+    def container_type(self) -> str:
         choices = ["docker", "docker-rootless", "podman"] \
             if self.system in ("darwin", "linux") and os.getuid() != 0 \
             else ["docker", "podman"]
@@ -101,7 +101,7 @@ class ContainerManager:
         )
 
     @cached_property
-    def container_host(self):
+    def container_host(self) -> str:
         default = "/var/run/docker.sock"
         host = self.environ.get_config(
             "DOCKER_HOST",
@@ -114,7 +114,7 @@ class ContainerManager:
         return default
 
     @cached_property
-    def host(self):
+    def host(self) -> str:
         return self.environ.get_config(
             "HOST",
             type=str,
@@ -125,7 +125,7 @@ class ContainerManager:
     def app_path(self):
         return self.config.get(
             "DOCKER_APP_PATH",
-            type=str,
+            type="path",
             default=Config.Prompt(
                 default=Config.Lazy(
                     lambda cfg: self.environ.get_data_path("container", "app", create_parent=True)
@@ -138,7 +138,7 @@ class ContainerManager:
     def app_data_path(self):
         return self.config.get(
             "DOCKER_APP_DATA_PATH",
-            type=str,
+            type="path",
             default=Config.Prompt(
                 default=Config.Lazy(
                     lambda cfg: self.environ.get_data_path("container", "app_data", create_parent=True)
@@ -151,7 +151,7 @@ class ContainerManager:
     def user_data_path(self):
         return self.config.get(
             "DOCKER_USER_DATA_PATH",
-            type=str,
+            type="path",
             default=Config.Prompt(
                 default=Config.Lazy(
                     lambda cfg: self.environ.get_data_path("container", "user_data", create_parent=True)
@@ -164,7 +164,7 @@ class ContainerManager:
     def download_path(self):
         return self.config.get(
             "DOCKER_DOWNLOAD_PATH",
-            type=str,
+            type="path",
             default=Config.Prompt(
                 default=Config.Lazy(
                     lambda cfg: self.environ.get_data_path("container", "download", create_parent=True)
@@ -364,8 +364,6 @@ class ContainerManager:
             privilege: bool = None,
             **kwargs
     ) -> utils.Popen:
-        if "cwd" not in kwargs:
-            kwargs["cwd"] = self.environ.get_data_path("container", create_parent=True)
         if privilege:
             if self.system in ("darwin", "linux") and self.uid != 0:
                 args = ["sudo", *args]

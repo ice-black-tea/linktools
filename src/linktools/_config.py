@@ -45,10 +45,16 @@ from .metadata import __missing__
 from .rich import prompt, confirm, choose
 
 if TYPE_CHECKING:
+    from typing import Literal
     from ._environ import BaseEnviron
 
     T = TypeVar("T")
     EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
+    ConfigType = Literal["path"]
+
+
+def _is_type(obj: Any) -> bool:
+    return isinstance(obj, type)
 
 
 def _cast_bool(obj: Any) -> bool:
@@ -72,11 +78,17 @@ def _cast_str(obj: Any) -> str:
     return str(obj)
 
 
-_CONFIG_ENV = "ENV"
+def _cast_path(obj: Any) -> str:
+    if isinstance(obj, str):
+        return os.path.abspath(os.path.expanduser(obj))
+    raise TypeError(f"{type(obj)} cannot be converted to path")
 
-_CONFIG_TYPES: "Dict[Type[T], Callable[[Any], T]]" = {
+
+_CONFIG_ENV = "ENV"
+_CONFIG_TYPES: "Dict[Union[Type[T], ConfigType], Callable[[Any], T]]" = {
     bool: _cast_bool,
     str: _cast_str,
+    "path": _cast_path,
 }
 
 
@@ -93,18 +105,20 @@ class ConfigParser(configparser.ConfigParser):
 class ConfigProperty(abc.ABC):
     __lock__ = threading.RLock()
 
-    def __init__(self, type: Type = None, cached: Union[bool, str] = False):
+    def __init__(self, type: "Union[Type[T], ConfigType]" = None, cached: Union[bool, str] = False):
         self._data: Union[str, object] = __missing__
         self._type = type
         self._cached = cached
 
-    def load(self, config: "Config", key: str, type: Type = None) -> Any:
+    def load(self, config: "Config", key: str, type: "Union[Type[T], ConfigType]" = None) -> Any:
         if self._data is not __missing__:
             return self._data
+
         with self.__lock__:
             if self._data is not __missing__:
                 return self._data
             type = type or self._type
+
             if self._cached:
                 # load cache from config file
                 config_parser = ConfigParser()
@@ -121,7 +135,7 @@ class ConfigProperty(abc.ABC):
                 result = self._load(config, key, config_cache)
                 if isinstance(result, ConfigProperty):
                     result = result.load(config, key, type=type)
-                elif type and not isinstance(result, type):
+                elif not _is_type(type) or not isinstance(result, type):
                     result = config.cast(result, type)
 
                 # update cache to config file
@@ -134,13 +148,15 @@ class ConfigProperty(abc.ABC):
                     config_parser.write(fd)
 
                 self._data = result
+
             else:
                 result = self._load(config, key, __missing__)
                 if isinstance(result, ConfigProperty):
                     result = result.load(config, key, type=type)
-                elif type and not isinstance(result, type):
+                elif not _is_type(type) or not isinstance(result, type):
                     result = config.cast(result, type)
                 self._data = result
+
             return self._data
 
     @abc.abstractmethod
@@ -258,11 +274,11 @@ class Config:
             except Exception as e:
                 self._environ.logger.warning(f"Load config from {self.path} failed: {e}")
 
-    def cast(self, obj: Optional[str], type: "Type[T]", default: Any = __missing__) -> "T":
+    def cast(self, obj: Any, type: "Union[Type[T], ConfigType]", default: Any = __missing__) -> "T":
         """
         类型转换
         """
-        if type is not None and type is not __missing__:
+        if type not in (None, __missing__):
             cast = _CONFIG_TYPES.get(type, type)
             try:
                 return cast(obj)
@@ -272,7 +288,7 @@ class Config:
                 raise e
         return obj
 
-    def get(self, key: str, type: "Type[T]" = None, default: Any = __missing__) -> "T":
+    def get(self, key: str, type: "Union[Type[T], ConfigType]" = None, default: Any = __missing__) -> "T":
         """
         获取指定配置，优先会从环境变量中获取
         """
@@ -394,7 +410,7 @@ class Config:
                 prompt: str = None,
                 password: bool = False,
                 choices: Optional[List[str]] = None,
-                type: Type[Union[str, int, float]] = str,
+                type: "Union[Type[Union[str, int, float]], ConfigType]" = str,
                 default: Any = __missing__,
                 cached: Union[bool, str] = False,
                 always_ask: bool = False,
@@ -437,7 +453,7 @@ class Config:
 
             return prompt(
                 self.prompt or f"Please input {key}",
-                type=self.type,
+                type=self.type if not isinstance(self.type, str) else str,
                 password=self.password,
                 choices=self.choices,
                 default=default,
@@ -489,7 +505,7 @@ class Config:
         def __init__(
                 self,
                 *keys: str,
-                type: Type = str,
+                type: "Union[Type[T], ConfigType]" = str,
                 default: Any = __missing__,
                 cached: Union[bool, str] = False
         ):
