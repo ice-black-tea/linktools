@@ -116,7 +116,7 @@ class LogCommandMixin:
 
 
 def _filter_kwargs(kwargs):
-    return {k: v for k, v in kwargs.items() if v is not __missing__}
+    return {k: v for k, v in kwargs.items() if v != __missing__}
 
 
 _subcommand_index: int = 0
@@ -270,7 +270,7 @@ def subcommand_argument(
 
 class _SubCommandInfo:
 
-    def __init__(self, subcommand: Union["SubCommand", "_SubCommandInfo"]):
+    def __init__(self, subcommand: "Union[SubCommand, _SubCommandInfo]"):
         self.node: SubCommand = subcommand.node if isinstance(subcommand, _SubCommandInfo) else subcommand
         self.children: List[_SubCommandInfo] = []
 
@@ -388,7 +388,7 @@ class _SubCommandMethod(SubCommand):
             if dest not in signature.parameters:
                 raise SubCommandError(
                     f"Check subcommand argument error, "
-                    f"{self.info} has no `{argument.action.dest}` argument")
+                    f"{self.info} has no `{dest}` argument")
 
             # 根据方法参数的注解，设置一些默认值
             parameter = signature.parameters[dest]

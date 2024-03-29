@@ -46,9 +46,9 @@ def singleton(cls: "Type[T]") -> "Callable[P, T]":
     @functools.wraps(cls)
     def wrapper(*args, **kwargs):
         nonlocal instance
-        if instance is __missing__:
+        if instance == __missing__:
             with lock:
-                if instance is __missing__:
+                if instance == __missing__:
                     instance = cls(*args, **kwargs)
         return instance
 
@@ -119,11 +119,11 @@ class cached_property:
             )
             raise TypeError(msg) from None
         val = cache.get(self.attrname, __missing__)
-        if val is __missing__:
+        if val == __missing__:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
                 val = cache.get(self.attrname, __missing__)
-                if val is __missing__:
+                if val == __missing__:
                     val = self.func(instance)
                     try:
                         cache[self.attrname] = val
@@ -159,10 +159,10 @@ class cached_classproperty:
         self.val = __missing__
 
     def __get__(self, instance, owner=None):
-        if self.val is __missing__:
+        if self.val == __missing__:
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                if self.val is __missing__:
+                if self.val == __missing__:
                     self.val = self.func(owner)
 
         return self.val

@@ -235,7 +235,7 @@ class Tool(metaclass=ToolMeta):
 
         # download url
         download_url = utils.get_item(cfg, "download_url") or ""
-        if download_url is __missing__:
+        if download_url == __missing__:
             download_url = ""
         assert isinstance(download_url, str), \
             f"Tool<{cfg['name']}>.download_url type error, " \
@@ -243,21 +243,21 @@ class Tool(metaclass=ToolMeta):
         cfg["download_url"] = download_url.format(tools=self._container, **cfg)
 
         unpack_path = utils.get_item(cfg, "unpack_path") or ""
-        if unpack_path is __missing__:
+        if unpack_path == __missing__:
             unpack_path = ""
         assert isinstance(unpack_path, str), \
             f"Tool<{cfg['name']}>.unpack_path type error, " \
             f"str was expects, got {type(unpack_path)}"
 
         target_path = utils.get_item(cfg, "target_path") or ""
-        if target_path is __missing__:
+        if target_path == __missing__:
             target_path = ""
         assert isinstance(target_path, str), \
             f"Tool<{cfg['name']}>.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
         absolute_path = utils.get_item(cfg, "absolute_path") or ""
-        if absolute_path is __missing__:
+        if absolute_path == __missing__:
             absolute_path = ""
         assert isinstance(absolute_path, str), \
             f"Tool<{cfg['name']}>.absolute_path type error, " \
@@ -286,7 +286,7 @@ class Tool(metaclass=ToolMeta):
 
         # set executable cmdline
         cmdline = utils.get_item(cfg, "cmdline") or ""
-        if cmdline is __missing__:
+        if cmdline == __missing__:
             cmdline = cfg["name"]
         assert isinstance(cmdline, str), \
             f"Tool<{cfg['name']}>.cmdline type error, " \

@@ -59,9 +59,7 @@ class ContainerManager:
         self.environ = environ
         self.logger = environ.get_logger("container")
 
-        self.config = self.environ.wrap_config()
-        self.config.envvar_prefix = ""
-        self.config.namespace = "CONTAINER"
+        self.config = self.environ.wrap_config(namespace="container", prefix="")
         self.config.update_defaults(
             COMPOSE_PROJECT_NAME=name or self.environ.name,
             DOCKER_USER=Config.Prompt(default=os.environ.get("SUDO_USER", self.user), cached=True),
@@ -70,12 +68,7 @@ class ContainerManager:
         )
 
         self.docker_container_name = "container.py"
-        self.docker_compose_names = (
-            "compose.yaml",
-            "compose.yml",
-            "docker-compose.yaml",
-            "docker-compose.yml"
-        )
+        self.docker_compose_names = ("compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml")
 
     @property
     def debug(self) -> bool:

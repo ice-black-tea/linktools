@@ -323,7 +323,7 @@ def prompt(
         prompt,
         password=password,
         choices=choices,
-        default=default if default is not __missing__ else ...,
+        default=default if default != __missing__ else ...,
         show_default=show_default,
         show_choices=show_choices
     )
@@ -344,7 +344,7 @@ def choose(
             if default in choices \
             else __missing__
     index = default \
-        if default is not __missing__ and 0 <= default < len(choices) \
+        if default != __missing__ and 0 <= default < len(choices) \
         else 0
 
     begin = 1
@@ -363,7 +363,7 @@ def choose(
     return _create_prompt_class(int, allow_empty=False).ask(
         text,
         choices=[str(i) for i in range(begin, len(choices) + begin, 1)],
-        default=default + begin if default is not __missing__ else ...,
+        default=default + begin if default != __missing__ else ...,
         show_default=show_default,
         show_choices=False,
     ) - begin
@@ -376,6 +376,6 @@ def confirm(
 ) -> bool:
     return _create_prompt_class(bool, allow_empty=False).ask(
         prompt,
-        default=default if default is not __missing__ else ...,
+        default=default if default != __missing__ else ...,
         show_default=show_default,
     )

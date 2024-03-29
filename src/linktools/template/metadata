@@ -27,10 +27,16 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 
+
+class __MissingType:
+    __eq__ = lambda l, r: \
+        l is r or type(l) is type(r)
+
+
 __name__ = "linktools"
 __release__ = {{ release }}
 __version__ = "{{ version }}"
-__missing__ = Ellipsis
+__missing__ = __MissingType()
 __description__ = f"""\
     ___       __   __              __
    / (_)___  / /__/ /_____  ____  / /____

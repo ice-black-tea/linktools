@@ -29,6 +29,7 @@
 import os
 import re
 import shutil
+import textwrap
 
 from linktools import Config, utils
 from linktools.container import BaseContainer
@@ -52,11 +53,15 @@ class Container(BaseContainer):
             WILDCARD_DOMAIN=Config.Confirm(default=False, cached=True),
             HTTP_PORT=Config.Prompt(default=80, type=int, cached=True),
             HTTPS_PORT=Config.Prompt(default=443, type=int, cached=True),
-            ACME_DNS_API=Config.Sample({
-                "ACME_DNS_API": "dns_ali  <= parameter --dns, find from https://github.com/acmesh-official/acme.sh/wiki/dnsapi",
-                "Ali_Key     ": "<key>    <= environment variable with dns_ali",
-                "Ali_Secret  ": "<secret> <= environment variable with dns_ali",
-            })
+            ACME_DNS_API=Config.Error(textwrap.dedent(
+                """
+                Ensure ACME_DNS_API config matches --dns parameter in acme command is set.
+                · Also, set corresponding environment variables.
+                · For details, see: https://github.com/acmesh-official/acme.sh/wiki/dnsapi.
+                · Example command:
+                  $ ct-cntr config set ACME_DNS_API=dns_ali Ali_Key=xxx Ali_Secret=yyy
+                """
+            ))
         )
 
     @cached_property

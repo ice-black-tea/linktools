@@ -188,7 +188,7 @@ def cast(type: "Type[T]", obj: Any, default: Any = __missing__) -> "Optional[T]"
     :param default: 默认值
     :return: 转换后的值
     """
-    if default is __missing__:
+    if default == __missing__:
         return type(obj)
     try:
         return type(obj)

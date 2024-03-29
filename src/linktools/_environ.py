@@ -243,34 +243,46 @@ class BaseEnviron(abc.ABC):
     def _create_config(self) -> "Config":
         from ._config import Config
 
-        return Config(self, self._default_config)
+        return Config(
+            self,
+            self._default_config,
+            namespace="MAIN",
+            prefix=f"{self.name.upper()}_",
+        )
 
     @cached_property
     def config(self) -> "Config":
         """
         环境相关配置
         """
-        config = self._create_config()
-        config.load_from_env()
-        return config
+        return self._create_config()
 
-    def wrap_config(self) -> "Config":
+    def wrap_config(self, namespace: str = metadata.__missing__, prefix: str = metadata.__missing__) -> "Config":
         """
-        环境相关配置，与environ.config共享数据
+        环境相关配置，与environ.config共享配置数据，但不共享缓存数据和环境变量信息
+        :param namespace: 缓存对应的命名空间
+        :param prefix: 环境变量使用前缀
+        :return: 配置对象
         """
         from ._config import ConfigWrapper
 
-        return ConfigWrapper(self.config)
+        return ConfigWrapper(self.config, namespace=namespace, prefix=prefix)
 
     def get_config(self, key: str, type: "Type[T]" = None, default: Any = metadata.__missing__) -> "T":
         """
         获取指定配置，优先会从环境变量中获取
+        :param key: 配置键
+        :param type: 配置类型
+        :param default: 默认值
+        :return: 配置值
         """
         return self.config.get(key=key, type=type, default=default)
 
     def set_config(self, key: str, value: Any) -> None:
         """
         更新配置
+        :param key: 配置键
+        :param value: 配置值
         """
         self.config.set(key, value)
 
@@ -306,6 +318,9 @@ class BaseEnviron(abc.ABC):
     def get_tool(self, name: str, **kwargs) -> "Tool":
         """
         获取指定工具
+        :param name: 工具名
+        :param kwargs: 工具其他参数
+        :return: 工具对象
         """
         tool = self.tools[name]
         if len(kwargs) != 0:
@@ -315,6 +330,8 @@ class BaseEnviron(abc.ABC):
     def get_url_file(self, url: str) -> "UrlFile":
         """
         获取指定url
+        :param url: url地址
+        :return: UrlFile对象
         """
         from ._url import UrlFile
 

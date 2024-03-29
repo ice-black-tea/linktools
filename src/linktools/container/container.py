@@ -223,55 +223,23 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             return {}
         return services
 
-    @cached_property
-    def main_service(self) -> Optional[Dict[str, Any]]:
-        for service in self.services.values():
-            if isinstance(service, dict):
-                return service
-        return None
+    def on_init(self):
+        pass
 
-    def choose_service(self) -> Optional[Dict[str, Any]]:
-        services = list(self.services.values())
-        if len(services) == 0:
-            return None
-        if len(services) == 1:
-            return services[0]
-        index = choose(
-            "Please choose service",
-            choices=[service.get("container_name") for service in services],
-            default=0
-        )
-        return services[index]
+    def on_starting(self):
+        pass
 
-    def get_docker_compose_file(self) -> Optional[str]:
-        destination = None
-        if self.docker_compose:
-            destination = utils.get_path(
-                self.manager.temp_path,
-                "compose",
-                f"{self.name}.yml",
-                create_parent=True,
-            )
-            utils.write_file(
-                destination,
-                yaml.dump(self.docker_compose)
-            )
-        return destination
+    def on_started(self):
+        pass
 
-    def get_docker_file_path(self) -> Optional[str]:
-        destination = None
-        if self.docker_file:
-            destination = utils.get_path(
-                self.manager.temp_path,
-                "dockerfile",
-                f"{self.name}.Dockerfile",
-                create_parent=True,
-            )
-            utils.write_file(
-                destination,
-                self.docker_file
-            )
-        return destination
+    def on_stopping(self):
+        pass
+
+    def on_stopped(self):
+        pass
+
+    def on_removed(self):
+        pass
 
     @subcommand("shell", help="exec into container using command sh", prefix_chars=chr(0))
     @subcommand_argument("args", nargs="...")
@@ -333,15 +301,6 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             "logs", *options, service.get("container_name")
         ).call()
 
-    def on_init(self):
-        pass
-
-    def on_starting(self):
-        pass
-
-    def on_started(self):
-        pass
-
     def get_path(self, *paths: str):
         return utils.get_path(
             self.root_path,
@@ -391,6 +350,49 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             create=create,
             create_parent=create_parent
         )
+
+    def choose_service(self) -> Optional[Dict[str, Any]]:
+        services = list(self.services.values())
+        if len(services) == 0:
+            return None
+        if len(services) == 1:
+            return services[0]
+        index = choose(
+            "Please choose service",
+            choices=[service.get("container_name") for service in services],
+            default=0
+        )
+        return services[index]
+
+    def get_docker_compose_file(self) -> Optional[str]:
+        destination = None
+        if self.docker_compose:
+            destination = utils.get_path(
+                self.manager.temp_path,
+                "compose",
+                f"{self.name}.yml",
+                create_parent=True,
+            )
+            utils.write_file(
+                destination,
+                yaml.dump(self.docker_compose)
+            )
+        return destination
+
+    def get_docker_file_path(self) -> Optional[str]:
+        destination = None
+        if self.docker_file:
+            destination = utils.get_path(
+                self.manager.temp_path,
+                "dockerfile",
+                f"{self.name}.Dockerfile",
+                create_parent=True,
+            )
+            utils.write_file(
+                destination,
+                self.docker_file
+            )
+        return destination
 
     def is_depend_on(self, name: str):
         next_items = set(self.dependencies)

@@ -28,12 +28,14 @@
 """
 from argparse import Namespace, ArgumentParser
 from subprocess import SubprocessError
-from typing import Optional, List, Type
+from typing import Optional, List, Type, Dict, Tuple
 
 import yaml
+from git import GitCommandError
 
 from linktools import environ, ConfigError, utils
 from linktools.cli import BaseCommand, subcommand, SubCommandWrapper, subcommand_argument, SubCommandGroup
+from linktools.cli.argparse import KeyValueAction
 from linktools.container import ContainerManager, ContainerError
 from linktools.rich import confirm, choose
 
@@ -120,24 +122,35 @@ class ConfigCommand(BaseCommand):
             privilege=False,
         ).check_call()
 
+    @subcommand("set", help="set container configs")
+    @subcommand_argument("configs", action=KeyValueAction, nargs="+", help="container config key=value")
+    def on_command_set(self, configs: Dict[str, str]):
+        manager.config.save_cache(**configs)
+        for key in sorted(configs.keys()):
+            value = manager.config.get(key)
+            self.logger.info(f"{key}: {value}")
+
+    @subcommand("remove", help="remove container configs")
+    @subcommand_argument("keys", metavar="KEY", nargs="+", help="container config keys")
+    def on_command_remove(self, keys: List[str]):
+        manager.config.remove_cache(*keys)
+        self.logger.info(f"Remove {', '.join(keys)} success")
+
     @subcommand("list", help="list container configs")
     def on_command_list(self):
         keys = set()
-        containers = manager.prepare_installed_containers()
-        for container in containers:
+        for container in manager.prepare_installed_containers():
             keys.update(container.configs.keys())
+            if hasattr(container, "keys") and isinstance(container.keys, (Tuple, List)):
+                keys.update([key for key in container.keys if key in manager.config])
         for key in sorted(keys):
             value = manager.config.get(key)
             self.logger.info(f"{key}: {value}")
 
     @subcommand("reload", help="reload container configs")
     def on_command_reload(self):
-        manager.config.set("RELOAD_CONFIG", True)
+        manager.config.reload = True
         manager.prepare_installed_containers()
-
-    @subcommand("path", help="show config path")
-    def on_command_path(self):
-        print(manager.config.path, end="")
 
 
 class ExecCommand(BaseCommand):
@@ -147,14 +160,15 @@ class ExecCommand(BaseCommand):
     def name(self):
         return "exec"
 
-    def iter_installed_container_names(self):
+    @classmethod
+    def _iter_installed_container_names(cls):
         containers = manager.get_installed_containers()
         containers = manager.resolve_depend_containers(containers)
         return [container.name for container in containers]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("exec_name", nargs="?", metavar="CONTAINER", help="container name",
-                            choices=utils.lazy_load(self.iter_installed_container_names))
+                            choices=utils.lazy_load(self._iter_installed_container_names))
         parser.add_argument("exec_args", nargs="...", metavar="ARGS", help="container exec args")
 
     def run(self, args: Namespace) -> Optional[int]:
@@ -189,7 +203,7 @@ class Command(BaseCommand):
     @property
     def known_errors(self) -> List[Type[BaseException]]:
         known_errors = super().known_errors
-        known_errors.extend([ContainerError, ConfigError, SubprocessError])
+        known_errors.extend([ContainerError, ConfigError, SubprocessError, GitCommandError, OSError])
         return known_errors
 
     def init_arguments(self, parser: ArgumentParser) -> None:
@@ -265,38 +279,53 @@ class Command(BaseCommand):
     @subcommand("up", help="deploy installed containers")
     def on_command_up(self):
         containers = manager.prepare_installed_containers()
+
         for container in containers:
             container.on_starting()
-
         manager.create_docker_compose_process(
             containers,
             "up", "-d", "--build", "--remove-orphans"
         ).check_call()
-
         for container in reversed(containers):
             container.on_started()
 
     @subcommand("restart", help="restart installed containers")
     def on_command_restart(self):
         containers = manager.prepare_installed_containers()
-        for container in containers:
-            container.on_starting()
 
+        for container in reversed(containers):
+            container.on_stopping()
         manager.create_docker_compose_process(
             containers,
-            "restart"
+            "stop"
         ).check_call()
+        for container in containers:
+            container.on_stopped()
 
+        for container in containers:
+            container.on_starting()
+        manager.create_docker_compose_process(
+            containers,
+            "up", "-d", "--build", "--remove-orphans"
+        ).check_call()
         for container in reversed(containers):
             container.on_started()
 
     @subcommand("down", help="stop installed containers")
     def on_command_down(self):
         containers = manager.prepare_installed_containers()
+
+        for container in reversed(containers):
+            container.on_stopping()
         manager.create_docker_compose_process(
             containers,
             "down",
         ).check_call()
+        for container in containers:
+            container.on_stopped()
+
+        for container in containers:
+            container.on_removed()
 
 
 command = Command()
