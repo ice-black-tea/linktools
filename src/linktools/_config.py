@@ -269,8 +269,8 @@ class Config:
         self._config = config if share else pickle.loads(pickle.dumps(config))
         self._namespace = namespace if namespace != __missing__ else "MAIN"
         self._prefix = prefix.upper() if prefix != __missing__ else ""
-        self._cache = dict()
         self._reload = None
+        self._cache = dict()
         self._cache_path = self._environ.get_data_path(f"{self._environ.name}.cfg", create_parent=True)
         self.load_cache()
 
@@ -280,7 +280,11 @@ class Config:
         是否重新加载配置
         """
         if self._reload is None:
-            self._reload = self.get("RELOAD_CONFIG", type=bool, default=False)
+            value = False
+            key = f"{self._prefix}RELOAD_CONFIG"
+            if key in os.environ:
+                value = self.cast(os.environ[key], type=bool)
+            self._reload = value
         return self._reload
 
     @reload.setter
@@ -318,21 +322,24 @@ class Config:
             if key in self._cache:
                 value = self._cache.get(key)
                 prop = self._config.get(key, None)
-                if isinstance(prop, ConfigProperty) and prop.reloadable and self.reload:
-                    with self.__lock__:
-                        value = self._cache[key] = prop.load(self, key, type=type, cache=value)
-                else:
-                    value = self.cast(value, type=type)
-                return value
+                if self.reload:
+                    if isinstance(prop, ConfigProperty) and prop.reloadable:
+                        with self.__lock__:
+                            value = self._cache[key] = prop.load(self, key, type=type, cache=value)
+                            return value
+                    if isinstance(default, ConfigProperty) and default.reloadable:
+                        with self.__lock__:
+                            value = self._cache[key] = default.load(self, key, type=type, cache=value)
+                            return value
+                return self.cast(value, type=type)
 
             if key in self._config:
                 value = self._config.get(key)
                 if isinstance(value, ConfigProperty):
                     with self.__lock__:
                         value = self._cache[key] = value.load(self, key, type=type)
-                else:
-                    value = self.cast(value, type=type)
-                return value
+                        return value
+                return self.cast(value, type=type)
 
         except Exception as e:
             last_error = e
