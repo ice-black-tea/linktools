@@ -141,7 +141,7 @@ class ConfigCommand(BaseCommand):
         keys = set()
         for container in manager.prepare_installed_containers():
             keys.update(container.configs.keys())
-            if hasattr(container, "keys") and isinstance(container.keys, (Tuple, List)):
+            if hasattr(container, "keys") and isinstance(container.keys, (Tuple, List, Dict)):
                 keys.update([key for key in container.keys if key in manager.config])
         for key in sorted(keys):
             value = manager.config.get(key)

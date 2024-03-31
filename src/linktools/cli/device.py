@@ -124,6 +124,8 @@ class DeviceCommandMixin:
     def add_device_options(self: "BaseCommand", parser: ArgumentParser):
 
         parser = parser or self._argument_parser
+        prefix = parser.prefix_chars
+
         cache = DeviceCache(
             self.environ.get_temp_path(
                 "cache", "device", "mobile",
@@ -190,10 +192,10 @@ class DeviceCommandMixin:
         option_group.set_defaults(device_picker=DevicePicker(pick))
 
         device_group = option_group.add_mutually_exclusive_group()
-        device_group.add_argument("-i", "--id", metavar="ID", dest="device_picker", action=IDAction,
-                                  help="specify unique device identifier")
-        device_group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
-                                  help="use last device")
+        device_group.add_argument(f"{prefix}i", f"{prefix}{prefix}id", metavar="ID", dest="device_picker",
+                                  action=IDAction, help="specify unique device identifier")
+        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0, const=True,
+                                  action=LastAction, help="use last device")
 
 
 class AndroidCommandMixin:
@@ -201,6 +203,8 @@ class AndroidCommandMixin:
     def add_android_options(self: BaseCommand, parser: ArgumentParser) -> None:
 
         parser = parser or self._argument_parser
+        prefix = parser.prefix_chars
+
         cache = DeviceCache(
             self.environ.get_temp_path(
                 "cache", "device", "android",
@@ -306,28 +310,28 @@ class AndroidCommandMixin:
         option_group = parser.add_argument_group(title="adb options")
         option_group.set_defaults(device_picker=AndroidPicker(pick))
 
-        option_group.add_argument("-a", "--all-interfaces", dest="device_picker", nargs=0, action=OptionAction,
+        option_group.add_argument(f"{prefix}a", f"{prefix}{prefix}all-interfaces", dest="device_picker", nargs=0, action=OptionAction,
                                   help="listen on all network interfaces, not just localhost (adb -a option)")
 
         device_group = option_group.add_mutually_exclusive_group()
-        device_group.add_argument("-d", "--device", dest="device_picker", nargs=0, action=DeviceAction,
+        device_group.add_argument(f"{prefix}d", f"{prefix}{prefix}device", dest="device_picker", nargs=0, action=DeviceAction,
                                   help="use USB device (adb -d option)")
-        device_group.add_argument("-s", "--serial", metavar="SERIAL", dest="device_picker", action=SerialAction,
+        device_group.add_argument(f"{prefix}s", f"{prefix}{prefix}serial", metavar="SERIAL", dest="device_picker", action=SerialAction,
                                   help="use device with given serial (adb -s option)")
-        device_group.add_argument("-e", "--emulator", dest="device_picker", nargs=0, action=EmulatorAction,
+        device_group.add_argument(f"{prefix}e", f"{prefix}{prefix}emulator", dest="device_picker", nargs=0, action=EmulatorAction,
                                   help="use TCP/IP device (adb -e option)")
-        device_group.add_argument("-c", "--connect", metavar="IP[:PORT]", dest="device_picker", action=ConnectAction,
+        device_group.add_argument(f"{prefix}c", f"{prefix}{prefix}connect", metavar="IP[:PORT]", dest="device_picker", action=ConnectAction,
                                   help="use device with TCP/IP")
-        device_group.add_argument("-l", "--last", dest="device_picker", nargs=0, action=LastAction,
+        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0, action=LastAction,
                                   help="use last device")
 
-        option_group.add_argument("-t", "--transport", metavar="ID", dest="device_picker", action=OptionAction,
+        option_group.add_argument(f"{prefix}t", f"{prefix}{prefix}transport", metavar="ID", dest="device_picker", action=OptionAction,
                                   help="use device with given transport ID (adb -t option)")
-        option_group.add_argument("-H", metavar="HOST", dest="device_picker", action=OptionAction,
+        option_group.add_argument(f"{prefix}H", metavar="HOST", dest="device_picker", action=OptionAction,
                                   help="name of adb server host [default=localhost] (adb -H option)")
-        option_group.add_argument("-P", metavar="PORT", dest="device_picker", action=OptionAction,
+        option_group.add_argument(f"{prefix}P", metavar="PORT", dest="device_picker", action=OptionAction,
                                   help="port of adb server [default=5037] (adb -P option)")
-        option_group.add_argument("-L", metavar="SOCKET", dest="device_picker", action=OptionAction,
+        option_group.add_argument(f"{prefix}L", metavar="SOCKET", dest="device_picker", action=OptionAction,
                                   help="listen on given socket for adb server [default=tcp:localhost:5037] (adb -L option)")
 
 
@@ -336,6 +340,8 @@ class IOSCommandMixin:
     def add_ios_options(self: BaseCommand, parser: ArgumentParser):
 
         parser = parser or self._argument_parser
+        prefix = parser.prefix_chars
+
         cache = DeviceCache(
             self.environ.get_temp_path(
                 "cache", "device", "ios",
@@ -410,11 +416,11 @@ class IOSCommandMixin:
         option_group.set_defaults(device_picker=IOSPicker(pick))
 
         device_group = option_group.add_mutually_exclusive_group()
-        device_group.add_argument("-u", "--udid", metavar="UDID", dest="device_picker", action=UdidAction,
+        device_group.add_argument(f"{prefix}u", f"{prefix}{prefix}udid", metavar="UDID", dest="device_picker", action=UdidAction,
                                   help="specify unique device identifier")
-        device_group.add_argument("-c", "--connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
+        device_group.add_argument(f"{prefix}c", f"{prefix}{prefix}connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
                                   help="use device with TCP/IP")
-        device_group.add_argument("-l", "--last", dest="device_picker", nargs=0, const=True, action=LastAction,
+        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0, const=True, action=LastAction,
                                   help="use last device")
 
 

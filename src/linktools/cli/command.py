@@ -64,57 +64,6 @@ class SubCommandError(CommandError):
     pass
 
 
-class LogCommandMixin:
-
-    def add_log_options(self: "BaseCommand", parser: ArgumentParser = None):
-
-        environ = self.environ
-        parser = parser or self._argument_parser
-
-        class VerboseAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                logging.root.setLevel(logging.DEBUG)
-
-        class DebugAction(Action):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                environ.debug = True
-                environ.logger.setLevel(logging.DEBUG)
-
-        class LogTimeAction(BooleanOptionalAction):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                if option_string in self.option_strings:
-                    value = not option_string.startswith("--no-")
-                    handler = LogHandler.get_instance()
-                    if handler:
-                        handler.show_time = value
-                    environ.set_config("SHOW_LOG_TIME", value)
-
-        class LogLevelAction(BooleanOptionalAction):
-
-            def __call__(self, parser, namespace, values, option_string=None):
-                if option_string in self.option_strings:
-                    value = not option_string.startswith("--no-")
-                    handler = LogHandler.get_instance()
-                    if handler:
-                        handler.show_level = value
-                    environ.set_config("SHOW_LOG_LEVEL", value)
-
-        group = parser.add_argument_group(title="log options")
-        group.add_argument("--verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
-                           help="increase log verbosity")
-        group.add_argument("--debug", action=DebugAction, nargs=0, const=True, dest=SUPPRESS,
-                           help=f"increase {self.environ.name}'s log verbosity, and enable debug mode")
-
-        if LogHandler.get_instance():
-            group.add_argument("--time", action=LogTimeAction, dest=SUPPRESS,
-                               help="show log time")
-            group.add_argument("--level", action=LogLevelAction, dest=SUPPRESS,
-                               help="show log level")
-
-
 def _filter_kwargs(kwargs):
     return {k: v for k, v in kwargs.items() if v != __missing__}
 
@@ -547,6 +496,7 @@ class SubCommandMixin:
 
             parser = subcommand.create_parser(type=parent_subparsers.add_parser)
             parser.set_defaults(**{f"__subcommand_{id(self):x}__": subcommand})
+            self.init_common_arguments(parser)
 
             if subcommand.is_group:
                 _subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
@@ -660,7 +610,7 @@ class SubCommandMixin:
         return tree
 
 
-class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
+class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
 
     @property
     def name(self):
@@ -701,6 +651,20 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
         """
         return [CommandError]
 
+    @abc.abstractmethod
+    def init_arguments(self, parser: ArgumentParser) -> None:
+        """
+        初始化参数，在调用create_parser时执行
+        """
+        pass
+
+    @abc.abstractmethod
+    def run(self, args: Namespace) -> Optional[int]:
+        """
+        业务逻辑入口
+        """
+        pass
+
     def create_parser(
             self,
             *args: Any,
@@ -731,7 +695,9 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
 
     @cached_property
     def _argument_parser(self) -> ArgumentParser:
-        return self.create_parser()
+        parser = self.create_parser()
+        self.init_common_arguments(parser)
+        return parser
 
     def init_base_arguments(self, parser: ArgumentParser) -> None:
         """
@@ -739,19 +705,60 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
         """
         pass
 
-    @abc.abstractmethod
-    def init_arguments(self, parser: ArgumentParser) -> None:
+    def init_common_arguments(self, parser: ArgumentParser) -> None:
         """
-        初始化参数，在调用create_parser时执行
+        初始化公共参数，会在命令本身和所有子命令中调用
         """
-        pass
+        environ = self.environ
+        prefix = parser.prefix_chars
 
-    @abc.abstractmethod
-    def run(self, args: Namespace) -> Optional[int]:
-        """
-        业务逻辑入口
-        """
-        pass
+        class VerboseAction(Action):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                logging.root.setLevel(logging.DEBUG)
+
+        class DebugAction(Action):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                environ.debug = True
+                environ.logger.setLevel(logging.DEBUG)
+
+        class LogTimeAction(BooleanOptionalAction):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                if option_string in self.option_strings:
+                    value = not option_string.startswith("--no-")
+                    handler = LogHandler.get_instance()
+                    if handler:
+                        handler.show_time = value
+                    environ.set_config("SHOW_LOG_TIME", value)
+
+        class LogLevelAction(BooleanOptionalAction):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                if option_string in self.option_strings:
+                    value = not option_string.startswith("--no-")
+                    handler = LogHandler.get_instance()
+                    if handler:
+                        handler.show_level = value
+                    environ.set_config("SHOW_LOG_LEVEL", value)
+
+        group = parser.add_argument_group(title="log options")
+        group.add_argument(f"{prefix}{prefix}verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
+                           help="increase log verbosity")
+        group.add_argument(f"{prefix}{prefix}debug", action=DebugAction, nargs=0, const=True, dest=SUPPRESS,
+                           help=f"increase {self.environ.name}'s log verbosity, and enable debug mode")
+
+        if LogHandler.get_instance():
+            group.add_argument(f"{prefix}{prefix}time", action=LogTimeAction, dest=SUPPRESS,
+                               help="show log time")
+            group.add_argument(f"{prefix}{prefix}level", action=LogLevelAction, dest=SUPPRESS,
+                               help="show log level")
+
+        if self.environ.version != NotImplemented:
+            parser.add_argument(
+                f"{prefix}{prefix}version", action="version", version=self.environ.version
+            )
 
     def main(self, *args, **kwargs) -> None:
         """
@@ -771,34 +778,27 @@ class BaseCommand(LogCommandMixin, SubCommandMixin, metaclass=abc.ABCMeta):
                 datefmt="%H:%M:%S"
             )
 
-        self.add_log_options()
-
-        if self.environ.version != NotImplemented:
-            self._argument_parser.add_argument(
-                "--version", action="version", version=self.environ.version
-            )
-
         try:
-            exit_code = self(*args, **kwargs)
+            result = self(*args, **kwargs)
         except SystemExit as e:
-            exit_code = e.code
+            result = e.code
 
         except (KeyboardInterrupt, EOFError) as e:
-            exit_code = 1
+            result = 1
             error_type, error_message = e.__class__.__name__, str(e).strip()
             self.logger.error(
                 f"{error_type}: {error_message}" if error_message else error_type,
             )
 
         except:
-            exit_code = 1
+            result = 1
             if environ.debug:
                 console = get_console()
                 console.print_exception(show_locals=True)
             else:
                 self.logger.error(traceback.format_exc())
 
-        exit(exit_code)
+        exit(result)
 
     def __call__(self, args: Union[List[str], Namespace] = None) -> int:
         """
