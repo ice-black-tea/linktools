@@ -102,7 +102,7 @@ class Device(BaseDevice):
     def detail(self) -> dict:
         return self.info.get("deviceDetail")
 
-    def popen(self, *args: [Any], **kwargs) -> utils.Popen:
+    def popen(self, *args: [Any], **kwargs) -> utils.Process:
         """
         执行命令
         :param args: 命令行参数

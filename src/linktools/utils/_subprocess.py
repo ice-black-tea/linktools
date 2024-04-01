@@ -86,7 +86,7 @@ class Output:
                 break
 
 
-class Popen(subprocess.Popen):
+class Process(subprocess.Popen):
 
     def __init__(self, *args, **kwargs):
         capture_output = kwargs.pop("capture_output", False)
@@ -102,9 +102,11 @@ class Popen(subprocess.Popen):
             except FileNotFoundError:
                 kwargs["cwd"] = environ.get_temp_dir(create=True)
         if "append_env" in kwargs:
-            env = os.environ.copy()
-            env.update(kwargs.pop("env", {}))
+            env = kwargs.pop("env", None)
+            env = dict(env) if env else dict()
             env.update(kwargs.pop("append_env"))
+            for key, value in os.environ.items():
+                env.setdefault(key, value)
             kwargs["env"] = env
 
         args = [str(arg) for arg in args]

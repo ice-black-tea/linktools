@@ -47,7 +47,7 @@ from ._lazy import (
 )
 
 from ._subprocess import (
-    Popen,
+    Process,
     list2cmdline,
 )
 

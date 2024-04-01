@@ -29,7 +29,7 @@ class Bridge:
         for device in Sib().list_devices(alive=alive):
             yield device
 
-    def popen(self, *args: [Any], **kwargs) -> utils.Popen:
+    def popen(self, *args: [Any], **kwargs) -> utils.Process:
         if self._tool is None:
             raise self._error_type("tool not found")
         return self._tool.popen(

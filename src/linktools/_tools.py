@@ -362,7 +362,7 @@ class Tool(metaclass=ToolMeta):
             self._container.logger.debug(f"Delete {self.absolute_path}")
             os.remove(self.absolute_path)
 
-    def popen(self, *args: [Any], **kwargs) -> utils.Popen:
+    def popen(self, *args: [Any], **kwargs) -> utils.Process:
         self.prepare()
 
         # java or other
@@ -372,7 +372,7 @@ class Tool(metaclass=ToolMeta):
             tool = self._container.items[executable_cmdline[0]]
             return tool.popen(*args, **kwargs)
 
-        return utils.Popen(*[*executable_cmdline, *args], **kwargs)
+        return utils.Process(*[*executable_cmdline, *args], **kwargs)
 
     @utils.timeoutable
     def exec(

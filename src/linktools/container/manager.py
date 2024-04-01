@@ -356,18 +356,18 @@ class ContainerManager:
             *args,
             privilege: bool = None,
             **kwargs
-    ) -> utils.Popen:
+    ) -> utils.Process:
         if privilege:
             if self.system in ("darwin", "linux") and self.uid != 0:
                 args = ["sudo", *args]
-        return utils.Popen(*args, **kwargs)
+        return utils.Process(*args, **kwargs)
 
     def create_docker_process(
             self,
             *args,
             privilege: bool = None,
             **kwargs
-    ) -> utils.Popen:
+    ) -> utils.Process:
         commands = []
         if self.container_type in ("docker", "docker-rootless"):
             commands.extend(["docker"])
@@ -385,7 +385,7 @@ class ContainerManager:
             *args: str,
             privilege: bool = None,
             **kwargs: Any
-    ) -> utils.Popen:
+    ) -> utils.Process:
         commands = []
         if self.container_type in ("docker", "docker-rootless"):
             commands.extend(["docker", "compose"])

@@ -60,8 +60,8 @@ class Command(AndroidCommand):
         with device.forward(f"tcp:{args.port}", f"jdwp:{pid}"):
             data = input("jdb connect? [Y/n]: ").strip()
             if data in ["", "Y", "y"]:
-                process = utils.Popen("jdb", "-connect",
-                                      "com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={}".format(args.port))
+                process = utils.Process(
+                    "jdb", "-connect", f"com.sun.jdi.SocketAttach:hostname=127.0.0.1,port={args.port}")
                 return process.call()
 
 

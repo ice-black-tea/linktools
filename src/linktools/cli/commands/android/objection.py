@@ -101,9 +101,9 @@ class Command(AndroidCommand):
                 info = device.get_package(package)
                 uid = info.user_id if info else None
                 with device.redirect(address, port, uid):
-                    return utils.Popen(*objection_args).call()
+                    return utils.Process(*objection_args).call()
             else:
-                return utils.Popen(*objection_args).call()
+                return utils.Process(*objection_args).call()
 
 
 command = Command()

@@ -41,13 +41,13 @@ class Command(BaseCommand):
 
     def run(self, args: Namespace) -> Optional[int]:
         if args.command:
-            process = utils.Popen(args.command, shell=True)
+            process = utils.Process(args.command, shell=True)
             return process.call()
 
         if not self._shell_path or not os.path.exists(self._shell_path):
             raise NotImplementedError(f"unsupported system {environ.system}")
 
-        process = utils.Popen(self._shell_path)
+        process = utils.Process(self._shell_path)
         return process.call()
 
 
