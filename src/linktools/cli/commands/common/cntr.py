@@ -28,13 +28,14 @@
 """
 from argparse import Namespace, ArgumentParser
 from subprocess import SubprocessError
-from typing import Optional, List, Type, Dict, Tuple
+from typing import Optional, List, Type, Dict, Tuple, Any
 
 import yaml
 from git import GitCommandError
 
 from linktools import environ, ConfigError, utils
-from linktools.cli import BaseCommand, subcommand, SubCommandWrapper, subcommand_argument, SubCommandGroup
+from linktools.cli import BaseCommand, subcommand, SubCommandWrapper, subcommand_argument, SubCommandGroup, \
+    BaseCommandGroup
 from linktools.cli.argparse import KeyValueAction
 from linktools.container import ContainerManager, ContainerError
 from linktools.rich import confirm, choose
@@ -42,21 +43,12 @@ from linktools.rich import confirm, choose
 manager = ContainerManager(environ)
 
 
-class RepoCommand(BaseCommand):
+class RepoCommand(BaseCommandGroup):
     """manage container repository"""
 
     @property
     def name(self):
         return "repo"
-
-    def init_arguments(self, parser: ArgumentParser) -> None:
-        self.add_subcommands(parser)
-
-    def run(self, args: Namespace) -> Optional[int]:
-        subcommand = self.parse_subcommand(args)
-        if not subcommand:
-            return self.print_subcommands(args)
-        return subcommand.run(args)
 
     @subcommand("list", help="list repositories")
     def on_command_list(self):
@@ -130,11 +122,11 @@ class ConfigCommand(BaseCommand):
             value = manager.config.get(key)
             self.logger.info(f"{key}: {value}")
 
-    @subcommand("remove", help="remove container configs")
-    @subcommand_argument("keys", metavar="KEY", nargs="+", help="container config keys")
-    def on_command_remove(self, keys: List[str]):
-        manager.config.remove_cache(*keys)
-        self.logger.info(f"Remove {', '.join(keys)} success")
+    @subcommand("unset", help="remove container configs")
+    @subcommand_argument("configs", action=KeyValueAction, metavar="KEY", nargs="+", help="container config keys")
+    def on_command_remove(self, configs: Dict[str, str]):
+        manager.config.remove_cache(*configs)
+        self.logger.info(f"Unset {', '.join(configs)} success")
 
     @subcommand("list", help="list container configs")
     def on_command_list(self):
@@ -146,6 +138,11 @@ class ConfigCommand(BaseCommand):
         for key in sorted(keys):
             value = manager.config.get(key)
             self.logger.info(f"{key}: {value}")
+
+    @subcommand("edit", help="edit the config file in an editor")
+    @subcommand_argument("--editor", help="editor to use to edit the file")
+    def on_command_edit(self, editor: str):
+        return manager.create_process(editor, manager.config.cache_path).call()
 
     @subcommand("reload", help="reload container configs")
     def on_command_reload(self):
@@ -195,7 +192,7 @@ class ExecCommand(BaseCommand):
         return subcommand.run(exec_args)
 
 
-class Command(BaseCommand):
+class Command(BaseCommandGroup):
     """
     Deploy docker/pod containers
     """
@@ -206,36 +203,25 @@ class Command(BaseCommand):
         known_errors.extend([ContainerError, ConfigError, SubprocessError, GitCommandError, OSError])
         return known_errors
 
-    def init_arguments(self, parser: ArgumentParser) -> None:
-        subcommands = [
-            *self.walk_subcommands(self),
+    def init_subcommands(self) -> Any:
+        return [
+            self,
             SubCommandWrapper(ExecCommand()),
             SubCommandWrapper(ConfigCommand()),
             SubCommandWrapper(RepoCommand()),
         ]
-
-        self.add_subcommands(parser, target=subcommands)
-
-    def run(self, args: Namespace) -> Optional[int]:
-        subcommand = self.parse_subcommand(args)
-        if not subcommand or isinstance(subcommand, SubCommandGroup):
-            return self.print_subcommands(args, root=subcommand, max_level=2)
-        return subcommand.run(args)
 
     @subcommand("list", help="list all containers")
     def on_command_list(self):
         installed_containers = manager.get_installed_containers()
         depend_containers = manager.resolve_depend_containers(installed_containers)
         for container in sorted(manager.containers.values(), key=lambda o: o.order):
-            if container in depend_containers:
-                if not container.enable:
-                    self.logger.info(f"[ ] {container.name}", extra={"style": "dim"})
-                elif container in installed_containers:
-                    self.logger.info(f"[*] {container.name} [added]", extra={"style": "red bold"})
-                else:
-                    self.logger.info(f"[-] {container.name} [dependency]", extra={"style": "red dim"})
-            else:
+            if container not in depend_containers or not container.enable:
                 self.logger.info(f"[ ] {container.name}", extra={"style": "dim"})
+            elif container in installed_containers:
+                self.logger.info(f"[*] {container.name} [added]", extra={"style": "red bold"})
+            else:
+                self.logger.info(f"[-] {container.name} [dependency]", extra={"style": "red dim"})
 
     @subcommand("add", help="add containers to installed list")
     @subcommand_argument("names", metavar="CONTAINER", nargs="+", help="container name",

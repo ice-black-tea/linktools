@@ -127,6 +127,7 @@ def subcommand(
     """
     子命令装饰器
     """
+
     def decorator(func):
         if not hasattr(func, "__subcommand_info__"):
             setattr(func, "__subcommand_info__", _SubCommandMethodInfo())
@@ -189,6 +190,7 @@ def subcommand_argument(
     """
     子命令参数装饰器，与@subcommand配合使用
     """
+
     def decorator(func):
         subcommand_argument_info = _SubCommandMethodArgumentInfo()
         subcommand_argument_info.set_args(
@@ -825,3 +827,21 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
             )
 
         return exit_code
+
+
+class BaseCommandGroup(BaseCommand, metaclass=abc.ABCMeta):
+
+    def init_subcommands(self) -> Any:
+        return self
+
+    def init_arguments(self, parser: ArgumentParser) -> None:
+        self.add_subcommands(
+            parser=parser,
+            target=self.walk_subcommands(self.init_subcommands())
+        )
+
+    def run(self, args: Namespace) -> Optional[int]:
+        subcommand = self.parse_subcommand(args)
+        if not subcommand or subcommand.is_group:
+            return self.print_subcommands(args, subcommand, max_level=2)
+        return subcommand.run(args)

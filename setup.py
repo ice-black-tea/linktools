@@ -86,8 +86,8 @@ if __name__ == '__main__':
             )
         )
 
-    with open(get_path("dependencies.json"), "rt", encoding="utf-8") as fd:
-        data = json.load(fd)
+    with open(get_path("requirements.yml"), "rt", encoding="utf-8") as fd:
+        data = yaml.safe_load(fd)
         # install_requires = dependencies + dev-dependencies
         install_requires = data.get("dependencies")
         if not release:

@@ -442,11 +442,12 @@ def read_file(path: str, text: bool = False, encoding=DEFAULT_ENCODING) -> Union
     """
     读取文件数据
     """
-    with open(path, "rb") as fd:
-        data = fd.read()
     if text:
-        data = data.decode(encoding)
-    return data
+        with open(path, "rt", encoding=encoding) as fd:
+            return fd.read()
+    else:
+        with open(path, "rb") as fd:
+            return fd.read()
 
 
 def write_file(path: str, data: [str, bytes], encoding=DEFAULT_ENCODING) -> None:
@@ -454,9 +455,11 @@ def write_file(path: str, data: [str, bytes], encoding=DEFAULT_ENCODING) -> None
     写入文件数据
     """
     if isinstance(data, str):
-        data = bytes(data, DEFAULT_ENCODING)
-    with open(path, "wb") as fd:
-        fd.write(data)
+        with open(path, "wt", encoding=encoding) as fd:
+            fd.write(data)
+    else:
+        with open(path, "wb") as fd:
+            fd.write(data)
 
 
 def get_lan_ip() -> Optional[str]:

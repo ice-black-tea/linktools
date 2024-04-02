@@ -30,7 +30,7 @@
 from . import argparse
 
 from .command import \
-    BaseCommand, CommandError, \
+    BaseCommand, BaseCommandGroup, CommandError, \
     SubCommand, SubCommandGroup, SubCommandWrapper, \
     subcommand, subcommand_argument, SubCommandError
 

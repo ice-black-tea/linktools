@@ -26,22 +26,15 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from argparse import ArgumentParser, Namespace
-from typing import Optional
+from typing import Any
 
-from .cli import BaseCommand, commands
+from .cli import commands, BaseCommandGroup
 
 
-class Command(BaseCommand):
+class Command(BaseCommandGroup):
 
-    def init_arguments(self, parser: ArgumentParser) -> None:
-        self.add_subcommands(parser=parser, target=commands)
-
-    def run(self, args: Namespace) -> Optional[int]:
-        subcommand = self.parse_subcommand(args)
-        if not subcommand or subcommand.is_group:
-            return self.print_subcommands(args, subcommand, max_level=2)
-        return subcommand.run(args)
+    def init_subcommands(self) -> Any:
+        return commands
 
 
 command = Command()

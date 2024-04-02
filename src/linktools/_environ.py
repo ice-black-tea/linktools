@@ -31,6 +31,8 @@ import json
 import logging
 import os
 import pathlib
+import shutil
+import time
 from typing import TYPE_CHECKING, TypeVar, Type, Any
 
 from . import utils, metadata
@@ -111,7 +113,7 @@ class BaseEnviron(abc.ABC):
         """
         存放文件目录
         """
-        prefix = f"{metadata.__name__}_".upper()
+        prefix = f"{metadata.__name__}".upper()
         path = os.environ.get(f"{prefix}_DATA_PATH", None)
         if path:  # 优先使用环境变量中的${DATA_PATH}
             return path
@@ -126,7 +128,7 @@ class BaseEnviron(abc.ABC):
         """
         存放临时文件目录
         """
-        prefix = f"{metadata.__name__}_".upper()
+        prefix = f"{metadata.__name__}".upper()
         path = os.environ.get(f"{prefix}_TEMP_PATH", None)
         if path:  # 优先使用环境变量中的${TEMP_PATH}
             return path
@@ -167,6 +169,35 @@ class BaseEnviron(abc.ABC):
         获取临时文件目录下的子目录
         """
         return utils.get_path(self.temp_path, *paths, create=create, create_parent=False)
+
+    def clean_temp_files(self, expire_days: int = 7) -> None:
+        """
+        清理临时文件
+        """
+        current_time = time.time()
+        target_time = current_time - expire_days * 24 * 60 * 60
+        for root, dirs, files in os.walk(self.temp_path, topdown=False):
+            for name in files:
+                path = os.path.join(root, name)
+                last_time = max(
+                    os.path.getatime(path),
+                    os.path.getctime(path),
+                    os.path.getmtime(path),
+                )
+                if last_time < target_time:
+                    self.logger.info(f"Remove expired temp file: {path}")
+                    os.remove(path)
+            for name in dirs:
+                path = os.path.join(root, name)
+                if os.path.exists(path) and not os.listdir(path):
+                    last_time = max(
+                        os.path.getatime(path),
+                        os.path.getctime(path),
+                        os.path.getmtime(path),
+                    )
+                    if last_time < target_time:
+                        self.logger.info(f"Remove empty temp directory: {path}")
+                        shutil.rmtree(path, ignore_errors=True)
 
     @cached_classproperty
     def _log_manager(self) -> logging.Manager:

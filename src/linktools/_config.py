@@ -113,10 +113,11 @@ class ConfigParser(configparser.ConfigParser):
 
 class ConfigCacheParser:
 
-    def __init__(self, path: str, namespace: str):
+    def __init__(self, config: "Config"):
         self._parser = ConfigParser(default_section="ENV")  # 兼容老版本，默认ENV作为默认节
-        self._path = path
-        self._section = f"{namespace}.CACHE".upper()
+        self._path = config.cache_path
+        self._section = f"{config._namespace}.CACHE".upper()
+        self.load()
 
     def load(self):
         if self._path and os.path.exists(self._path):
@@ -165,7 +166,7 @@ class ConfigProperty(abc.ABC):
         type = type or self._type
         if self._cached:
             # load cache from config file
-            config_parser = config._get_cache_parser()
+            config_parser = ConfigCacheParser(config)
             config_cache = cache
             if config_cache == __missing__:
                 config_cache = config_parser.get(key, __missing__)
@@ -436,11 +437,18 @@ class Config:
                 self.update_from_file(os.path.join(root, name))
         return True
 
+    @property
+    def cache_path(self) -> str:
+        """
+        缓存文件路径
+        """
+        return self._cache_path
+
     def load_cache(self) -> None:
         """
         从缓存中加载配置
         """
-        parser = self._get_cache_parser()
+        parser = ConfigCacheParser(self)
         with self.__lock__:
             self._cache.clear()
             self._cache.update(parser.items())
@@ -450,7 +458,7 @@ class Config:
         保存配置到缓存
         :param kwargs: 需要保存的配置
         """
-        parser = self._get_cache_parser()
+        parser = ConfigCacheParser(self)
         with self.__lock__:
             for key, value in kwargs.items():
                 self._cache[key] = value
@@ -462,7 +470,7 @@ class Config:
         删除缓存
         :param keys: 需要删除的缓存键
         """
-        parser = self._get_cache_parser()
+        parser = ConfigCacheParser(self)
         with self.__lock__:
             for key in keys:
                 self._cache.pop(key, None)
@@ -479,11 +487,6 @@ class Config:
 
     def __setitem__(self, key: str, value: Any):
         self.set(key, value)
-
-    def _get_cache_parser(self) -> ConfigCacheParser:
-        parser = ConfigCacheParser(self._cache_path, self._namespace)
-        parser.load()
-        return parser
 
     class Prompt(ConfigProperty):
 
@@ -634,10 +637,10 @@ class Config:
 
         def _load(self, config: "Config", key: str, cache: Any):
             message = self.message or \
-                f"Cannot find config \"{key}\". {os.linesep}" \
-                f"You can use any of the following methods to fix it: {os.linesep}" \
-                f"1. set \"{config._prefix}{key}\" as an environment variable, {os.linesep}" \
-                f"2. call config.save_cache method to save the value to file. {os.linesep}"
+                      f"Cannot find config \"{key}\". {os.linesep}" \
+                      f"You can use any of the following methods to fix it: {os.linesep}" \
+                      f"1. set \"{config._prefix}{key}\" as an environment variable, {os.linesep}" \
+                      f"2. call config.save_cache method to save the value to file. {os.linesep}"
             raise ConfigError(message)
 
 
