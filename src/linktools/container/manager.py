@@ -432,7 +432,7 @@ class ContainerManager:
                 self._remove_repo_file(repos.pop(key))
                 self._dump_config(self._repo_config_path, repos)
 
-            if url.startswith("http://") or url.startswith("https://") or url.startswith("git@"):
+            if url.startswith("http://") or url.startswith("https://") or url.startswith("ssh://") or url.startswith("git@"):
                 ensure_repo_not_exist(url)
                 self.logger.info(f"Add git repository: {url}")
                 repo_name = utils.guess_file_name(url)
