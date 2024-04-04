@@ -28,8 +28,7 @@
 """
 
 from ._utils import (
-    timeoutable, Timeout,
-    InterruptableEvent,
+    timeoutable, Timeout, InterruptableEvent,
     ignore_error,
     cast, cast_int as int, cast_bool as bool,
     coalesce, is_contain, is_empty,
@@ -39,7 +38,7 @@ from ._utils import (
     get_lan_ip, get_wan_ip,
     parse_version, get_char_width,
     make_url, parse_header, parser_cookie, guess_file_name, user_agent,
-    get_system, get_machine, get_user, get_uid, get_gid,
+    get_system, get_machine, get_user, get_uid, get_gid, get_shell_path,
 )
 
 from ._lazy import (

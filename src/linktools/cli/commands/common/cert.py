@@ -43,7 +43,7 @@ from linktools.cli import BaseCommand
 
 class Command(BaseCommand):
     """
-    Display X.509 certificate information.
+    Display X.509 certificate information
     """
 
     @property

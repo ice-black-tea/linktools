@@ -81,7 +81,11 @@ def cast_str(obj: Any) -> str:
 
 def cast_path(obj: Any) -> str:
     if isinstance(obj, str):
-        return os.path.abspath(os.path.expanduser(obj))
+        return os.path.abspath(
+            os.path.expanduser(
+                str(obj)  # support Proxy object
+            )
+        )
     raise TypeError(f"{type(obj)} cannot be converted to path")
 
 

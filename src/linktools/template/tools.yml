@@ -1,41 +1,43 @@
 # general tools
 
-_jar: &JAR
-  executable_cmdline: [ java, -jar, "{absolute_path}" ]
-
 _py: &PY
-  absolute_path: "{interpreter}"
-  executable_cmdline: [ "{interpreter}", -m, "{name}" ]
+  depends_on: python
+  absolute_path: "{tools.python.absolute_path}"
+  executable_cmdline: [ python, -m, "{name}" ]
+
+_jar: &JAR
+  depends_on: java
+  executable_cmdline: [ java, -jar, "{absolute_path}" ]
 
 ############################################################################################
 # java jars
 ############################################################################################
-GENERAL_TOOL_BAKSMALI:
+TOOL_BAKSMALI:
   <<: *JAR
   version: "2.5.2"
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/baksmali-{version}.jar
 
-GENERAL_TOOL_SMALI:
+TOOL_SMALI:
   <<: *JAR
   version: "2.5.2"
   download_url: https://bitbucket.org/JesusFreke/smali/downloads/smali-{version}.jar
 
-GENERAL_TOOL_APKTOOL:
+TOOL_APKTOOL:
   <<: *JAR
   version: "2.8.1"
   download_url: https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar
 
-GENERAL_TOOL_APPCRAWLER:
+TOOL_APPCRAWLER:
   <<: *JAR
   version: "2.7.4"
   download_url: https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar
 
-GENERAL_TOOL_XPATCH:
+TOOL_XPATCH:
   <<: *JAR
   version: "5.2"
   download_url: https://github.com/WindySha/Xpatch/releases/download/v{version}/xpatch-{version}.jar
 
-GENERAL_TOOL_BURPSUITE:
+TOOL_BURPSUITE:
   <<: *JAR
   version: "2023.10"
   depends_on: burpsuite-keygen
@@ -49,7 +51,7 @@ GENERAL_TOOL_BURPSUITE:
         then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, "-javaagent:{tools[burpsuite-keygen].absolute_path}", -jar, "{absolute_path}" ]
       - else: ~
 
-GENERAL_TOOL_BURPSUITE_KEYGEN:
+TOOL_BURPSUITE_KEYGEN:
   <<: *JAR
   name: burpsuite-keygen
   download_url: https://github.com/ice-black-tea/archives/releases/download/burp-loader-keygen-2_1_06/burp-loader-keygen-2_1_06.jar
@@ -57,13 +59,13 @@ GENERAL_TOOL_BURPSUITE_KEYGEN:
 ############################################################################################
 # python libraries
 ############################################################################################
-GENERAL_TOOL_TIDEVICE:
+TOOL_TIDEVICE:
   <<: *PY
 
 ############################################################################################
 # java
 ############################################################################################
-GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
+TOOL_JAVA: &TOOL_JAVA
   version: "17.0.8" # "11.0.18"
   download_url:
     case:
@@ -87,13 +89,13 @@ GENERAL_TOOL_JAVA: &GENERAL_TOOL_JAVA
         then: sapmachine-jdk-{version}/bin/{name}.exe
       - else: ~
 
-GENERAL_TOOL_JARSIGNER:
-  <<: *GENERAL_TOOL_JAVA
+TOOL_JARSIGNER:
+  <<: *TOOL_JAVA
 
 ############################################################################################
 # dex2jar
 ############################################################################################
-GENERAL_TOOL_DEX2JAR: &GENERAL_TOOL_DEX2JAR
+TOOL_DEX2JAR: &TOOL_DEX2JAR
   version: "2.2-SNAPSHOT"
   version_suffix: "-2021-10-31"
   download_url: https://github.com/pxb1988/dex2jar/releases/download/v{version}{version_suffix}/dex-tools-{version}{version_suffix}.zip
@@ -106,13 +108,13 @@ GENERAL_TOOL_DEX2JAR: &GENERAL_TOOL_DEX2JAR
         then: dex-tools-{version}/d2j-{name}.bat
       - else: ~
 
-GENERAL_TOOL_JAR2DEX:
-  <<: *GENERAL_TOOL_DEX2JAR
+TOOL_JAR2DEX:
+  <<: *TOOL_DEX2JAR
 
 ############################################################################################
 # adb
 ############################################################################################
-GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
+TOOL_ADB: &TOOL_ADB
   download_url: https://dl.google.com/android/repository/platform-tools-latest-{system}.zip
   unpack_path: platform-tools
   target_path:
@@ -123,13 +125,13 @@ GENERAL_TOOL_ADB: &GENERAL_TOOL_ADB
         then: platform-tools/{name}.exe
       - else: ~
 
-GENERAL_TOOL_FASTBOOT:
-  <<: *GENERAL_TOOL_ADB
+TOOL_FASTBOOT:
+  <<: *TOOL_ADB
 
 ############################################################################################
 # aapt
 ############################################################################################
-GENERAL_TOOL_AAPT: &GENERAL_TOOL_AAPT
+TOOL_AAPT: &TOOL_AAPT
   version: "r33"
   version_name: "android-13"
   download_url:
@@ -150,16 +152,16 @@ GENERAL_TOOL_AAPT: &GENERAL_TOOL_AAPT
         then: "{version_name}/{name}.exe"
       - else: ~
 
-GENERAL_TOOL_APKSIGNER:
-  <<: *GENERAL_TOOL_AAPT
+TOOL_APKSIGNER:
+  <<: *TOOL_AAPT
 
-GENERAL_TOOL_ZIPALIGN:
-  <<: *GENERAL_TOOL_AAPT
+TOOL_ZIPALIGN:
+  <<: *TOOL_AAPT
 
 ############################################################################################
 # jadx
 ############################################################################################
-GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
+TOOL_JADX: &TOOL_JADX
   version: "1.4.7"
   download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
   unpack_path: jadx-{version}
@@ -171,14 +173,14 @@ GENERAL_TOOL_JADX: &GENERAL_TOOL_JADX
         then: bin/{name}.bat
       - else: ~
 
-GENERAL_TOOL_JADX_GUI:
-  <<: *GENERAL_TOOL_JADX
+TOOL_JADX_GUI:
+  <<: *TOOL_JADX
   name: jadx-gui
 
 ############################################################################################
 # chromedriver
 ############################################################################################
-GENERAL_TOOL_CHROMEDRIVER:
+TOOL_CHROMEDRIVER:
   version: "80.0.3987.106"
   base_url: http://chromedriver.storage.googleapis.com
   download_url:
@@ -204,7 +206,7 @@ GENERAL_TOOL_CHROMEDRIVER:
 ############################################################################################
 # sib
 ############################################################################################
-GENERAL_TOOL_SIB:
+TOOL_SIB:
   version: "1.3.17-20240112"
   download_url:
     case:
@@ -229,7 +231,7 @@ GENERAL_TOOL_SIB:
 ############################################################################################
 # ipatool
 ############################################################################################
-GENERAL_TOOL_IPATOOL:
+TOOL_IPATOOL:
   version: "2.1.3"
   download_url:
     case:

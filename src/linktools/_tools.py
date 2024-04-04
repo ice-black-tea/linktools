@@ -30,7 +30,6 @@
 import os
 import pickle
 import shutil
-import sys
 import warnings
 from typing import TYPE_CHECKING, Dict, Union, Mapping, Iterator, Any, Tuple, List, Type
 
@@ -208,59 +207,59 @@ class Tool(metaclass=ToolMeta):
     exists: bool = property(lambda self: self.absolute_path and os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: None if not self.absolute_path else os.path.dirname(self.absolute_path))
 
-    def __init__(self, container: "Tools", config: Union[dict, str], **kwargs):
-        self._container = container
+    def __init__(self, tools: "Tools", config: Union[dict, str], **kwargs):
+        self._tools = tools
         self._config = config
 
         self._raw_config = pickle.loads(pickle.dumps(self.__default__))
-        self._raw_config.update(container.config)
+        self._raw_config.update(tools.config)
         self._raw_config.update(config)
         self._raw_config.update(kwargs)
 
     @cached_property
     def config(self) -> dict:
-        cfg = self.__parser__.parse(self._raw_config)
+        config = self.__parser__.parse(self._raw_config)
 
-        depends_on = utils.get_item(cfg, "depends_on")
+        depends_on = utils.get_item(config, "depends_on")
         if depends_on:
             assert isinstance(depends_on, (str, Tuple, List)), \
-                f"Tool<{cfg['name']}>.depends_on type error, " \
+                f"Tool<{config['name']}>.depends_on type error, " \
                 f"str/tuple/list was expects, got {type(depends_on)}"
             if isinstance(depends_on, str):
                 depends_on = [depends_on]
             for dependency in depends_on:
-                assert dependency in self._container.items, \
-                    f"Tool<{cfg['name']}>.depends_on error: not found Tool<{dependency}>"
-            cfg["depends_on"] = depends_on
+                assert dependency in self._tools.items, \
+                    f"Tool<{config['name']}>.depends_on error: not found Tool<{dependency}>"
+            config["depends_on"] = depends_on
 
         # download url
-        download_url = utils.get_item(cfg, "download_url") or ""
+        download_url = utils.get_item(config, "download_url") or ""
         if download_url == __missing__:
             download_url = ""
         assert isinstance(download_url, str), \
-            f"Tool<{cfg['name']}>.download_url type error, " \
+            f"Tool<{config['name']}>.download_url type error, " \
             f"str was expects, got {type(download_url)}"
-        cfg["download_url"] = download_url.format(tools=self._container, **cfg)
+        config["download_url"] = download_url.format(tools=self._tools, **config)
 
-        unpack_path = utils.get_item(cfg, "unpack_path") or ""
+        unpack_path = utils.get_item(config, "unpack_path") or ""
         if unpack_path == __missing__:
             unpack_path = ""
         assert isinstance(unpack_path, str), \
-            f"Tool<{cfg['name']}>.unpack_path type error, " \
+            f"Tool<{config['name']}>.unpack_path type error, " \
             f"str was expects, got {type(unpack_path)}"
 
-        target_path = utils.get_item(cfg, "target_path") or ""
+        target_path = utils.get_item(config, "target_path") or ""
         if target_path == __missing__:
             target_path = ""
         assert isinstance(target_path, str), \
-            f"Tool<{cfg['name']}>.target_path type error, " \
+            f"Tool<{config['name']}>.target_path type error, " \
             f"str was expects, got {type(target_path)}"
 
-        absolute_path = utils.get_item(cfg, "absolute_path") or ""
+        absolute_path = utils.get_item(config, "absolute_path") or ""
         if absolute_path == __missing__:
             absolute_path = ""
         assert isinstance(absolute_path, str), \
-            f"Tool<{cfg['name']}>.absolute_path type error, " \
+            f"Tool<{config['name']}>.absolute_path type error, " \
             f"str was expects, got {type(absolute_path)}"
 
         if download_url and not unpack_path and not target_path:
@@ -270,60 +269,60 @@ class Tool(metaclass=ToolMeta):
         # unpack path: {unpack_path}
         # root path: {data_path}/tools/{unpack_path}/
         # absolute path: {data_path}/tools/{unpack_path}/{target_path}
-        cfg["target_path"] = target_path.format(tools=self._container, **cfg)
-        cfg["unpack_path"] = unpack_path.format(tools=self._container, **cfg)
+        config["target_path"] = target_path.format(tools=self._tools, **config)
+        config["unpack_path"] = unpack_path.format(tools=self._tools, **config)
         paths = ["tools"]
-        if not utils.is_empty(cfg["unpack_path"]):
-            paths.append(cfg["unpack_path"])
-        cfg["root_path"] = self._container.environ.get_data_dir(*paths)
+        if not utils.is_empty(config["unpack_path"]):
+            paths.append(config["unpack_path"])
+        config["root_path"] = self._tools.environ.get_data_dir(*paths)
 
         if absolute_path:
-            cfg["absolute_path"] = absolute_path.format(tools=self._container, **cfg)
-        elif cfg["target_path"]:
-            cfg["absolute_path"] = os.path.join(cfg["root_path"], cfg["target_path"])
+            config["absolute_path"] = absolute_path.format(tools=self._tools, **config)
+        elif config["target_path"]:
+            config["absolute_path"] = os.path.join(config["root_path"], config["target_path"])
         else:
-            cfg["absolute_path"] = ""
+            config["absolute_path"] = ""
 
         # set executable cmdline
-        cmdline = utils.get_item(cfg, "cmdline") or ""
+        cmdline = utils.get_item(config, "cmdline") or ""
         if cmdline == __missing__:
-            cmdline = cfg["name"]
+            cmdline = config["name"]
         assert isinstance(cmdline, str), \
-            f"Tool<{cfg['name']}>.cmdline type error, " \
+            f"Tool<{config['name']}>.cmdline type error, " \
             f"str was expects, got {type(absolute_path)}"
-        cfg["cmdline"] = cmdline
+        config["cmdline"] = cmdline
 
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
         if not utils.is_empty(cmdline):
-            cfg["absolute_path"] = cmdline
-            cfg["executable_cmdline"] = [cmdline]
+            config["absolute_path"] = cmdline
+            config["executable_cmdline"] = [cmdline]
         else:
-            executable_cmdline = utils.get_item(cfg, "executable_cmdline")
+            executable_cmdline = utils.get_item(config, "executable_cmdline")
             if executable_cmdline:
                 assert isinstance(executable_cmdline, (str, Tuple, List)), \
-                    f"Tool<{cfg['name']}>.executable_cmdline type error, " \
+                    f"Tool<{config['name']}>.executable_cmdline type error, " \
                     f"str/tuple/list was expects, got {type(executable_cmdline)}"
                 # if executable_cmdline is not empty,
                 # set the executable flag to false
-                cfg["executable"] = False
+                config["executable"] = False
             else:
                 # if executable_cmdline is empty,
                 # set absolute_path as executable_cmdline
-                executable_cmdline = cfg["absolute_path"]
+                executable_cmdline = config["absolute_path"]
             if isinstance(executable_cmdline, str):
                 executable_cmdline = [executable_cmdline]
-            cfg["executable_cmdline"] = [str(i).format(tools=self._container, **cfg) \
-                                         for i in executable_cmdline]
+            config["executable_cmdline"] = [str(i).format(tools=self._tools, **config) \
+                                            for i in executable_cmdline]
 
-        return cfg
+        return config
 
     def copy(self, **kwargs):
-        return Tool(self._container, self._config, **kwargs)
+        return Tool(self._tools, self._config, **kwargs)
 
     def prepare(self) -> None:
         for dependency in self.depends_on:
-            tool = self._container[dependency]
+            tool = self._tools[dependency]
             tool.prepare()
 
         # download and unzip file
@@ -332,34 +331,34 @@ class Tool(metaclass=ToolMeta):
         elif not self.download_url or not self.absolute_path:
             raise ToolError(
                 f"{self} does not support on "
-                f"{self._container.system} ({self._container.machine})")
+                f"{self._tools.environ.system} ({self._tools.environ.machine})")
         else:
-            self._container.logger.info(f"Download {self}: {self.download_url}")
-            url_file = self._container.environ.get_url_file(self.download_url)
-            temp_dir = self._container.environ.get_temp_path("tools", "cache")
+            self._tools.logger.info(f"Download {self}: {self.download_url}")
+            url_file = self._tools.environ.get_url_file(self.download_url)
+            temp_dir = self._tools.environ.get_temp_path("tools", "cache")
             temp_path = url_file.save(to_dir=temp_dir)
             if not utils.is_empty(self.unpack_path):
-                self._container.logger.debug(f"Unpack {self} to {self.root_path}")
+                self._tools.logger.debug(f"Unpack {self} to {self.root_path}")
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
-                self._container.logger.debug(f"Move {self} to {self.absolute_path}")
+                self._tools.logger.debug(f"Move {self} to {self.absolute_path}")
                 shutil.move(temp_path, self.absolute_path)
 
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
-            self._container.logger.debug(f"Chmod 755 {self.absolute_path}")
+            self._tools.logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
         if not self.exists:
-            self._container.logger.debug(f"{self} does not exist, skip")
+            self._tools.logger.debug(f"{self} does not exist, skip")
             return
         if not utils.is_empty(self.unpack_path):
-            self._container.logger.debug(f"Delete {self.root_path}")
+            self._tools.logger.debug(f"Delete {self.root_path}")
             shutil.rmtree(self.root_path, ignore_errors=True)
         elif self.absolute_path.startswith(self.root_path):
-            self._container.logger.debug(f"Delete {self.absolute_path}")
+            self._tools.logger.debug(f"Delete {self.absolute_path}")
             os.remove(self.absolute_path)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:
@@ -367,9 +366,9 @@ class Tool(metaclass=ToolMeta):
 
         # java or other
         executable_cmdline = self.executable_cmdline
-        if executable_cmdline[0] in self._container.items:
+        if executable_cmdline[0] in self._tools.items:
             args = [*executable_cmdline[1:], *args]
-            tool = self._container.items[executable_cmdline[0]]
+            tool = self._tools.items[executable_cmdline[0]]
             return tool.popen(*args, **kwargs)
 
         return utils.Process(*[*executable_cmdline, *args], **kwargs)
@@ -397,8 +396,8 @@ class Tool(metaclass=ToolMeta):
         try:
             out, err = process.exec(
                 timeout=timeout,
-                on_stdout=self._container.logger.info if log_output else None,
-                on_stderr=self._container.logger.error if log_output else None
+                on_stdout=self._tools.logger.info if log_output else None,
+                on_stderr=self._tools.logger.error if log_output else None
             )
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):
@@ -426,34 +425,25 @@ class Tool(metaclass=ToolMeta):
 
 class Tools(object):
 
-    def __init__(self, env: "BaseEnviron", **kwargs):
-        self.environ = env
-        self.logger = env.get_logger("tools")
+    def __init__(self, environ: "BaseEnviron"):
+        self.environ = environ
+        self.logger = environ.get_logger("tools")
 
-        self.config = kwargs
-        self.config.setdefault("system", utils.get_system())
-        self.config.setdefault("machine", utils.get_machine())
-        self.config.setdefault("interpreter", sys.executable)
-
-    @property
-    def system(self) -> str:
-        return self.config["system"]
-
-    @property
-    def machine(self) -> str:
-        return self.config["machine"]
+        self.config = dict()
+        self.config.setdefault("system", environ.system)
+        self.config.setdefault("machine", environ.machine)
 
     @cached_property
     def items(self) -> Mapping[str, Tool]:
         items = {}
         for key in self.environ.config.keys():
-            if not key.startswith("GENERAL_TOOL_"):
+            if not key.startswith("TOOL_"):
                 continue
             value = self.environ.config.get(key)
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue
-            key = key[len("GENERAL_TOOL_"):]
+            key = key[len("TOOL_"):]
             key = key.lower()
             name = value.setdefault("name", key)
             items[name] = Tool(self, value)

@@ -124,6 +124,10 @@ class NginxMixin:
             )
 
 
+class ContainerError(Exception):
+    pass
+
+
 class AbstractMetaClass(type):
 
     def __new__(mcs, name, bases, namespace):
@@ -201,11 +205,17 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                     })
                     if "image" not in service and "build" not in service:
                         path = self.get_docker_file_path()
-                        if path:
+                        if path and os.path.exists(path):
                             service["build"] = {
                                 "context": self.get_path(),
                                 "dockerfile": path
                             }
+                    if "env_file" not in service:
+                        path = self.get_path(".env")
+                        if path and os.path.exists(path):
+                            service["env_file"] = [
+                                path
+                            ]
                 return data
         return None
 
@@ -241,27 +251,36 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def on_removed(self):
         pass
 
-    @subcommand("shell", help="exec into container using command sh", prefix_chars=chr(0))
-    @subcommand_argument("args", nargs="...")
-    def on_exec_shell(self, args: List[str]):
+    @subcommand("shell", help="exec into container using command sh")
+    @subcommand_argument("-c", "--command", help="shell command")
+    @subcommand_argument("--privileged", help="give extended privileges to the command")
+    @subcommand_argument("-u", "--user", help="Username or UID (format: \"<name|uid>[:<group|gid>]\")")
+    def on_exec_shell(self, command: str = None, privileged: bool = False, user: str = None):
         service = self.choose_service()
-        if not service:
-            self.logger.error(f"Not found any service in {self}")
-            return -1
+
+        options = []
+        if privileged:
+            options.append("--privileged")
+        if user:
+            options.append("--user")
+            options.append(user)
+
+        shell_args = []
+        if command:
+            shell_args = ["-c", command]
 
         commands = []
-        for command in ["/bin/zsh", "/bin/fish", "/bin/bash", "/bin/ash", "/bin/sh"]:
-            shell_args = ["-c", utils.list2cmdline(args)] if args else []
+        for shell in ["/bin/zsh", "/bin/fish", "/bin/bash", "/bin/ash", "/bin/sh"]:
             shell_command = [
-                "if" if len(commands) == 0 else "elif", "[", "-f", command, "]", ";",
-                "then", command, *shell_args, ";",
+                "if" if len(commands) == 0 else "elif", "[", "-f", shell, "]", ";",
+                "then", shell, *shell_args, ";",
             ]
             commands.extend(shell_command)
-        commands.extend(["else", "sh", ";"])
+        commands.extend(["else", "sh", *shell_args, ";"])
         commands.append("fi")
 
         return self.manager.create_docker_process(
-            "exec", "-it", service.get("container_name"),
+            "exec", "-it", *options, service.get("container_name"),
             "sh", "-c", utils.list2cmdline(commands)
         ).call()
 
@@ -279,9 +298,6 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def on_exec_logs(self, follow: bool = True, tail: str = None, timestamps: bool = True,
                      since: str = None, until: str = None):
         service = self.choose_service()
-        if not service:
-            self.logger.error(f"Not found any service in {self}")
-            return -1
 
         options = []
         if follow:
@@ -354,7 +370,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def choose_service(self) -> Optional[Dict[str, Any]]:
         services = list(self.services.values())
         if len(services) == 0:
-            return None
+            raise ContainerError(f"Not found any service in {self}")
         if len(services) == 1:
             return services[0]
         index = choose(
@@ -410,21 +426,21 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         return False
 
     def render_template(self, source: str, destination: str = None, **kwargs: Any):
-        context = {
-            key: utils.lazy_load(self.manager.config.get, key)
-            for key in self.manager.config.keys()
-        }
+        config = self.manager.config
 
+        context = {key: utils.lazy_load(config.get, key) for key in config.keys()}
         context.update(kwargs)
-        context.setdefault("DEBUG", self.manager.debug)
 
-        context.setdefault("bool", lambda obj, default=False: self.manager.config.cast(obj, type=bool, default=default))
-        context.setdefault("str", lambda obj, default="": self.manager.config.cast(obj, type=str, default=default))
-        context.setdefault("int", lambda obj, default=0: self.manager.config.cast(obj, type=int, default=default))
-        context.setdefault("float", lambda obj, default=0.0: self.manager.config.cast(obj, type=float, default=default))
+        context.setdefault("DEBUG", self.manager.debug)
+        context.setdefault("bool", lambda obj, default=False: config.cast(obj, type=bool, default=default))
+        context.setdefault("str", lambda obj, default="": config.cast(obj, type=str, default=default))
+        context.setdefault("int", lambda obj, default=0: config.cast(obj, type=int, default=default))
+        context.setdefault("float", lambda obj, default=0.0: config.cast(obj, type=float, default=default))
+        context.setdefault("path", lambda obj, default="": config.cast(obj, type="path", default=default))
+        context.setdefault("json", lambda obj, default="": config.cast(obj, type="json", default=default))
 
         context.setdefault("manager", self.manager)
-        context.setdefault("config", self.manager.config)
+        context.setdefault("config", config)
         context.setdefault("container", self)
 
         template = Template(utils.read_file(source, text=True))

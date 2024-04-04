@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Dict, Any, List, Union, Callable, Tuple, Set
 
 from filelock import FileLock
 
-from .container import BaseContainer, SimpleContainer
+from .container import BaseContainer, SimpleContainer, ContainerError
 from .repository import Repository
 from .. import utils, Config
 from .._environ import environ
@@ -45,10 +45,6 @@ if TYPE_CHECKING:
     from .._environ import BaseEnviron
 
 
-class ContainerError(Exception):
-    pass
-
-
 class ContainerManager:
 
     def __init__(self, environ: "BaseEnviron", name: str = "aio"):  # all_in_one
@@ -56,15 +52,18 @@ class ContainerManager:
         self.uid = utils.get_uid()
         self.gid = utils.get_gid()
 
+        self.system = environ.system
+        self.machine = environ.machine
+
         self.environ = environ
         self.logger = environ.get_logger("container")
 
         self.config = self.environ.wrap_config(namespace="container", prefix="")
         self.config.update_defaults(
             COMPOSE_PROJECT_NAME=name or self.environ.name,
-            DOCKER_USER=Config.Prompt(default=os.environ.get("SUDO_USER", self.user), cached=True),
-            DOCKER_PUID=Config.Lazy(lambda cfg: utils.get_uid(cfg.get("DOCKER_USER", type=str))),
-            DOCKER_PGID=Config.Lazy(lambda cfg: utils.get_gid(cfg.get("DOCKER_USER", type=str))),
+            DOCKER_USER=Config.Prompt(default=os.environ.get("SUDO_USER", self.user).replace(" ", ""), cached=True),
+            DOCKER_UID=Config.Lazy(lambda cfg: utils.get_uid(cfg.get("DOCKER_USER", type=str))),
+            DOCKER_GID=Config.Lazy(lambda cfg: utils.get_gid(cfg.get("DOCKER_USER", type=str))),
         )
 
         self.docker_container_name = "container.py"
@@ -73,14 +72,6 @@ class ContainerManager:
     @property
     def debug(self) -> bool:
         return os.environ.get("DEBUG", self.environ.debug)
-
-    @property
-    def system(self) -> str:
-        return self.environ.system
-
-    @property
-    def machine(self) -> str:
-        return self.environ.machine
 
     @cached_property
     def container_type(self) -> str:

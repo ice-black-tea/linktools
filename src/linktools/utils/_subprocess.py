@@ -6,12 +6,11 @@ import os
 import queue
 import subprocess
 import threading
-from typing import AnyStr, Tuple, Optional, IO, Callable, Any
+from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union
 
 from . import Timeout, timeoutable
 from .._environ import environ
 from ..decorator import cached_property
-
 
 list2cmdline = subprocess.list2cmdline
 
@@ -88,31 +87,39 @@ class Output:
 
 class Process(subprocess.Popen):
 
-    def __init__(self, *args, **kwargs):
-        capture_output = kwargs.pop("capture_output", False)
+    def __init__(
+            self,
+            *args: Any,
+            capture_output: bool = False,
+            stdin: Union[int, IO] = None, stdout: Union[int, IO] = None, stderr: Union[int, IO] = None,
+            shell: bool = False, cwd: str = None,
+            env: Dict[str, str] = None, append_env: Dict[str, str] = None,
+            **kwargs,
+    ):
         if capture_output is True:
-            if kwargs.get("stdout") is not None or kwargs.get("stderr") is not None:
+            if stdout is not None or stderr is not None:
                 raise ValueError("stdout and stderr arguments may not be used "
                                  "with capture_output.")
-            kwargs["stdout"] = subprocess.PIPE
-            kwargs["stderr"] = subprocess.PIPE
-        if "cwd" not in kwargs:
+            stdout = subprocess.PIPE
+            stderr = subprocess.PIPE
+        if cwd:
             try:
-                kwargs["cwd"] = os.getcwd()
+                cwd = os.getcwd()
             except FileNotFoundError:
-                kwargs["cwd"] = environ.get_temp_dir(create=True)
-        if "append_env" in kwargs:
-            env = kwargs.pop("env", None)
-            env = dict(env) if env else dict()
-            env.update(kwargs.pop("append_env"))
-            for key, value in os.environ.items():
-                env.setdefault(key, value)
-            kwargs["env"] = env
+                cwd = environ.get_temp_dir(create=True)
+        if append_env:
+            env = dict(env) if env else dict(os.environ)
+            env.update(append_env)
 
-        args = [str(arg) for arg in args]
-        environ.logger.debug(f"Exec cmdline: {list2cmdline(args)}")
+        super().__init__(
+            [str(arg) for arg in args],
+            stdin=stdin, stdout=stdout, stderr=stderr,
+            shell=shell, cwd=cwd,
+            env=env,
+            **kwargs
+        )
 
-        super().__init__(args, **kwargs)
+        environ.logger.debug(f"Exec cmdline: {list2cmdline(self.args)}")
 
     @timeoutable
     def call(self, timeout: Timeout = None) -> int:

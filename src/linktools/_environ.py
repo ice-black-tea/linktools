@@ -32,6 +32,7 @@ import logging
 import os
 import pathlib
 import shutil
+import sys
 import time
 from typing import TYPE_CHECKING, TypeVar, Type, Any
 
@@ -44,9 +45,6 @@ if TYPE_CHECKING:
     from ._url import UrlFile
 
     T = TypeVar("T")
-
-root_path = os.path.dirname(__file__)
-asset_path = os.path.join(root_path, "assets")
 
 
 class BaseEnviron(abc.ABC):
@@ -85,14 +83,14 @@ class BaseEnviron(abc.ABC):
         """
         系统名称
         """
-        return self.tools.system
+        return utils.get_system()
 
     @property
     def machine(self) -> str:
         """
         机器类型，e.g. 'i386'
         """
-        return self.tools.machine
+        return utils.get_machine()
 
     @property
     def debug(self) -> bool:
@@ -256,18 +254,14 @@ class BaseEnviron(abc.ABC):
 
         config = ConfigDict()
 
-        yaml_path = os.path.join(root_path, "template", "tools.yml")
-        if metadata.__release__ or not os.path.exists(yaml_path):
-            config.update_from_file(
-                os.path.join(asset_path, "tools.json"),
-                json.load
-            )
-        else:
-            import yaml
-            config.update_from_file(
-                yaml_path,
-                yaml.safe_load
-            )
+        config.update({
+            "TOOL_SHELL": {
+                "absolute_path": utils.get_shell_path(),
+            },
+            "TOOL_PYTHON": {
+                "absolute_path": sys.executable,
+            }
+        })
 
         return config
 
@@ -383,9 +377,9 @@ class Environ(BaseEnviron):
     def description(self) -> str:
         return metadata.__description__
 
-    @property
+    @cached_property
     def root_path(self) -> str:
-        return root_path
+        return os.path.dirname(__file__)
 
     def _create_config(self):
         config = super()._create_config()
@@ -401,14 +395,27 @@ class Environ(BaseEnviron):
 
         # 导入configs文件夹中所有配置文件
         config.update_from_file(
-            os.path.join(asset_path, "android-tools.json"),
+            self.get_asset_path("android-tools.json"),
             load=json.load
         )
+
+        yaml_path = self.get_path("template", "tools.yml")
+        if metadata.__release__ or not os.path.exists(yaml_path):
+            config.update_from_file(
+                self.get_asset_path("tools.json"),
+                json.load
+            )
+        else:
+            import yaml
+            config.update_from_file(
+                yaml_path,
+                yaml.safe_load
+            )
 
         return config
 
     def get_asset_path(self, *paths: str) -> str:
-        return utils.get_path(asset_path, *paths)
+        return self.get_path("assets", *paths)
 
 
 environ = Environ()

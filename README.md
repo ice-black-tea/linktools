@@ -58,18 +58,19 @@ $ python3 -m linktools
 │   ├── 👉 debug: Debug app by jdb
 │   ├── 👉 frida: Easy to use frida (require Android device rooted)
 │   ├── 👉 info: Fetch device information
-│   ├── 👉 intent: Common intent actions
+│   ├── 📘 intent: Common intent actions
 │   ├── 👉 objection: Easy to use objection (require Android device rooted)
 │   ├── 👉 pidcat: Filter logcat by package name
 │   └── 👉 top: Fetch current running app's basic information
 ├── 📖 ct: Common scripts
-│   ├── 👉 cert: Display X.509 certificate information.
+│   ├── 👉 cert: Display X.509 certificate information
+│   ├── 📘 cntr: Deploy docker/pod containers
+│   ├── 📘 env: Linktools environment commands
 │   ├── 👉 grep: Match files with regular expression
-│   ├── 👉 shell: Shell with environment variables already initialized
 │   └── 👉 tools: Download and use tools
 └── 📖 it: iOS scripts
     ├── 👉 frida: Easy to use frida (require iOS device jailbreak)
-    ├── 👉 ipa: Parser ipa file
+    ├── 👉 ipa: Parse ipa file
     ├── 👉 objection: Easy to use objection (require iOS device jailbreak)
     ├── 👉 scp: OpenSSH secure file copy (require iOS device jailbreak)
     ├── 👉 sib: Sib supports managing multiple ios devices
@@ -77,6 +78,49 @@ $ python3 -m linktools
 ```
 
 ### 通用功能（脚本前缀为ct-）
+
+#### 👉 ct-cntr
+
+<details>
+<summary>docker/pod容器一键部署工具，集成了包括nginx、nextcloud、redorid等等容器</summary>
+
+```
+$ ct-cntr -h
+usage: ct-cntr [-h] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [--version] COMMAND ...
+
+Deploy docker/pod containers
+
+    ___       __   __              __
+   / (_)___  / /__/ /_____  ____  / /____
+  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
+ / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
+/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+
+positional arguments:
+  COMMAND              Command Help
+    list               list all containers
+    add                add containers to installed list
+    remove             remove containers from installed list
+    info               display container info
+    up                 deploy installed containers
+    restart            restart installed containers
+    down               stop installed containers
+    exec               exec container command
+    config             manage container configs
+    repo               manage container repository
+
+options:
+  -h, --help           show this help message and exit
+  --version            show program's version number and exit
+
+log options:
+  --verbose            increase log verbosity
+  --debug              increase linktools's log verbosity, and enable debug mode
+  --time, --no-time    show log time
+  --level, --no-level  show log level
+```
+
+</details>
 
 #### 👉 ct-grep
 
@@ -140,38 +184,6 @@ options:
   --download            download tool files
   --clear               clear tool files
   -d, --daemon          execute tools as a daemon
-
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-```
-
-</details>
-
-#### 👉 ct-shell
-
-<details>
-<summary>已初始化常用工具环境变量的bash（mac/linux）、cmd（windows）</summary>
-
-```
-$ ct-shell -h
-usage: ct-shell [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c COMMAND]
-
-Shell with environment variables already initialized
-
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
-
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -c COMMAND, --command COMMAND
-                        shell command
 
 log arguments:
   --verbose             increase log verbosity

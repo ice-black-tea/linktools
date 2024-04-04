@@ -28,6 +28,7 @@
 """
 from typing import Any
 
+from linktools import utils
 from linktools.cli import subcommand, subcommand_argument, SubCommandWrapper, BaseCommandGroup
 
 
@@ -66,7 +67,7 @@ class InitCommand(BaseCommandGroup):
 
 class Command(BaseCommandGroup):
     """
-    environment configuration
+    Linktools environment commands
     """
 
     def init_subcommands(self) -> Any:
@@ -74,6 +75,20 @@ class Command(BaseCommandGroup):
             SubCommandWrapper(InitCommand()),
             self
         ]
+
+    @subcommand("shell", help="run shell command")
+    @subcommand_argument("-c", "--command", help="shell command")
+    def on_shell(self, command: str = None):
+        shell = self.environ.tools["shell"]
+        if not shell.exists:
+            raise NotImplementedError(f"Not found shell path")
+
+        if command:
+            process = utils.Process(command, shell=True)
+            return process.call()
+
+        process = shell.popen()
+        return process.call()
 
     @subcommand("clean", help="clean temporary files")
     @subcommand_argument("days", metavar="DAYS", nargs="?", help="expire days")

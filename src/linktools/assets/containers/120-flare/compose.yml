@@ -1,7 +1,7 @@
 services:
   flare:
     image: soulteary/flare
-    user: '{{ DOCKER_PUID }}:{{ DOCKER_PGID }}'
+    user: '{{ DOCKER_UID }}:{{ DOCKER_GID }}'
 #   {% if int(FLARE_EXPOSE_PORT, 0) > 0 %}
     ports:
       - '{{ FLARE_EXPOSE_PORT }}:5005'

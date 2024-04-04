@@ -35,6 +35,7 @@ import os
 import platform
 import random
 import re
+import shutil
 import socket
 import threading
 import time
@@ -694,3 +695,29 @@ def get_gid(user: str = None):
             return os.getgid()
     else:
         return 0
+
+
+def get_shell_path():
+    """
+    获取当前用户shell路径
+    """
+
+    if _SYSTEM in ["darwin", "linux"]:
+        if "SHELL" in os.environ:
+            shell_path = os.environ["SHELL"]
+            if shell_path and os.path.exists(shell_path):
+                return shell_path
+        try:
+            import pwd
+            return pwd.getpwnam(get_user()).pw_shell
+        except:
+            return shutil.which("zsh") or shutil.which("bash") or shutil.which("sh")
+
+    elif _SYSTEM in ["windows"]:
+        if "ComSpec" in os.environ:
+            shell_path = os.environ["ComSpec"]
+            if shell_path and os.path.exists(shell_path):
+                return shell_path
+        return shutil.which("powershell") or shutil.which("cmd")
+
+    return ""
