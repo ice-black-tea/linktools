@@ -190,16 +190,15 @@ class _LogColumn(ProgressColumn):
         result = Text()
 
         handler = LogHandler.get_instance()
-        if handler:
-            if handler.show_time:
-                if len(result) > 0:
-                    result.append(" ")
-                result.append(handler.make_time_text())
+        if handler and handler.show_time:
+            if len(result) > 0:
+                result.append(" ")
+            result.append(handler.make_time_text())
 
-            if handler.show_level:
-                if len(result) > 0:
-                    result.append(" ")
-                result.append(handler.make_level_text(logging.INFO))
+        if handler and handler.show_level:
+            if len(result) > 0:
+                result.append(" ")
+            result.append(handler.make_level_text(logging.INFO))
 
         return result
 
@@ -274,11 +273,11 @@ def _create_prompt_class(type: "Type[PromptResultType]", allow_empty: bool) -> "
             prefix_len = 0
 
             handler = LogHandler.get_instance()
-            if handler.show_time:
+            if handler and handler.show_time:
                 time = handler.make_time_text()
                 prefix.append(time)
                 prefix_len += time.cell_len + 1
-            if handler.show_level:
+            if handler and handler.show_level:
                 level = handler.make_level_text(logging.WARNING, "↳")
                 prefix.append(level)
                 prefix_len += level.cell_len + 1
@@ -294,9 +293,9 @@ def _create_prompt_class(type: "Type[PromptResultType]", allow_empty: bool) -> "
         def on_validate_error(self, value: str, error: InvalidResponse) -> None:
             prefix = Text("")
             handler = LogHandler.get_instance()
-            if handler.show_time:
+            if handler and handler.show_time:
                 prefix = prefix + handler.make_time_text() + " "
-            if handler.show_level:
+            if handler and handler.show_level:
                 prefix = prefix + handler.make_level_text(logging.ERROR, "↳") + " "
             self.console.print(prefix, error, sep="")
 
