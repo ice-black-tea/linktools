@@ -46,6 +46,7 @@ class Container(BaseContainer):
         return dict(
             WILDCARD_DOMAIN=True,
 
+            FLARE_TAG="latest",
             FLARE_DISABLE_LOGIN=Config.Confirm(default=True, cached=True),
             FLARE_DOAMIN=self.get_nginx_domain(""),
             FLARE_EXPOSE_PORT=None,

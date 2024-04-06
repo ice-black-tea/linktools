@@ -49,6 +49,7 @@ class Container(BaseContainer):
     @cached_property
     def configs(self):
         return dict(
+            NGINX_TAG="alpine",
             ROOT_DOMAIN=Config.Prompt(cached=True),
             WILDCARD_DOMAIN=Config.Confirm(default=False, cached=True),
             HTTP_PORT=Config.Prompt(default=80, type=int, cached=True),

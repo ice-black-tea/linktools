@@ -40,6 +40,7 @@ class Container(BaseContainer):
     @cached_property
     def configs(self):
         return dict(
+            PORTAINER_TAG="alpine",
             PORTAINER_DOMAIN=self.get_nginx_domain(),
             PORTAINER_EXPOSE_PORT=None,
         )
