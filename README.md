@@ -12,19 +12,11 @@ python & pip (3.6及以上): <https://www.python.org/downloads/>
 
 ```bash
 # 可以pip直接安装linktools，也可以用以下命令安装github上的最新版本:
-# python3 -m pip install "linktools@ git+https://github.com/ice-black-tea/Zelda.git"
+# python3 -m pip install "linktools@ git+https://github.com/ice-black-tea/linktools.git"
 python3 -m pip install -U "linktools[all]" # 按需添加依赖项，推荐使用all添加所有依赖项
 ```
 
-额外的依赖项以及相应功能如下：
-```
-linktools[requests]：下载时使用requests包，并且支持socks5代理
-linktools[lief]：为grep提供服务，可解析apk、elf等文件格式（注意：对于mac系统，需要额外安装brew install libmagic）
-linktools[frida]：集成frida hook框架，支持android、ios hook
-linktooks[objection]：集成objection框架
-linktools[ssh]：使用ssh连接越狱后的iphone
-linktools[ssl]：解析证书时使用
-```
+额外的依赖项以及相应功能可通过[requirements.yml](https://raw.githubusercontent.com/ice-black-tea/linktools/master/requirements.yml)查看
 
 ### 配置alias（推荐）
 
@@ -161,7 +153,7 @@ log arguments:
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
-所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/src/linktools/assets/tools.yml)查看
+所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/linktools/master/src/linktools/assets/tools.yml)查看
 
 ```
 $ usage: ct-tools [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c | --download | --clear | -d] ...
@@ -439,7 +431,7 @@ adb arguments:
 
 **输出效果**
 
-![apps](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/images/apps.png)
+![apps](https://raw.githubusercontent.com/ice-black-tea/linktools/master/images/apps.png)
 
 </details>
 
@@ -502,21 +494,21 @@ adb arguments:
 
 **1) 以命令行方式运行**
 
-比如要加载 [https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js) 脚本：
+比如要加载 [https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js](https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js) 脚本：
 
 在终端中运行
 ```bash
-$ at-frida -c https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js
+$ at-frida -c https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js
 ```
 
 输出如下：
 ```
-[15:24:09]  I  Download ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js)
+[15:24:09]  I  Download ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js)
 [15:24:11]  W  java.js ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1,704/513 bytes ? 100% eta 0:00:00
-[15:24:13]  I  Load trusted ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent/frida/test/java.js)
+[15:24:13]  I  Load trusted ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js)
 [15:24:14]  I  Start frida server ...
 [15:24:15]  I  Frida server is running ...
-[15:24:18]  I  Load ScriptFile(filename=/Users/huji/Projects/Zelda/src/linktools/assets/frida.min.js)
+[15:24:18]  I  Load ScriptFile(filename=/Users/huji/Projects/linktools/src/linktools/assets/frida.min.js)
 [15:24:19]  I  Session(pid=32087, name=马赛克) attached
 [15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$300()
 [15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$600()
@@ -629,7 +621,7 @@ $ at-frida -c https://raw.githubusercontent.com/ice-black-tea/Zelda/master/agent
 
 **2) 当然也可以使用python方式调用**
 
-执行如下python脚本即可自动开启frida-server，并将js代码注入到指定进程中，若需要同时注入子进程，按[src/linktools/cli/scripts/android/frida.py](https://raw.githubusercontent.com/ice-black-tea/Zelda/master/src/linktools/cli/scripts/android/frida.py) 重写 FridaApplication 的 on_spawn_added 方法即可
+执行如下python脚本即可自动开启frida-server，并将js代码注入到指定进程中，若需要同时注入子进程，按[src/linktools/cli/scripts/android/frida.py](https://raw.githubusercontent.com/ice-black-tea/linktools/master/src/linktools/cli/scripts/android/frida.py) 重写 FridaApplication 的 on_spawn_added 方法即可
 
 ```python
 #!/usr/bin/env python3

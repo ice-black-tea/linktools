@@ -712,7 +712,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         初始化公共参数，会在命令本身和所有子命令中调用
         """
         environ = self.environ
-        prefix = parser.prefix_chars
+        prefix = parser.prefix_chars[0] if parser.prefix_chars else "-"
 
         class VerboseAction(Action):
 
@@ -762,9 +762,9 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 f"{prefix}{prefix}version", action="version", version=self.environ.version
             )
 
-    def main(self, *args, **kwargs) -> None:
+    def init_logging(self):
         """
-        main命令入口
+        初始化log
         """
         if is_terminal():
             logging.basicConfig(
@@ -780,25 +780,21 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 datefmt="%H:%M:%S"
             )
 
+    def main(self, *args, **kwargs) -> None:
+        """
+        main命令入口
+        """
+        self.init_logging()
+
         try:
             result = self(*args, **kwargs)
         except SystemExit as e:
             result = e.code
-
-        except (KeyboardInterrupt, EOFError) as e:
-            result = 1
-            error_type, error_message = e.__class__.__name__, str(e).strip()
-            self.logger.error(
-                f"{error_type}: {error_message}" if error_message else error_type,
-            )
-
         except:
+            get_console().print_exception(show_locals=True) \
+                if environ.debug \
+                else self.logger.error(traceback.format_exc())
             result = 1
-            if environ.debug:
-                console = get_console()
-                console.print_exception(show_locals=True)
-            else:
-                self.logger.error(traceback.format_exc())
 
         exit(result)
 

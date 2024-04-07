@@ -51,9 +51,8 @@ class ContainerManager:
         self.user = utils.get_user()
         self.uid = utils.get_uid()
         self.gid = utils.get_gid()
-
-        self.system = environ.system
-        self.machine = environ.machine
+        self.system = utils.get_system()
+        self.machine = utils.get_machine()
 
         self.environ = environ
         self.logger = environ.get_logger("container")
@@ -390,12 +389,11 @@ class ContainerManager:
         options = []
         for container in containers:
             path = container.get_docker_compose_file()
-            if path:
-                options.extend(["-f", path])
-        append_env = kwargs.get("append_env", dict())
-        append_env.setdefault("COMPOSE_PROJECT_NAME", self.config.get("COMPOSE_PROJECT_NAME"))
+            if path and os.path.exists(path):
+                options.extend(["--file", path])
+        options.extend(["--project-name", self.config.get("COMPOSE_PROJECT_NAME")])
 
-        return self.create_process(*commands, *options, *args, append_env=append_env, privilege=privilege, **kwargs)
+        return self.create_process(*commands, *options, *args, privilege=privilege, **kwargs)
 
     def change_owner(self, path: str, user: str):
         if hasattr(os, "chown") and os.path.exists(path):

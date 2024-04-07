@@ -19,7 +19,7 @@ ENV {{ key }} {{ value }}
     {%- endwith %}
 {%- endfor %}
 
-RUN acme.sh --issue --debug --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN }} --dns {{ ACME_DNS_API }}
+RUN acme.sh --issue --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN }} --dns {{ ACME_DNS_API }} --debug 2
 
 RUN acme.sh --install-cert --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN }} \
     --cert-file /etc/certs/{{ ROOT_DOMAIN }}_cert.pem \

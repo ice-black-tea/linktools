@@ -124,7 +124,7 @@ class DeviceCommandMixin:
     def add_device_options(self: "BaseCommand", parser: ArgumentParser):
 
         parser = parser or self._argument_parser
-        prefix = parser.prefix_chars
+        prefix = parser.prefix_chars[0] if parser.prefix_chars else "-"
 
         cache = DeviceCache(
             self.environ.get_temp_path(
@@ -203,7 +203,7 @@ class AndroidCommandMixin:
     def add_android_options(self: BaseCommand, parser: ArgumentParser) -> None:
 
         parser = parser or self._argument_parser
-        prefix = parser.prefix_chars
+        prefix = parser.prefix_chars[0] if parser.prefix_chars else "-"
 
         cache = DeviceCache(
             self.environ.get_temp_path(
@@ -340,7 +340,7 @@ class IOSCommandMixin:
     def add_ios_options(self: BaseCommand, parser: ArgumentParser):
 
         parser = parser or self._argument_parser
-        prefix = parser.prefix_chars
+        prefix = parser.prefix_chars[0] if parser.prefix_chars else "-"
 
         cache = DeviceCache(
             self.environ.get_temp_path(
