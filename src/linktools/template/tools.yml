@@ -86,7 +86,7 @@ TOOL_JAVA: &TOOL_JAVA
       - when: { system: linux }
         then: sapmachine-jdk-{version}/bin/{name}
       - when: { system: windows }
-        then: sapmachine-jdk-{version}/bin/{name}.exe
+        then: sapmachine-jdk-{version}\\bin\\{name}.exe
       - else: ~
 
 TOOL_JARSIGNER:
@@ -105,7 +105,7 @@ TOOL_DEX2JAR: &TOOL_DEX2JAR
       - when: { system: [darwin, linux] }
         then: dex-tools-{version}/d2j-{name}.sh
       - when: { system: windows }
-        then: dex-tools-{version}/d2j-{name}.bat
+        then: dex-tools-{version}\\d2j-{name}.bat
       - else: ~
 
 TOOL_JAR2DEX:
@@ -122,7 +122,7 @@ TOOL_ADB: &TOOL_ADB
       - when: { system: [darwin, linux] }
         then: platform-tools/{name}
       - when: { system: windows }
-        then: platform-tools/{name}.exe
+        then: platform-tools\\{name}.exe
       - else: ~
 
 TOOL_FASTBOOT:
@@ -149,11 +149,18 @@ TOOL_AAPT: &TOOL_AAPT
       - when: { system: [darwin, linux] }
         then: "{version_name}/{name}"
       - when: { system: windows }
-        then: "{version_name}/{name}.exe"
+        then: "{version_name}\\{name}.exe"
       - else: ~
 
 TOOL_APKSIGNER:
   <<: *TOOL_AAPT
+  target_path:
+    case:
+      - when: { system: [darwin, linux] }
+        then: "{version_name}/{name}"
+      - when: { system: windows }
+        then: "{version_name}\\{name}.bat"
+      - else: ~
 
 TOOL_ZIPALIGN:
   <<: *TOOL_AAPT
@@ -170,7 +177,7 @@ TOOL_JADX: &TOOL_JADX
       - when: { system: [darwin, linux] }
         then: bin/{name}
       - when: { system: windows }
-        then: bin/{name}.bat
+        then: bin\\{name}.bat
       - else: ~
 
 TOOL_JADX_GUI:
@@ -254,5 +261,5 @@ TOOL_IPATOOL:
       - when: { system: linux, machine: x86_64 }
         then: bin/ipatool-{version}-linux-amd64
       - when: { system: windows, machine: amd64 }
-        then: bin/ipatool-{version}-windows-amd64.exe
+        then: bin\\ipatool-{version}-windows-amd64.exe
       - else: ~

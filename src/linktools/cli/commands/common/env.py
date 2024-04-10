@@ -26,10 +26,17 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import os
+import sys
 from typing import Any
 
 from linktools import utils
-from linktools.cli import subcommand, subcommand_argument, SubCommandWrapper, BaseCommandGroup
+from linktools.cli import subcommand, subcommand_argument, SubCommandWrapper, BaseCommandGroup, iter_command_modules, \
+    commands
+from linktools.cli.argparse import auto_complete
+from linktools.utils import get_system, list2cmdline
+
+DEFAULT_SHELL = "bash" if get_system() != "windows" else "powershell"
 
 
 class InitCommand(BaseCommandGroup):
@@ -90,9 +97,62 @@ class Command(BaseCommandGroup):
         process = shell.popen()
         return process.call()
 
+    @subcommand("complete", help="generate shell auto complete script")
+    @subcommand_argument("-s", "--shell", help="output code for the specified shell",
+                         choices=["bash", "zsh", "tcsh", "fish", "powershell"])
+    def on_complete(self, shell: str = DEFAULT_SHELL):
+        if not auto_complete:
+            self.logger.warning("argcomplete module not found")
+            return
+
+        executables = []
+        modules = {c.name: c for c in iter_command_modules(commands, onerror="warn")}
+        for module in modules.values():
+            if module.command:
+                temp = module
+                names = [module.command_name]
+                while temp.parent_name in modules:
+                    temp = modules[temp.parent_name]
+                    names.append(temp.command_name)
+                executable = "-".join(reversed(names))
+                executables.append(executable)
+                self.logger.info(f"found executable: {executable}")
+
+        print(auto_complete.shellcode(executables, shell=shell), flush=True)
+
+    @subcommand("alias", help="generate shell alias script")
+    @subcommand_argument("-s", "--shell", help="output code for the specified shell",
+                         choices=["bash", "zsh", "tcsh", "fish", "powershell"])
+    def on_alias(self, shell: str = DEFAULT_SHELL):
+        lines = []
+        if shell not in ("powershell",):
+            lines.append(f"#!/usr/bin/env {shell}")
+
+        modules = {c.name: c for c in iter_command_modules(commands, onerror="warn")}
+        for module in modules.values():
+            if module.command:
+                temp = module
+                names = [module.command_name]
+                while temp.parent_name in modules:
+                    temp = modules[temp.parent_name]
+                    names.append(temp.command_name)
+                executable = "-".join(reversed(names))
+                cmdline = list2cmdline([sys.executable, "-m", module.module.__name__])
+                self.logger.info(f"found alias: {executable} -> {cmdline}")
+
+                if shell in ("bash", "zsh"):
+                    lines.append(f"alias {executable}='{cmdline}'")
+                elif shell in ("tcsh", "fish"):
+                    lines.append(f"alias {executable} '{cmdline}'")
+                elif shell in ("powershell",):
+                    lines.append(f"function __{executable}__ {{ {cmdline} $args }}")
+                    lines.append(f"Set-Alias -Name {executable} -Value __{executable}__")
+
+        print(os.linesep.join(lines), flush=True)
+
     @subcommand("clean", help="clean temporary files")
     @subcommand_argument("days", metavar="DAYS", nargs="?", help="expire days")
-    def on_clean_temp(self, days: int = 7):
+    def on_clean(self, days: int = 7):
         self.environ.clean_temp_files(days)
 
 

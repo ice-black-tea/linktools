@@ -31,7 +31,7 @@ import json
 import os
 import os.path
 import shutil
-from typing import TYPE_CHECKING, Dict, Any, List, Union, Callable, Tuple, Set
+from typing import TYPE_CHECKING, Dict, Any, List, Union, Callable, Tuple, Set, TypeVar
 
 from filelock import FileLock
 
@@ -43,6 +43,8 @@ from ..decorator import cached_property
 
 if TYPE_CHECKING:
     from .._environ import BaseEnviron
+
+    T = TypeVar("T")
 
 
 class ContainerManager:
@@ -67,6 +69,8 @@ class ContainerManager:
 
         self.docker_container_name = "container.py"
         self.docker_compose_names = ("compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml")
+
+        self._config_caches = {}
 
     @property
     def debug(self) -> bool:
@@ -181,35 +185,35 @@ class ContainerManager:
         for container in self._walk_containers(asset_path, max_level=1):
             containers.append(container)
 
-        for url, repo in self.get_all_repos().items():
+        for url, meta in self.get_all_repos().items():
             self.logger.debug(f"Load containers from repository `{url}`")
-            repo_path = repo.get("repo_path")
+            repo_path = meta.get("repo_path")
             if not repo_path or not os.path.exists(repo_path) or not os.path.isdir(repo_path):
                 self.logger.warning(f"Repository `{url}` not found, skip.")
                 continue
-            for container in self._walk_containers(repo_path, max_level=2):
+            for container in self._walk_containers(repo_path, max_level=1):
                 containers.append(container)
 
         return containers
 
     def _walk_containers(self, path: str, max_level: int):
+        if not os.path.isdir(path):
+            return
         yield from self._load_container(path)
         if max_level <= 0:
             return
         for name in os.listdir(path):
-            root_path = os.path.join(path, name)
-            if os.path.isdir(root_path):
-                yield from self._walk_containers(root_path, max_level - 1)
+            yield from self._walk_containers(
+                os.path.join(path, name),
+                max_level - 1
+            )
 
     def _load_container(self, path: str):
-        if not os.path.isdir(path):
-            return
-
         container_path = os.path.join(path, self.docker_container_name)
         if os.path.exists(container_path):
             try:
                 name = path.replace(os.sep, ".")
-                module = utils.lazy_import_file(name, container_path)
+                module = utils.import_module_file(name, container_path)
                 for key, value in module.__dict__.items():
                     if isinstance(value, type) and issubclass(value, BaseContainer):
                         if not value.__abstract__:
@@ -219,6 +223,7 @@ class ContainerManager:
                             return
             except Exception as e:
                 self.logger.warning(f"Failed to load container from `{path}`: {e}")
+                return
 
         for compose_name in self.docker_compose_names:
             compose_path = os.path.join(path, compose_name)
@@ -228,21 +233,12 @@ class ContainerManager:
                 yield container
                 return
 
-    def get_installed_containers(self) -> List[BaseContainer]:
+    def get_installed_containers(self, resolve: bool = True) -> List[BaseContainer]:
         with self._config_lock:
-            return self._load_installed_containers()
-
-    def check_installed_containers(self):
-        with self._config_lock:
-            for name in self._load_config(self._config_path):
-                if name not in self.containers:
-                    self.logger.warning(f"Not found container {name}, skip.")
-
-    def iter_installed_container_names(self):
-        containers = self.get_installed_containers()
-        containers = self.resolve_depend_containers(containers)
-        for container in containers:
-            yield container.name
+            containers = self._load_installed_containers()
+        if resolve:
+            containers = self.resolve_depend_containers(containers)
+        return containers
 
     def resolve_depend_containers(self, containers: List[BaseContainer]) -> List[BaseContainer]:
         order = lambda o: o() if callable(o) else o
@@ -250,30 +246,25 @@ class ContainerManager:
         container_queue: Set[BaseContainer] = set(containers)
         while container_queue:
             container = container_queue.pop()
-            if not container.enable:
-                self.logger.debug(f"Skip disabled container {container.name}")
-                continue
             result.setdefault(container, container.order)
             for dependency in container.dependencies:
                 if dependency not in self.containers:
                     raise ContainerError(f"Dependency container {dependency} not found")
                 depend_container = self.containers[dependency]
-                if not depend_container.enable:
-                    continue
                 if depend_container not in result:
                     result.setdefault(depend_container, depend_container.order)
                     container_queue.add(depend_container)
                 if order(result[depend_container]) >= order(result[container]):
                     result[depend_container] = functools.partial(lambda o: order(result[o]) - 1, container)
-
         return sorted(result, key=lambda o: (order(result[o]), o.order, o.name))
 
     def prepare_installed_containers(self) -> List[BaseContainer]:
         self.logger.debug(f"Load container type: {self.container_type}")  # 加载容器类型
-        containers = self.get_installed_containers()
-        containers = self.resolve_depend_containers(containers)
+        containers = self.get_installed_containers(resolve=True)
         if not containers:
             raise ContainerError("No container installed")
+        for container in self.containers.values():
+            container.enable = container in containers
         for container in reversed(containers):
             self.config.update_defaults(**container.configs)
         for container in containers:
@@ -292,13 +283,14 @@ class ContainerManager:
                 container = self.containers.get(name, None)
                 if container:
                     result.add(container)
-            installed_containers = self._load_installed_containers() + list(result)
-            self._dump_installed_containers(installed_containers)
+            containers = self._load_installed_containers(reload=True)
+            containers.extend(result)
+            self._dump_installed_containers(containers)
             return list(result)
 
     def remove_installed_containers(self, *names: str, force: bool = False) -> List[BaseContainer]:
         with self._config_lock:
-            containers = self._load_installed_containers()
+            containers = self._load_installed_containers(reload=True)
 
             result = set()
             remove_names = set(names)
@@ -328,9 +320,9 @@ class ContainerManager:
 
             return list(result)
 
-    def _load_installed_containers(self) -> List[BaseContainer]:
+    def _load_installed_containers(self, reload: bool = False) -> List[BaseContainer]:
         result = set()
-        for name in self._load_config(self._config_path):
+        for name in self._load_config(self._config_path, reload=reload, default=()):
             if name in self.containers:
                 result.add(self.containers[name])
         return list(result)
@@ -338,7 +330,7 @@ class ContainerManager:
     def _dump_installed_containers(self, containers: List[BaseContainer]) -> None:
         self._dump_config(
             self._config_path,
-            list(set([container.name for container in containers]))
+            list(set([container.name for container in containers])),
         )
 
     def create_process(
@@ -411,7 +403,7 @@ class ContainerManager:
     def add_repo(self, url: str, branch: str = None, force: bool = False):
 
         with self._repo_lock:
-            repos = self._load_config(self._repo_config_path)
+            repos = self._load_config(self._repo_config_path, reload=True)
 
             def ensure_repo_not_exist(key):
                 if key not in repos:
@@ -421,7 +413,8 @@ class ContainerManager:
                 self._remove_repo_file(repos.pop(key))
                 self._dump_config(self._repo_config_path, repos)
 
-            if url.startswith("http://") or url.startswith("https://") or url.startswith("ssh://") or url.startswith("git@"):
+            if url.startswith("http://") or url.startswith("https://") or \
+                    url.startswith("ssh://") or url.startswith("git@"):
                 ensure_repo_not_exist(url)
                 self.logger.info(f"Add git repository: {url}")
                 repo_name = utils.guess_file_name(url)
@@ -462,7 +455,7 @@ class ContainerManager:
 
     def remove_repo(self, url: str):
         with self._repo_lock:
-            repos = self._load_config(self._repo_config_path)
+            repos = self._load_config(self._repo_config_path, reload=True)
             if url not in repos:
                 raise ContainerError(f"Repository `{url}` not found.")
             self._remove_repo_file(repos.pop(url))
@@ -506,21 +499,22 @@ class ContainerManager:
     def _repo_config_path(self):
         return self.environ.get_data_path("container", "repo", "repo.json", create_parent=True)
 
-    def _load_config(self, path: str) -> Union[Dict, List, Tuple]:
+    def _load_config(self, path: str, reload: bool = False, default: Any = None) -> Union[Dict, List, Tuple]:
+        if reload:
+            self._config_caches.pop(path, None)
+        elif path in self._config_caches:
+            return self._config_caches[path]
         if os.path.exists(path):
             try:
-                return json.loads(
-                    utils.read_file(path, text=True)
-                )
+                self._config_caches[path] = json.loads(utils.read_file(path, text=True))
+                return self._config_caches[path]
             except Exception as e:
                 self.logger.warning(f"Failed to load config file {path}: {e}")
-        return {}
+        return default if default is not None else {}
 
     def _dump_config(self, path: str, config: Union[Dict, List, Tuple]):
         try:
-            utils.write_file(
-                path,
-                json.dumps(config, indent=2, ensure_ascii=False)
-            )
+            self._config_caches.pop(path, None)
+            utils.write_file(path, json.dumps(config, indent=2, ensure_ascii=False))
         except Exception as e:
             self.logger.warning(f"Failed to dump config file {path}: {e}")

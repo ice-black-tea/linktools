@@ -5,9 +5,6 @@
 # Author    : HuJi <jihu.hj@alibaba-inc.com>
 
 import functools
-import os
-import sys
-from importlib.util import find_spec, LazyLoader, module_from_spec, spec_from_file_location
 from typing import TYPE_CHECKING, TypeVar, Type, Callable, Iterable
 
 if TYPE_CHECKING:
@@ -307,10 +304,16 @@ def lazy_iter(fn: "Callable[P, Iterable[T]]", *args: "P.args", **kwargs: "P.kwar
     :param fn: 延迟迭代的方法
     :return: proxy
     """
+
     class IterProxy(Iterable):
 
-        def __iter__(self):  # 用于 for 循环语句
-            return fn(*args, **kwargs)
+        def __init__(self):
+            self._data: Iterable[T] = _PROXY_MISSING
+
+        def __iter__(self):
+            if self._data == _PROXY_MISSING:
+                self._data = fn(*args, **kwargs)
+            return iter(self._data)
 
     return IterProxy()
 
@@ -321,42 +324,3 @@ def raise_error(e: BaseException):
 
 def lazy_raise(e: BaseException) -> "T":
     return lazy_load(raise_error, e)
-
-
-def lazy_import(name: str) -> "T":
-    """
-    延迟导入模块
-    :param name: 模块名
-    :return: module
-    """
-    spec = find_spec(name)
-    if not spec:
-        raise ModuleNotFoundError(f"No module named '{name}'")
-    loader = LazyLoader(spec.loader)
-    spec.loader = loader
-    module = module_from_spec(spec)
-    sys.modules[name] = module
-    loader.exec_module(module)
-    return module
-
-
-def lazy_import_file(name: str, path: str) -> "T":
-    """
-    延迟导入模块
-    :param name: 模块名
-    :param path: 模块路径
-    :return: module
-    """
-    if os.path.isdir(path):
-        path = os.path.join(path, "__init__.py")
-    if not os.path.exists(path):
-        raise ModuleNotFoundError(f"No such file or directory: '{path}'")
-    spec = spec_from_file_location(name, path)
-    if not spec:
-        raise ModuleNotFoundError(f"No module named '{name}'")
-    loader = LazyLoader(spec.loader)
-    spec.loader = loader
-    module = module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module

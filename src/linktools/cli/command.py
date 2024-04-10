@@ -35,7 +35,6 @@ import textwrap
 import traceback
 from argparse import ArgumentParser, Action, Namespace
 from argparse import RawDescriptionHelpFormatter, SUPPRESS, FileType, HelpFormatter
-from importlib.util import module_from_spec
 from pkgutil import walk_packages
 from types import ModuleType, GeneratorType
 from typing import TYPE_CHECKING, Optional, Callable, List, Type, Tuple, Generator, Any, Iterable, Union, Set, Dict
@@ -43,17 +42,19 @@ from typing import TYPE_CHECKING, Optional, Callable, List, Type, Tuple, Generat
 from rich import get_console
 from rich.tree import Tree
 
-from .argparse import BooleanOptionalAction
+from .argparse import BooleanOptionalAction, auto_complete
+from .. import utils
 from .._environ import environ
 from ..decorator import cached_property
 from ..metadata import __missing__
 from ..rich import LogHandler, is_terminal
 
 if TYPE_CHECKING:
-    from typing import TypeVar
+    from typing import TypeVar, Union, Literal
     from .._environ import BaseEnviron
 
     T = TypeVar("T")
+    ERROR_HANDLER = Union[Literal["error", "ignore", "warn"], Callable[[str, Exception], None]]
 
 
 class CommandError(Exception):
@@ -62,6 +63,49 @@ class CommandError(Exception):
 
 class SubCommandError(CommandError):
     pass
+
+
+class _CommandModuleInfo:
+    name: str
+    parent_name: str
+    module: ModuleType
+    module_name: str
+    command: "Optional[BaseCommand]"
+    command_name: str
+    command_description: str
+
+
+def iter_command_modules(root: ModuleType, *, onerror: "ERROR_HANDLER" = "error"):
+    prefix = root.__name__ + "."
+    for finder, name, is_package in walk_packages(path=root.__path__, prefix=prefix):
+        try:
+            info = _CommandModuleInfo()
+            info.name = name[len(prefix):]
+            info.parent_name = name[len(prefix):name.rfind(".")]
+            info.module = module = utils.import_module(name, spec=finder.find_spec(name))
+            info.module_name = module.__name__
+            if is_package:
+                info.command = None
+                info.command_name = getattr(module, "__command__", None) or info.name[info.name.rfind(".") + 1:]
+                info.command_description = getattr(module, "__description__", None) or ""
+                yield info
+            elif hasattr(info.module, "command") and isinstance(info.module.command, BaseCommand):
+                info.command = info.module.command
+                info.command_name = info.command.name
+                info.command_description = info.command.description
+                yield info
+        except Exception as e:
+            if callable(onerror):
+                onerror(name, e)
+            elif onerror == "error":
+                raise e
+            elif onerror == "warn":
+                environ.logger.warning(
+                    f"Ignore {name}, caused by {e.__class__.__name__}: {e}",
+                    exc_info=e if environ.debug else None
+                )
+            elif onerror == "ignore":
+                pass
 
 
 def _filter_kwargs(kwargs):
@@ -226,15 +270,19 @@ class _SubCommandInfo:
         self.children: List[_SubCommandInfo] = []
 
 
+def _join_id(*ids: str):
+    return "#".join([id for id in ids if id])
+
+
 class SubCommand(metaclass=abc.ABCMeta):
     """
     子命令接口
     """
 
-    ROOT_ID = ""
+    ROOT_ID = _join_id()
 
     def __init__(self, name: str, description: str, id: str = None, parent_id: str = None):
-        self.id = id or name
+        self.id = id or _join_id(parent_id, name)
         self.parent_id = parent_id or self.ROOT_ID
         self.name = name
         self.description = description
@@ -406,7 +454,7 @@ class SubCommandWrapper(SubCommand):
 
 class SubCommandMixin:
 
-    def walk_subcommands(self: "BaseCommand", target: Any) -> Generator[SubCommand, None, None]:
+    def walk_subcommands(self: "BaseCommand", target: Any, parent_id: str = None) -> Generator[SubCommand, None, None]:
         """
         根据target对象，遍历所有的子命令，规则如下：
         1. 如果target是SubCommand类型，则直接返回
@@ -419,31 +467,20 @@ class SubCommandMixin:
 
         elif isinstance(target, (list, tuple, set, GeneratorType)):
             for item in target:
-                yield from self.walk_subcommands(item)
+                yield from self.walk_subcommands(item, parent_id=parent_id)
 
         elif isinstance(target, ModuleType):
-            prefix = target.__name__ + "."  # prefix: aaa.
-            for finder, name, is_package in walk_packages(path=target.__path__, prefix=prefix):  # name: aaa.bbb.ccc
-                module_name = name[len(prefix):]  # bbb.ccc
-                parent_module_name = name[len(prefix):name.rfind(".")]  # bbb
-
-                try:
-                    spec = finder.find_spec(name)
-                    module = module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                except Exception as e:
-                    self.logger.warning(
-                        f"Ignore {module_name}, caused by {e.__class__.__name__}: {e}",
-                        exc_info=e if environ.debug else None
+            for m in iter_command_modules(target, onerror="warn"):
+                if m.command:
+                    yield SubCommandWrapper(
+                        m.command,
+                        id=_join_id(parent_id, m.name), parent_id=_join_id(parent_id, m.parent_name)
                     )
-                    continue
-
-                if is_package:
-                    _name = getattr(module, "__command__", None) or name[name.rfind(".") + 1:]  # ccc
-                    _description = getattr(module, "__description__", None) or ""
-                    yield SubCommandGroup(_name, _description, id=module_name, parent_id=parent_module_name)
-                elif hasattr(module, "command") and isinstance(module.command, BaseCommand):
-                    yield SubCommandWrapper(module.command, id=module_name, parent_id=parent_module_name)
+                else:
+                    yield SubCommandGroup(
+                        m.command_name, m.command_description,
+                        id=_join_id(parent_id, m.name), parent_id=_join_id(parent_id, m.parent_name)
+                    )
 
         else:
             subcommand_map: Dict[str, List[_SubCommandMethod]] = {}
@@ -458,7 +495,7 @@ class SubCommandMixin:
                     if not hasattr(func, "__subcommand_info__"):
                         continue
                     info: _SubCommandMethodInfo = func.__subcommand_info__
-                    subcommand = _SubCommandMethod(info, target)
+                    subcommand = _SubCommandMethod(info, target, parent_id=parent_id)
                     subcommand_map.setdefault(subcommand.name, list())
                     subcommand_map[info.name].append(subcommand)
 
@@ -719,6 +756,11 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
             def __call__(self, parser, namespace, values, option_string=None):
                 logging.root.setLevel(logging.DEBUG)
 
+        class SilentAction(Action):
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                logging.disable(logging.CRITICAL)
+
         class DebugAction(Action):
 
             def __call__(self, parser, namespace, values, option_string=None):
@@ -745,9 +787,11 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                         handler.show_level = value
                     environ.set_config("SHOW_LOG_LEVEL", value)
 
-        group = parser.add_argument_group(title="log options")
+        group = parser.add_argument_group(title="log options").add_mutually_exclusive_group()
         group.add_argument(f"{prefix}{prefix}verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
+        group.add_argument(f"{prefix}{prefix}silent", action=SilentAction, nargs=0, const=True, dest=SUPPRESS,
+                           help="disable all log output")
         group.add_argument(f"{prefix}{prefix}debug", action=DebugAction, nargs=0, const=True, dest=SUPPRESS,
                            help=f"increase {self.environ.name}'s log verbosity, and enable debug mode")
 
@@ -805,11 +849,8 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         try:
             if not isinstance(args, Namespace):
                 parser = self._argument_parser
-                try:
-                    import argcomplete
-                    argcomplete.autocomplete(parser)
-                except ModuleNotFoundError:
-                    pass
+                if auto_complete:
+                    auto_complete.autocomplete(parser)
                 args = parser.parse_args(args)
 
             exit_code = self.run(args) or 0

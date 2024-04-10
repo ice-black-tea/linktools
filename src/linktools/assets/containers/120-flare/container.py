@@ -37,10 +37,6 @@ from linktools.decorator import cached_property
 
 class Container(BaseContainer):
 
-    @property
-    def dependencies(self) -> [str]:
-        return ["nginx"]
-
     @cached_property
     def configs(self):
         return dict(

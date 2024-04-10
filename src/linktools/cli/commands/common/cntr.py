@@ -36,7 +36,7 @@ from git import GitCommandError
 from linktools import environ, ConfigError, utils
 from linktools.cli import BaseCommand, subcommand, SubCommandWrapper, subcommand_argument, SubCommandGroup, \
     BaseCommandGroup
-from linktools.cli.argparse import KeyValueAction, BooleanOptionalAction
+from linktools.cli.argparse import KeyValueAction, BooleanOptionalAction, ParserCompleter
 from linktools.container import ContainerManager, ContainerError
 from linktools.rich import confirm, choose
 
@@ -48,9 +48,7 @@ def _iter_container_names():
 
 
 def _iter_installed_container_names():
-    containers = manager.get_installed_containers()
-    containers = manager.resolve_depend_containers(containers)
-    return [container.name for container in containers]
+    return [container.name for container in manager.get_installed_containers()]
 
 
 class RepoCommand(BaseCommandGroup):
@@ -167,33 +165,38 @@ class ExecCommand(BaseCommand):
     def name(self):
         return "exec"
 
-    def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("exec_name", nargs="?", metavar="CONTAINER", help="container name",
-                            choices=utils.lazy_load(_iter_installed_container_names))
-        parser.add_argument("exec_args", nargs="...", metavar="ARGS", help="container exec args")
-
-    def run(self, args: Namespace) -> Optional[int]:
+    @property
+    def _subparser(self) -> ArgumentParser:
         parser = ArgumentParser()
 
         subcommands = []
-        for container in manager.prepare_installed_containers():
+        for container in manager.get_installed_containers():
             subcommand_group = SubCommandGroup(container.name, container.description)
             subcommands.append(subcommand_group)
-            for subcommand in self.walk_subcommands(container):
-                subcommand.parent_id = subcommand_group.id
-                subcommands.append(subcommand)
+            subcommands.extend(self.walk_subcommands(container, parent_id=subcommand_group.id))
         self.add_subcommands(parser, target=subcommands)
 
-        exec_args = []
-        if args.exec_name:
-            exec_args.append(args.exec_name)
-        if args.exec_args:
-            exec_args.extend(args.exec_args)
-        exec_args = parser.parse_args(exec_args)
-        subcommand = self.parse_subcommand(exec_args)
+        return parser
+
+    def init_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument("exec_name", nargs="?", metavar="CONTAINER", help="container name",
+                            choices=utils.lazy_iter(_iter_installed_container_names))
+        action = parser.add_argument("exec_args", nargs="...", metavar="ARGS", help="container exec args")
+
+        if ParserCompleter:
+            class Completer(ParserCompleter):
+                get_parser = lambda _: self._subparser
+                get_args = lambda _, args, **kw: [args.exec_name, *args.exec_args] if args.exec_name else None
+
+            action.completer = Completer()
+
+    def run(self, args: Namespace) -> Optional[int]:
+        args = self._subparser.parse_args([args.exec_name, *args.exec_args] if args.exec_name else [])
+        subcommand = self.parse_subcommand(args)
         if not subcommand or isinstance(subcommand, SubCommandGroup):
-            return self.print_subcommands(exec_args, root=subcommand, max_level=2)
-        return subcommand.run(exec_args)
+            return self.print_subcommands(args, root=subcommand, max_level=2)
+        manager.prepare_installed_containers()
+        return subcommand.run(args)
 
 
 class Command(BaseCommandGroup):
@@ -203,9 +206,9 @@ class Command(BaseCommandGroup):
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:
-        known_errors = super().known_errors
-        known_errors.extend([ContainerError, ConfigError, SubprocessError, GitCommandError, OSError])
-        return known_errors
+        return super().known_errors + [
+            ContainerError, ConfigError, SubprocessError, GitCommandError, OSError
+        ]
 
     def init_subcommands(self) -> Any:
         return [
@@ -217,19 +220,19 @@ class Command(BaseCommandGroup):
 
     @subcommand("list", help="list all containers")
     def on_command_list(self):
-        installed_containers = manager.get_installed_containers()
-        depend_containers = manager.resolve_depend_containers(installed_containers)
+        install_containers = manager.get_installed_containers(resolve=False)
+        all_install_containers = manager.resolve_depend_containers(install_containers)
         for container in sorted(manager.containers.values(), key=lambda o: o.order):
-            if container not in depend_containers or not container.enable:
+            if container not in all_install_containers:
                 self.logger.info(f"[ ] {container.name}", extra={"style": "dim"})
-            elif container in installed_containers:
+            elif container in install_containers:
                 self.logger.info(f"[*] {container.name} [added]", extra={"style": "red bold"})
             else:
                 self.logger.info(f"[-] {container.name} [dependency]", extra={"style": "red dim"})
 
     @subcommand("add", help="add containers to installed list")
     @subcommand_argument("names", metavar="CONTAINER", nargs="+", help="container name",
-                         choices=utils.lazy_load(_iter_container_names))
+                         choices=utils.lazy_iter(_iter_container_names))
     def on_command_add(self, names: List[str]):
         containers = manager.add_installed_containers(*names)
         if not containers:
@@ -240,7 +243,7 @@ class Command(BaseCommandGroup):
     @subcommand("remove", help="remove containers from installed list")
     @subcommand_argument("-f", "--force", help="Force remove")
     @subcommand_argument("names", metavar="CONTAINER", nargs="+", help="container name",
-                         choices=utils.lazy_load(_iter_container_names))
+                         choices=utils.lazy_iter(_iter_container_names))
     def on_command_remove(self, names: List[str], force: bool = False):
         containers = manager.remove_installed_containers(*names, force=force)
         if not containers:
@@ -250,7 +253,7 @@ class Command(BaseCommandGroup):
 
     @subcommand("info", help="display container info")
     @subcommand_argument("names", metavar="CONTAINER", nargs="+", help="container name",
-                         choices=utils.lazy_load(_iter_container_names))
+                         choices=utils.lazy_iter(_iter_container_names))
     def on_command_info(self, names: List[str]):
         for name in names:
             container = manager.containers[name]
@@ -268,10 +271,9 @@ class Command(BaseCommandGroup):
 
     @subcommand("up", help="deploy installed containers")
     @subcommand_argument("--build", action=BooleanOptionalAction, help="build images before starting")
-    @subcommand_argument("--pull", help="pull image before running",
-                         choices=["always", "missing", "never"])
+    @subcommand_argument("--pull", help="pull image before running", choices=["always", "missing", "never"])
     @subcommand_argument("name", metavar="CONTAINER", nargs="?", help="container name",
-                         choices=utils.lazy_load(_iter_installed_container_names))
+                         choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_up(self, name: str = None, build: str = True, pull: str = None):
         containers = manager.prepare_installed_containers()
 
@@ -300,10 +302,9 @@ class Command(BaseCommandGroup):
 
     @subcommand("restart", help="restart installed containers")
     @subcommand_argument("--build", action=BooleanOptionalAction, help="build images before starting")
-    @subcommand_argument("--pull", help="pull image before running",
-                         choices=["always", "missing", "never"])
+    @subcommand_argument("--pull", help="pull image before running", choices=["always", "missing", "never"])
     @subcommand_argument("name", metavar="CONTAINER", nargs="?", help="container name",
-                         choices=utils.lazy_load(_iter_installed_container_names))
+                         choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_restart(self, name: str = None, build: str = True, pull: str = None):
         containers = manager.prepare_installed_containers()
         stop_containers = [c for c in containers if not name or c.name == name]
@@ -342,7 +343,7 @@ class Command(BaseCommandGroup):
 
     @subcommand("down", help="stop installed containers")
     @subcommand_argument("name", metavar="CONTAINER", nargs="?", help="container name",
-                         choices=utils.lazy_load(_iter_installed_container_names))
+                         choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_down(self, name: str = None):
         containers = manager.prepare_installed_containers()
         stop_containers = [c for c in containers if not name or c.name == name]

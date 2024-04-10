@@ -39,15 +39,16 @@ from ._utils import (
     parse_version, get_char_width,
     make_url, parse_header, parser_cookie, guess_file_name, user_agent,
     get_system, get_machine, get_user, get_uid, get_gid, get_shell_path,
+    import_module, import_module_file
 )
 
-from ._lazy import (
-    get_derived_type, lazy_load, lazy_iter, lazy_raise, lazy_import, lazy_import_file
+from ._proxy import (
+    get_derived_type, lazy_load, lazy_iter, lazy_raise
 )
 
 from ._subprocess import (
     Process,
-    list2cmdline,
+    list2cmdline, cmdline2list,
 )
 
 from ._port import (

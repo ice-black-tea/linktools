@@ -68,7 +68,7 @@ class Command(BaseCommand):
         subparsers = parser.add_subparsers(metavar="TOOL", help=f"{{{','.join(tool_names)}}}")
         subparsers.required = True
         for tool_name in tool_names:
-            tool_parser = subparsers.add_parser(tool_name, prefix_chars=chr(0))
+            tool_parser = subparsers.add_parser(tool_name, prefix_chars=chr(0), add_help=False)
             tool_parser.add_argument("tool_args", metavar="args", nargs="...")
             tool_parser.set_defaults(tool_name=tool_name)
 

@@ -151,6 +151,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         else:
             self._order = 900
             self._name = name
+        self._enable = False
         self.manager = manager
         self.logger = manager.logger
         self.root_path = root_path
@@ -168,8 +169,12 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         return self._order
 
     @property
-    def enable(self):
-        return self.manager.config.get(f"{self.name.upper()}_ENABLE", type=bool, default=True)
+    def enable(self) -> bool:
+        return self._enable
+
+    @enable.setter
+    def enable(self, value: bool):
+        self._enable = value
 
     @property
     def dependencies(self) -> [str]:
@@ -265,23 +270,22 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             options.append("--user")
             options.append(user)
 
-        shell_args = []
-        if command:
-            shell_args = ["-c", command]
-
-        commands = []
-        for shell in ["/bin/zsh", "/bin/fish", "/bin/bash", "/bin/ash", "/bin/sh"]:
-            shell_command = [
-                "if" if len(commands) == 0 else "elif", "[", "-f", shell, "]", ";",
-                "then", shell, *shell_args, ";",
-            ]
-            commands.extend(shell_command)
-        commands.extend(["else", "sh", *shell_args, ";"])
-        commands.append("fi")
+        if not command:
+            commands = []
+            for shell in ["/bin/zsh", "/bin/fish", "/bin/bash", "/bin/ash", "/bin/sh"]:
+                shell_command = [
+                    "if" if len(commands) == 0 else "elif", "[", "-f", shell, "]", ";",
+                    "then", shell, ";",
+                ]
+                commands.extend(shell_command)
+            commands.extend(["else", "sh", ";"])
+            commands.append("fi")
+            commands = ("sh", "-c", utils.list2cmdline(commands))
+        else:
+            commands = utils.cmdline2list(command)
 
         return self.manager.create_docker_process(
-            "exec", "-it", *options, service.get("container_name"),
-            "sh", "-c", utils.list2cmdline(commands)
+            "exec", "-it", *options, service.get("container_name"), *commands
         ).call()
 
     @subcommand("logs", help="fetch the logs of container")

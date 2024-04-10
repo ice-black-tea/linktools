@@ -4,15 +4,22 @@
 import errno
 import os
 import queue
+import shlex
 import subprocess
 import threading
-from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union
+from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union, List
 
 from . import Timeout, timeoutable
 from .._environ import environ
 from ..decorator import cached_property
 
-list2cmdline = subprocess.list2cmdline
+
+def list2cmdline(args: List[str]) -> str:
+    return subprocess.list2cmdline(args)
+
+
+def cmdline2list(cmdline: str) -> List[str]:
+    return shlex.split(cmdline)
 
 
 class Output:

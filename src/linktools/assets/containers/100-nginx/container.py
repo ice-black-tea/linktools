@@ -65,14 +65,6 @@ class Container(BaseContainer):
             ))
         )
 
-    @cached_property
-    def enable(self):
-        return self.manager.config.get(
-            "NGINX_ENABLE",
-            type=bool,
-            default=Config.Confirm(default=True, cached=True)
-        )
-
     def on_starting(self):
         path = self.get_app_path("conf.d")
         if not os.path.exists(path):

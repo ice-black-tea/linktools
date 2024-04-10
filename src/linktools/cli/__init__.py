@@ -32,7 +32,8 @@ from . import argparse
 from .command import \
     BaseCommand, BaseCommandGroup, CommandError, \
     SubCommand, SubCommandGroup, SubCommandWrapper, \
-    subcommand, subcommand_argument, SubCommandError
+    subcommand, subcommand_argument, SubCommandError, \
+    iter_command_modules
 
 from .device import \
     DeviceCommandMixin, AndroidCommandMixin, IOSCommandMixin, \

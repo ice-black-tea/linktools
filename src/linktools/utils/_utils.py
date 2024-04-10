@@ -37,10 +37,13 @@ import random
 import re
 import shutil
 import socket
+import sys
 import threading
 import time
 import uuid
 from collections.abc import Iterable, Sized
+from importlib.machinery import ModuleSpec
+from importlib.util import find_spec, LazyLoader, module_from_spec, spec_from_file_location
 from typing import TYPE_CHECKING, Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
 from urllib import parse
 from urllib.request import urlopen
@@ -721,3 +724,47 @@ def get_shell_path():
         return shutil.which("powershell") or shutil.which("cmd")
 
     return ""
+
+
+def import_module(name: str, spec: ModuleSpec = None) -> "T":
+    """
+    延迟导入模块
+    :param name: 模块名
+    :param spec: 模块spec
+    :return: module
+    """
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = spec or find_spec(name)
+    if not spec:
+        raise ModuleNotFoundError(f"No module named '{name}'")
+    loader = LazyLoader(spec.loader)
+    spec.loader = loader
+    module = module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module
+
+
+def import_module_file(name: str, path: str) -> "T":
+    """
+    延迟导入模块
+    :param name: 模块名
+    :param path: 模块路径
+    :return: module
+    """
+    if name in sys.modules:
+        return sys.modules[name]
+    if os.path.isdir(path):
+        path = os.path.join(path, "__init__.py")
+    if not os.path.exists(path):
+        raise ModuleNotFoundError(f"No such file or directory: '{path}'")
+    spec = spec_from_file_location(name, path)
+    if not spec:
+        raise ModuleNotFoundError(f"No module named '{name}'")
+    loader = LazyLoader(spec.loader)
+    spec.loader = loader
+    module = module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module

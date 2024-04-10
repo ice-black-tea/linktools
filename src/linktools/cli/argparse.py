@@ -26,9 +26,60 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,`\--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import abc
 import argparse
+import typing
 
 from .. import utils
+
+if typing.TYPE_CHECKING:
+    import argcomplete
+
+auto_complete: "typing.Optional[argcomplete]" = None
+try:
+    import argcomplete
+
+    auto_complete = argcomplete
+except ModuleNotFoundError:
+    pass
+
+
+if auto_complete:
+
+    class ParserCompleter(abc.ABC):
+
+        @abc.abstractmethod
+        def get_parser(self) -> argparse.ArgumentParser:
+            pass
+
+        @abc.abstractmethod
+        def get_args(self, parsed_args: argparse.Namespace, **kwargs) -> typing.Optional[typing.List[str]]:
+            pass
+
+        def __call__(self, *, parsed_args, **kwargs):
+            completions = {}
+
+            args = self.get_args(parsed_args, **kwargs)
+            if args is None:
+                return completions
+
+            finder = auto_complete.CompletionFinder(self.get_parser())
+            cmdline = f"{utils.list2cmdline(args)} "
+
+            state = 0
+            while True:
+                item = finder.rl_complete(cmdline, state)
+                if item is None:
+                    break
+                key = item[len(cmdline):]
+                completions[key] = finder.get_display_completions().get(key, "")
+                state += 1
+
+            return completions
+
+else:
+    ParserCompleter = None
+
 
 if not hasattr(argparse, "BooleanOptionalAction"):
     class BooleanOptionalAction(argparse.Action):

@@ -11,9 +11,10 @@ python & pip (3.6及以上): <https://www.python.org/downloads/>
 使用pip安装linktools
 
 ```bash
-# 可以pip直接安装linktools，也可以用以下命令安装github上的最新版本:
-# python3 -m pip install "linktools@ git+https://github.com/ice-black-tea/linktools.git"
-python3 -m pip install -U "linktools[all]" # 按需添加依赖项，推荐使用all添加所有依赖项
+# pip直接安装linktools，按需添加依赖项，推荐使用all添加所有依赖项
+python3 -m pip install -U "linktools[all]"
+# 也可以用以下命令安装github上的最新版本:
+# python3 -m pip install --ignore-installed "linktools@ git+https://github.com/ice-black-tea/linktools.git@master"
 ```
 
 额外的依赖项以及相应功能可通过[requirements.yml](https://raw.githubusercontent.com/ice-black-tea/linktools/master/requirements.yml)查看
@@ -23,6 +24,8 @@ python3 -m pip install -U "linktools[all]" # 按需添加依赖项，推荐使�
 对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置alias，简化调用方式：
 
 ```bash
+eval "$(ct-env --silent complete --shell bash)" # 给命令添加自动补全功能
+
 alias adb="at-adb"
 alias pidcat="at-pidcat"
 alias sib="it-sib"
