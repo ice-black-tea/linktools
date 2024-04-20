@@ -81,3 +81,7 @@ class Container(BaseContainer):
             self.get_app_path(),
             self.manager.user
         )
+        self.manager.create_docker_process(
+            "exec", "-it", "nginx",
+            "sh", "-c", "killall nginx 1>/dev/null 2>&1"
+        ).call()

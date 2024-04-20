@@ -100,10 +100,17 @@ class Command(BaseCommandGroup):
     @subcommand("complete", help="generate shell auto complete script")
     @subcommand_argument("-s", "--shell", help="output code for the specified shell",
                          choices=["bash", "zsh", "tcsh", "fish", "powershell"])
-    def on_complete(self, shell: str = DEFAULT_SHELL):
+    @subcommand_argument("--sync", action="store_true", help="sync complete script")
+    def on_complete(self, shell: str = DEFAULT_SHELL, sync: bool = False):
         if not auto_complete:
             self.logger.warning("argcomplete module not found")
             return
+
+        path = self.environ.get_data_path("scripts", "complete", create_parent=True)
+        if not sync and os.path.exists(path):
+            self.logger.info(f"Found complete script: {path}")
+            print(utils.read_file(path, text=True), flush=True)
+            return 0
 
         executables = []
         modules = {c.name: c for c in iter_command_modules(commands, onerror="warn")}
@@ -116,14 +123,23 @@ class Command(BaseCommandGroup):
                     names.append(temp.command_name)
                 executable = "-".join(reversed(names))
                 executables.append(executable)
-                self.logger.info(f"found executable: {executable}")
+                self.logger.info(f"Found executable: {executable}")
 
-        print(auto_complete.shellcode(executables, shell=shell), flush=True)
+        result = auto_complete.shellcode(executables, shell=shell)
+        utils.write_file(path, result)
+        print(result, flush=True)
 
     @subcommand("alias", help="generate shell alias script")
     @subcommand_argument("-s", "--shell", help="output code for the specified shell",
                          choices=["bash", "zsh", "tcsh", "fish", "powershell"])
-    def on_alias(self, shell: str = DEFAULT_SHELL):
+    @subcommand_argument("--sync", action="store_true", help="sync alias script")
+    def on_alias(self, shell: str = DEFAULT_SHELL, sync: bool = False):
+        path = self.environ.get_data_path("scripts", "alias", create_parent=True)
+        if not sync and os.path.exists(path):
+            self.logger.info(f"Found alias script: {path}")
+            print(utils.read_file(path, text=True), flush=True)
+            return 0
+
         lines = []
         if shell not in ("powershell",):
             lines.append(f"#!/usr/bin/env {shell}")
@@ -138,7 +154,7 @@ class Command(BaseCommandGroup):
                     names.append(temp.command_name)
                 executable = "-".join(reversed(names))
                 cmdline = list2cmdline([sys.executable, "-m", module.module.__name__])
-                self.logger.info(f"found alias: {executable} -> {cmdline}")
+                self.logger.info(f"Found alias: {executable} -> {cmdline}")
 
                 if shell in ("bash", "zsh"):
                     lines.append(f"alias {executable}='{cmdline}'")
@@ -148,7 +164,9 @@ class Command(BaseCommandGroup):
                     lines.append(f"function __{executable}__ {{ {cmdline} $args }}")
                     lines.append(f"Set-Alias -Name {executable} -Value __{executable}__")
 
-        print(os.linesep.join(lines), flush=True)
+        result = os.linesep.join(lines)
+        utils.write_file(path, result)
+        print(result, flush=True)
 
     @subcommand("clean", help="clean temporary files")
     @subcommand_argument("days", metavar="DAYS", nargs="?", help="expire days")

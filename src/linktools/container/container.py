@@ -93,12 +93,10 @@ class ExposeMixin:
 class NginxMixin:
 
     def get_nginx_domain(self: "BaseContainer", name: str = None):
-        if not self.manager.containers["nginx"].enable:
-            return ""
-        if not self.is_depend_on("nginx"):
-            return ""
 
         def get_domain(cfg: Config):
+            if not self.manager.containers["nginx"].enable:
+                return ""
             if not cfg.get("WILDCARD_DOMAIN", type=bool):
                 return cfg.get("ROOT_DOMAIN")
             if name is None:

@@ -28,58 +28,42 @@
 """
 import abc
 import argparse
+import sys
 import typing
 
 from .. import utils
 
-if typing.TYPE_CHECKING:
-    import argcomplete
+if sys.version_info < (3, 10):
 
-auto_complete: "typing.Optional[argcomplete]" = None
-try:
-    import argcomplete
+    _orig_get_action_name = getattr(argparse, "_get_action_name", None)
+    if _orig_get_action_name is not None and callable(_orig_get_action_name):
+        def _get_action_name(argument):
+            result = _orig_get_action_name(argument)
+            if result is None:
+                if argument.choices:
+                    return '{' + ','.join(argument.choices) + '}'
+            return result
 
-    auto_complete = argcomplete
-except ModuleNotFoundError:
-    pass
+        setattr(argparse, "_get_action_name", _get_action_name)
 
 
-if auto_complete:
+##############################
+# argparse types
+##############################
 
-    class ParserCompleter(abc.ABC):
+def range_type(min: int, max: int):
+    def wrapper(o):
+        value = utils.int(o)
+        if min <= value <= max:
+            return value
+        raise ValueError("value not in range %s-%s" % (min, max))
 
-        @abc.abstractmethod
-        def get_parser(self) -> argparse.ArgumentParser:
-            pass
+    return wrapper
 
-        @abc.abstractmethod
-        def get_args(self, parsed_args: argparse.Namespace, **kwargs) -> typing.Optional[typing.List[str]]:
-            pass
 
-        def __call__(self, *, parsed_args, **kwargs):
-            completions = {}
-
-            args = self.get_args(parsed_args, **kwargs)
-            if args is None:
-                return completions
-
-            finder = auto_complete.CompletionFinder(self.get_parser())
-            cmdline = f"{utils.list2cmdline(args)} "
-
-            state = 0
-            while True:
-                item = finder.rl_complete(cmdline, state)
-                if item is None:
-                    break
-                key = item[len(cmdline):]
-                completions[key] = finder.get_display_completions().get(key, "")
-                state += 1
-
-            return completions
-
-else:
-    ParserCompleter = None
-
+##############################
+# argparse actions
+##############################
 
 if not hasattr(argparse, "BooleanOptionalAction"):
     class BooleanOptionalAction(argparse.Action):
@@ -165,11 +149,53 @@ class KeyValueAction(argparse.Action):
         setattr(namespace, self.dest, dest)
 
 
-def range_type(min: int, max: int):
-    def wrapper(o):
-        value = utils.int(o)
-        if min <= value <= max:
-            return value
-        raise ValueError("value not in range %s-%s" % (min, max))
+##############################
+# auto complete
+##############################
 
-    return wrapper
+if typing.TYPE_CHECKING:
+    import argcomplete
+
+auto_complete: "typing.Optional[argcomplete]" = None
+try:
+    import argcomplete
+
+    auto_complete = argcomplete
+except ModuleNotFoundError:
+    pass
+
+if auto_complete:
+
+    class ParserCompleter(abc.ABC):
+
+        @abc.abstractmethod
+        def get_parser(self) -> argparse.ArgumentParser:
+            pass
+
+        @abc.abstractmethod
+        def get_args(self, parsed_args: argparse.Namespace, **kwargs) -> typing.Optional[typing.List[str]]:
+            pass
+
+        def __call__(self, *, parsed_args, **kwargs):
+            completions = {}
+
+            args = self.get_args(parsed_args, **kwargs)
+            if args is None:
+                return completions
+
+            finder = auto_complete.CompletionFinder(self.get_parser())
+            cmdline = f"{utils.list2cmdline(args)} "
+
+            state = 0
+            while True:
+                item = finder.rl_complete(cmdline, state)
+                if item is None:
+                    break
+                key = item[len(cmdline):]
+                completions[key] = finder.get_display_completions().get(key, "")
+                state += 1
+
+            return completions
+
+else:
+    ParserCompleter = None

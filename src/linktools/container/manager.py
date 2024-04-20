@@ -191,7 +191,7 @@ class ContainerManager:
             if not repo_path or not os.path.exists(repo_path) or not os.path.isdir(repo_path):
                 self.logger.warning(f"Repository `{url}` not found, skip.")
                 continue
-            for container in self._walk_containers(repo_path, max_level=1):
+            for container in self._walk_containers(repo_path, max_level=2):
                 containers.append(container)
 
         return containers

@@ -25,4 +25,4 @@ RUN acme.sh --install-cert --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN 
     --cert-file /etc/certs/{{ ROOT_DOMAIN }}_cert.pem \
     --key-file /etc/certs/{{ ROOT_DOMAIN }}_key.pem \
     --fullchain-file /etc/certs/{{ ROOT_DOMAIN }}_fullchain.pem \
-    --reloadcmd "nginx -s reload 2>/dev/null || true"
+    --reloadcmd "killall nginx 2>/dev/null || true"
