@@ -32,7 +32,7 @@ import re
 import time
 from typing import Optional, Any, Generator, List
 
-from .struct import Package, UnixSocket, InetSocket, Process
+from .struct import App, UnixSocket, InetSocket, Process
 from .. import utils, environ
 from ..decorator import cached_property, cached_classproperty
 from ..device import BridgeError, Bridge, BaseDevice
@@ -372,10 +372,10 @@ class Device(BaseDevice):
         :return: adb输出结果
         """
         if not activity_name:
-            package = self.get_package(package_name, **kwargs)
-            activity = package.get_launch_activity()
+            app = self.get_app(package_name, detail=True, **kwargs)
+            activity = app.get_launch_activity()
             if not activity:
-                raise AdbError(f"Package {package.name} does not have a launch activity")
+                raise AdbError(f"App {app.name} does not have a launch activity")
             activity_name = activity.name
 
         return self.shell(
@@ -532,17 +532,17 @@ class Device(BaseDevice):
         raise AdbError("can not fetch top activity")
 
     @utils.timeoutable
-    def get_apk_path(self, package: str, **kwargs) -> str:
+    def get_apk_path(self, package_name: str, **kwargs) -> str:
         """
         获取apk路径
         :return: apk路径
         """
         if self.uid < 10000:
-            out = self.shell("pm", "path", package, **kwargs)
+            out = self.shell("pm", "path", package_name, **kwargs)
             match = re.search(r"^.*package:\s*(.*)[\s\S]*$", out)
             if match is not None:
                 return match.group(1).strip()
-        obj = self.get_packages(package, simple=True, **kwargs)
+        obj = self.get_apps(package_name, **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     @utils.timeoutable
@@ -554,8 +554,8 @@ class Device(BaseDevice):
         :return: uid
         """
         if package_name:
-            info = self.get_package(package_name, simple=True, timeout=timeout)
-            return info.user_id if info else None
+            app = self.get_app(package_name, timeout=timeout)
+            return app.user_id if app else None
         else:
             default = -1
             out = self.shell("id", "-u", timeout=timeout)
@@ -569,26 +569,26 @@ class Device(BaseDevice):
             raise AdbError("unknown adb uid: %s" % out)
 
     @utils.timeoutable
-    def get_package(self, package_name: str, simple: bool = None, **kwargs) -> Optional[Package]:
+    def get_app(self, package_name: str, detail: bool = None, **kwargs) -> Optional[App]:
         """
         根据包名获取包信息
         :param package_name: 包名
-        :param simple: 只获取基本信息
+        :param detail: 获取详细信息
         :return: 包信息
         """
         args = ["package", "--packages", package_name]
-        if simple is True:
+        if detail is not True:
             args.append("--simple")
         objs = json.loads(self.call_agent(*args, **kwargs))
-        return Package(objs[0]) if len(objs) > 0 else None
+        return App(objs[0]) if len(objs) > 0 else None
 
     @utils.timeoutable
-    def get_packages(self, *package_names: str, system: bool = None, simple: bool = None, **kwargs) -> [Package]:
+    def get_apps(self, *package_names: str, system: bool = None, detail: bool = False, **kwargs) -> [App]:
         """
         获取包信息
         :param package_names: 需要匹配的所有包名，为空则匹配所有
         :param system: true只匹配系统应用，false只匹配非系统应用，为空则全匹配
-        :param simple: 只获取基本信息
+        :param detail: 获取详细信息
         :return: 包信息
         """
         result = []
@@ -600,19 +600,19 @@ class Device(BaseDevice):
             agent_args.append("--system")
         elif system is False:
             agent_args.append("--non-system")
-        if simple is True:
+        if detail is not True:
             agent_args.append("--simple")
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
-            result.append(Package(obj))
+            result.append(App(obj))
         return result
 
     @utils.timeoutable
-    def get_packages_for_uid(self, *uids: int, simple: bool = None, **kwargs) -> [Package]:
+    def get_apps_for_uid(self, *uids: int, detail: bool = False, **kwargs) -> [App]:
         """
         获取指定uid包信息
         :param uids: 需要匹配的所有uid
-        :param simple: 只获取基本信息
+        :param detail: 获取详细信息
         :return: 包信息
         """
         result = []
@@ -620,11 +620,11 @@ class Device(BaseDevice):
         if not utils.is_empty(uids):
             agent_args.append("--uids")
             agent_args.extend([str(uid) for uid in uids])
-        if simple is True:
+        if detail is not True:
             agent_args.append("--simple")
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
-            result.append(Package(obj))
+            result.append(App(obj))
         return result
 
     @utils.timeoutable

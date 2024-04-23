@@ -24,7 +24,7 @@ python3 -m pip install -U "linktools[all]"
 对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置alias，简化调用方式：
 
 ```bash
-eval "$(ct-env --silent complete --shell bash)" # 给命令添加自动补全功能
+eval "$(ct-env --silent completion --shell bash)" # 给命令添加自动补全功能
 
 alias adb="at-adb"
 alias pidcat="at-pidcat"

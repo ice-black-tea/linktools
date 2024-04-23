@@ -30,7 +30,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Optional
 
 from linktools import utils, environ
-from linktools.android import Package, Permission, \
+from linktools.android import App, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
 from linktools.cli import AndroidCommand
 
@@ -93,71 +93,71 @@ class PrintStreamWrapper(PrintLevel):
         return PrintStreamWrapper(self.stream, max_level=max_level, min_level=min_level)
 
 
-class PackagePrinter:
+class AppPrinter:
 
-    def __init__(self, stream: PrintStream, package: Package):
-        self.package = package
-        self.max_level = PrintLevel.max if self.package.enabled else PrintLevel.useless
+    def __init__(self, stream: PrintStream, app: App):
+        self.app = app
+        self.max_level = PrintLevel.max if self.app.enabled else PrintLevel.useless
         self.min_level = PrintLevel.min
         self.stream = PrintStreamWrapper(stream, max_level=self.max_level, min_level=self.min_level)
 
-    def print_package(self, indent: int = 0):
-        self.stream.print("Package [%s]" % self.package, indent=indent, level=self.stream.title)
-        self.stream.print("name=%s" % self.package.app_name, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("userId=%s" % self.package.user_id, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("gids=%s" % self.package.gids, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("sourceDir=%s" % self.package.source_dir, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("versionCode=%s" % self.package.version_code, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("versionName=%s" % self.package.version_name, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("enabled=%s" % self.package.enabled, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("system=%s" % self.package.system, indent=indent + 4, level=self.stream.normal)
-        self.stream.print("debuggable=%s" % self.package.debuggable, indent=indent + 4,
-                          level=self.stream.dangerous if self.package.debuggable else self.stream.normal)
-        self.stream.print("allowBackup=%s" % self.package.allow_backup, indent=indent + 4,
-                          level=self.stream.dangerous if self.package.allow_backup else self.stream.normal)
+    def print_app(self, indent: int = 0):
+        self.stream.print("App [%s]" % self.app, indent=indent, level=self.stream.title)
+        self.stream.print("name=%s" % self.app.app_name, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("userId=%s" % self.app.user_id, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("gids=%s" % self.app.gids, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("sourceDir=%s" % self.app.source_dir, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("versionCode=%s" % self.app.version_code, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("versionName=%s" % self.app.version_name, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("enabled=%s" % self.app.enabled, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("system=%s" % self.app.system, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("debuggable=%s" % self.app.debuggable, indent=indent + 4,
+                          level=self.stream.dangerous if self.app.debuggable else self.stream.normal)
+        self.stream.print("allowBackup=%s" % self.app.allow_backup, indent=indent + 4,
+                          level=self.stream.dangerous if self.app.allow_backup else self.stream.normal)
         self.stream.print_line()
 
     def print_requested_permissions(self, indent: int = 4):
-        if not utils.is_empty(self.package.requested_permissions):
+        if not utils.is_empty(self.app.requested_permissions):
             stream = self.stream.create(max_level=PrintLevel.normal)
             self.stream.print("RequestedPermissions:", indent=indent, level=self.stream.title)
-            for permission in self.package.requested_permissions:
+            for permission in self.app.requested_permissions:
                 self._print_permission(stream, permission, indent=indent + 4, identity="RequestedPermission")
             self.stream.print_line()
 
     def print_permissions(self, indent: int = 4):
-        if not utils.is_empty(self.package.permissions):
+        if not utils.is_empty(self.app.permissions):
             self.stream.print("Permissions:", indent=indent, level=self.stream.title)
-            for permission in self.package.permissions:
+            for permission in self.app.permissions:
                 self._print_permission(self.stream, permission, indent=indent + 4, identity="Permission")
             self.stream.print_line()
 
     def print_activities(self, indent: int = 4):
-        if not utils.is_empty(self.package.activities):
+        if not utils.is_empty(self.app.activities):
             self.stream.print("Activities:", indent=indent, level=self.stream.title)
-            for activity in self.package.activities:
-                self._print_component(self.stream, self.package, activity, indent=indent + 4, identity="Activity")
+            for activity in self.app.activities:
+                self._print_component(self.stream, self.app, activity, indent=indent + 4, identity="Activity")
             self.stream.print_line()
 
     def print_services(self, indent: int = 4):
-        if not utils.is_empty(self.package.services):
+        if not utils.is_empty(self.app.services):
             self.stream.print("Services:", indent=indent, level=self.stream.title)
-            for service in self.package.services:
-                self._print_component(self.stream, self.package, service, indent=indent + 4, identity="Service")
+            for service in self.app.services:
+                self._print_component(self.stream, self.app, service, indent=indent + 4, identity="Service")
             self.stream.print_line()
 
     def print_receivers(self, indent: int = 4):
-        if not utils.is_empty(self.package.receivers):
+        if not utils.is_empty(self.app.receivers):
             self.stream.print("Receivers:", indent=indent, level=self.stream.title)
-            for receiver in self.package.receivers:
-                self._print_component(self.stream, self.package, receiver, indent=indent + 4, identity="Receiver")
+            for receiver in self.app.receivers:
+                self._print_component(self.stream, self.app, receiver, indent=indent + 4, identity="Receiver")
             self.stream.print_line()
 
     def print_providers(self, indent: int = 4):
-        if not utils.is_empty(self.package.providers):
+        if not utils.is_empty(self.app.providers):
             self.stream.print("Providers:", indent=indent, level=self.stream.title)
-            for provider in self.package.providers:
-                self._print_component(self.stream, self.package, provider, indent=indent + 4, identity="Provider")
+            for provider in self.app.providers:
+                self._print_component(self.stream, self.app, provider, indent=indent + 4, identity="Provider")
             self.stream.print_line()
 
     @classmethod
@@ -168,7 +168,7 @@ class PackagePrinter:
                          level=stream.dangerous if permission.is_dangerous() else stream.normal)
 
     @classmethod
-    def _print_component(cls, stream: PrintStreamWrapper, package: Package, component: Component, indent: int = 0, identity: str = None):
+    def _print_component(cls, stream: PrintStreamWrapper, app: App, component: Component, indent: int = 0, identity: str = None):
         if not component.enabled:
             description = "disabled"
             level = stream.useless
@@ -181,7 +181,7 @@ class PackagePrinter:
             description = "exported" if component.exported else ""
             level = stream.normal
             stream = stream.create(max_level=stream.normal)
-        stream.print("%s [%s/%s] %s" % (identity, package, component, description), indent=indent, level=level)
+        stream.print("%s [%s/%s] %s" % (identity, app, component, description), indent=indent, level=level)
 
         if isinstance(component, Activity) or isinstance(component, Service) or isinstance(component, Receiver):
             cls._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
@@ -245,10 +245,10 @@ class Command(AndroidCommand):
         group.add_argument('--non-system', action='store_true', default=False,
                            help='fetch non-system apps only')
 
-        parser.add_argument('--simple', action='store_true', default=False,
-                            help='display simple info only')
+        parser.add_argument('--detail', action='store_true', default=False,
+                            help='show app detail info')
         parser.add_argument('--dangerous', action='store_true', default=False,
-                            help='display dangerous permissions and components only')
+                            help='show app dangerous permissions and components only')
         parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
                             choices=['name', 'appName', 'userId', 'sourceDir',
                                      'enabled', 'system', 'debuggable', 'allowBackup'],
@@ -258,30 +258,30 @@ class Command(AndroidCommand):
         device = args.device_picker.pick()
 
         if not utils.is_empty(args.packages):
-            packages = device.get_packages(*args.packages, simple=args.simple)
+            apps = device.get_apps(*args.packages, detail=args.detail)
         elif not utils.is_empty(args.uids):
-            packages = device.get_packages_for_uid(*args.uids, simple=args.simple)
+            apps = device.get_apps_for_uid(*args.uids, detail=args.detail)
         elif args.system:
-            packages = device.get_packages(system=True, simple=args.simple)
+            apps = device.get_apps(system=True, detail=args.detail)
         elif args.non_system:
-            packages = device.get_packages(system=False, simple=args.simple)
+            apps = device.get_apps(system=False, detail=args.detail)
         elif args.all:
-            packages = device.get_packages(simple=args.simple)
+            apps = device.get_apps(detail=args.detail)
         else:
-            packages = device.get_packages(device.get_current_package(), simple=args.simple)
+            apps = device.get_apps(device.get_current_package(), detail=args.detail)
 
         if not utils.is_empty(args.order_by):
-            packages = sorted(packages, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])
+            apps = sorted(apps, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])
 
         min_level = PrintLevel.min
         if args.dangerous:
             min_level = PrintLevel.dangerous_normal
         stream = PrintStream(min_level=min_level)
 
-        for package in packages:
-            printer = PackagePrinter(stream, package)
+        for app in apps:
+            printer = AppPrinter(stream, app)
             if not args.dangerous:
-                printer.print_package()
+                printer.print_app()
                 printer.print_requested_permissions()
                 printer.print_permissions()
                 printer.print_activities()
@@ -290,17 +290,17 @@ class Command(AndroidCommand):
                 printer.print_providers()
                 continue
 
-            if package.is_dangerous():
-                printer.print_package()
-                if package.has_dangerous_permission():
+            if app.is_dangerous():
+                printer.print_app()
+                if app.has_dangerous_permission():
                     printer.print_permissions()
-                if package.has_dangerous_activity():
+                if app.has_dangerous_activity():
                     printer.print_activities()
-                if package.has_dangerous_service():
+                if app.has_dangerous_service():
                     printer.print_services()
-                if package.has_dangerous_receiver():
+                if app.has_dangerous_receiver():
                     printer.print_receivers()
-                if package.has_dangerous_provider():
+                if app.has_dangerous_provider():
                     printer.print_providers()
 
         return

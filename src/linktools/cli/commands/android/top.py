@@ -70,13 +70,13 @@ class Command(AndroidCommand):
         elif "--apk" in sys.argv:
             package_name = device.get_current_package()
             environ.logger.info("find current package: {}".format(package_name))
-            package = utils.get_item(device.get_packages(package_name, simple=True), 0)
-            if package is not None:
-                environ.logger.info("find current apk path: {}".format(package.source_dir))
-                path = device.get_storage_path("{}_{}.apk".format(package.name, package.version_name))
+            app = device.get_app(package_name)
+            if app is not None:
+                environ.logger.info("find current apk path: {}".format(app.source_dir))
+                path = device.get_storage_path("{}_{}.apk".format(app.name, app.version_name))
                 dest = args.apk if not utils.is_empty(args.apk) else "."
                 device.shell("mkdir", "-p", device.get_storage_path(), log_output=True)
-                device.shell("cp", package.source_dir, path, log_output=True)
+                device.shell("cp", app.source_dir, path, log_output=True)
                 device.pull(path, dest, log_output=True)
                 device.shell("rm", path)
         elif "--screen" in sys.argv:
@@ -88,10 +88,10 @@ class Command(AndroidCommand):
             device.pull(path, dest, log_output=True)
             device.shell("rm", path)
         else:
-            package = device.get_current_package()
-            environ.logger.info("package:  ", package)
+            app = device.get_current_package()
+            environ.logger.info("package:  ", app)
             environ.logger.info("activity: ", device.get_current_activity())
-            environ.logger.info("path:     ", device.get_apk_path(package))
+            environ.logger.info("path:     ", device.get_apk_path(app))
 
         return
 

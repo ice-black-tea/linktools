@@ -40,6 +40,9 @@ class PatternMatcher:
     def __str__(self):
         return "path=%s, type=%s" % (self.path, self.type)
 
+    def __repr__(self):
+        return f"PatternMatcher<{self.path}>"
+
 
 class PathPermission(PatternMatcher):
 
@@ -51,6 +54,9 @@ class PathPermission(PatternMatcher):
     def is_dangerous(self):
         return self.read_permission.is_dangerous() or self.write_permission.is_dangerous()
 
+    def __repr__(self):
+        return f"PathPermission<{self.path}>"
+
 
 class AuthorityEntry:
 
@@ -60,6 +66,9 @@ class AuthorityEntry:
 
     def __str__(self):
         return "host=%s, port=%s" % (self.host, self.port)
+
+    def __repr__(self):
+        return f"AuthorityEntry<{self.host}>"
 
 
 class IntentFilter:
@@ -73,6 +82,9 @@ class IntentFilter:
         self.data_authorities = utils.get_list_item(obj, "dataAuthorities", type=AuthorityEntry, default=[])
         self.data_paths = utils.get_list_item(obj, "dataPaths", type=PatternMatcher, default=[])
         self.data_types = utils.get_list_item(obj, "dataTypes", type=str, default=[])
+
+    def __repr__(self):
+        return f"IntentFilter<{self.actions}>"
 
 
 class Permission:
@@ -94,6 +106,9 @@ class Permission:
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return f"Permission<{self.name}>"
+
 
 class Component:
 
@@ -109,6 +124,9 @@ class Component:
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return f"Component<{self.name}>"
+
 
 class Activity(Component):
 
@@ -118,6 +136,12 @@ class Activity(Component):
 
     def is_dangerous(self):
         return self.exported and self.permission.is_dangerous()
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"Activity<{self.name}>"
 
 
 class Service(Component):
@@ -129,6 +153,12 @@ class Service(Component):
     def is_dangerous(self):
         return self.exported and self.permission.is_dangerous()
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"Service<{self.name}>"
+
 
 class Receiver(Component):
 
@@ -138,6 +168,12 @@ class Receiver(Component):
 
     def is_dangerous(self):
         return self.exported and self.permission.is_dangerous()
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"Receiver<{self.name}>"
 
 
 class Provider(Component):
@@ -161,8 +197,14 @@ class Provider(Component):
                 return True
         return False
 
+    def __str__(self):
+        return self.name
 
-class Package:
+    def __repr__(self):
+        return f"Provider<{self.name}>"
+
+
+class App:
 
     def __init__(self, obj: dict):
         self.name = utils.get_item(obj, "name", type=str, default="")
@@ -240,6 +282,9 @@ class Package:
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return f"App<{self.name}>"
+
 
 class Socket:
 
@@ -251,6 +296,9 @@ class Socket:
 
     def is_dangerous(self):
         return self.listening
+
+    def __repr__(self):
+        return f"Socket<{self.proto}>"
 
 
 class InetSocket(Socket):
@@ -264,6 +312,9 @@ class InetSocket(Socket):
         self.uid = utils.get_item(obj, "uid", type=int, default=0)
         self.transmit_queue = utils.get_item(obj, "transmitQueue", type=int, default=0)
         self.receive_queue = utils.get_item(obj, "receiveQueue", type=int, default=0)
+
+    def __repr__(self):
+        return f"InetSocket<{self.local_address}:{self.local_port}>"
 
 
 class UnixSocket(Socket):
@@ -279,6 +330,9 @@ class UnixSocket(Socket):
 
     def is_dangerous(self):
         return super().is_dangerous() and (self.readable or self.writable)
+
+    def __repr__(self):
+        return f"UnixSocket<{self.path}>"
 
 
 class Process:
@@ -300,3 +354,6 @@ class Process:
         self.start_time = utils.get_item(obj, "startTime", type=int, default=0)
         self.vsz = utils.get_item(obj, "vsz", type=int, default=0)
         self.rss = utils.get_item(obj, "rss", type=int, default=0)
+
+    def __repr__(self):
+        return f"Process<{self.name}>"

@@ -97,11 +97,11 @@ class Command(BaseCommandGroup):
         process = shell.popen()
         return process.call()
 
-    @subcommand("complete", help="generate shell auto complete script")
+    @subcommand("completion", help="generate shell auto complete script")
     @subcommand_argument("-s", "--shell", help="output code for the specified shell",
                          choices=["bash", "zsh", "tcsh", "fish", "powershell"])
     @subcommand_argument("--sync", action="store_true", help="sync complete script")
-    def on_complete(self, shell: str = DEFAULT_SHELL, sync: bool = False):
+    def on_completion(self, shell: str = DEFAULT_SHELL, sync: bool = False):
         if not auto_complete:
             self.logger.warning("argcomplete module not found")
             return

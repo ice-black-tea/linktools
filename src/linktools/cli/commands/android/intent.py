@@ -75,7 +75,7 @@ class Command(AndroidCommand):
     @subcommand_argument("package")
     def on_setting_app(self, args: Namespace, package: str = None):
         device = args.device_picker.pick()
-        package = package if not utils.is_empty(package) else device.get_current_package()
+        package = package or device.get_current_package()
         device.shell("am", "start", "--user", "0",
                      "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
                      "-d", "package:%s" % package,

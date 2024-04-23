@@ -535,7 +535,7 @@ class SubCommandMixin:
 
             parser = subcommand.create_parser(type=parent_subparsers.add_parser)
             parser.set_defaults(**{f"__subcommand_{id(self):x}__": subcommand})
-            self.init_common_arguments(parser)
+            self.init_global_arguments(parser)
 
             if subcommand.is_group:
                 _subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
@@ -735,7 +735,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
     @cached_property
     def _argument_parser(self) -> ArgumentParser:
         parser = self.create_parser()
-        self.init_common_arguments(parser)
+        self.init_global_arguments(parser)
         return parser
 
     def init_base_arguments(self, parser: ArgumentParser) -> None:
@@ -744,7 +744,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         """
         pass
 
-    def init_common_arguments(self, parser: ArgumentParser) -> None:
+    def init_global_arguments(self, parser: ArgumentParser) -> None:
         """
         初始化公共参数，会在命令本身和所有子命令中调用
         """

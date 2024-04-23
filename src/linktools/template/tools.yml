@@ -169,7 +169,7 @@ TOOL_ZIPALIGN:
 # jadx
 ############################################################################################
 TOOL_JADX: &TOOL_JADX
-  version: "1.4.7"
+  version: "1.5.0"
   download_url: https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip
   unpack_path: jadx-{version}
   target_path:
@@ -214,7 +214,7 @@ TOOL_CHROMEDRIVER:
 # sib
 ############################################################################################
 TOOL_SIB:
-  version: "1.3.17-20240112"
+  version: "1.3.18-20240423"
   download_url:
     case:
       - when: { system: darwin, machine: arm64 }
