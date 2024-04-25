@@ -30,7 +30,6 @@ import os
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools import utils
 from linktools.cli import subcommand, subcommand_argument, AndroidCommand
 
 
@@ -72,7 +71,7 @@ class Command(AndroidCommand):
 
     @subcommand("setting-app", help="start application setting activity (default: current running package)",
                 pass_args=True)
-    @subcommand_argument("package")
+    @subcommand_argument("package", nargs="?", help="package name")
     def on_setting_app(self, args: Namespace, package: str = None):
         device = args.device_picker.pick()
         package = package or device.get_current_package()
@@ -82,7 +81,7 @@ class Command(AndroidCommand):
                      log_output=True)
 
     @subcommand("setting-cert", help="install cert (require \'/data/local/tmp\' write permission)", pass_args=True)
-    @subcommand_argument("path")
+    @subcommand_argument("path", help="cert file path")
     def on_setting_cert(self, args: Namespace, path: str):
         device = args.device_picker.pick()
         remote_path = device.get_data_path("cert", os.path.basename(path))
@@ -95,7 +94,7 @@ class Command(AndroidCommand):
                      log_output=True)
 
     @subcommand("install", help="install apk file (require \'/data/local/tmp\' write permission)", pass_args=True)
-    @subcommand_argument("path")
+    @subcommand_argument("path", help="apk file path or url")
     def on_install(self, args: Namespace, path: str):
         device = args.device_picker.pick()
         device.install(path,

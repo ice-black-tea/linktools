@@ -57,13 +57,13 @@ class Output:
             return True
         return False
 
-    def _iter_lines(self, io: IO[AnyStr], flag: int, event: threading.Event):
+    def _iter_lines(self, io: IO[AnyStr], code: int, event: threading.Event):
         try:
             while True:
                 data = io.readline()
                 if not data:
                     break
-                self._queue.put((flag, data))
+                self._queue.put((code, data))
         except OSError as e:
             if e.errno != errno.EBADF:
                 environ.logger.debug(f"Handle output error: {e}")
@@ -75,9 +75,9 @@ class Output:
         while self.is_alive:
             try:
                 # 给个1秒超时时间防止有多个线程消费的时候死锁
-                flag, data = self._queue.get(timeout=min(timeout.remain or 1, 1))
-                if flag is not None:
-                    yield flag, data
+                code, data = self._queue.get(timeout=min(timeout.remain or 1, 1))
+                if code is not None:
+                    yield code, data
             except queue.Empty:
                 if not timeout.check():
                     break
@@ -85,9 +85,9 @@ class Output:
         while True:
             try:
                 # 需要把剩余可消费的数据消费完
-                flag, data = self._queue.get_nowait()
-                if flag is not None:
-                    yield flag, data
+                code, data = self._queue.get_nowait()
+                if code is not None:
+                    yield code, data
             except queue.Empty:
                 break
 
@@ -100,33 +100,41 @@ class Process(subprocess.Popen):
             capture_output: bool = False,
             stdin: Union[int, IO] = None, stdout: Union[int, IO] = None, stderr: Union[int, IO] = None,
             shell: bool = False, cwd: str = None,
-            env: Dict[str, str] = None, append_env: Dict[str, str] = None,
+            env: Dict[str, str] = None, append_env: Dict[str, str] = None, default_env: Dict[str, str] = None,
             **kwargs,
     ):
+        args = [str(arg) for arg in args]
+
         if capture_output is True:
             if stdout is not None or stderr is not None:
                 raise ValueError("stdout and stderr arguments may not be used "
                                  "with capture_output.")
             stdout = subprocess.PIPE
             stderr = subprocess.PIPE
-        if cwd:
+
+        if not cwd:
             try:
                 cwd = os.getcwd()
             except FileNotFoundError:
                 cwd = environ.get_temp_dir(create=True)
-        if append_env:
+
+        if append_env or default_env:
             env = dict(env) if env else dict(os.environ)
-            env.update(append_env)
+            if default_env:
+                for key, value in default_env.items():
+                    env.setdefault(key, value)
+            if append_env:
+                env.update(append_env)
 
         super().__init__(
-            [str(arg) for arg in args],
+            args,
             stdin=stdin, stdout=stdout, stderr=stderr,
             shell=shell, cwd=cwd,
             env=env,
             **kwargs
         )
 
-        environ.logger.debug(f"Exec cmdline: {list2cmdline(self.args)}")
+        environ.logger.debug(f"Exec cmdline: {list2cmdline(args)}")
 
     @timeoutable
     def call(self, timeout: Timeout = None) -> int:
@@ -175,8 +183,8 @@ class Process(subprocess.Popen):
 
         if self.stdout or self.stderr:
 
-            for flag, data in self._output.get_lines(timeout):
-                if flag == self._output.STDOUT:
+            for code, data in self._output.get_lines(timeout):
+                if code == self._output.STDOUT:
                     out = data if out is None else out + data
                     if on_stdout:
                         data = data.decode(errors="ignore") if isinstance(data, bytes) else data
@@ -184,7 +192,7 @@ class Process(subprocess.Popen):
                         if data:
                             on_stdout(data)
 
-                elif flag == self._output.STDERR:
+                elif code == self._output.STDERR:
                     err = data if err is None else err + data
                     if on_stderr:
                         data = data.decode(errors="ignore") if isinstance(data, bytes) else data

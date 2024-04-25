@@ -53,9 +53,3 @@ class Container(BaseContainer):
             self.manager.config.get("PORTAINER_DOMAIN"),
             self.get_path("nginx.conf"),
         )
-
-    def on_started(self):
-        self.manager.change_owner(
-            self.get_path("nginx.conf"),
-            self.manager.user
-        )

@@ -60,25 +60,24 @@ class Command(AndroidCommand):
         device = args.device_picker.pick()
 
         if args.package:
-            environ.logger.info(device.get_current_package())
+            print(device.get_current_package())
         elif args.activity:
-            environ.logger.info(device.get_current_activity())
+            print(device.get_current_activity())
         elif args.path:
-            environ.logger.info(device.get_apk_path(device.get_current_package()))
+            print(device.get_apk_path(device.get_current_package()))
         elif args.kill:
             device.shell("am", "force-stop", device.get_current_package(), log_output=True)
         elif "--apk" in sys.argv:
-            package_name = device.get_current_package()
-            environ.logger.info("find current package: {}".format(package_name))
-            app = device.get_app(package_name)
-            if app is not None:
-                environ.logger.info("find current apk path: {}".format(app.source_dir))
-                path = device.get_storage_path("{}_{}.apk".format(app.name, app.version_name))
-                dest = args.apk if not utils.is_empty(args.apk) else "."
-                device.shell("mkdir", "-p", device.get_storage_path(), log_output=True)
-                device.shell("cp", app.source_dir, path, log_output=True)
-                device.pull(path, dest, log_output=True)
-                device.shell("rm", path)
+            name = device.get_current_package()
+            environ.logger.info(f"Find current package: {name}")
+            app = device.get_app(name)
+            environ.logger.info(f"Find current apk path: {app.source_dir}")
+            path = device.get_storage_path("{}_{}.apk".format(app.name, app.version_name))
+            dest = args.apk if not utils.is_empty(args.apk) else "."
+            device.shell("mkdir", "-p", device.get_storage_path(), log_output=True)
+            device.shell("cp", app.source_dir, path, log_output=True)
+            device.pull(path, dest, log_output=True)
+            device.shell("rm", path)
         elif "--screen" in sys.argv:
             now = datetime.datetime.now()
             path = device.get_storage_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
@@ -89,9 +88,9 @@ class Command(AndroidCommand):
             device.shell("rm", path)
         else:
             app = device.get_current_package()
-            environ.logger.info("package:  ", app)
-            environ.logger.info("activity: ", device.get_current_activity())
-            environ.logger.info("path:     ", device.get_apk_path(app))
+            environ.logger.info(f"Package:  {app}")
+            environ.logger.info(f"Activity: {device.get_current_activity()}")
+            environ.logger.info(f"Path:     {device.get_apk_path(app)}")
 
         return
 

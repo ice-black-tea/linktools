@@ -7,11 +7,12 @@
 # Product   : PyCharm
 # Project   : link
 
-import os
 import plistlib
 import re
 import zipfile
-from typing import Optional
+from typing import Optional, Dict, Any, List
+
+_INFO_PLIST = "Info.plist"
 
 
 class IPAError(Exception):
@@ -19,7 +20,6 @@ class IPAError(Exception):
 
 
 class IPA(object):
-    _INFO_PLIST = "Info.plist"
 
     def __init__(self, filename: str):
         self.filename = filename
@@ -28,11 +28,11 @@ class IPA(object):
         self._analysis()
 
     def _analysis(self):
-        plist_path = self.find_file(self._INFO_PLIST)
+        plist_path = self.find_file(_INFO_PLIST)
         if plist_path is None:
-            raise IPAError("missing Info.plist")
+            raise IPAError("Missing Info.plist")
         plist_data = self.zip.read(plist_path)
-        self._plist[self._INFO_PLIST] = plistlib.loads(plist_data)
+        self._plist[_INFO_PLIST] = plistlib.loads(plist_data)
 
     def find_file(self, name) -> Optional[str]:
         name_list = self.zip.namelist()
@@ -43,39 +43,32 @@ class IPA(object):
                 return m.group()
         return None
 
-    def get_files(self):
+    def list_files(self) -> List[str]:
         return self.zip.namelist()
 
-    def get_file(self, filename):
+    def read_file(self, filename) -> bytes:
         try:
             return self.zip.read(filename)
         except KeyError:
-            raise IPAError(f"file not found: {filename}")
+            raise IPAError(f"Not found {filename}")
 
-    def get_info_plist(self):
-        return self._plist[self._INFO_PLIST]
+    def get_info_plist(self) -> Dict[str, Any]:
+        return self._plist[_INFO_PLIST]
 
-    def get_launch_storyboard_name(self):
+    def get_launch_storyboard_name(self) -> str:
         return self.get_info_plist().get("UILaunchStoryboardName")
 
-    def get_display_name(self):
+    def get_display_name(self) -> str:
         return self.get_info_plist().get("CFBundleDisplayName")
 
-    def get_bundle_id(self):
+    def get_bundle_id(self) -> str:
         return self.get_info_plist().get("CFBundleIdentifier")
 
-    def get_version(self):
+    def get_version(self) -> str:
         return self.get_info_plist().get("CFBundleVersion")
 
-    def get_version_string(self):
+    def get_version_string(self) -> str:
         return self.get_info_plist().get("CFBundleShortVersionString")
 
-    def get_permssions(self):
-        plist = self.get_info_plist()
-        for key in plist:
-            if key.endswith("Description"):
-                print(key, plist[key])
-
-
-if __name__ == '__main__':
-    IPA(os.path.expanduser("~/Downloads/201200@蜂鸟跑腿.ipa")).get_permssions()
+    def get_permissions(self) -> Dict[str, str]:
+        return {k: v for k, v in self.get_info_plist().items() if k.endswith("Description")}

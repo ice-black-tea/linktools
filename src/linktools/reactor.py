@@ -11,6 +11,7 @@ from collections import deque
 from typing import Optional, Callable, Any, Coroutine
 
 from ._environ import environ
+from .utils import InterruptableEvent
 
 _logger = environ.get_logger("reactor")
 
@@ -133,7 +134,7 @@ class ReactorThread(threading.Thread):
 
         super().__init__(target=run)
 
-        event = threading.Event()
+        event = InterruptableEvent()
         self.daemon = True
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self.start()

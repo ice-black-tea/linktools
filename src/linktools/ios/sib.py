@@ -5,7 +5,7 @@ import json
 import subprocess
 import time
 from subprocess import TimeoutExpired
-from typing import Any, Generator, List, Optional
+from typing import Any, Generator, List
 
 from .struct import Process, App
 from .. import utils
@@ -123,8 +123,14 @@ class Device(BaseDevice):
         return self._sib.exec(*args, **kwargs)
 
     @utils.timeoutable
-    def install(self, path: str, **kwargs) -> str:
-        return self.exec("app", "install", "--path", path, **kwargs)
+    def install(self, path_or_url: str, **kwargs) -> str:
+        ipa_path = path_or_url
+        if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+            environ.logger.info(f"Download file: {path_or_url}")
+            file = environ.get_url_file(path_or_url)
+            ipa_path = file.save()
+            environ.logger.info(f"Save file to local: {ipa_path}")
+        return self.exec("app", "install", "--path", ipa_path, **kwargs)
 
     @utils.timeoutable
     def uninstall(self, bundle_id: str, **kwargs) -> str:
@@ -135,7 +141,7 @@ class Device(BaseDevice):
         return self.exec("app", "kill", "--bundleId", bundle_id, **kwargs)
 
     @utils.timeoutable
-    def get_app(self, bundle_id: str, detail: bool = None, **kwargs) -> Optional[App]:
+    def get_app(self, bundle_id: str, detail: bool = None, **kwargs) -> App:
         """
         根据包名获取包信息
         :param bundle_id: 包名
@@ -152,7 +158,7 @@ class Device(BaseDevice):
             if bundle_id == app.bundle_id:
                 return app
 
-        return None
+        raise SibError(f"App '{bundle_id}' not found")
 
     @utils.timeoutable
     def get_apps(self, *bundle_ids: str, system: bool = None, detail: bool = False, **kwargs) -> [App]:
@@ -264,4 +270,4 @@ class Device(BaseDevice):
         return Reverse()
 
     def __repr__(self):
-        return f"iOSDevice<{self.id}>"
+        return f"SibDevice<{self.id}>"

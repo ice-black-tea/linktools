@@ -31,8 +31,8 @@ alias pidcat="at-pidcat"
 alias sib="it-sib"
 
 alias apktool="ct-tools apktool"
-alias burpsuite="ct-tools --set version=2023.10 burpsuite"
-alias jadx="JAVA_OPTS=-Xmx8g ct-tools --set version=1.4.7 jadx-gui" # 指定jadx版本号，配置jvm最大内存
+alias burpsuite="ct-tools burpsuite"
+alias jadx="ct-tools --set version=1.5.0 jadx-gui" # 指定jadx版本号，配置jvm最大内存
 ```
 
 ## 相关功能

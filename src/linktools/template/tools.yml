@@ -183,6 +183,8 @@ TOOL_JADX: &TOOL_JADX
 TOOL_JADX_GUI:
   <<: *TOOL_JADX
   name: jadx-gui
+  environment:
+    JAVA_OPTS: -Xmx8g
 
 ############################################################################################
 # chromedriver

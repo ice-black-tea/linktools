@@ -66,7 +66,6 @@ class Parser(object):
             #       - else: ~
             # -----------------------------------------
             case_block = value.get("case")
-
             for cond_block in case_block:
 
                 when_block = utils.get_item(cond_block, "when")
@@ -203,6 +202,7 @@ class Tool(metaclass=ToolMeta):
     cmdline: str = ToolProperty(default=__missing__)
     executable: bool = ToolProperty(default=True)
     executable_cmdline: tuple = ToolProperty(default=[])
+    environment: Dict[str, str] = ToolProperty(default={})
 
     exists: bool = property(lambda self: self.absolute_path and os.path.exists(self.absolute_path))
     dirname: bool = property(lambda self: None if not self.absolute_path else os.path.dirname(self.absolute_path))
@@ -363,6 +363,12 @@ class Tool(metaclass=ToolMeta):
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:
         self.prepare()
+
+        if self.environment:
+            env = kwargs.get("default_env", {})
+            for key, value in self.environment.items():
+                env.setdefault(key, value)
+            kwargs["default_env"] = env
 
         # java or other
         executable_cmdline = self.executable_cmdline
