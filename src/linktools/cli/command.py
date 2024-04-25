@@ -31,6 +31,7 @@ import abc
 import inspect
 import logging
 import os
+import sys
 import textwrap
 import traceback
 from argparse import ArgumentParser, Action, Namespace
@@ -840,7 +841,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 else self.logger.error(traceback.format_exc())
             result = 1
 
-        exit(result)
+        sys.exit(result)
 
     def __call__(self, args: Union[List[str], Namespace] = None) -> int:
         """

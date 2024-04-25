@@ -276,6 +276,7 @@ class Command(BaseCommandGroup):
                          choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_up(self, name: str = None, build: str = True, pull: str = None):
         containers = manager.prepare_installed_containers()
+        target_containers = [c for c in containers if not name or c.name == name]
 
         options = ["--detach"]
         if build:
@@ -291,13 +292,13 @@ class Command(BaseCommandGroup):
         else:
             options.extend(["--remove-orphans"])
 
-        for container in containers:
+        for container in target_containers:
             container.on_starting()
         manager.create_docker_compose_process(
             containers,
             "up", *options, *services
         ).check_call()
-        for container in reversed(containers):
+        for container in reversed(target_containers):
             container.on_started()
 
     @subcommand("restart", help="restart installed containers")
@@ -307,7 +308,7 @@ class Command(BaseCommandGroup):
                          choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_restart(self, name: str = None, build: str = True, pull: str = None):
         containers = manager.prepare_installed_containers()
-        stop_containers = [c for c in containers if not name or c.name == name]
+        target_containers = [c for c in containers if not name or c.name == name]
 
         options = ["--detach"]
         if build:
@@ -323,22 +324,22 @@ class Command(BaseCommandGroup):
         else:
             options.extend(["--remove-orphans"])
 
-        for container in reversed(stop_containers):
+        for container in reversed(target_containers):
             container.on_stopping()
         manager.create_docker_compose_process(
             containers,
             "stop", *services
         ).check_call()
-        for container in stop_containers:
+        for container in target_containers:
             container.on_stopped()
 
-        for container in containers:
+        for container in target_containers:
             container.on_starting()
         manager.create_docker_compose_process(
             containers,
             "up", *options, *services
         ).check_call()
-        for container in reversed(containers):
+        for container in reversed(target_containers):
             container.on_started()
 
     @subcommand("down", help="stop installed containers")
@@ -346,7 +347,7 @@ class Command(BaseCommandGroup):
                          choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_down(self, name: str = None):
         containers = manager.prepare_installed_containers()
-        stop_containers = [c for c in containers if not name or c.name == name]
+        target_containers = [c for c in containers if not name or c.name == name]
 
         services = []
         if name:
@@ -354,16 +355,16 @@ class Command(BaseCommandGroup):
             if not services:
                 raise ContainerError(f"No service found in container `{name}`")
 
-        for container in reversed(stop_containers):
+        for container in reversed(target_containers):
             container.on_stopping()
         manager.create_docker_compose_process(
             containers,
             "down", *services
         ).check_call()
-        for container in stop_containers:
+        for container in target_containers:
             container.on_stopped()
 
-        for container in stop_containers:
+        for container in target_containers:
             container.on_removed()
 
 

@@ -60,6 +60,8 @@ if TYPE_CHECKING:
     P = ParamSpec("P")
 
 DEFAULT_ENCODING = "utf-8"
+SYSTEM = platform.system().lower()
+MACHINE = platform.machine().lower()
 
 
 class Timeout:
@@ -98,7 +100,7 @@ class Timeout:
         return f"Timeout(timeout={self._timeout})"
 
 
-def timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
+def _timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
     timeout_keyword = "timeout"
 
     timeout_index = -1
@@ -150,6 +152,9 @@ def timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
     return wrapper
 
 
+timeoutable: Any = _timeoutable
+
+
 class InterruptableEvent(threading.Event):
     """
     解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
@@ -171,7 +176,7 @@ class InterruptableEvent(threading.Event):
 
 def ignore_error(
         fn: "Callable[P, T]", *,
-        args: Tuple[Any, ...] = None, kwargs: Dict[str, Any] = None,
+        args: "P.args" = None, kwargs: "P.kwargs" = None,
         default: "T" = None) -> "T":
     try:
         if args is None:
@@ -647,22 +652,18 @@ def parser_cookie(cookie: str) -> Dict[str, str]:
     return cookies
 
 
-_SYSTEM = platform.system().lower()
-_MACHINE = platform.machine().lower()
-
-
 def get_system():
     """
     获取系统类型
     """
-    return _SYSTEM
+    return SYSTEM
 
 
 def get_machine():
     """
     获取机器类型
     """
-    return _MACHINE
+    return MACHINE
 
 
 def get_user():
@@ -705,7 +706,7 @@ def get_shell_path():
     获取当前用户shell路径
     """
 
-    if _SYSTEM in ["darwin", "linux"]:
+    if SYSTEM in ["darwin", "linux"]:
         if "SHELL" in os.environ:
             shell_path = os.environ["SHELL"]
             if shell_path and os.path.exists(shell_path):
@@ -716,7 +717,7 @@ def get_shell_path():
         except:
             return shutil.which("zsh") or shutil.which("bash") or shutil.which("sh")
 
-    elif _SYSTEM in ["windows"]:
+    elif SYSTEM in ["windows"]:
         if "ComSpec" in os.environ:
             shell_path = os.environ["ComSpec"]
             if shell_path and os.path.exists(shell_path):

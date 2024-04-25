@@ -30,7 +30,7 @@
 import json
 import re
 import time
-from typing import Optional, Any, Generator, List
+from typing import Any, Generator, List
 
 from .struct import App, UnixSocket, InetSocket, Process
 from .. import utils, environ
@@ -130,7 +130,7 @@ class Device(BaseDevice):
         """
         return self.get_uid()
 
-    def popen(self, *args: [Any], **kwargs) -> utils.Process:
+    def popen(self, *args: Any, **kwargs) -> utils.Process:
         """
         执行命令
         :param args: 命令行参数
@@ -140,7 +140,7 @@ class Device(BaseDevice):
         return self._adb.popen(*args, **kwargs)
 
     @utils.timeoutable
-    def exec(self, *args: [Any], **kwargs) -> str:
+    def exec(self, *args: Any, **kwargs) -> str:
         """
         执行命令
         :param args: 命令行参数
@@ -149,7 +149,7 @@ class Device(BaseDevice):
         args = ["-s", self.id, *args]
         return self._adb.exec(*args, **kwargs)
 
-    def make_shell_args(self, *args: [Any], privilege: bool = False, user: str = None):
+    def make_shell_args(self, *args: Any, privilege: bool = False, user: str = None):
         cmd = utils.list2cmdline([str(arg) for arg in args])
         if privilege and self.uid != 0:
             args = ["shell", "su", "-c", cmd]
@@ -160,7 +160,7 @@ class Device(BaseDevice):
         return args
 
     @utils.timeoutable
-    def shell(self, *args: [Any], privilege: bool = False, user: str = None, **kwargs) -> str:
+    def shell(self, *args: Any, privilege: bool = False, user: str = None, **kwargs) -> str:
         """
         执行shell
         :param args: shell命令
@@ -197,7 +197,6 @@ class Device(BaseDevice):
 
         remote_path = self.get_data_path("apk", f"{int(time.time())}.apk")
         try:
-            environ.logger.debug(f"Push file to remote: {remote_path}")
             self.push(apk_path, remote_path, **kwargs)
             if self.uid >= 10000:
                 self.shell("am", "start", "--user", "0",
@@ -209,8 +208,7 @@ class Device(BaseDevice):
                 self.shell("pm", "install", *(opts or tuple()), remote_path,
                            **kwargs)
         finally:
-            environ.logger.debug(f"Clear remote file: {remote_path}")
-            self.shell("rm", remote_path, **kwargs)
+            self.shell("rm", remote_path, **kwargs, ignore_errors=True)
 
     @utils.timeoutable
     def uninstall(self, package_name: str, **kwargs):
@@ -546,16 +544,16 @@ class Device(BaseDevice):
         return utils.get_item(obj, 0, "sourceDir", default="")
 
     @utils.timeoutable
-    def get_uid(self, package_name: str = None, timeout: utils.Timeout = None) -> Optional[int]:
+    def get_uid(self, package_name: str = None, timeout: utils.Timeout = None) -> int:
         """
         根据包名获取uid
-        :param package_name: 包名
+        :param package_name: 包名，为空则返回当前uid
         :param timeout: 超时时间
         :return: uid
         """
         if package_name:
             app = self.get_app(package_name, timeout=timeout)
-            return app.user_id if app else None
+            return app.user_id
         else:
             default = -1
             out = self.shell("id", "-u", timeout=timeout)
@@ -569,7 +567,7 @@ class Device(BaseDevice):
             raise AdbError("unknown adb uid: %s" % out)
 
     @utils.timeoutable
-    def get_app(self, package_name: str, detail: bool = None, **kwargs) -> Optional[App]:
+    def get_app(self, package_name: str, detail: bool = None, **kwargs) -> App:
         """
         根据包名获取包信息
         :param package_name: 包名
@@ -580,7 +578,9 @@ class Device(BaseDevice):
         if detail is not True:
             args.append("--simple")
         objs = json.loads(self.call_agent(*args, **kwargs))
-        return App(objs[0]) if len(objs) > 0 else None
+        if len(objs) == 0:
+            raise AdbError(f"App '{package_name}' not found")
+        return App(objs[0])
 
     @utils.timeoutable
     def get_apps(self, *package_names: str, system: bool = None, detail: bool = False, **kwargs) -> [App]:
@@ -715,4 +715,4 @@ class Device(BaseDevice):
         )
 
     def __repr__(self):
-        return f"AndroidDevice<{self.id}>"
+        return f"AdbDevice<{self.id}>"

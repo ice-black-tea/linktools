@@ -1,15 +1,15 @@
 FROM nginx:{{ NGINX_TAG }}
 
 RUN apk --no-cache add openssl socat
+
 RUN curl https://get.acme.sh | sh -s email=acme@google.com && \
     ln -s ~/.acme.sh/acme.sh /usr/bin/acme.sh && \
     acme.sh --set-default-ca --server letsencrypt
 
-RUN echo "#!/bin/sh" > /docker-entrypoint.d/99-start-crond.sh \
-    && echo "crond" >> /docker-entrypoint.d/99-start-crond.sh \
-    && chmod +x /docker-entrypoint.d/99-start-crond.sh
-
-RUN mkdir -p /etc/certs
+RUN mkdir -p /etc/certs && \
+    echo "#!/bin/sh" >> /docker-entrypoint.d/99-start-crond.sh && \
+    echo "crond" >> /docker-entrypoint.d/99-start-crond.sh && \
+    chmod +x /docker-entrypoint.d/99-start-crond.sh
 
 {% for key in container.keys -%}
     {% with value = config.get(key, default=None) -%}
@@ -20,7 +20,6 @@ ENV {{ key }} {{ value }}
 {%- endfor %}
 
 RUN acme.sh --issue --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN }} --dns {{ ACME_DNS_API }} --debug 2
-
 RUN acme.sh --install-cert --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN }} \
     --cert-file /etc/certs/{{ ROOT_DOMAIN }}_cert.pem \
     --key-file /etc/certs/{{ ROOT_DOMAIN }}_key.pem \
