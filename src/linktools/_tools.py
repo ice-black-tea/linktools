@@ -31,7 +31,7 @@ import os
 import pickle
 import shutil
 import warnings
-from typing import TYPE_CHECKING, Dict, Union, Mapping, Iterator, Any, Tuple, List, Type
+from typing import TYPE_CHECKING, Dict, Union, Mapping, Iterator, Any, Tuple, List, Type, Optional
 
 from . import utils
 from .decorator import cached_property
@@ -204,9 +204,6 @@ class Tool(metaclass=ToolMeta):
     executable_cmdline: tuple = ToolProperty(default=[])
     environment: Dict[str, str] = ToolProperty(default={})
 
-    exists: bool = property(lambda self: self.absolute_path and os.path.exists(self.absolute_path))
-    dirname: bool = property(lambda self: None if not self.absolute_path else os.path.dirname(self.absolute_path))
-
     def __init__(self, tools: "Tools", config: Union[dict, str], **kwargs):
         self._tools = tools
         self._config = config
@@ -220,17 +217,16 @@ class Tool(metaclass=ToolMeta):
     def config(self) -> dict:
         config = self.__parser__.parse(self._raw_config)
 
-        depends_on = utils.get_item(config, "depends_on")
-        if depends_on:
-            assert isinstance(depends_on, (str, Tuple, List)), \
-                f"Tool<{config['name']}>.depends_on type error, " \
-                f"str/tuple/list was expects, got {type(depends_on)}"
-            if isinstance(depends_on, str):
-                depends_on = [depends_on]
-            for dependency in depends_on:
-                assert dependency in self._tools.items, \
-                    f"Tool<{config['name']}>.depends_on error: not found Tool<{dependency}>"
-            config["depends_on"] = depends_on
+        depends_on = utils.get_item(config, "depends_on") or []
+        assert isinstance(depends_on, (str, Tuple, List)), \
+            f"Tool<{config['name']}>.depends_on type error, " \
+            f"str/tuple/list was expects, got {type(depends_on)}"
+        if isinstance(depends_on, str):
+            depends_on = [depends_on]
+        for dependency in depends_on:
+            assert dependency in self._tools.items, \
+                f"Tool<{config['name']}>.depends_on error: not found Tool<{dependency}>"
+        config["depends_on"] = depends_on
 
         # download url
         download_url = utils.get_item(config, "download_url") or ""
@@ -312,12 +308,26 @@ class Tool(metaclass=ToolMeta):
                 executable_cmdline = config["absolute_path"]
             if isinstance(executable_cmdline, str):
                 executable_cmdline = [executable_cmdline]
-            config["executable_cmdline"] = [str(i).format(tools=self._tools, **config) \
-                                            for i in executable_cmdline]
+            config["executable_cmdline"] = [
+                str(cmd).format(tools=self._tools, **config)
+                for cmd in executable_cmdline
+            ]
 
         return config
 
-    def copy(self, **kwargs):
+    @property
+    def supported(self) -> bool:
+        return True if self.exists or self.absolute_path else False
+
+    @property
+    def exists(self) -> bool:
+        return True if self.absolute_path and os.path.exists(self.absolute_path) else False
+
+    @property
+    def dirname(self) -> Optional[str]:
+        return None if not self.absolute_path else os.path.dirname(self.absolute_path)
+
+    def copy(self, **kwargs) -> "Tool":
         return Tool(self._tools, self._config, **kwargs)
 
     def prepare(self) -> None:
@@ -326,13 +336,12 @@ class Tool(metaclass=ToolMeta):
             tool.prepare()
 
         # download and unzip file
-        if self.exists:
-            pass
-        elif not self.download_url or not self.absolute_path:
+        if not self.supported:
             raise ToolError(
                 f"{self} does not support on "
                 f"{self._tools.environ.system} ({self._tools.environ.machine})")
-        else:
+
+        if not self.exists:
             self._tools.logger.info(f"Download {self}: {self.download_url}")
             url_file = self._tools.environ.get_url_file(self.download_url)
             temp_dir = self._tools.environ.get_temp_path("tools", "cache")
@@ -434,10 +443,10 @@ class Tools(object):
     def __init__(self, environ: "BaseEnviron"):
         self.environ = environ
         self.logger = environ.get_logger("tools")
-
-        self.config = dict()
-        self.config.setdefault("system", environ.system)
-        self.config.setdefault("machine", environ.machine)
+        self.config = dict(
+            system=environ.system,
+            machine=environ.machine,
+        )
 
     @cached_property
     def items(self) -> Mapping[str, Tool]:
@@ -449,8 +458,7 @@ class Tools(object):
             if not isinstance(value, dict):
                 warnings.warn(f"dict was expected, got {type(value)}, ignored.")
                 continue
-            key = key[len("TOOL_"):]
-            key = key.lower()
+            key = key[len("TOOL_"):].lower()
             name = value.setdefault("name", key)
             items[name] = Tool(self, value)
         return items

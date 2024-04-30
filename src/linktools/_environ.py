@@ -34,7 +34,7 @@ import pathlib
 import shutil
 import sys
 import time
-from typing import TYPE_CHECKING, TypeVar, Type, Any
+from typing import TYPE_CHECKING, TypeVar, Type, Any, Dict
 
 from . import utils, metadata
 from .decorator import cached_property, cached_classproperty
@@ -311,30 +311,33 @@ class BaseEnviron(abc.ABC):
         """
         self.config.set(key, value)
 
-    def _create_tools(self) -> "Tools":
+    def _create_tools(self) -> "Dict[str, Tool]":
         from ._tools import Tools
 
-        tools = Tools(self)
+        result = dict()
 
         # set environment variable
         index = 0
         dir_names = os.environ["PATH"].split(os.pathsep)
-        for tool in tools:
-            if not tool.executable:
+        for tool in Tools(self):
+            if not tool.supported:
+                if self.debug:
+                    self.logger.debug(f"Tool not supported: {tool.name}")
                 continue
-            # dirname(executable[0]) -> environ["PATH"]
-            dir_name = tool.dirname
-            if dir_name and dir_name not in dir_names:
-                # insert to head
-                dir_names.insert(index, tool.dirname)
-                index += 1
-        # add all paths to environment variables
+            if tool.executable:
+                # dirname(executable[0]) -> environ["PATH"]
+                dir_name = tool.dirname
+                if dir_name and dir_name not in dir_names:
+                    # insert to head
+                    dir_names.insert(index, tool.dirname)
+                    index += 1
+            result[tool.name] = tool
         os.environ["PATH"] = os.pathsep.join(dir_names)
 
-        return tools
+        return result
 
     @cached_property
-    def tools(self) -> "Tools":
+    def tools(self) -> "Dict[str, Tool]":
         """
         工具集
         """

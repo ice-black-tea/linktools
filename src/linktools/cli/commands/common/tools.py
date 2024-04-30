@@ -64,7 +64,7 @@ class Command(BaseCommand):
         group.add_argument("-d", "--daemon", action="store_true", default=False,
                            help="execute tools as a daemon")
 
-        tool_names = sorted([tool.name for tool in iter(self.environ.tools)])
+        tool_names = sorted([tool.name for tool in self.environ.tools.values()])
         subparsers = parser.add_subparsers(metavar="TOOL", help=f"{{{','.join(tool_names)}}}")
         subparsers.required = True
         for tool_name in tool_names:
