@@ -156,7 +156,7 @@ log arguments:
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
-所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/linktools/master/src/linktools/assets/tools.yml)查看
+所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/linktools/master/src/linktools/template/tools.yml)查看
 
 ```
 $ usage: ct-tools [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c | --download | --clear | -d] ...

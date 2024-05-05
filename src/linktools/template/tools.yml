@@ -1,4 +1,4 @@
-# general tools
+# All tools
 
 _py: &PY
   depends_on: python
@@ -170,6 +170,7 @@ TOOL_ZIPALIGN:
 ############################################################################################
 TOOL_JADX: &TOOL_JADX
   version: '1.5.0'
+  depends_on: java
   download_url: 'https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip'
   unpack_path: 'jadx-{version}'
   target_path:
@@ -270,12 +271,13 @@ TOOL_IPATOOL:
 # flinux
 ############################################################################################
 TOOL_FLINUX:
-  version: '0.21'
+  version: '20240505'
   download_url:
     case:
       - when: { system: windows }
-        then: 'https://github.com/ice-black-tea/archives/releases/download/flinux-20240505/flinux.exe'
+        then: 'https://github.com/ice-black-tea/archives/releases/download/flinux-{version}/flinux.zip'
       - else: ~
+  unpack_path: 'flinux-{version}'
   target_path:
     case:
       - when: { system: windows }
