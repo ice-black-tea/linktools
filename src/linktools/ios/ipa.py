@@ -24,7 +24,7 @@ class IPA(object):
     def __init__(self, filename: str):
         self.filename = filename
         self.zip = zipfile.ZipFile(self.filename)
-        self._cache = {}
+        self._plist = {}
         self._analysis()
 
     def _analysis(self):
@@ -32,7 +32,7 @@ class IPA(object):
         if plist_path is None:
             raise IPAError("Missing Info.plist")
         plist_data = self.zip.read(plist_path)
-        self._cache[_INFO_PLIST] = plistlib.loads(plist_data)
+        self._plist[_INFO_PLIST] = plistlib.loads(plist_data)
 
     def find_file(self, name) -> Optional[str]:
         name_list = self.zip.namelist()
@@ -53,7 +53,7 @@ class IPA(object):
             raise IPAError(f"Not found {filename}")
 
     def get_info_plist(self) -> Dict[str, Any]:
-        return self._cache[_INFO_PLIST]
+        return self._plist[_INFO_PLIST]
 
     def get_launch_storyboard_name(self) -> str:
         return self.get_info_plist().get("UILaunchStoryboardName")
