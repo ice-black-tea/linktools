@@ -46,7 +46,7 @@ class LinktoolsPlugin(Plugin, FridaScriptHandler):
         self.script_path = environ.get_asset_path("frida.js")
 
         super().__init__(__file__, ns, {
-            'meta': f'"{environ.name}',
+            'meta': f'{environ.name}',
             'commands': {
                 'eval': {
                     'meta': 'eval code',

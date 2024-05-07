@@ -32,7 +32,7 @@ from typing import Optional, Type, List
 
 from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, IOSCommand
-from linktools.cli.argparse import KeyValueAction
+from linktools.cli.argparse import KeyValueAction, range_type, BooleanOptionalAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
 from linktools.frida.ios import IOSFridaServer
 
@@ -75,6 +75,18 @@ class Command(IOSCommand):
         parser.add_argument("-a", "--auto-start", action="store_true", default=False,
                             help="automatically start when all processes exits")
 
+        parser.add_argument("--local-port", metavar="PORT", action="store", dest="local_port",
+                            type=range_type(1, 65536), default=None,
+                            help="local frida port (default: unused port)")
+        parser.add_argument("--remote-port", metavar="PORT", action="store", dest="remote_port",
+                            type=range_type(1, 65536), default=27042,
+                            help="remote frida port (default: 27042)")
+
+        parser.add_argument("--spawn-gating", action=BooleanOptionalAction, default=True,
+                            help="enable spawn gating (default: true)")
+        parser.add_argument("--child-gating", action=BooleanOptionalAction, default=False,
+                            help="enable child gating (default: false)")
+
     def run(self, args: Namespace) -> Optional[int]:
 
         user_parameters = args.user_parameters
@@ -93,8 +105,13 @@ class Command(IOSCommand):
                     if args.auto_start:
                         app.load_script(app.device.spawn(bundle_id), resume=True)
 
-        with IOSFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
+        server = IOSFridaServer(
+            device=device,
+            local_port=args.local_port or utils.pick_unused_port(),
+            remote_port=args.remote_port,
+        )
 
+        with server:
             # 如果没有填包名，则找到顶层应用
             if utils.is_empty(bundle_id):
                 target_app = server.get_frontmost_application()
@@ -108,7 +125,8 @@ class Command(IOSCommand):
                 target_identifiers=rf"^{re.escape(bundle_id)}$",
                 user_parameters=user_parameters,
                 user_scripts=user_scripts,
-                enable_spawn_gating=True
+                enable_spawn_gating=args.spawn_gating,
+                enable_child_gating=args.child_gating
             )
 
             if args.spawn:

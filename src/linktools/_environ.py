@@ -321,8 +321,6 @@ class BaseEnviron(abc.ABC):
         dir_names = os.environ["PATH"].split(os.pathsep)
         for tool in Tools(self):
             if not tool.supported:
-                if self.debug:
-                    self.logger.debug(f"Tool not supported: {tool.name}")
                 continue
             if tool.executable:
                 # dirname(executable[0]) -> environ["PATH"]

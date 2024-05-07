@@ -59,21 +59,28 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         根据frida版本和设备abi类型下载并运行server
         :return: 运行成功为True，否则为False
         """
-        if self.is_running:
-            _logger.info("Frida server is running ...")
-            return True
+        try:
 
-        _logger.info("Start frida server ...")
-        self._start()
-
-        timeout = utils.Timeout(10)
-        while timeout.check():
             if self.is_running:
                 _logger.info("Frida server is running ...")
                 return True
-            time.sleep(min(timeout.remain, 0.5))
 
-        raise frida.ServerNotRunningError("Frida server failed to run ...")
+            _logger.info("Start frida server ...")
+            self._start()
+
+            timeout = utils.Timeout(10)
+            while timeout.check():
+                if self.is_running:
+                    _logger.info("Frida server is running ...")
+                    return True
+                time.sleep(min(timeout.remain, 0.5))
+
+            raise frida.ServerNotRunningError("Frida server failed to run ...")
+
+        except BaseException as e:
+            _logger.debug("Kill frida server ...")
+            utils.ignore_error(self._stop)
+            raise e
 
     def stop(self) -> bool:
         """
@@ -98,12 +105,7 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
         pass
 
     def __enter__(self):
-        try:
-            self.start()
-        except:
-            _logger.debug("Kill frida server ...")
-            utils.ignore_error(self._stop)
-            raise
+        self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

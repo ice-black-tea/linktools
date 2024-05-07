@@ -29,13 +29,14 @@ class AndroidFridaServer(FridaServer):
     android server
     """
 
-    def __init__(self, device: Device = None, local_port: int = 47042, remote_port: int = 47042):
+    def __init__(self, device: Device = None, local_port: int = 47042, remote_port: int = 47042, serve: bool = True):
         super().__init__(frida.get_device_manager().add_remote_device(f"localhost:{local_port}"))
         self._device = device or Device()
         self._local_port = local_port
         self._remote_port = remote_port
         self._forward: Optional[Stoppable] = None
 
+        self._serve = serve
         self._server_prefix = "fs-ln-"
         self._server_name = f"{self._server_prefix}{utils.make_uuid()}"
         self._server_dir = self._device.get_data_path("fs-ln")
@@ -52,8 +53,6 @@ class AndroidFridaServer(FridaServer):
     def _start(self):
 
         try:
-            server_path = self._prepare_executable()
-
             # 转发端口
             if self._forward is not None:
                 self._forward.stop()
@@ -62,31 +61,35 @@ class AndroidFridaServer(FridaServer):
                 f"tcp:{self._remote_port}"
             )
 
-            # 创建软链
-            self._device.sudo("mkdir", "-p", self._server_dir)
-            self._device.sudo("ln", "-s", server_path, self._server_path)
+            if self._serve:
+                # 创建软链
+                server_path = self._prepare_executable()
+                self._device.sudo("mkdir", "-p", self._server_dir)
+                self._device.sudo("ln", "-s", server_path, self._server_path)
 
-            # 接下来新开一个进程运行frida server，并且输出一下是否出错
-            self._device.sudo(
-                self._server_path,
-                "-d", "fs-binaries",
-                "-l", f"0.0.0.0:{self._remote_port}",
-                "-D", "&",
-                ignore_errors=True,
-                log_output=True,
-            )
+                # 接下来新开一个进程运行frida server，并且输出一下是否出错
+                self._device.sudo(
+                    self._server_path,
+                    "-d", "fs-binaries",
+                    "-l", f"0.0.0.0:{self._remote_port}",
+                    "-D", "&",
+                    ignore_errors=True,
+                    log_output=True,
+                )
         finally:
-            # 删除软连接
-            self._device.sudo("rm", self._server_path, ignore_errors=True)
+            if self._serve:
+                # 删除软连接
+                self._device.sudo("rm", self._server_path, ignore_errors=True)
 
     def _stop(self):
         try:
-            # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
-            process_name_lc = f"{self._server_prefix}*".lower()
-            for process in self._device.get_processes():
-                if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
-                    _logger.debug(f"Find frida server process({process.name}:{process.pid}), kill it")
-                    self._device.sudo("kill", "-9", process.pid, ignore_errors=True)
+            if self._serve:
+                # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
+                process_name_lc = f"{self._server_prefix}*".lower()
+                for process in self._device.get_processes():
+                    if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
+                        _logger.debug(f"Find frida server process({process.name}:{process.pid}), kill it")
+                        self._device.sudo("kill", "-9", process.pid, ignore_errors=True)
         finally:
             # 把转发端口给移除了，不然会一直占用这个端口
             if self._forward is not None:

@@ -31,7 +31,7 @@ from typing import Optional, List, Type
 
 from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, AndroidCommand
-from linktools.cli.argparse import range_type
+from linktools.cli.argparse import range_type, BooleanOptionalAction
 from linktools.frida.android import AndroidFridaServer
 
 
@@ -57,6 +57,15 @@ class Command(AndroidCommand):
         parser.add_argument("-P", "--plugin-folder", action="store", default=environ.get_asset_path("objection"),
                             help="The folder to load plugins from.")
 
+        parser.add_argument("--serve", action=BooleanOptionalAction, default=True,
+                            help="serve frida server (default: true)")
+        parser.add_argument("--local-port", metavar="PORT", action="store", dest="local_port",
+                            type=range_type(1, 65536), default=None,
+                            help="local frida port (default: unused port)")
+        parser.add_argument("--remote-port", metavar="PORT", action="store", dest="remote_port",
+                            type=range_type(1, 65536), default=27042,
+                            help="remote frida port (default: 27042)")
+
         parser.add_argument("--redirect-address", metavar="ADDRESS", action="store", dest="redirect_address",
                             type=str,
                             help="redirect traffic to target address (default: localhost)")
@@ -67,8 +76,14 @@ class Command(AndroidCommand):
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
 
-        with AndroidFridaServer(device=device, local_port=utils.pick_unused_port()) as server:
+        server = AndroidFridaServer(
+            device=device,
+            local_port=args.local_port or utils.pick_unused_port(),
+            remote_port=args.remote_port,
+            serve=args.serve
+        )
 
+        with server:
             objection_args = ["objection"]
             if environ.debug:
                 objection_args += ["--debug"]

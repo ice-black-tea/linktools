@@ -324,10 +324,10 @@ class FridaManager:
 
     def __init__(self, reactor: FridaReactor):
         self._reactor = reactor
-        self._cancel_handlers = {}
+        self._cancel_handlers: "Dict[str, Callable[[], Any]]" = {}
 
         self._lock = threading.RLock()
-        self._sessions: Dict[int, FridaSession] = {}
+        self._sessions: "Dict[int, FridaSession]" = {}
 
     @property
     def sessions(self) -> Dict[int, FridaSession]:
@@ -355,7 +355,7 @@ class FridaManager:
             self._sessions[session.pid] = session
 
     def add_device_handler(self, device: frida.core.Device, handler: FridaDeviceHandler):
-        self._cancel(device)
+        self._call_cancel_handler(device)
 
         cb_spawn_added = lambda spawn: threading.Thread(target=handler.on_spawn_added, args=(spawn,)).start()
         cb_spawn_removed = lambda spawn: self._reactor.schedule(lambda: handler.on_spawn_removed(spawn))
@@ -383,16 +383,16 @@ class FridaManager:
             # utils.ignore_error(device.off, args=("uninjected", cb_uninjected))
             utils.ignore_error(device.off, args=("lost", cb_lost))
 
-        self._register_cancel(device, cancel)
+        self._register_cancel_handler(device, cancel)
 
     def remove_device_handler(self, device: frida.core.Device):
-        self._cancel(device)
+        self._call_cancel_handler(device)
 
     def add_session_handler(self, session: FridaSession, handler: FridaSessionHandler):
-        self._cancel(session)
+        self._call_cancel_handler(session)
 
         def on_detached(reason, crash):
-            self._reactor.schedule(lambda: self._cancel(session))
+            self._reactor.schedule(lambda: self._call_cancel_handler(session))
             with self._lock:
                 self._sessions.pop(session.pid, None)
             self._reactor.schedule(lambda: handler.on_session_detached(session, reason, crash))
@@ -402,19 +402,19 @@ class FridaManager:
         def cancel():
             utils.ignore_error(session.off, args=("detached", on_detached))
 
-        self._register_cancel(session, cancel)
+        self._register_cancel_handler(session, cancel)
 
     def remove_session_handler(self, session: FridaSession):
-        self._cancel(session)
+        self._call_cancel_handler(session)
 
     def add_script_handler(self, script: FridaScript, handler: FridaScriptHandler):
-        self._cancel(script)
+        self._call_cancel_handler(script)
 
         def on_message(msg, data):
             return handler.on_script_message(script, msg, data)
 
         def on_destroyed():
-            self._reactor.schedule(lambda: self._cancel(script))
+            self._reactor.schedule(lambda: self._call_cancel_handler(script))
             return handler.on_script_destroyed(script)
 
         script.on("message", on_message)
@@ -424,13 +424,13 @@ class FridaManager:
             utils.ignore_error(script.off, args=("message", on_message))
             utils.ignore_error(script.off, args=("destroyed", on_destroyed))
 
-        self._register_cancel(script, cancel)
+        self._register_cancel_handler(script, cancel)
 
     def remove_script_handler(self, script: FridaScript):
-        self._cancel(script)
+        self._call_cancel_handler(script)
 
     def add_file_handler(self, files: [FridaScriptFile], handler: FridaFileHandler):
-        self._cancel(files)
+        self._call_cancel_handler(files)
 
         last_change_id = 0
         monitors: Dict[str, frida.FileMonitor] = {}
@@ -464,15 +464,15 @@ class FridaManager:
             for monitor in monitors.values():
                 monitor.disable()
 
-        self._register_cancel(files, cancel)
+        self._register_cancel_handler(files, cancel)
 
     def remove_file_handler(self, files: [FridaScriptFile]):
-        self._cancel(files)
+        self._call_cancel_handler(files)
 
-    def _register_cancel(self, key: Any, handler: Callable[[], Any]):
+    def _register_cancel_handler(self, key: Any, handler: Callable[[], Any]):
         self._cancel_handlers[self._make_key(key)] = handler
 
-    def _cancel(self, key: Any):
+    def _call_cancel_handler(self, key: Any):
         handler = self._cancel_handlers.pop(self._make_key(key), None)
         if handler:
             handler()
@@ -595,7 +595,15 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         self._manager.add_device_handler(self.device, self)
 
         if self._enable_spawn_gating:
-            self.device.enable_spawn_gating()
+            try:
+                self.device.enable_spawn_gating()
+            except frida.NotSupportedError:
+                _logger.warning(f"Enable child gating is not supported, ignore")
+        else:
+            try:
+                self.device.disable_spawn_gating()
+            except frida.NotSupportedError:
+                pass
 
     def _deinit(self):
         _logger.debug(f"FridaApplication deinit")
@@ -651,7 +659,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         """
         self._reactor.schedule(lambda: self._load_script(pid, resume))
 
-    def inject_all(self) -> [int]:
+    def inject_all(self, resume: bool = False) -> [int]:
         """
         根据target_identifiers注入所有匹配的进程
         :return: 注入的进程pid
@@ -674,7 +682,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         if len(target_pids) > 0:
             # 进程存在，直接注入
             for pid in target_pids:
-                self.load_script(pid)
+                self.load_script(pid, resume=resume)
 
         return target_pids
 
@@ -761,8 +769,15 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         self._manager.set_session(session)
 
         if self._enable_child_gating:
-            _logger.debug(f"Enable child gating: {pid}")
-            session.enable_child_gating()
+            try:
+                session.enable_child_gating()
+            except frida.NotSupportedError:
+                _logger.warning(f"Enable child gating is not supported, ignore")
+        else:
+            try:
+                session.disable_child_gating()
+            except frida.NotSupportedError:
+                pass
 
         self._manager.add_session_handler(session, self)
         self._reactor.schedule(lambda: self.on_session_attached(session))

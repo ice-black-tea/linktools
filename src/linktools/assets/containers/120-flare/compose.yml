@@ -6,19 +6,17 @@ services:
     ports:
       - '{{ FLARE_EXPOSE_PORT }}:5005'
 #   {% endif %}
-#   {% if bool(FLARE_DISABLE_LOGIN) %}
-    command: flare --disable_login=1 --visibility=private
+    command: flare
     environment:
-      - 'FLARE_DISABLE_LOGIN=1'
-      - 'FLARE_GUIDE=1'
-#   {% else %}
-    command: flare --disable_login=0 --visibility=private
-    environment:
+#   {% if bool(FLARE_ENABLE_LOGIN) %}
       - 'FLARE_DISABLE_LOGIN=0'
+      - 'FLARE_VISIBILITY=PRIVATE'
       - 'FLARE_USER={{ FLARE_USER }}'
       - 'FLARE_PASS={{ FLARE_PASSWORD }}'
-      - 'FLARE_GUIDE=1'
+#   {% else %}
+      - 'FLARE_DISABLE_LOGIN=1'
 #   {% endif %}
+      - 'FLARE_GUIDE=1'
     volumes:
       - '{{ container.get_app_path("app") }}:/app'
     networks:
