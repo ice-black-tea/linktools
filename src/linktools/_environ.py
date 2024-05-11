@@ -311,17 +311,31 @@ class BaseEnviron(abc.ABC):
         """
         self.config.set(key, value)
 
-    def _create_tools(self) -> "Dict[str, Tool]":
+    def _create_tools(self) -> "Tools":
         from ._tools import Tools
+        from ._config import ConfigDict
 
-        result = dict()
+        config = ConfigDict()
+
+        yaml_path = environ.get_path("template", "tools.yml")
+        if metadata.__release__ or not os.path.exists(yaml_path):
+            config.update_from_file(
+                environ.get_asset_path("tools.json"),
+                json.load
+            )
+        else:
+            import yaml
+            config.update_from_file(
+                yaml_path,
+                yaml.safe_load
+            )
+
+        tools = Tools(self, config)
 
         # set environment variable
         index = 0
         dir_names = os.environ["PATH"].split(os.pathsep)
-        for tool in Tools(self):
-            if not tool.supported:
-                continue
+        for tool in Tools(self, config):
             if tool.executable:
                 # dirname(executable[0]) -> environ["PATH"]
                 dir_name = tool.dirname
@@ -329,13 +343,12 @@ class BaseEnviron(abc.ABC):
                     # insert to head
                     dir_names.insert(index, tool.dirname)
                     index += 1
-            result[tool.name] = tool
         os.environ["PATH"] = os.pathsep.join(dir_names)
 
-        return result
+        return tools
 
     @cached_property
-    def tools(self) -> "Dict[str, Tool]":
+    def tools(self) -> "Tools":
         """
         工具集
         """
@@ -399,19 +412,6 @@ class Environ(BaseEnviron):
             self.get_asset_path("android-tools.json"),
             load=json.load
         )
-
-        yaml_path = self.get_path("template", "tools.yml")
-        if metadata.__release__ or not os.path.exists(yaml_path):
-            config.update_from_file(
-                self.get_asset_path("tools.json"),
-                json.load
-            )
-        else:
-            import yaml
-            config.update_from_file(
-                yaml_path,
-                yaml.safe_load
-            )
 
         return config
 

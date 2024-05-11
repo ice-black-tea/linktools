@@ -31,8 +31,8 @@ import sys
 from typing import Any
 
 from linktools import utils
-from linktools.cli import subcommand, subcommand_argument, SubCommandWrapper, BaseCommandGroup, iter_command_modules, \
-    commands
+from linktools.cli import subcommand, subcommand_argument, SubCommandWrapper, BaseCommandGroup, \
+    iter_command_modules, commands
 from linktools.cli.argparse import auto_complete
 from linktools.utils import get_system, list2cmdline
 
@@ -141,9 +141,6 @@ class Command(BaseCommandGroup):
             return 0
 
         lines = []
-        if shell not in ("powershell",):
-            lines.append(f"#!/usr/bin/env {shell}")
-
         modules = {c.name: c for c in iter_command_modules(commands, onerror="warn")}
         for module in modules.values():
             if module.command:
@@ -166,6 +163,49 @@ class Command(BaseCommandGroup):
 
         result = os.linesep.join(lines)
         utils.write_file(path, result)
+        print(result, flush=True)
+
+    @subcommand("java", help="generate java environment script")
+    @subcommand_argument("-s", "--shell", help="output code for the specified shell",
+                         choices=["bash", "zsh", "tcsh", "fish", "powershell"])
+    @subcommand_argument("version", metavar="VERSION", nargs="?",
+                         help="java version, such as 11.0.23 / 17.0.11 / 22.0.1")
+    def on_java_home(self, version: str = None, shell: str = DEFAULT_SHELL):
+        from linktools.cli.commands.common import tools
+        cmdline = list2cmdline([sys.executable, "-m", tools.__name__, "java"])
+
+        java = self.environ.tools["java"]
+        if version:
+            java = java.copy(version=version)
+
+        lines = []
+        if shell in ("bash", "zsh"):
+            lines.append(f"alias java='{cmdline}'")
+            lines.append(f"export JAVA_CMDLINE=''")
+            lines.append(f"export JAVA_VERSION='{java.get('version')}'")
+            lines.append(f"export JAVA_HOME='{java.get('home_path')}'")
+            lines.append(f"export PATH=\"$JAVA_HOME/bin:$PATH\"")
+        elif shell in ("fish",):
+            lines.append(f"alias java '{cmdline}'")
+            lines.append(f"set -x JAVA_CMDLINE ''")
+            lines.append(f"set -x JAVA_VERSION '{java.get('version')}'")
+            lines.append(f"set -x JAVA_HOME '{java.get('home_path')}'")
+            lines.append(f"set -x PATH \"$JAVA_HOME/bin\" \"$PATH\"")
+        elif shell in ("tcsh",):
+            lines.append(f"alias java '{cmdline}'")
+            lines.append(f"setenv JAVA_CMDLINE ''")
+            lines.append(f"setenv JAVA_VERSION '{java.get('version')}'")
+            lines.append(f"setenv JAVA_HOME '{java.get('home_path')}'")
+            lines.append(f"setenv PATH \"$JAVA_HOME/bin:$PATH\"")
+        elif shell in ("powershell",):
+            lines.append(f"function __tool_java__ {{ {cmdline} $args }}")
+            lines.append(f"Set-Alias -Name java -Value __tool_java__")
+            lines.append(f"$env:JAVA_CMDLINE=' '")
+            lines.append(f"$env:JAVA_VERSION='{java.get('version')}'")
+            lines.append(f"$env:JAVA_HOME='{java.get('home_path')}'")
+            lines.append(f"$env:PATH=\"$env:JAVA_HOME\\bin;$env:PATH\"")
+
+        result = os.linesep.join(lines)
         print(result, flush=True)
 
     @subcommand("clean", help="clean temporary files")

@@ -21,18 +21,29 @@ python3 -m pip install -U "linktools[all]"
 
 ### 配置alias（推荐）
 
-对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置alias，简化调用方式：
+对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置，简化调用方式，如：
 
 ```bash
-eval "$(ct-env --silent completion --shell bash)" # 给命令添加自动补全功能
+# 对于未正确设置PATH环境变量，或者使用venv安装模块
+# 会出现命令找不到的情况（command not found: lt）
+# 可通过以下命令生成alias脚本添加相关命令
+eval "$(python3 -m linktools.cli.commands.common.env --silent alias --shell bash)"
 
+# 给命令添加自动补全功能
+eval "$(ct-env --silent completion --shell bash)"  
+
+# 配置全局java环境，指定java版本号（如：11.0.23/17.0.11/22.0.1）
+eval "$(ct-env --silent java 17.0.11 --shell bash)"
+
+# alias简化调用
 alias adb="at-adb"
 alias pidcat="at-pidcat"
 alias sib="it-sib"
 
+# alias简化各类工具调用
 alias apktool="ct-tools apktool"
 alias burpsuite="ct-tools burpsuite"
-alias jadx="ct-tools --set version=1.5.0 jadx-gui" # 指定jadx版本号，配置jvm最大内存
+alias jadx="ct-tools --set version=1.5.0 jadx-gui"  # 指定jadx版本号
 ```
 
 ## 相关功能

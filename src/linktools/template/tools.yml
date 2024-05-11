@@ -24,7 +24,7 @@ TOOL_SMALI:
 
 TOOL_APKTOOL:
   <<: *JAR
-  version: '2.8.1'
+  version: '2.9.3'
   download_url: 'https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar'
 
 TOOL_APPCRAWLER:
@@ -39,7 +39,7 @@ TOOL_XPATCH:
 
 TOOL_BURPSUITE:
   <<: *JAR
-  version: '2023.10'
+  version: '2024.4.2'
   depends_on: 'burpsuite-keygen'
   download_url: 'https://portswigger-cdn.net/burp/releases/download?product=pro&type=Jar&version={version}'
   target_path: 'burpsuite_pro_v{version}.jar'
@@ -53,8 +53,9 @@ TOOL_BURPSUITE:
 
 TOOL_BURPSUITE_KEYGEN:
   <<: *JAR
+  version: '2_1_06'
   name: 'burpsuite-keygen'
-  download_url: 'https://github.com/ice-black-tea/archives/releases/download/burp-loader-keygen-2_1_06/burp-loader-keygen-2_1_06.jar'
+  download_url: 'https://github.com/ice-black-tea/archives/releases/download/burp-loader-keygen-{version}/burp-loader-keygen-{version}.jar'
 
 ############################################################################################
 # python libraries
@@ -66,7 +67,7 @@ TOOL_TIDEVICE:
 # java
 ############################################################################################
 TOOL_JAVA: &TOOL_JAVA
-  version: '17.0.8' # "11.0.18"
+  version: '17.0.8' # '11.0.18'
   download_url:
     case:
       - when: { system: darwin, machine: arm64 }
@@ -88,6 +89,14 @@ TOOL_JAVA: &TOOL_JAVA
       - when: { system: windows }
         then: 'sapmachine-jdk-{version}\bin\{name}.exe'
       - else: ~
+  home_path:
+    case:
+      - when: { system: darwin }
+        then: '{root_path}/sapmachine-jdk-{version}.jdk/Contents/Home'
+      - when: { system: linux }
+        then: '{root_path}/sapmachine-jdk-{version}'
+      - when: { system: windows }
+        then: '{root_path}\sapmachine-jdk-{version}'
 
 TOOL_JARSIGNER:
   <<: *TOOL_JAVA
@@ -96,16 +105,15 @@ TOOL_JARSIGNER:
 # dex2jar
 ############################################################################################
 TOOL_DEX2JAR: &TOOL_DEX2JAR
-  version: '2.2-SNAPSHOT'
-  version_suffix: '-2021-10-31'
-  download_url: 'https://github.com/pxb1988/dex2jar/releases/download/v{version}{version_suffix}/dex-tools-{version}{version_suffix}.zip'
+  version: '2.4'
+  download_url: 'https://github.com/pxb1988/dex2jar/releases/download/v{version}/dex-tools-v{version}.zip'
   unpack_path: 'dex2jar-{version}'
   target_path:
     case:
       - when: { system: [darwin, linux] }
-        then: 'dex-tools-{version}/d2j-{name}.sh'
+        then: 'dex-tools-v{version}/d2j-{name}.sh'
       - when: { system: windows }
-        then: 'dex-tools-{version}\d2j-{name}.bat'
+        then: 'dex-tools-v{version}\d2j-{name}.bat'
       - else: ~
 
 TOOL_JAR2DEX:
@@ -115,8 +123,9 @@ TOOL_JAR2DEX:
 # adb
 ############################################################################################
 TOOL_ADB: &TOOL_ADB
-  download_url: 'https://dl.google.com/android/repository/platform-tools-latest-{system}.zip'
-  unpack_path: 'platform-tools'
+  version: 'latest'
+  download_url: 'https://dl.google.com/android/repository/platform-tools-{version}-{system}.zip'
+  unpack_path: 'platform-tools-{version}'
   target_path:
     case:
       - when: { system: [darwin, linux] }
@@ -132,8 +141,8 @@ TOOL_FASTBOOT:
 # aapt
 ############################################################################################
 TOOL_AAPT: &TOOL_AAPT
-  version: 'r33'
-  version_name: 'android-13'
+  version: 'r34'
+  version_name: 'android-14'
   download_url:
     case:
       - when: { system: darwin }
@@ -152,6 +161,12 @@ TOOL_AAPT: &TOOL_AAPT
         then: '{version_name}\{name}.exe'
       - else: ~
 
+TOOL_AAPT2:
+  <<: *TOOL_AAPT
+
+TOOL_ZIPALIGN:
+  <<: *TOOL_AAPT
+
 TOOL_APKSIGNER:
   <<: *TOOL_AAPT
   target_path:
@@ -161,9 +176,6 @@ TOOL_APKSIGNER:
       - when: { system: windows }
         then: '{version_name}\{name}.bat'
       - else: ~
-
-TOOL_ZIPALIGN:
-  <<: *TOOL_AAPT
 
 ############################################################################################
 # jadx
@@ -180,12 +192,12 @@ TOOL_JADX: &TOOL_JADX
       - when: { system: windows }
         then: 'bin\{name}.bat'
       - else: ~
+  environment:
+    JAVA_OPTS: '-Xmx8g'
 
 TOOL_JADX_GUI:
   <<: *TOOL_JADX
   name: 'jadx-gui'
-  environment:
-    JAVA_OPTS: '-Xmx8g'
 
 ############################################################################################
 # chromedriver
