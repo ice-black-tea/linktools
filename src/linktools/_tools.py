@@ -479,30 +479,15 @@ class Tools(object):
         self.config = environ.wrap_config(prefix="")
         self.all = self._parse_items(config)
 
-    def _parse_items(self, config: Dict[str, Dict]) -> Dict[str, Tool]:
-        result = {
-            "shell": Tool(self, "shell", {
-                "cmdline": None,
-                "absolute_path": utils.get_shell_path(),
-            }),
-            "python": Tool(self, "python", {
-                "cmdline": None,
-                "absolute_path": sys.executable,
-            }),
-        }
-
-        for key, value in config.items():
-            if not isinstance(value, dict):
-                warnings.warn(f"dict was expected, got {type(value)}, ignored.")
-                continue
-            name = value.get("name", None)
-            if name is None:
-                if key.startswith("TOOL_"):
-                    key = key[len("TOOL_"):]
-                name = value["name"] = key.lower()
-            result[name] = Tool(self, name, value)
-
-        return result
+    @property
+    def env_path(self) -> List[str]:
+        paths = []
+        for tool in self:
+            if tool.executable:
+                path = tool.dirname
+                if path and path not in paths:
+                    paths.append(path)
+        return paths
 
     def keys(self) -> Generator[str, None, None]:
         for k, v in self.all.items():
@@ -537,3 +522,28 @@ class Tools(object):
 
     def __setitem__(self, key: str, value: Tool):
         self.all[key] = value
+
+    def _parse_items(self, config: Dict[str, Dict]) -> Dict[str, Tool]:
+        result = {
+            "shell": Tool(self, "shell", {
+                "cmdline": None,
+                "absolute_path": utils.get_shell_path(),
+            }),
+            "python": Tool(self, "python", {
+                "cmdline": None,
+                "absolute_path": sys.executable,
+            }),
+        }
+
+        for key, value in config.items():
+            if not isinstance(value, dict):
+                warnings.warn(f"dict was expected, got {type(value)}, ignored.")
+                continue
+            name = value.get("name", None)
+            if name is None:
+                if key.startswith("TOOL_"):
+                    key = key[len("TOOL_"):]
+                name = value["name"] = key.lower()
+            result[name] = Tool(self, name, value)
+
+        return result

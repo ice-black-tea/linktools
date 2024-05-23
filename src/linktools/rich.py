@@ -57,8 +57,8 @@ class LogHandler(RichHandler):
     def __init__(self, environ: "BaseEnviron"):
         super().__init__(
             show_path=False,
-            show_level=environ.get_config("SHOW_LOG_LEVEL", type=bool, default=True),
-            show_time=environ.get_config("SHOW_LOG_TIME", type=bool, default=False),
+            show_level=environ.get_config("SHOW_LOG_LEVEL", type=bool),
+            show_time=environ.get_config("SHOW_LOG_TIME", type=bool),
             omit_repeated_times=False,
             log_time_format=self.make_time_text
             # markup=True,

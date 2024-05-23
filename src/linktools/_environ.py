@@ -32,9 +32,8 @@ import logging
 import os
 import pathlib
 import shutil
-import sys
 import time
-from typing import TYPE_CHECKING, TypeVar, Type, Any, Dict
+from typing import TYPE_CHECKING, TypeVar, Type, Any
 
 from . import utils, metadata
 from .decorator import cached_property, cached_classproperty
@@ -97,7 +96,7 @@ class BaseEnviron(abc.ABC):
         """
         debug模式
         """
-        return self.get_config("DEBUG", type=bool, default=False)
+        return self.get_config("DEBUG", type=bool)
 
     @debug.setter
     def debug(self, value: bool) -> None:
@@ -248,31 +247,18 @@ class BaseEnviron(abc.ABC):
         name = f"{self.name}.{name}" if name else self.name
         return self._log_manager.getLogger(name)
 
-    @cached_classproperty
-    def _default_config(self) -> "ConfigDict":
-        from ._config import ConfigDict
-
-        config = ConfigDict()
-
-        config.update({
-            "TOOL_SHELL": {
-                "absolute_path": utils.get_shell_path(),
-            },
-            "TOOL_PYTHON": {
-                "absolute_path": sys.executable,
-            }
-        })
-
-        return config
-
     def _create_config(self) -> "Config":
-        from ._config import Config
+        from ._config import Config, ConfigDict
 
         return Config(
             self,
-            self._default_config,
+            ConfigDict(
+                DEBUG=False,
+                SHOW_LOG_LEVEL=True,
+                SHOW_LOG_TIME=False,
+            ),
             namespace="MAIN",
-            prefix=f"{self.name.upper()}_",
+            prefix=f"{self.name.upper()}_"
         )
 
     @cached_property
@@ -317,33 +303,23 @@ class BaseEnviron(abc.ABC):
 
         config = ConfigDict()
 
-        yaml_path = environ.get_path("template", "tools.yml")
-        if metadata.__release__ or not os.path.exists(yaml_path):
-            config.update_from_file(
-                environ.get_asset_path("tools.json"),
-                json.load
-            )
+        template_path = environ.get_path("template", "tools.yml")
+        data_path = environ.get_data_path("tools", "tools.json")
+        asset_path = environ.get_asset_path("tools.json")
+
+        if os.path.exists(data_path):
+            config.update_from_file(data_path, json.load)
+        elif metadata.__release__ or not os.path.exists(template_path):
+            config.update_from_file(asset_path, json.load)
         else:
             import yaml
-            config.update_from_file(
-                yaml_path,
-                yaml.safe_load
-            )
+            config.update_from_file(template_path, yaml.safe_load)
 
         tools = Tools(self, config)
 
-        # set environment variable
-        index = 0
-        dir_names = os.environ["PATH"].split(os.pathsep)
-        for tool in Tools(self, config):
-            if tool.executable:
-                # dirname(executable[0]) -> environ["PATH"]
-                dir_name = tool.dirname
-                if dir_name and dir_name not in dir_names:
-                    # insert to head
-                    dir_names.insert(index, tool.dirname)
-                    index += 1
-        os.environ["PATH"] = os.pathsep.join(dir_names)
+        os.environ["PATH"] = os.pathsep.join(
+            tools.env_path + os.environ["PATH"].split(os.pathsep)
+        )
 
         return tools
 
@@ -395,6 +371,9 @@ class Environ(BaseEnviron):
     def root_path(self) -> str:
         return os.path.dirname(__file__)
 
+    def get_asset_path(self, *paths: str) -> str:
+        return self.get_path("assets", *paths)
+
     def _create_config(self):
         config = super()._create_config()
 
@@ -407,16 +386,7 @@ class Environ(BaseEnviron):
             "Safari/537.36"
         )
 
-        # 导入configs文件夹中所有配置文件
-        config.update_from_file(
-            self.get_asset_path("android-tools.json"),
-            load=json.load
-        )
-
         return config
-
-    def get_asset_path(self, *paths: str) -> str:
-        return self.get_path("assets", *paths)
 
 
 environ = Environ()

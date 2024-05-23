@@ -8,10 +8,11 @@
 # Project   : link
 
 import fnmatch
+import json
 import lzma
 import os
 import shutil
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import frida
 
@@ -19,6 +20,7 @@ from .server import FridaServer
 from .. import environ, utils
 from .._url import DownloadHttpError
 from ..android import Device
+from ..decorator import cached_classproperty
 from ..reactor import Stoppable
 
 _logger = environ.get_logger("frida.server.android")
@@ -96,11 +98,17 @@ class AndroidFridaServer(FridaServer):
                 self._forward.stop()
                 self._forward = None
 
+    @cached_classproperty
+    def _server_info(self) -> "List[Dict[str, str]]":
+        server_path = environ.get_asset_path("android-frida.json")
+        server_data = json.loads(utils.read_file(server_path, text=True))
+        return server_data["ANDROID_TOOL_FRIDA_SERVER"]
+
     @classmethod
     def _get_executables(cls, abi: str, version: str):
         result = []
-        configs = environ.get_config("ANDROID_TOOL_FRIDA_SERVER", type=list)
-        for config in configs:
+        for config in cls._server_info:
+            config = dict(config)
             config.update(version=version, abi=abi)
             min_version = config.get("min_version", "0.0.0")
             max_version = config.get("max_version", "99999.0.0")

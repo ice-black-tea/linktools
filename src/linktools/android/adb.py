@@ -416,20 +416,22 @@ class Device(BaseDevice):
         return utils.bool(utils.int(out, default=0), default=False)
 
     @cached_classproperty
-    def agent_info(self) -> dict:
-        agent_info = environ.get_config("ANDROID_TOOL_BRIDGE_APK", type=dict)
+    def _agent_info(self) -> dict:
+        agent_path = environ.get_asset_path("android-tools.json")
+        agent_data = json.loads(utils.read_file(agent_path, text=True))
+        agent_info = agent_data["ANDROID_TOOL_BRIDGE_APK"]
         agent_info["start_flag"] = f"__start_flag_{agent_info['md5']}__"
         agent_info["end_flag"] = f"__end_flag_{agent_info['md5']}__"
         return agent_info
 
     @cached_property
-    def agent_path(self) -> str:
+    def _agent_path(self) -> str:
         """
         初始化agent
         :return: agent路径
         """
-        apk_name = self.agent_info["name"]
-        apk_md5 = self.agent_info["md5"]
+        apk_name = self._agent_info["name"]
+        apk_md5 = self._agent_info["md5"]
 
         apk_path = environ.get_asset_path(apk_name)
         target_dir = self.get_storage_path("apk", apk_md5)
@@ -451,13 +453,13 @@ class Device(BaseDevice):
         :param flag: 是否添加flag
         :return: 参数列表
         """
-        agent_info = self.agent_info
+        agent_info = self._agent_info
         start_flag = agent_info["start_flag"]
         end_flag = agent_info["end_flag"]
         main_class = agent_info["main"]
 
         agent_args = [
-            "CLASSPATH=%s" % self.agent_path,
+            "CLASSPATH=%s" % self._agent_path,
             "app_process", "/", main_class,
         ]
 
@@ -478,7 +480,7 @@ class Device(BaseDevice):
         :param args: 参数
         :return: 输出结果
         """
-        agent_info = self.agent_info
+        agent_info = self._agent_info
         start_flag = agent_info["start_flag"]
         end_flag = agent_info["end_flag"]
 

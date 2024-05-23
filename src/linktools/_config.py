@@ -257,25 +257,23 @@ class Config:
     def __init__(
             self,
             environ: "BaseEnviron",
-            config: ConfigDict,
+            data: ConfigDict,
             namespace: str = __missing__,
             prefix: str = __missing__,
-            share: bool = False
     ):
         """
         初始化配置对象
         :param environ: 环境对象
-        :param config: 配置相关数据
+        :param data: 配置相关数据
         :param namespace: 缓存对应的命名空间
         :param prefix: 环境变量前缀
-        :param share: 是否共享配置
         """
         self._environ = environ
-        self._config = config if share else pickle.loads(pickle.dumps(config))
+        self._data = data
         self._namespace = namespace if namespace != __missing__ else "MAIN"
         self._prefix = prefix.upper() if prefix != __missing__ else ""
         self._reload = None
-        self._cache = dict()
+        self._cache_data = dict()
         self._cache_path = self._environ.get_data_path(f"{self._environ.name}.cfg", create_parent=True)
         self.load_cache()
 
@@ -324,25 +322,25 @@ class Config:
                 value = os.environ.get(env_key)
                 return self.cast(value, type=type)
 
-            if key in self._cache:
-                value = self._cache.get(key)
-                prop = self._config.get(key, None)
+            if key in self._cache_data:
+                value = self._cache_data.get(key)
+                prop = self._data.get(key, None)
                 if self.reload:
                     if isinstance(prop, ConfigProperty) and prop.reloadable:
                         with self.__lock__:
-                            value = self._cache[key] = prop.load(self, key, type=type, cache=value)
+                            value = self._cache_data[key] = prop.load(self, key, type=type, cache=value)
                             return value
                     if isinstance(default, ConfigProperty) and default.reloadable:
                         with self.__lock__:
-                            value = self._cache[key] = default.load(self, key, type=type, cache=value)
+                            value = self._cache_data[key] = default.load(self, key, type=type, cache=value)
                             return value
                 return self.cast(value, type=type)
 
-            if key in self._config:
-                value = self._config.get(key)
+            if key in self._data:
+                value = self._data.get(key)
                 if isinstance(value, ConfigProperty):
                     with self.__lock__:
-                        value = self._cache[key] = value.load(self, key, type=type)
+                        value = self._cache_data[key] = value.load(self, key, type=type)
                         return value
                 return self.cast(value, type=type)
 
@@ -356,7 +354,7 @@ class Config:
 
         if isinstance(default, ConfigProperty):
             with self.__lock__:
-                value = self._cache[key] = default.load(self, key, type=type)
+                value = self._cache_data[key] = default.load(self, key, type=type)
             return value
 
         return default
@@ -365,8 +363,8 @@ class Config:
         """
         遍历配置名，默认不遍历内置配置
         """
-        keys = set(self._config.keys())
-        keys.update(self._cache.keys())
+        keys = set(self._data.keys())
+        keys.update(self._cache_data.keys())
         for key in os.environ.keys():
             if key.startswith(self._prefix):
                 keys.add(key[len(self._prefix):])
@@ -384,37 +382,37 @@ class Config:
         """
         更新配置
         """
-        self._config[key] = value
+        self._data[key] = value
 
     def set_default(self, key: str, value: Any) -> Any:
         """
         设置默认配置
         """
-        return self._config.setdefault(key, value)
+        return self._data.setdefault(key, value)
 
     def update(self, **kwargs) -> None:
         """
         更新配置
         """
-        self._config.update(**kwargs)
+        self._data.update(**kwargs)
 
     def update_defaults(self, **kwargs) -> None:
         """
         更新默认配置
         """
         for key, value in kwargs.items():
-            self._config.setdefault(key, value)
+            self._data.setdefault(key, value)
 
     def update_from_file(self, path: str, load: Callable[[IO[Any]], Mapping] = None) -> bool:
         """
         加载配置文件，按照扩展名来匹配相应的加载规则
         """
         if load is not None:
-            return self._config.update_from_file(path, load=load)
+            return self._data.update_from_file(path, load=load)
         if path.endswith(".py"):
-            return self._config.update_from_pyfile(path)
+            return self._data.update_from_pyfile(path)
         elif path.endswith(".json"):
-            return self._config.update_from_file(path, load=json.load)
+            return self._data.update_from_file(path, load=json.load)
         self._environ.logger.debug(f"Unsupported config file: {path}")
         return False
 
@@ -454,8 +452,8 @@ class Config:
         """
         parser = ConfigCacheParser(self)
         with self.__lock__:
-            self._cache.clear()
-            self._cache.update(parser.items())
+            self._cache_data.clear()
+            self._cache_data.update(parser.items())
 
     def save_cache(self, **kwargs: Any) -> None:
         """
@@ -465,7 +463,7 @@ class Config:
         parser = ConfigCacheParser(self)
         with self.__lock__:
             for key, value in kwargs.items():
-                self._cache[key] = value
+                self._cache_data[key] = value
                 parser.set(key, self.cast(value, type=str))
         parser.dump()
 
@@ -477,14 +475,14 @@ class Config:
         parser = ConfigCacheParser(self)
         with self.__lock__:
             for key in keys:
-                self._cache.pop(key, None)
+                self._cache_data.pop(key, None)
                 parser.remove(key)
         parser.dump()
 
     def __contains__(self, key) -> bool:
         return f"{self._prefix}{key}" in os.environ or \
-            key in self._config or \
-            key in self._cache
+            key in self._data or \
+            key in self._cache_data
 
     def __getitem__(self, key: str) -> Any:
         return self.get(key)
@@ -658,8 +656,7 @@ class ConfigWrapper(Config):
     ):
         super().__init__(
             config._environ,
-            config._config,
+            config._data,
             namespace=namespace if namespace != __missing__ else config._namespace,
-            prefix=prefix if prefix != __missing__ else config._prefix,
-            share=True
+            prefix=prefix if prefix != __missing__ else config._prefix
         )
