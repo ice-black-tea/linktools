@@ -9,20 +9,20 @@ import java.util.NoSuchElementException;
 /**
  * Created by HuJi on 2017/12/29.
  * <p>easy to use java reflection</p>
- * <pre>type ccc = ReflectHelper.get().invoke("aaa", "bbb");</pre>
+ * <pre>type ccc = ReflectHelper.getDefault().invoke("aaa", "bbb");</pre>
  */
 
 @SuppressWarnings({"unused", "WeakerAccess", "SameParameterValue"})
 public class ReflectHelper {
 
-    private static final ReflectHelper INSTANCE = new ReflectHelper();
+    private static final ReflectHelper DEFAULT = new ReflectHelper();
 
-    public static ReflectHelper get() {
-        return INSTANCE;
+    public static ReflectHelper getDefault() {
+        return DEFAULT;
     }
 
     public static ReflectHelper get(ClassLoader classLoader) {
-        return classLoader == null ? get() : new ReflectHelper(classLoader);
+        return classLoader == null ? getDefault() : new ReflectHelper(classLoader);
     }
 
     private final ClassLoader mClassLoader;
@@ -71,12 +71,11 @@ public class ReflectHelper {
     }
 
     public Method findMatchedMethod(String className, String methodName, Object... args)
-            throws ClassNotFoundException, NoSuchMethodException {
+            throws ClassNotFoundException {
         return findMatchedMethod(loadClass(className), methodName, args);
     }
 
-    public Method findMatchedMethod(Class<?> clazz, String methodName, Object... args)
-            throws NoSuchMethodException {
+    public Method findMatchedMethod(Class<?> clazz, String methodName, Object... args) {
         Class<?> tmp = clazz;
         for (; tmp != null; tmp = tmp.getSuperclass()) {
             Method[] methods = tmp.getDeclaredMethods();
@@ -223,8 +222,8 @@ public class ReflectHelper {
     }
 
     public Constructor<?> getConstructor(Class<?> clazz, Class<?>... parameterTypes)
-            throws ClassNotFoundException, NoSuchMethodException {
-        Constructor constructor = clazz.getConstructor(parameterTypes);
+            throws NoSuchMethodException {
+        Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
         if (!constructor.isAccessible()) {
             constructor.setAccessible(true);
         }
@@ -239,8 +238,8 @@ public class ReflectHelper {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T newInstance(Class clazz)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+    public <T> T newInstance(Class<?> clazz)
+            throws NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException {
         return (T) getConstructor(clazz).newInstance();
     }

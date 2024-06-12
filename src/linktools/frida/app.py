@@ -761,6 +761,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         for process in self.device.enumerate_processes():
             if process.pid == pid:
                 target_process = process
+                break
         if target_process is None:
             raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}'")
 

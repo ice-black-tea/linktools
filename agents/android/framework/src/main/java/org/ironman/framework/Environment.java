@@ -58,11 +58,12 @@ public final class Environment {
             PackageManager packageManager = application.getPackageManager();
             String name = packageManager.getNameForUid(Process.myUid());
             if (!TextUtils.isEmpty(name)) {
-                Object context = ReflectHelper.get().get(application, "mBase");
-                ReflectHelper.get().set(context, "mBasePackageName", name);
-                ReflectHelper.get().set(context, "mOpPackageName", name);
-                Object loadedApk = ReflectHelper.get().get(context, "mPackageInfo");
-                ReflectHelper.get().set(loadedApk, "mPackageName", name);
+                ReflectHelper helper = ReflectHelper.getDefault();
+                Object context = helper.get(application, "mBase");
+                helper.set(context, "mBasePackageName", name);
+                helper.set(context, "mOpPackageName", name);
+                Object loadedApk = helper.get(context, "mPackageInfo");
+                helper.set(loadedApk, "mPackageName", name);
             }
         } catch (Exception e) {
             LogUtil.printStackTrace(TAG, e, null);

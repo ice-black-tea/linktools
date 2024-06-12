@@ -2,6 +2,7 @@ package android.tools;
 
 import android.tools.command.Command;
 import android.tools.processor.CommandUtils;
+import android.util.Log;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -58,7 +59,7 @@ public class Main {
         try {
             parseArgs(args);
         } catch (Throwable th) {
-            Output.err.print(th.getMessage());
+            Output.err.println(Log.getStackTraceString(th));
             System.exit(-1);
         }
     }

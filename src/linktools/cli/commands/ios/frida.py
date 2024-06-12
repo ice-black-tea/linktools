@@ -43,8 +43,8 @@ class Command(IOSCommand):
     """
 
     def main(self, *args, **kwargs) -> None:
-        self.environ.config.set_default("SHOW_LOG_LEVEL", True)
-        self.environ.config.set_default("SHOW_LOG_TIME", True)
+        self.environ.config.set("SHOW_LOG_LEVEL", True)
+        self.environ.config.set("SHOW_LOG_TIME", True)
         return super().main(*args, **kwargs)
 
     @property

@@ -29,8 +29,8 @@ public class ActivityManagerProxy implements InvocationHandler {
         }
 
         try {
-            mActivityManagerSingleton = ReflectHelper.get().get(targetClass, targetField);
-            mActivityManager = ReflectHelper.get().invoke(mActivityManagerSingleton, "get");
+            mActivityManagerSingleton = ReflectHelper.getDefault().get(targetClass, targetField);
+            mActivityManager = ReflectHelper.getDefault().invoke(mActivityManagerSingleton, "get");
         } catch (Exception e) {
             LogUtil.printStackTrace(TAG, e, null);
         }
@@ -41,7 +41,7 @@ public class ActivityManagerProxy implements InvocationHandler {
             try {
                 Object proxy = Proxy.newProxyInstance(mActivityManager.getClass().getClassLoader(),
                         mActivityManager.getClass().getInterfaces(), this);
-                ReflectHelper.get().set(mActivityManagerSingleton, "mInstance", proxy);
+                ReflectHelper.getDefault().set(mActivityManagerSingleton, "mInstance", proxy);
                 mReplaced = true;
             } catch (Exception e) {
                 LogUtil.printStackTrace(TAG, e, null);
@@ -52,7 +52,7 @@ public class ActivityManagerProxy implements InvocationHandler {
     public synchronized void restoreActivityManagerService() {
         if (mReplaced) {
             try {
-                ReflectHelper.get().set(mActivityManagerSingleton, "mInstance", mActivityManager);
+                ReflectHelper.getDefault().set(mActivityManagerSingleton, "mInstance", mActivityManager);
                 mReplaced = false;
             } catch (Exception e) {
                 LogUtil.printStackTrace(TAG, e, null);

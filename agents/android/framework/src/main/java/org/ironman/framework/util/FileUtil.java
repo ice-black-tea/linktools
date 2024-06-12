@@ -4,6 +4,8 @@ import org.ironman.framework.Const;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -50,6 +52,25 @@ public class FileUtil {
             writer.write(buffer);
         } finally {
             CommonUtil.closeQuietly(writer);
+        }
+    }
+
+    public static void copy(String src, String dest) throws IOException {
+        FileInputStream fis = null;
+        FileOutputStream fos = null;
+
+        try {
+            fis = new FileInputStream(src);
+            fos = new FileOutputStream(dest);
+            int lenth = 0;
+            byte[] buffer = new byte[1024];
+            while (-1 != (lenth = fis.read(buffer))) {
+                fos.write(buffer, 0, lenth);
+            }
+            fos.flush();
+        } finally {
+            CommonUtil.closeQuietly(fis);
+            CommonUtil.closeQuietly(fos);
         }
     }
 
