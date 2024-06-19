@@ -128,7 +128,7 @@ class Device(BaseDevice):
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
             environ.logger.info(f"Download file: {path_or_url}")
             file = environ.get_url_file(path_or_url)
-            ipa_path = file.save()
+            ipa_path = file.download()
             environ.logger.info(f"Save file to local: {ipa_path}")
         return self.exec("app", "install", "--path", ipa_path, **kwargs)
 

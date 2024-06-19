@@ -173,6 +173,6 @@ class AndroidFridaServer(FridaServer):
             with environ.get_url_file(self.url) as file:
                 if os.path.exists(self.path):
                     return
-                with lzma.open(file.save(), "rb") as read, open(self.path, "wb") as write:
+                with lzma.open(file.download(), "rb") as read, open(self.path, "wb") as write:
                     shutil.copyfileobj(read, write)
                 file.clear()

@@ -378,7 +378,7 @@ class Tool(metaclass=ToolMeta):
             self._tools.logger.info(f"Download {self}: {self.download_url}")
             url_file = self._tools.environ.get_url_file(self.download_url)
             temp_dir = self._tools.environ.get_temp_path("tools", "cache")
-            temp_path = url_file.save(to_dir=temp_dir)
+            temp_path = url_file.save(temp_dir)
             if not utils.is_empty(self.unpack_path):
                 self._tools.logger.debug(f"Unpack {self} to {self.root_path}")
                 shutil.unpack_archive(temp_path, self.root_path)

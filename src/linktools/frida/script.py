@@ -134,7 +134,7 @@ class FridaShareScript(FridaUserScript):
                 file.clear()
 
             _logger.info(f"Download {self}")
-            target_path = file.save()
+            target_path = file.download()
 
             source = utils.read_file(target_path, text=True)
             if self._trusted:

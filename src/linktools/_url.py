@@ -73,7 +73,6 @@ class DownloadContext:
     file_size: int = DownloadContextVar("FileSize")
     file_name: str = DownloadContextVar("FileName")
     completed: bool = DownloadContextVar("IsCompleted", False)
-    max_times: int = DownloadContextVar("MaxTimes")
 
     def __init__(self, environ: "BaseEnviron", path: str):
         self._environ = environ
@@ -198,7 +197,7 @@ class UrlFile:
         self._environ = environ
         self._ident = f"{get_md5(url)}_{guess_file_name(url)[-100:]}"
         self._root_path = self._environ.get_temp_path("download", self._ident)
-        self._file_path = os.path.join(self._root_path, "file")
+        self._temp_path = os.path.join(self._root_path, "file")
         self._context_path = os.path.join(self._root_path, "context")
 
     @cached_property
@@ -209,74 +208,62 @@ class UrlFile:
         )
 
     @timeoutable
-    def save(self, to_dir: str = None, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
+    def _download(self, context: DownloadContext, retry: int, timeout: "Timeout", **kwargs) -> str:
+        if os.path.exists(self._temp_path) and context.completed:
+            # 下载完成了，那就不用再下载了
+            self._environ.logger.debug(f"{self._temp_path} downloaded, skip")
+
+        else:
+            # 初始化环境信息
+            context.url = self._url
+            context.file_path = self._temp_path
+            context.file_size = None
+            context.completed = False
+
+            if not context.file_name:
+                context.file_name = guess_file_name(self._url)
+            if not context.user_agent:
+                context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
+
+            # 开始下载
+            last_error = None
+            max_times = 1 + max(retry or 0, 0)
+            for i in range(max_times, 0, -1):
+                try:
+                    if last_error is not None:
+                        self._environ.logger.warning(
+                            f"Download retry {max_times - i}, "
+                            f"{last_error.__class__.__name__}: {last_error}")
+                    context.download(timeout)
+                    context.completed = True
+                    break
+                except Exception as e:
+                    last_error = e
+
+            if not context.completed:
+                raise last_error
+
+        return self._temp_path
+
+    @timeoutable
+    def download(self, retry: int = 2, timeout: "Timeout" = None, **kwargs) -> str:
         """
-        从指定url下载文件
-        :param to_dir: 文件路径，如果为空，则保存到temp目录
-        :param name: 文件名，如果为空，则默认为下载的文件名
+        从指定url下载文件到临时目录
         :param timeout: 超时时间
         :param retry: 重试次数
         :return: 文件路径
         """
 
-        lock = self._lock
-        target_path = self._file_path
-
         try:
-            lock.acquire(timeout=timeout.remain, poll_interval=1)
+            self._lock.acquire(timeout=timeout.remain, poll_interval=1)
 
             if not os.path.exists(self._root_path):
-                os.makedirs(self._root_path)
+                os.makedirs(self._root_path, exist_ok=True)
 
             with DownloadContext(self._environ, self._context_path) as context:
+                temp_path = self._download(context, retry, timeout, **kwargs)
 
-                if os.path.exists(self._file_path) and context.completed:
-                    # 下载完成了，那就不用再下载了
-                    self._environ.logger.debug(f"{self._file_path} downloaded, skip")
-
-                else:
-                    # 初始化环境信息
-                    context.url = self._url
-                    context.file_path = self._file_path
-                    context.file_size = None
-
-                    if not context.file_name:
-                        context.file_name = name or guess_file_name(self._url)
-                    if not context.user_agent:
-                        context.user_agent = kwargs.pop("user_agent", None) or user_agent("chrome")
-
-                    # 开始下载
-                    last_error = None
-                    context.completed = False
-                    context.max_times = 1 + max(retry or 0, 0)
-                    for i in range(context.max_times, 0, -1):
-                        try:
-                            if last_error is not None:
-                                self._environ.logger.warning(
-                                    f"Download retry {context.max_times - i}, "
-                                    f"{last_error.__class__.__name__}: {last_error}")
-                            context.download(timeout)
-                            context.completed = True
-                            break
-                        except Exception as e:
-                            last_error = e
-
-                    if not context.completed:
-                        raise last_error
-
-                if to_dir:
-                    # 如果指定了路径，先创建路径
-                    if not os.path.exists(to_dir):
-                        self._environ.logger.debug(f"{to_dir} does not exist, create")
-                        os.makedirs(to_dir)
-
-                    # 然后把文件保存到指定路径下
-                    target_path = os.path.join(to_dir, name or context.file_name)
-                    self._environ.logger.debug(f"Rename {self._file_path} to {target_path}")
-                    os.rename(self._file_path, target_path)
-
-                    # 把文件移动到指定目录之后，就可以清理缓存文件了
-                    self.clear(timeout=timeout.remain)
+            return temp_path
 
         except DownloadError:
             raise
@@ -285,22 +272,65 @@ class UrlFile:
             raise DownloadError(e)
 
         finally:
-            ignore_error(lock.release)
+            ignore_error(self._lock.release)
 
-        return target_path
+    @timeoutable
+    def save(self, dir: str, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
+        """
+        从指定url下载文件
+        :param dir: 文件路径
+        :param name: 文件名，如果为空，则默认为下载的文件名
+        :param timeout: 超时时间
+        :param retry: 重试次数
+        :return: 文件路径
+        """
 
-    def clear(self, timeout: int = None):
+        try:
+            self._lock.acquire(timeout=timeout.remain, poll_interval=1)
+
+            if not os.path.exists(self._root_path):
+                os.makedirs(self._root_path, exist_ok=True)
+
+            with DownloadContext(self._environ, self._context_path) as context:
+                temp_path = self._download(context, retry, timeout, **kwargs)
+
+                # 先创建文件夹
+                if not os.path.exists(dir):
+                    self._environ.logger.debug(f"{dir} does not exist, create")
+                    os.makedirs(dir)
+
+                # 然后把文件保存到指定路径下
+                target_path = os.path.join(dir, name or context.file_name)
+                self._environ.logger.debug(f"Rename {temp_path} to {target_path}")
+                os.rename(temp_path, target_path)
+
+                # 把文件移动到指定目录之后，就可以清理缓存文件了
+                self.clear(timeout=timeout.remain)
+
+                return target_path
+
+        except DownloadError:
+            raise
+
+        except Exception as e:
+            raise DownloadError(e)
+
+        finally:
+            ignore_error(self._lock.release)
+
+    @timeoutable
+    def clear(self, timeout: "Timeout" = None):
         """
         清空缓存文件
         """
         lock = self._lock
-        with lock.acquire(timeout):
+        with lock.acquire(timeout.remain):
             if not os.path.exists(self._root_path):
                 self._environ.logger.debug(f"{self._root_path} does not exist, skip")
                 return
             self._environ.logger.debug(f"Clear {self._root_path}")
-            if os.path.exists(self._file_path):
-                os.remove(self._file_path)
+            if os.path.exists(self._temp_path):
+                os.remove(self._temp_path)
             if os.path.exists(self._context_path):
                 os.remove(self._context_path)
             if not os.listdir(self._root_path):

@@ -17,16 +17,16 @@ python3 -m pip install -U "linktools[all]"
 # python3 -m pip install --ignore-installed "linktools@ git+https://github.com/ice-black-tea/linktools.git@master"
 ```
 
-额外的依赖项以及相应功能可通过[requirements.yml](https://raw.githubusercontent.com/ice-black-tea/linktools/master/requirements.yml)查看
+额外的依赖项以及相应功能可通过[requirements.yml](https://github.com/ice-black-tea/linktools/blob/master/requirements.yml)查看
 
 ### 配置alias（推荐）
 
 对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置，简化调用方式，如：
 
 ```bash
-# 对于未正确设置PATH环境变量，或者使用venv安装模块
-# 会出现命令找不到的情况（command not found: lt）
+# 对于未正确设置PATH环境变量，或者使用venv安装模块，会出现命令找不到的情况（command not found: lt）
 # 可通过以下命令生成alias脚本添加相关命令
+# 需要注意此处python3需要替换成自己安装环境下的interpreter，比如~/projects/linktools/venv/bin/python
 eval "$(python3 -m linktools.cli.commands.common.env --silent alias --shell bash)"
 
 # 给命令添加自动补全功能
@@ -85,45 +85,28 @@ $ python3 -m linktools
 
 ### 通用功能（脚本前缀为ct-）
 
-#### 👉 ct-cntr
+#### 👉 ct-env
 
 <details>
-<summary>docker/pod容器一键部署工具，集成了包括nginx、nextcloud、redorid等等容器</summary>
+<summary>环境配置相关命令</summary>
 
-```
-$ ct-cntr -h
-usage: ct-cntr [-h] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [--version] COMMAND ...
+##### 常用命令
 
-Deploy docker/pod containers
+```bash
+# 生成alias脚本，常配合~/.bashrc等文件使用
+$ ct-env --silent alias --shell bash
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+# 生成自动补全脚本，常配合~/.bashrc等文件使用
+$ ct-env --silent completion --shell bash
 
-positional arguments:
-  COMMAND              Command Help
-    list               list all containers
-    add                add containers to installed list
-    remove             remove containers from installed list
-    info               display container info
-    up                 deploy installed containers
-    restart            restart installed containers
-    down               stop installed containers
-    exec               exec container command
-    config             manage container configs
-    repo               manage container repository
+# 生成配置java环境变量脚本，常配合~/.bashrc等文件使用
+$ ct-env --silent java 17.0.11 --shell bash
 
-options:
-  -h, --help           show this help message and exit
-  --version            show program's version number and exit
+# 进入已初始化相关环境变量的shell
+$ ct-env shell
 
-log options:
-  --verbose            increase log verbosity
-  --debug              increase linktools's log verbosity, and enable debug mode
-  --time, --no-time    show log time
-  --level, --no-level  show log level
+# 清除项目中7天以上未使用的缓存文件
+$ ct-env clean 7
 ```
 
 </details>
@@ -133,32 +116,7 @@ log options:
 <details>
 <summary>类似linux中的grep，正则匹配文件内容 ，额外添加解析zip、elf等格等功能</summary>
 
-```
-$ usage: ct-grep [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-i] pattern [file ...]
-
-Match files with regular expression
-
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
-
-positional arguments:
-  pattern              regular expression
-  file                 target files path
-
-options:
-  -h, --help           show this help message and exit
-  --version            show program's version number and exit
-  -i, --ignore-case    ignore case
-
-log arguments:
-  --verbose            increase log verbosity
-  --debug              enable debug mode and increase log verbosity
-  --time, --no-time    show log time
-  --level, --no-level  show log level
-```
+![ct-grep](https://raw.githubusercontent.com/ice-black-tea/linktools/master/images/ct-grep.png)
 
 </details>
 
@@ -167,36 +125,41 @@ log arguments:
 <details>
 <summary>读取配置文件，即可下载使用对应工具，声明了adb、jadx、apktool、baksmali等常用工具</summary>
 
-所有声明的工具可通过[配置文件](https://raw.githubusercontent.com/ice-black-tea/linktools/master/src/linktools/template/tools.yml)查看
+##### 常用命令
 
+所有声明的工具可通过[配置文件](https://github.com/ice-black-tea/linktools/blob/master/src/linktools/template/tools.yml)查看，此处以apktool举例
+
+```bash
+# 初始化并执行apktool命令
+$ ct-tools apktool -h
+
+# 查看apktool相关配置
+$ ct-tools --config apktool
+
+# 只初始化不执行
+$ ct-tools --download apktool
+
+# 清除apktool相关文件
+$ ct-tools --clear apktool
+
+# 后台运行apktool
+$ ct-tools --daemon apktool
+
+# 修改apktool版本号
+$ ct-tools --set version=2.5.0 apktool
 ```
-$ usage: ct-tools [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-c | --download | --clear | -d] ...
 
-Tools downloaded from the web
+</details>
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+#### 👉 ct-cntr
 
-positional arguments:
-  {aapt,adb,apksigner,apktool,appcrawler,baksmali,chromedriver,dex2jar,fastboot,ghidra,ipatool,jadx,jadx-gui,jar2dex,java,sib,smali,tidevice,uber-apk-signer,zipalign}
+<details>
+<summary>docker/pod容器一键部署工具，集成了包括nginx、nextcloud、redorid等等容器</summary>
 
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -c, --config          show the config of tool
-  --download            download tool files
-  --clear               clear tool files
-  -d, --daemon          execute tools as a daemon
+##### 参考
 
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-```
+1. [搭建homelab](https://github.com/ice-black-tea/cntr-homelab)
+2. [搭建redroid](https://github.com/redroid-rockchip)
 
 </details>
 
@@ -345,54 +308,6 @@ adb arguments:
 
 </details>
 
-#### 👉 at-inetnt
-
-<details>
-<summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
-
-```
-$ at-intent -h                                                                                                                                      ░▒▓ ✔  12:35:32
-usage: at-intent [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l]
-                 (--setting | --setting-dev | --setting-dev2 | --setting-app [PACKAGE] | --setting-cert PATH | --install PATH | --browser URL)
-
-Common intent actions
-
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
-
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  --setting             start setting activity
-  --setting-dev         start development setting activity
-  --setting-dev2        start development setting activity
-  --setting-app [PACKAGE]
-                        start application setting activity (default: current running package)
-  --setting-cert PATH   install cert (need '/data/local/tmp' write permission)
-  --install PATH        install apk file (need '/data/local/tmp' write permission)
-  --browser URL         start browser activity and jump to url (need scheme, such as https://antiy.cn)
-
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  -e, --emulator        use TCP/IP device (adb -e option)
-  -c IP[:PORT], --connect IP[:PORT]
-                        use device with TCP/IP
-  -l, --last            use last device
-```
-
-</details>
-
 #### 👉 at-app
 
 <details>
@@ -445,7 +360,36 @@ adb arguments:
 
 **输出效果**
 
-![apps](https://raw.githubusercontent.com/ice-black-tea/linktools/master/images/apps.png)
+![at-app](https://raw.githubusercontent.com/ice-black-tea/linktools/master/images/at-app.png)
+
+</details>
+
+#### 👉 at-inetnt
+
+<details>
+<summary>打包了常用intent操作，支持如打开设置界面、开发者选项界面、app设置界面、安装证书、打开浏览器链接等功能</summary>
+
+##### 常用命令
+
+```bash
+# 跳转到设置页
+$ at-intent setting
+
+# 跳转到开发者选项页
+$ at-intent setting-dev
+
+# 跳转到app设置页
+$ at-intent setting-app
+
+# 安装证书
+$ at-intent setting-cert ~/test.crt
+
+# 安装apk
+$ at-intent install https://example.com/test.apk
+
+# 浏览器中打开特定页，也可用于测试url scheme
+$ at-intent browser https://example.com
+```
 
 </details>
 
@@ -454,221 +398,127 @@ adb arguments:
 <details>
 <summary>该功能旨在方便使用frida，可自动下载server，支持加载远程脚本，并内置了常用功能</summary>
 
-提供了以下特性：
-1. 可以支持根据设备和本地安装的frida版本，自动下载并推送frida server到设备，启动frida server自动化完成
+##### 相关特性
+1. 可以支持根据android设备和python的frida版本，全自动完成下载、推送、运行frida server
 2. 监听了spawn进程变化情况，可以同时hook主进程和各个子进程
 3. 监听js文件变化，实时加载
 4. 注入了内置脚本，封装常用功能，如：过ssl pinning
+5. 支持加载远程脚本
+6. 支持重定向设备流量到本地端口
 
-```
-$ at-frida -h                                                                                                                                       ░▒▓ ✔  12:36:48
-usage: at-frida [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | --emulator | --connect IP[:PORT] | --last]
-                [-p PACKAGE] [--spawn] [-P KEY VALUE] [-l SCRIPT] [-e CODE] [-c URL] [--redirect-address ADDRESS] [--redirect-port PORT] [-a]
-
-Easy to use frida (require Android device rooted)
-
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
-
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -p PACKAGE, --package PACKAGE
-                        target package (default: frontmost application)
-  --spawn               inject after spawn (default: false)
-  -P KEY VALUE, --parameters KEY VALUE
-                        user script parameters
-  -l SCRIPT, --load SCRIPT
-                        load user script
-  -e CODE, --eval CODE  evaluate code
-  -c URL, --codeshare URL
-                        load share script url
-  --redirect-address ADDRESS
-                        redirect traffic to target address (default: localhost)
-  --redirect-port PORT  redirect traffic to target port (default: 8080)
-  -a, --auto-start      automatically start when all processes exits
-
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  --emulator            use TCP/IP device (adb -e option)
-  --connect IP[:PORT]   use device with TCP/IP
-  --last                use last device
-```
+##### 使用方式
 
 **1) 以命令行方式运行**
 
-比如要加载 [https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js](https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js) 脚本：
-
-在终端中运行
 ```bash
-$ at-frida -c https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js
+# 从本地加载~/test/frida.js脚本，以spawn模式注入到me.ele进程中
+$ at-frida -l ~/test/frida.js -p me.ele --spawn
+
+# 从远程加载frida脚本，注入到me.ele进程中，并将me.ele流量重定向到本地8080端口
+$ at-frida -c https://raw.githubusercontent.com/ice-black-tea/linktools/master/agents/frida/test/android.js -p me.ele --redirect-port 8080
+
+# 只启动frida-server，不注入脚本
+$ at-frida --serve --remote-port 27042 --local-port 27042 -p fake_package
+
+# 不启动frida-server，通过设备上frida server启动的27042端口，注入到me.ele进程中
+$ at-frida --no-serve --remote-port 27042 -p me.ele
 ```
 
-输出如下：
-```
-[15:24:09]  I  Download ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js)
-[15:24:11]  W  java.js ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1,704/513 bytes ? 100% eta 0:00:00
-[15:24:13]  I  Load trusted ShareScript(filename=https://raw.githubusercontent.com/ice-black-tea/linktools/master/agent/frida/test/java.js)
-[15:24:14]  I  Start frida server ...
-[15:24:15]  I  Frida server is running ...
-[15:24:18]  I  Load ScriptFile(filename=/Users/huji/Projects/linktools/src/linktools/assets/frida.min.js)
-[15:24:19]  I  Session(pid=32087, name=马赛克) attached
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$300()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.access$600()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.decode(java.lang.String)
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.encode(java.lang.String)
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.encode(java.lang.String, java.lang.String)
-[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.fromFile(java.io.File)
-[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.fromParts(java.lang.String, java.lang.String, java.lang.String)
-[15:24:19]  I  Hook method: boolean android.net.Uri.isAllowed(char, java.lang.String)
-[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.parse(java.lang.String)
-[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.withAppendedPath(android.net.Uri, java.lang.String)
-[15:24:19]  I  Hook method: void android.net.Uri.writeToParcel(android.os.Parcel, android.net.Uri)
-[15:24:19]  I  Hook method: android.net.Uri$Builder android.net.Uri.buildUpon()
-[15:24:19]  I  Hook method: void android.net.Uri.checkContentUriWithoutPermission(java.lang.String, int)
-[15:24:19]  I  Hook method: void android.net.Uri.checkFileUriExposed(java.lang.String)
-[15:24:19]  I  Hook method: int android.net.Uri.compareTo(android.net.Uri)
-[15:24:19]  I  Hook method: int android.net.Uri.compareTo(java.lang.Object)
-[15:24:19]  I  Hook method: boolean android.net.Uri.equals(java.lang.Object)
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getAuthority()
-[15:24:19]  I  Hook method: boolean android.net.Uri.getBooleanQueryParameter(java.lang.String, boolean)
-[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.getCanonicalUri()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedAuthority()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedFragment()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedPath()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedQuery()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedSchemeSpecificPart()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getEncodedUserInfo()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getFragment()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getHost()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getLastPathSegment()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getPath()
-[15:24:19]  I  Hook method: java.util.List android.net.Uri.getPathSegments()
-[15:24:19]  I  Hook method: int android.net.Uri.getPort()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getQuery()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getQueryParameter(java.lang.String)
-[15:24:19]  I  Hook method: java.util.Set android.net.Uri.getQueryParameterNames()
-[15:24:19]  I  Hook method: java.util.List android.net.Uri.getQueryParameters(java.lang.String)
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getScheme()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getSchemeSpecificPart()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.getUserInfo()
-[15:24:19]  I  Hook method: int android.net.Uri.hashCode()
-[15:24:19]  I  Hook method: boolean android.net.Uri.isAbsolute()
-[15:24:19]  I  Hook method: boolean android.net.Uri.isHierarchical()
-[15:24:19]  I  Hook method: boolean android.net.Uri.isOpaque()
-[15:24:19]  I  Hook method: boolean android.net.Uri.isPathPrefixMatch(android.net.Uri)
-[15:24:19]  I  Hook method: boolean android.net.Uri.isRelative()
-[15:24:19]  I  Hook method: android.net.Uri android.net.Uri.normalizeScheme()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.toSafeString()
-[15:24:19]  I  Hook method: java.lang.String android.net.Uri.toString()
-[15:24:27]  I  Script(pid=32087, name=马赛克) event count=1 in the Group(pid, method):
-               {
-                 "event_type": "测试",
-                 "event_args": "测试参数",
-                 "class_name": "android.net.Uri",
-                 "method_name": "void android.net.Uri.writeToParcel(android.os.Parcel, android.net.Uri)",
-                 "method_simple_name": "writeToParcel",
-                 "args": [
-                   "android.os.Parcel@b660fca",
-                   null
-                 ],
-                 "error": null,
-                 "stack": [
-                   "android.net.Uri.writeToParcel(Native Method)",
-                   "android.content.Intent.writeToParcel(Intent.java:10840)",
-                   "android.app.IActivityManager$Stub$Proxy.bindIsolatedService(IActivityManager.java:6210)",
-                   "android.app.ContextImpl.bindServiceCommon(ContextImpl.java:1843)",
-                   "android.app.ContextImpl.bindService(ContextImpl.java:1759)",
-                   "android.content.ContextWrapper.bindService(ContextWrapper.java:767)",
-                   "马赛克.RemoteGetterHelper.asyncBindService(SourceFile:124)",
-                   "马赛克.RemoteGetterHelper.initRemoteGetterAndWait(SourceFile:70)",
-                   "马赛克.NetworkProxy.initDelegateInstance(SourceFile:99)",
-                   "马赛克.NetworkProxy.getConnection(SourceFile:51)",
-                   "马赛克.ANetwork.<init>(SourceFile:50)",
-                   "马赛克.DownloadTask.run(SourceFile:130)",
-                   "java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)",
-                   "java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)",
-                   "java.lang.Thread.run(Thread.java:923)"
-                 ]
-[15:24:27]  I  Script(pid=32087, name=马赛克) event count=2 in the Group(pid, method):
-               {
-                 "event_type": "测试",
-                 "event_args": "测试参数",
-                 "class_name": "android.net.Uri",
-                 "method_name": "void android.net.Uri.writeToParcel(android.os.Parcel, android.net.Uri)",
-                 "method_simple_name": "writeToParcel",
-                 "args": [
-                   "android.os.Parcel@36941ab",
-                   null
-                 ],
-                 "error": null,
-                 "stack": [
-                   "android.net.Uri.writeToParcel(Native Method)",
-                   "android.content.Intent.writeToParcel(Intent.java:10840)",
-                   "android.app.IActivityManager$Stub$Proxy.bindIsolatedService(IActivityManager.java:6210)",
-                   "android.app.ContextImpl.bindServiceCommon(ContextImpl.java:1843)",
-                   "android.app.ContextImpl.bindService(ContextImpl.java:1759)",
-                   "android.content.ContextWrapper.bindService(ContextWrapper.java:767)",
-                   "马赛克.bindRemoteService(SourceFile:737)",
-                   "马赛克.asyncGetRemoteService(SourceFile:642)",
-                   "马赛克$2.run(SourceFile:112)",
-                   "java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)",
-                   "java.util.concurrent.FutureTask.run(FutureTask.java:266)",
-                   "java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:301)",
-                   "java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)",
-                   "java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)",
-                   "java.lang.Thread.run(Thread.java:923)"
-                 ]
-               }
-```
+**2) 使用python方式调用**
 
-**2) 当然也可以使用python方式调用**
-
-执行如下python脚本即可自动开启frida-server，并将js代码注入到指定进程中，若需要同时注入子进程，按[src/linktools/cli/scripts/android/frida.py](https://raw.githubusercontent.com/ice-black-tea/linktools/master/src/linktools/cli/scripts/android/frida.py) 重写 FridaApplication 的 on_spawn_added 方法即可
+执行如下python脚本即可自动开启frida-server，并将js代码注入到指定进程，参考[src/linktools/cli/commands/android/frida.py](https://github.com/ice-black-tea/linktools/blob/master/src/linktools/cli/commands/android/frida.py) 
 
 ```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import logging
+from linktools.cli import BaseCommand
 from linktools.frida import FridaApplication, FridaEvalCode
 from linktools.frida.android import AndroidFridaServer
 
-jscode = """
+class Command(BaseCommand):
+
+    def init_arguments(self, parser):
+        pass
+    
+    def run(self, args):
+        code = """
+            Java.perform(function () {
+                JavaHelper.hookMethods(
+                    "java.util.HashMap",
+                     "put",
+                     {stack: false, args: true}
+                );
+            });
+            """
+        
+        with AndroidFridaServer() as server:
+            app = FridaApplication(
+                server,
+                user_scripts=(FridaEvalCode(code),),
+                enable_spawn_gating=True,
+                target_identifiers=rf"^com.topjohnwu.magisk($|:)"
+            )
+            app.inject_all(resume=True)
+            app.run()
+
+
+command = Command()
+if __name__ == "__main__":
+    command.main()
+```
+
+##### 内置接口
+
+e.g. [hook接口](https://github.com/ice-black-tea/linktools/blob/master/agents/frida/lib/java.ts)
+
+```javascript
 Java.perform(function () {
+
+    // hook特定类的指定方法
+    JavaHelper.hookMethod(
+        "me.ele.privacycheck.f",                    // 可以是类名，也可以是类对象 => Java.use("me.ele.privacycheck.f")
+        "a",                                        // 方法名
+        ['android.app.Application', 'boolean'],     // 参数类型
+        function (obj, args) {                      // hook方法实现
+            args[1] = true;
+            return this(obj, args);                 // this代表当前hook方法，obj代表当前hook对象，args代表当前hook方法参数
+        }
+    );
+
+    // hook特定类的所有名为isHttpType的方法
     JavaHelper.hookMethods(
-        "java.util.HashMap", "put", {stack: false, args: true}
+        "anet.channel.entity.ConnType",             // 可以是类名，也可以是类对象
+        "isHttpType",                               // 方法名
+        () => true                                  // hook实现
+    );
+    
+    // hook特定类的所有方法
+    JavaHelper.hookAllMethods(
+        "p.r.o.x.y.PrivacyApi",                     // 可以是类名，也可以是类对象
+        JavaHelper.getEventImpl({                   // 生成一个通用的hook方法
+            stack: true,                            // 打印堆栈
+            args: true,                             // 打印参数返回值
+            thread: false,
+            customKey1: "自定义参数",                 // 自定义参数，会回显日志中
+        })
     );
 });
-"""
+```
 
-if __name__ == "__main__":
+e.g. [扩展接口](https://github.com/ice-black-tea/linktools/blob/master/agents/frida/lib/android.ts)
 
-    logging.basicConfig(level=logging.INFO)
+```javascript
+// 禁用ssl pinning
+AndroidHelper.bypassSslPinning();
 
-    with AndroidFridaServer() as server:
+// 开启webview调试模式
+AndroidHelper.setWebviewDebuggingEnabled();
 
-        app = FridaApplication(
-            server,
-            user_scripts=(FridaEvalCode(jscode),),
-            enable_spawn_gating=True
-        )
-
-        for target_app in app.device.enumerate_applications():
-            if target_app.pid > 0 and target_app.identifier == "com.topjohnwu.magisk":
-                app.load_script(target_app.pid)
-
-        app.run()
+// 类似Java.use()
+// 如果当前classloader不存在需要找的类，则会持续监控动态加载的classloader，直到找到指定类为止
+AndroidHelper.javaUse("p.r.o.x.y.PrivacyApi", function(clazz) {
+    // 终于等到class出现，干点想干的事吧
+});
 ```
 
 </details>

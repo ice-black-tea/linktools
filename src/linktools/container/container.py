@@ -272,7 +272,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             commands = []
             for shell in ["/bin/zsh", "/bin/fish", "/bin/bash", "/bin/ash", "/bin/sh"]:
                 shell_command = [
-                    "if" if len(commands) == 0 else "elif", "[", "-f", shell, "]", ";",
+                    "if" if len(commands) == 0 else "elif", "[", "-x", shell, "]", ";",
                     "then", shell, ";",
                 ]
                 commands.extend(shell_command)
