@@ -32,7 +32,6 @@ import configparser
 import errno
 import json
 import os
-import pickle
 import threading
 from types import ModuleType
 from typing import \
@@ -50,6 +49,9 @@ if TYPE_CHECKING:
     T = TypeVar("T")
     EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
     ConfigType = Literal["path", "json"]
+
+
+SUPPRESS = object()
 
 
 def is_type(obj: Any) -> bool:
@@ -587,8 +589,6 @@ class Config:
 
     class Alias(ConfigProperty):
 
-        DEFAULT = object()
-
         def __init__(
                 self,
                 *keys: str,
@@ -616,8 +616,8 @@ class Config:
 
             else:
                 for key in self.keys:
-                    result = config.get(key, default=self.DEFAULT)
-                    if result is not self.DEFAULT:
+                    result = config.get(key, default=SUPPRESS)
+                    if result is not SUPPRESS:
                         return result
 
                 return self.default

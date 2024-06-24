@@ -1,13 +1,19 @@
 # All tools
 
 _py: &PY
-  depends_on: python
+  depends_on: 'python'
   absolute_path: '{tools.python.absolute_path}'
-  executable_cmdline: [ python, -m, '{name}' ]
+  executable_cmdline:
+    - 'python'
+    - '-m'
+    - '{name}'
 
 _jar: &JAR
-  depends_on: java
-  executable_cmdline: [ java, -jar, '{absolute_path}' ]
+  depends_on: 'java'
+  executable_cmdline:
+    - 'java'
+    - '-jar'
+    - '{absolute_path}'
 
 ############################################################################################
 # java jars
@@ -27,11 +33,6 @@ TOOL_APKTOOL:
   version: '2.9.3'
   download_url: 'https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_{version}.jar'
 
-TOOL_APPCRAWLER:
-  <<: *JAR
-  version: '2.7.4'
-  download_url: 'https://github.com/seveniruby/AppCrawler/releases/download/{version}/appcrawler-{version}-hogwarts.jar'
-
 TOOL_XPATCH:
   <<: *JAR
   version: '5.2'
@@ -39,16 +40,33 @@ TOOL_XPATCH:
 
 TOOL_BURPSUITE:
   <<: *JAR
-  version: '2024.4.2'
+  version: '2023.10'
   depends_on: 'burpsuite-keygen'
   download_url: 'https://portswigger-cdn.net/burp/releases/download?product=pro&type=Jar&version={version}'
   target_path: 'burpsuite_pro_v{version}.jar'
   executable_cmdline:
-    case:
-      - when: { system: [ darwin, linux ] }
-        then: [ java, -Dfile.encoding=utf-8, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, '-javaagent:{tools[burpsuite-keygen].absolute_path}', -jar, '{absolute_path}' ]
-      - when: { system: windows }
-        then: [ java, --add-opens=java.desktop/javax.swing=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED, '-javaagent:{tools[burpsuite-keygen].absolute_path}', -jar, '{absolute_path}' ]
+    when:
+      - system: [darwin, linux]
+        then:
+          - 'java'
+          - '-Dfile.encoding=utf-8'
+          - '--add-opens=java.desktop/javax.swing=ALL-UNNAMED'
+          - '--add-opens=java.base/java.lang=ALL-UNNAMED'
+          - '--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED'
+          - '--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED'
+          - '-javaagent:{tools[burpsuite-keygen].absolute_path}'
+          - '-jar'
+          - '{absolute_path}'
+      - system: windows
+        then:
+          - 'java'
+          - '--add-opens=java.desktop/javax.swing=ALL-UNNAMED'
+          - '--add-opens=java.base/java.lang=ALL-UNNAMED'
+          - '--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED'
+          - '--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED'
+          - '-javaagent:{tools[burpsuite-keygen].absolute_path}'
+          - '-jar'
+          - '{absolute_path}'
       - else: ~
 
 TOOL_BURPSUITE_KEYGEN:
@@ -69,33 +87,37 @@ TOOL_TIDEVICE:
 TOOL_JAVA: &TOOL_JAVA
   version: '17.0.8' # '11.0.18'
   download_url:
-    case:
-      - when: { system: darwin, machine: arm64 }
+    when:
+      - system: darwin
+        machine: arm64
         then: 'https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_macos-aarch64_bin.tar.gz'
-      - when: { system: darwin, machine: x86_64 }
+      - system: darwin
+        machine: x86_64
         then: 'https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_macos-x64_bin.tar.gz'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: 'https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_linux-x64_bin.tar.gz'
-      - when: { system: windows, machine: amd64 }
+      - system: windows
+        machine: amd64
         then: 'https://github.com/SAP/SapMachine/releases/download/sapmachine-{version}/sapmachine-jdk-{version}_windows-x64_bin.zip'
       - else: ~
   unpack_path: 'java-{version}'
   target_path:
-    case:
-      - when: { system: darwin }
+    when:
+      - system: darwin
         then: 'sapmachine-jdk-{version}.jdk/Contents/Home/bin/{name}'
-      - when: { system: linux }
+      - system: linux
         then: 'sapmachine-jdk-{version}/bin/{name}'
-      - when: { system: windows }
+      - system: windows
         then: 'sapmachine-jdk-{version}\bin\{name}.exe'
       - else: ~
   home_path:
-    case:
-      - when: { system: darwin }
+    when:
+      - system: darwin
         then: '{root_path}/sapmachine-jdk-{version}.jdk/Contents/Home'
-      - when: { system: linux }
+      - system: linux
         then: '{root_path}/sapmachine-jdk-{version}'
-      - when: { system: windows }
+      - system: windows
         then: '{root_path}\sapmachine-jdk-{version}'
 
 TOOL_JARSIGNER:
@@ -109,10 +131,10 @@ TOOL_DEX2JAR: &TOOL_DEX2JAR
   download_url: 'https://github.com/pxb1988/dex2jar/releases/download/v{version}/dex-tools-v{version}.zip'
   unpack_path: 'dex2jar-{version}'
   target_path:
-    case:
-      - when: { system: [darwin, linux] }
+    when:
+      - system: [darwin, linux]
         then: 'dex-tools-v{version}/d2j-{name}.sh'
-      - when: { system: windows }
+      - system: windows
         then: 'dex-tools-v{version}\d2j-{name}.bat'
       - else: ~
 
@@ -127,10 +149,10 @@ TOOL_ADB: &TOOL_ADB
   download_url: 'https://dl.google.com/android/repository/platform-tools-{version}-{system}.zip'
   unpack_path: 'platform-tools-{version}'
   target_path:
-    case:
-      - when: { system: [darwin, linux] }
+    when:
+      - system: [darwin, linux]
         then: 'platform-tools/{name}'
-      - when: { system: windows }
+      - system: windows
         then: 'platform-tools\{name}.exe'
       - else: ~
 
@@ -144,20 +166,20 @@ TOOL_AAPT: &TOOL_AAPT
   version: 'r34'
   version_name: 'android-14'
   download_url:
-    case:
-      - when: { system: darwin }
+    when:
+      - system: darwin
         then: 'https://dl.google.com/android/repository/build-tools_{version}-macosx.zip'
-      - when: { system: linux }
+      - system: linux
         then: 'https://dl.google.com/android/repository/build-tools_{version}-linux.zip'
-      - when: { system: windows }
+      - system: windows
         then: 'https://dl.google.com/android/repository/build-tools_{version}-windows.zip'
       - else: ~
   unpack_path: 'build-tools-{version}'
   target_path:
-    case:
-      - when: { system: [darwin, linux] }
+    when:
+      - system: [darwin, linux]
         then: '{version_name}/{name}'
-      - when: { system: windows }
+      - system: windows
         then: '{version_name}\{name}.exe'
       - else: ~
 
@@ -170,10 +192,10 @@ TOOL_ZIPALIGN:
 TOOL_APKSIGNER:
   <<: *TOOL_AAPT
   target_path:
-    case:
-      - when: { system: [darwin, linux] }
+    when:
+      - system: [darwin, linux]
         then: '{version_name}/{name}'
-      - when: { system: windows }
+      - system: windows
         then: '{version_name}\{name}.bat'
       - else: ~
 
@@ -182,14 +204,14 @@ TOOL_APKSIGNER:
 ############################################################################################
 TOOL_JADX: &TOOL_JADX
   version: '1.5.0'
-  depends_on: java
+  depends_on: 'java'
   download_url: 'https://github.com/skylot/jadx/releases/download/v{version}/jadx-{version}.zip'
   unpack_path: 'jadx-{version}'
   target_path:
-    case:
-      - when: { system: [darwin, linux] }
+    when:
+      - system: [darwin, linux]
         then: 'bin/{name}'
-      - when: { system: windows }
+      - system: windows
         then: 'bin\{name}.bat'
       - else: ~
   environment:
@@ -206,22 +228,25 @@ TOOL_CHROMEDRIVER:
   version: '80.0.3987.106'
   base_url: 'http://chromedriver.storage.googleapis.com'
   download_url:
-    case:
-      - when: { system: darwin, machine: arm64 }
+    when:
+      - system: darwin1
+        machine: arm64
         then: '{base_url}/{version}/chromedriver_mac64_m1.zip'
-      - when: { system: darwin, machine: x86_64 }
+      - system: darwin
+        machine: x86_64
         then: '{base_url}/{version}/chromedriver_mac64.zip'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: '{base_url}/{version}/chromedriver_linux64.zip'
-      - when: { system: windows }
+      - system: windows
         then: '{base_url}/{version}/chromedriver_win32.zip'
       - else: ~
   unpack_path: 'chromedriver-{version}'
   target_path:
-    case:
-      - when: { system: [darwin, linux] }
+    when:
+      - system: [darwin, linux]
         then: 'chromedriver'
-      - when: { system: windows }
+      - system: windows
         then: 'chromedriver.exe'
       - else: ~
 
@@ -231,22 +256,26 @@ TOOL_CHROMEDRIVER:
 TOOL_SIB:
   version: '1.3.18-20240423'
   download_url:
-    case:
-      - when: { system: darwin, machine: arm64 }
+    when:
+      - system: darwin
+        machine: arm64
         then: 'https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_macosx_arm64.tar.gz'
-      - when: { system: darwin, machine: x86_64 }
+      - system: darwin
+        machine: x86_64
         then: 'https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_macosx_x86_64.tar.gz'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: 'https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_linux_x86_64.tar.gz'
-      - when: { system: windows, machine: amd64 }
+      - system: windows
+        machine: amd64
         then: 'https://github.com/ice-black-tea/sonic-ios-bridge/releases/download/v{version}/sonic-ios-bridge_{version}_windows_x86_64.tar.gz'
       - else: ~
   unpack_path: 'sib-{version}'
   target_path:
-    case:
-      - when: { system: [ darwin, linux ] }
+    when:
+      - system: [darwin, linux]
         then: 'sib'
-      - when: { system: windows }
+      - system: windows
         then: 'sib.exe'
       - else: ~
 
@@ -256,26 +285,34 @@ TOOL_SIB:
 TOOL_IPATOOL:
   version: '2.1.3'
   download_url:
-    case:
-      - when: { system: darwin, machine: arm64 }
+    when:
+      - system: darwin
+        machine: arm64
         then: 'https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-macos-arm64.tar.gz'
-      - when: { system: darwin, machine: x86_64 }
+      - system: darwin
+        machine: x86_64
         then: 'https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-macos-amd64.tar.gz'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: 'https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-linux-amd64.tar.gz'
-      - when: { system: windows, machine: amd64 }
+      - system: windows
+        machine: amd64
         then: 'https://github.com/majd/ipatool/releases/download/v{version}/ipatool-{version}-windows-amd64.tar.gz'
       - else: ~
   unpack_path: 'ipatool-{version}'
   target_path:
-    case:
-      - when: { system: darwin, machine: arm64 }
+    when:
+      - system: darwin
+        machine: arm64
         then: 'bin/ipatool-{version}-macos-arm64'
-      - when: { system: darwin, machine: x86_64 }
+      - system: darwin
+        machine: x86_64
         then: 'bin/ipatool-{version}-macos-amd64'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: 'bin/ipatool-{version}-linux-amd64'
-      - when: { system: windows, machine: amd64 }
+      - system: windows
+        machine: amd64
         then: 'bin\ipatool-{version}-windows-amd64.exe'
       - else: ~
 
@@ -285,14 +322,14 @@ TOOL_IPATOOL:
 TOOL_FLINUX:
   version: '20240505'
   download_url:
-    case:
-      - when: { system: windows }
+    when:
+      - system: windows
         then: 'https://github.com/ice-black-tea/archives/releases/download/flinux-{version}/flinux.zip'
       - else: ~
   unpack_path: 'flinux-{version}'
   target_path:
-    case:
-      - when: { system: windows }
+    when:
+      - system: windows
         then: 'flinux.exe'
       - else: ~
 
@@ -300,44 +337,54 @@ TOOL_FLINUX:
 # vdexExtractor
 ############################################################################################
 TOOL_VDEX_EXTRACTOR:
+  name: 'vdexExtractor'
   version: '20240430'
   depends_on:
-    case:
-      - when: { system: windows }
+    when:
+      - system: windows
         then: 'flinux'
       - else: ~
   download_url:
-    case:
-      - when: { system: darwin, machine: arm64 }
+    when:
+      - system: darwin
+        machine: arm64
         then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-macos-arm64'
-      - when: { system: darwin, machine: x86_64 }
+      - system: darwin
+        machine: x86_64
         then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-macos-amd64'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-linux-amd64'
-      - when: { system: windows, machine: amd64 }
+      - system: windows
+        machine: amd64
         then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-windows-amd64.exe'
       - else: ~
 
 TOOL_COMPACT_DEX_CONVERTER:
   version: '20240430'
   depends_on:
-    case:
-      - when: { system: windows }
+    when:
+      - system: windows
         then: 'flinux'
       - else: ~
   download_url: 'https://github.com/ice-black-tea/archives/releases/download/compact_dex_converter-{version}/compact_dex_converter.zip'
   unpack_path: 'compact_dex_converter-{version}'
   target_path:
-    case:
-      - when: { system: darwin, machine: [x86_64, arm64] }
+    when:
+      - system: darwin
+        machine: [x86_64, arm64]
         then: 'compact_dex_converter_mac'
-      - when: { system: linux, machine: x86_64 }
+      - system: linux
+        machine: x86_64
         then: 'compact_dex_converter_linux64'
-      - when: { system: windows, machine: amd64 }
+      - system: windows
+        machine: amd64
         then: 'compact_dex_converter_linux'
       - else: ~
   executable_cmdline:
-    case:
-      - when: { system: windows }
-        then: [ flinux, '\??\{absolute_path}' ]
+    when:
+      - system: windows
+        then:
+          - 'flinux'
+          - '\??\{absolute_path}'
       - else: ~

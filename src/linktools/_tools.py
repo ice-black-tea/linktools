@@ -41,111 +41,83 @@ from .metadata import __missing__
 if TYPE_CHECKING:
     from ._environ import BaseEnviron
 
+SUPPRESS = object()
 VALIDATE_KEYS = set()
 INTERNAL_KEYS = set()
 
 
-class Parser(object):
+def _parse_value(config: Dict[str, Any], key: str, default=None):
+    value = utils.get_item(config, key, default=default)
+    if not isinstance(value, dict):
+        # not found "when", use config value
+        return value
 
-    def __init__(self, *items):
-        self._validations = tuple(self._get_validation(item) for item in items)
+    # parse when block:
+    # -----------------------------------------
+    #   field:
+    #     when:                                 <== when_block
+    #       - system: [darwin, linux]
+    #         then: xxx
+    #       - system: windows
+    #         then: yyy
+    #       - else: ~
+    # -----------------------------------------
+    when_block = utils.get_item(value, "when", default=SUPPRESS)
+    if when_block is SUPPRESS or not isinstance(when_block, (tuple, list)):
+        # not found "when", use default value
+        return value
 
-    def parse(self, config: Dict):
-        result = {}
-        for key in config:
-            result[key] = self._extend_field(config, key)
-        return result
-
-    def _extend_field(self, config, key: str, default=None):
-        value = utils.get_item(config, key, default=default)
-
-        if not isinstance(value, dict) or "case" not in value:
-            # not found "case", use config value
-            return value
-
-        # parse case block:
+    for cond_block in when_block:
         # -----------------------------------------
         #   field:
-        #     case:                                 <== case_block
-        #       - when: {system: [darwin, linux]}
-        #         then: xxx
-        #       - when: {system: windows}
+        #     when:
+        #       - system: [darwin, linux]
+        #         then: xxx                         <== then_block
+        #       - system: windows
         #         then: yyy
         #       - else: ~
         # -----------------------------------------
-        case_block = value.get("case")
-        for cond_block in case_block:
-
-            when_block = utils.get_item(cond_block, "when")
-            if when_block is not None:
-                # if it is a "when" block, verify it
+        value = utils.get_item(cond_block, "then", default=SUPPRESS)
+        if value != SUPPRESS:
+            for key in VALIDATE_KEYS:
+                # parse validate block:
                 # -----------------------------------------
                 #   field:
-                #     case:
-                #       - when: {system: [darwin, linux]}   <== when_block
+                #     when:
+                #       - system: [darwin, linux]           <== validate_block
                 #         then: xxx
-                #       - when: {system: windows}
+                #       - system: windows
                 #         then: yyy
                 #       - else: ~
                 # -----------------------------------------
-                for validate in self._validations:
-                    if not validate(config, when_block):
-                        break
-                else:
-                    # all items are verified, return "then"
-                    # -----------------------------------------
-                    #   field:
-                    #     case:
-                    #       - when: {system: [darwin, linux]}
-                    #         then: xxx                         <== then_block
-                    #       - when: {system: windows}
-                    #         then: yyy
-                    #       - else: ~
-                    # -----------------------------------------
-                    return utils.get_item(cond_block, "then", default=default)
+                choice = utils.get_item(cond_block, key, default=SUPPRESS)
+                if choice is not SUPPRESS:
+                    if isinstance(choice, str):
+                        if config[key] != choice:
+                            break
+                    elif isinstance(choice, (tuple, list, set)):
+                        if config[key] not in choice:
+                            break
+            else:
+                # all keys are verified, return "then"
+                return value
 
-            else_block = utils.get_item(cond_block, "else")
-            if else_block is not None:
-                # if it is an else block, return "else"
-                # -----------------------------------------
-                #   field:
-                #     case:
-                #       - when: {system: [darwin, linux]}
-                #         then: xxx
-                #       - when: {system: windows}
-                #         then: yyy
-                #       - else: ~                           <== else_block
-                # -----------------------------------------
-                return else_block
+        # -----------------------------------------
+        #   field:
+        #     when:
+        #       - system: [darwin, linux]
+        #         then: xxx
+        #       - system: windows
+        #         then: yyy
+        #       - else: ~                           <== else_block
+        # -----------------------------------------
+        value = utils.get_item(cond_block, "else", default=SUPPRESS)
+        if value != SUPPRESS:
+            # if it is an else block, return "else"
+            return value
 
-        # use default value
-        return default  # ==> not found "else"
-
-    @classmethod
-    def _get_validation(cls, item: str):
-
-        def validate(config, when_block):
-            when_scope = utils.get_item(when_block, item)
-            if when_scope is not None:
-                # -----------------------------------------
-                #   field:
-                #     case:
-                #       - when: {system: [darwin, linux]}   <== when_scope (system: [darwin, linux])
-                #         then: xxx
-                #       - when: {system: windows}
-                #         then: yyy
-                #       - else: ~
-                # -----------------------------------------
-                value = config[item]
-                if isinstance(when_scope, str):
-                    if value != when_scope:
-                        return False
-                elif isinstance(when_scope, (tuple, list, set)):
-                    if value not in when_scope:
-                        return False
-            return True
-
-        return validate
+    # use default value
+    return default  # ==> not found "else"
 
 
 class ToolProperty(object):
@@ -162,7 +134,7 @@ class ToolProperty(object):
 class ToolMeta(type):
 
     def __new__(mcs, name, bases, attrs):
-        default = {}
+        attrs["__default__"] = default = {}
         for key in list(attrs.keys()):
             if isinstance(attrs[key], ToolProperty):
                 prop: ToolProperty = attrs[key]
@@ -173,8 +145,6 @@ class ToolMeta(type):
                     INTERNAL_KEYS.add(prop_name)
                 default[prop_name] = prop.default
                 attrs[key] = mcs._make_property(prop, prop_name)
-        attrs["__default__"] = default
-        attrs["__parser__"] = Parser(*VALIDATE_KEYS)
         return type.__new__(mcs, name, bases, attrs)
 
     @classmethod
@@ -202,11 +172,11 @@ class ToolExecError(ToolError):
 
 class Tool(metaclass=ToolMeta):
     __default__: Dict
-    __parser__: Parser
 
     name: str = ToolProperty(default=__missing__, raw=True, internal=True)
     system: str = ToolProperty(default=__missing__, raw=True, internal=True, validate=True)
     machine: str = ToolProperty(default=__missing__, raw=True, internal=True, validate=True)
+    version: str = ToolProperty(default="", raw=True)
     depends_on: tuple = ToolProperty(default=[], internal=True)
     download_url: str = ToolProperty(default=__missing__)
     target_path: bool = ToolProperty(default=__missing__, internal=True)
@@ -214,7 +184,6 @@ class Tool(metaclass=ToolMeta):
     unpack_path: str = ToolProperty(default=__missing__, internal=True)
     absolute_path: str = ToolProperty(default=__missing__, internal=True)
     cmdline: str = ToolProperty(default=__missing__)
-    executable: bool = ToolProperty(default=True, internal=True)
     executable_cmdline: tuple = ToolProperty(default=[], internal=True)
     environment: Dict[str, str] = ToolProperty(default={}, internal=True)
 
@@ -224,6 +193,8 @@ class Tool(metaclass=ToolMeta):
 
         self._raw_config: Dict = pickle.loads(pickle.dumps(self.__default__))
         self._raw_config.update(config)
+
+        # set default value
         if self._raw_config.get("name") == __missing__:
             self._raw_config["name"] = name
         if self._raw_config.get("system") == __missing__:
@@ -231,6 +202,7 @@ class Tool(metaclass=ToolMeta):
         if self._raw_config.get("machine") == __missing__:
             self._raw_config["machine"] = self._tools.environ.machine
 
+        # set value from environment
         prefix = self.name.replace("-", "_")
         for key, value in self._raw_config.items():
             if key not in INTERNAL_KEYS:
@@ -242,7 +214,10 @@ class Tool(metaclass=ToolMeta):
 
     @cached_property
     def config(self) -> dict:
-        config = self.__parser__.parse(self._raw_config)
+        config = {
+            key: _parse_value(self._raw_config, key)
+            for key in self._raw_config
+        }
 
         depends_on = utils.get_item(config, "depends_on") or []
         assert isinstance(depends_on, (str, Tuple, List)), \
@@ -297,6 +272,12 @@ class Tool(metaclass=ToolMeta):
         paths = ["tools"]
         if not utils.is_empty(unpack_path):
             paths.append(unpack_path)
+        else:
+            paths.append(
+                f"{self.name}-{self.version}"
+                if self.version
+                else self.name
+            )
         config["root_path"] = root_path = self._tools.environ.get_data_dir(*paths)
 
         if absolute_path:
@@ -326,9 +307,6 @@ class Tool(metaclass=ToolMeta):
                 assert isinstance(executable_cmdline, (str, tuple, list)), \
                     f"{self} executable_cmdline type error, " \
                     f"str/tuple/list was expects, got {type(executable_cmdline)}"
-                # if executable_cmdline is not empty,
-                # set the executable flag to false
-                config["executable"] = False
             else:
                 # if executable_cmdline is empty,
                 # set absolute_path as executable_cmdline
@@ -353,6 +331,15 @@ class Tool(metaclass=ToolMeta):
     @property
     def dirname(self) -> Optional[str]:
         return None if not self.absolute_path else os.path.dirname(self.absolute_path)
+
+    @property
+    def executable(self) -> bool:
+        cmdline = self.executable_cmdline
+        path = cmdline[0] if cmdline else ""
+        if self.absolute_path == path:
+            if self.root_path == os.path.commonpath([self.root_path, path]):
+                return True
+        return False
 
     def get(self, key: str, default: Any = None) -> Any:
         value = self.config.get(key, default)
@@ -381,10 +368,12 @@ class Tool(metaclass=ToolMeta):
             temp_path = url_file.save(temp_dir)
             if not utils.is_empty(self.unpack_path):
                 self._tools.logger.debug(f"Unpack {self} to {self.root_path}")
+                os.makedirs(self.root_path, exist_ok=True)
                 shutil.unpack_archive(temp_path, self.root_path)
                 os.remove(temp_path)
             else:
                 self._tools.logger.debug(f"Move {self} to {self.absolute_path}")
+                os.makedirs(self.root_path, exist_ok=True)
                 shutil.move(temp_path, self.absolute_path)
 
         # change tool file mode
@@ -399,9 +388,9 @@ class Tool(metaclass=ToolMeta):
         if not utils.is_empty(self.unpack_path):
             self._tools.logger.debug(f"Delete {self.root_path}")
             shutil.rmtree(self.root_path, ignore_errors=True)
-        elif self.absolute_path.startswith(self.root_path):
-            self._tools.logger.debug(f"Delete {self.absolute_path}")
-            os.remove(self.absolute_path)
+        elif not utils.is_empty(self.root_path):
+            self._tools.logger.debug(f"Delete {self.root_path}")
+            shutil.rmtree(self.root_path, ignore_errors=True)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:
         self.prepare()
