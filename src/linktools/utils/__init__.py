@@ -34,7 +34,7 @@ from ._utils import (
     coalesce, is_contain, is_empty,
     get_item, pop_item, get_list_item,
     get_md5, get_sha1, get_sha256, make_uuid, gzip_compress,
-    get_path, read_file, write_file,
+    get_path, read_file, write_file, remove_file, clear_directory,
     get_lan_ip, get_wan_ip,
     parse_version, get_char_width,
     make_url, parse_header, parser_cookie, guess_file_name, user_agent,

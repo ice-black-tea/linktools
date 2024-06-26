@@ -112,12 +112,12 @@ class NginxMixin:
         if domain and nginx.enable:
             self.render_template(
                 nginx.get_path("https.conf" if https else "http.conf"),
-                nginx.get_app_path("conf.d", f"{domain}.conf", create_parent=True),
+                nginx.get_app_path("temporary", self.name, f"{domain}.conf", create_parent=True),
                 DOMAIN=domain
             )
             self.render_template(
                 template,
-                nginx.get_app_path("conf.d", f"{domain}_confs", f"{name or self.name}.conf", create_parent=True),
+                nginx.get_app_path("temporary", self.name, f"{domain}_confs", f"{name or self.name}.conf", create_parent=True),
                 DOMAIN=domain
             )
 

@@ -471,6 +471,30 @@ def write_file(path: str, data: [str, bytes], encoding=DEFAULT_ENCODING) -> None
             fd.write(data)
 
 
+def remove_file(path: str) -> None:
+    """
+    删除文件/目录
+    """
+    if os.path.exists(path):
+        if os.path.isdir(path):
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            ignore_error(os.remove, args=(path, ))
+
+
+def clear_directory(path: str) -> None:
+    """
+    删除子目录
+    """
+    if os.path.isdir(path):
+        for name in os.listdir(path):
+            target_path = os.path.join(path, name)
+            if os.path.isdir(target_path):
+                shutil.rmtree(target_path, ignore_errors=True)
+            else:
+                ignore_error(os.remove, args=(target_path,))
+
+
 def get_lan_ip() -> Optional[str]:
     """
     获取本地IP地址

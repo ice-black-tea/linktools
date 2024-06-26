@@ -49,7 +49,7 @@ class Container(BaseContainer):
     @cached_property
     def configs(self):
         return dict(
-            NGINX_TAG="alpine",
+            NGINX_TAG="1.27.0-alpine",
             ROOT_DOMAIN=Config.Prompt(cached=True),
             WILDCARD_DOMAIN=Config.Confirm(default=False, cached=True),
             HTTP_PORT=Config.Prompt(default=80, type=int, cached=True),
@@ -65,18 +65,16 @@ class Container(BaseContainer):
             ))
         )
 
-    def on_starting(self):
-        path = self.get_app_path("conf.d")
-        if not os.path.exists(path):
-            return
-        for name in os.listdir(path):
-            target_path = os.path.join(path, name)
-            if os.path.isdir(target_path):
-                shutil.rmtree(target_path, ignore_errors=True)
-            else:
-                utils.ignore_error(os.remove, args=(target_path,))
-
     def on_started(self):
+        utils.clear_directory(self.get_app_path("conf.d"))
+        for container in self.manager.get_installed_containers():
+            path = self.get_app_path("temporary", container.name)
+            if os.path.isdir(path):
+                shutil.copytree(
+                    path,
+                    self.get_app_path("conf.d", create_parent=True),
+                    dirs_exist_ok=True,
+                )
         self.manager.change_owner(
             self.get_app_path(),
             self.manager.user
@@ -85,3 +83,7 @@ class Container(BaseContainer):
             "exec", "-it", "nginx",
             "sh", "-c", "killall nginx 1>/dev/null 2>&1"
         ).call()
+
+    def on_removed(self):
+        utils.clear_directory(self.get_app_path("temporary"))
+        utils.clear_directory(self.get_app_path("conf.d"))
