@@ -1,11 +1,11 @@
 package debug;
 
-import android.tools.command.Command;
+import android.tools.ICommand;
 
 import com.beust.jcommander.Parameters;
 
 @Parameters(commandNames = "debug")
-public class DebugCommand extends Command {
+public class DebugCommand implements ICommand {
 
     @Override
     public void run() throws Exception {

@@ -1,5 +1,6 @@
 package android.tools.command;
 
+import android.tools.ICommand;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
@@ -9,7 +10,7 @@ import org.ironman.framework.util.GsonUtil;
 import org.ironman.framework.util.NetworkUtil;
 
 @Parameters(commandNames = "network")
-public class NetworkCommand extends Command {
+public class NetworkCommand implements ICommand {
 
     @Parameter(names = {"--tcp-sock"}, order = 3, description = "Display tcp sockets")
     private boolean tcp_sock = false;

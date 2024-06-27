@@ -26,12 +26,11 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,``--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import os
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools import utils
-
-from linktools.cli import AndroidCommand
+from linktools.cli import AndroidCommand, CommandError
 
 
 class Command(AndroidCommand):
@@ -44,13 +43,30 @@ class Command(AndroidCommand):
                             help="run with root privilege")
         parser.add_argument("-u", "--user", action="store",
                             help="run with user privilege")
+        parser.add_argument("--library", metavar="PATH", action="store",
+                            help="library path")
+        parser.add_argument("--plugin", metavar="PATH", action="store",
+                            help="plugin file path")
         parser.add_argument("agent_args", nargs="...", help="agent args")
 
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
+
+        plugin_path = None
+        if args.plugin:
+            if not os.path.exists(args.plugin):
+                raise CommandError(f"Plugin file not found: {args.plugin}")
+            plugin_name = os.path.basename(args.plugin)
+            plugin_path = device.get_data_path("agent", "plugin", plugin_name)
+            device.push(args.plugin, plugin_path)
+
         process = device.popen(
             *device.make_shell_args(
-                *device.make_agent_args(*args.agent_args),
+                *device.make_agent_args(
+                    *args.agent_args,
+                    library_path=args.library,
+                    plugin_path=plugin_path,
+                ),
                 privilege=args.privilege,
                 user=args.user
             )

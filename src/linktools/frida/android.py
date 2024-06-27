@@ -102,7 +102,7 @@ class AndroidFridaServer(FridaServer):
     def _server_info(self) -> "List[Dict[str, str]]":
         server_path = environ.get_asset_path("android-frida.json")
         server_data = json.loads(utils.read_file(server_path, text=True))
-        return server_data["ANDROID_TOOL_FRIDA_SERVER"]
+        return server_data["FRIDA_SERVER"]
 
     @classmethod
     def _get_executables(cls, abi: str, version: str):

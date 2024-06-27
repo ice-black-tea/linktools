@@ -4,6 +4,7 @@ import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.tools.ICommand;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
@@ -17,7 +18,7 @@ import java.util.List;
  */
 
 @Parameters(commandNames = "service")
-public class ServiceCommand extends Command {
+public class ServiceCommand implements ICommand {
 
     @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
     private boolean list = false;

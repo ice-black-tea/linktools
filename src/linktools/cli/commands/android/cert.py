@@ -31,17 +31,17 @@ import hashlib
 import os
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
-from typing import Optional, Type, List
+from typing import Optional, Type, List, Union
 
 import OpenSSL
 from rich import get_console
 from rich.table import Table
 
 from linktools import utils
-from linktools.cli import BaseCommand
+from linktools.cli import subcommand, subcommand_argument, AndroidCommand
 
 
-class Command(BaseCommand):
+class Command(AndroidCommand):
     """
     Display X.509 certificate information
     """
@@ -51,15 +51,36 @@ class Command(BaseCommand):
         return super().known_errors + [OpenSSL.crypto.Error]
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("path", action="store", help="cert path")
+        self.add_subcommands(parser)
 
     def run(self, args: Namespace) -> Optional[int]:
+        subcommand = self.parse_subcommand(args)
+        if not subcommand:
+            return self.print_subcommands(args)
+        return subcommand.run(args)
+
+    @subcommand("install", help="start setting activity", pass_args=True)
+    @subcommand_argument("path", help="cert path")
+    def on_install(self, args: Namespace, path: str):
+        device = args.device_picker.pick()
+        remote_path = device.get_data_path("cert", os.path.basename(path))
+        device.push(path, remote_path, log_output=True)
+        device.shell("am", "start", "--user", "0",
+                     "-n", "com.android.certinstaller/.CertInstallerMain",
+                     "-a", "android.intent.action.VIEW",
+                     "-t", "application/x-x509-ca-cert",
+                     "-d", "file://%s" % remote_path,
+                     log_output=True)
+
+    @subcommand("info", help="display certificate information")
+    @subcommand_argument("path", help="cert path")
+    def on_info(self, path: str):
 
         def format_date(date: str):
             date = datetime.strptime(date, '%Y%m%d%H%M%SZ')
             return date.strftime('%Y-%m-%d %H:%M:%S')
 
-        def format_hex(data: int, length: int = None):
+        def format_hex(data: Union[int, bytes], length: int = None):
             result = f"{data:x}"
             if len(result) % 2 != 0:
                 result = f"0{result}"
@@ -87,7 +108,7 @@ class Command(BaseCommand):
 
         cert = OpenSSL.crypto.load_certificate(
             OpenSSL.crypto.FILETYPE_PEM,
-            utils.read_file(os.path.expanduser(args.path), text=False)
+            utils.read_file(os.path.expanduser(path), text=False)
         )
 
         issuer = cert.get_issuer()
@@ -111,8 +132,6 @@ class Command(BaseCommand):
 
         console = get_console()
         console.print(table)
-
-        return
 
 
 command = Command()

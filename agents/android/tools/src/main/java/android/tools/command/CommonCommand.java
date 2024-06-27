@@ -6,6 +6,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.text.TextUtils;
+import android.tools.ICommand;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
@@ -18,7 +19,7 @@ import org.ironman.framework.util.PackageUtil;
 import java.util.List;
 
 @Parameters(commandNames = "common")
-public class CommonCommand extends Command {
+public class CommonCommand implements ICommand {
 
     @Parameter(names = {"--top-package"}, order = 0, description = "Display top-level package")
     private boolean top_package = false;
@@ -46,7 +47,7 @@ public class CommonCommand extends Command {
             }
         } else if (!TextUtils.isEmpty(apk_file)) {
             List<PackageInfo> packages = PackageUtil.getPackages(apk_file);
-            if (packages.size() > 0) {
+            if (!packages.isEmpty()) {
                 Output.out.print(packages.get(0).applicationInfo.publicSourceDir);
             }
         } else if (!TextUtils.isEmpty(set_clipboard)) {

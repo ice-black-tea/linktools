@@ -15,7 +15,7 @@ public interface Output {
 
     class OutputImpl implements Output {
 
-        private PrintStream printStream = null;
+        private PrintStream printStream;
 
         @Override
         public PrintStream getStream() {
@@ -23,8 +23,9 @@ public interface Output {
         }
 
         @Override
-        public void setStream(PrintStream printStream) {
-            this.printStream = printStream;
+        public Output setStream(PrintStream stream) {
+            this.printStream = stream;
+            return this;
         }
 
         @Override
@@ -33,31 +34,31 @@ public interface Output {
             for (int i = 0; i < indent; i++) {
                 sb.append(" ");
             }
-            printStream.print(sb.toString());
+            printStream.print(sb);
             return this;
         }
 
         @Override
         public Output print(String format, Object... args) {
-            printStream.print(args.length > 0 ? String.format(format, args): format);
+            printStream.print(args.length > 0 ? String.format(format, args) : format);
             return this;
         }
 
         @Override
         public Output print(Object object) {
-            printStream.print(String.valueOf(object));
+            printStream.print(object);
             return this;
         }
 
         @Override
         public Output println(String format, Object... args) {
-            printStream.println(args.length > 0 ? String.format(format, args): format);
+            printStream.println(args.length > 0 ? String.format(format, args) : format);
             return this;
         }
 
         @Override
         public Output println(Object object) {
-            printStream.println(String.valueOf(object));
+            printStream.println(object);
             return this;
         }
 
@@ -75,7 +76,7 @@ public interface Output {
     }
 
     PrintStream getStream();
-    void setStream(PrintStream printStream);
+    Output setStream(PrintStream stream);
     Output indent(int indent);
     Output print(Object object);
     Output print(String format, Object... args);

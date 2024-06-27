@@ -1,5 +1,6 @@
 package android.tools.command;
 
+import android.tools.ICommand;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
@@ -9,7 +10,7 @@ import org.ironman.framework.util.GsonUtil;
 import org.ironman.framework.util.ProcessUtil;
 
 @Parameters(commandNames = "process")
-public class ProcessCommand extends Command {
+public class ProcessCommand implements ICommand {
 
     @Parameter(names = {"--list"}, order = 1, description = "List all processes")
     private boolean list = false;

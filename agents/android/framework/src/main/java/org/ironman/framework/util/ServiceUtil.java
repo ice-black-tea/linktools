@@ -66,14 +66,7 @@ public class ServiceUtil {
     }
 
 
-
-
-
-
-
-
-
-    public static class ServiceUsage{
+    public static class ServiceUsage {
         static final int FLAG_NODE_USER = 0x1;
         static final int FLAG_NODE_OWNER = 0x2;
         String path;
@@ -86,21 +79,17 @@ public class ServiceUtil {
             this.pid = pid;
         }
 
-        boolean isServiceOwner()
-        {
+        boolean isServiceOwner() {
             return (usage & FLAG_NODE_OWNER) != 0;
         }
+
         @Override
         public String toString() {
-            if( (usage & ServiceUsage.FLAG_NODE_OWNER) != 0)
-            {
+            if ((usage & ServiceUsage.FLAG_NODE_OWNER) != 0) {
                 return String.format("Owner: %d\t%s", pid, path);
-            }
-            else if ( (usage & ServiceUsage.FLAG_NODE_USER) != 0)
-            {
+            } else if ((usage & ServiceUsage.FLAG_NODE_USER) != 0) {
                 return String.format("User: %d\t%s", pid, path);
-            }
-            else{
+            } else {
                 //this should not happen
                 return "???";
             }
@@ -110,7 +99,7 @@ public class ServiceUtil {
     public static int getSelfHoldingNode() throws IOException {
         String path = "/sys/kernel/debug/binder/proc/" + Process.myPid();
         String binderstat = FileUtil.readString(path);
-        System.out.println(binderstat);
+//        System.out.println(binderstat);
         return extractStatAndGetServiceNode(binderstat);
     }
 
@@ -118,13 +107,11 @@ public class ServiceUtil {
         //find first "context binder"
         //first ref is usually service manager
         int svcMgrNodeIndex = binderstat.indexOf("context binder");
-        if(svcMgrNodeIndex == -1)
-        {
+        if (svcMgrNodeIndex == -1) {
             throw new IllegalArgumentException("unreachable: the process does not have context binder");
         }
         svcMgrNodeIndex = binderstat.indexOf("node", svcMgrNodeIndex + 1);
-        if(svcMgrNodeIndex == -1)
-        {
+        if (svcMgrNodeIndex == -1) {
             //wtf? cannot find any node?
             throw new IllegalArgumentException("cannot find any node in binder stat");
         }
@@ -135,18 +122,15 @@ public class ServiceUtil {
         return scanner.nextInt();
     }
 
-    private static List<ServiceUsage> iterateProcFs(int nodeid)
-    {
+    private static List<ServiceUsage> iterateProcFs(int nodeid) {
         List<ServiceUsage> usageList = new ArrayList<>();
         File procroot = new File("/sys/kernel/debug/binder/proc/");
-        for(File statFile: procroot.listFiles())
-        {
+        for (File statFile : procroot.listFiles()) {
             try {
                 String binderstat = FileUtil.readString(statFile.getPath());
                 int pid = Integer.parseInt(statFile.getName());
                 int ret = procUserOrOwner(binderstat, nodeid);
-                if(ret != 0)
-                {
+                if (ret != 0) {
                     String procinfo = getProcessNameByPid(pid);
                     usageList.add(new ServiceUsage(procinfo, ret, pid));
                 }
@@ -165,48 +149,35 @@ public class ServiceUtil {
 
         String cmdline = FileUtil.readString(String.format("/proc/%d/cmdline", pid));
         //special handle for app_process
-        if(exePath.contains("app_process"))
-        {
+        if (exePath.contains("app_process")) {
             //use cmdline instead
             return cmdline;
         }
         return cmdline + "\t" + exePath;
     }
 
-    static int procUserOrOwner(String binderstat, int nodeid)
-    {
+    static int procUserOrOwner(String binderstat, int nodeid) {
         int beginindex = binderstat.indexOf("context binder");
         int endindex = binderstat.indexOf("binder proc state", beginindex + 15);
         int result = 0;
 
         String symbol = String.format("node %d", nodeid);
-        if(beginindex == -1)
-        {
+        if (beginindex == -1) {
             //this process only holds one kind of binder, but not what we desired
-        }
-        else{
-            if(endindex != -1)
-            {
-                binderstat = binderstat.substring(beginindex+1, endindex);
+        } else {
+            if (endindex != -1) {
+                binderstat = binderstat.substring(beginindex + 1, endindex);
             }
-            for(String line: binderstat.split("\n"))
-            {
+            for (String line : binderstat.split("\n")) {
                 line = line.trim();
-                if(line.contains(symbol + " ") || line.contains(symbol + ":"))
-                {
-                    if(line.startsWith("ref "))
-                    {
+                if (line.contains(symbol + " ") || line.contains(symbol + ":")) {
+                    if (line.startsWith("ref ")) {
                         //this process uses this binder node
-
                         result |= ServiceUsage.FLAG_NODE_USER;
-                    }
-                    else if(line.startsWith("node "))
-                    {
+                    } else if (line.startsWith("node ")) {
                         //this process holds this binder node
-
                         result |= ServiceUsage.FLAG_NODE_OWNER;
-                    }
-                    else {
+                    } else {
                         //???wtf
                     }
                 }

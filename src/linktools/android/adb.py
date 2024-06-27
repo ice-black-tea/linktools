@@ -30,7 +30,7 @@
 import json
 import re
 import time
-from typing import Any, Generator, List
+from typing import Any, Generator, List, Dict
 
 from .struct import App, UnixSocket, InetSocket, Process
 from .. import utils, environ
@@ -39,6 +39,14 @@ from ..device import BridgeError, Bridge, BaseDevice
 from ..reactor import Stoppable
 
 _logger = environ.get_logger("android.adb")
+_agent_output_pattern = re.compile(
+    r""
+    r"┌─+─┐[^\n]*\n"
+    r"[^\n]*\n"
+    r"└─+─┘[^\n]*\n"
+    r"",
+    re.MULTILINE
+)
 
 
 class AdbError(BridgeError):
@@ -419,10 +427,7 @@ class Device(BaseDevice):
     def _agent_info(self) -> dict:
         agent_path = environ.get_asset_path("android-tools.json")
         agent_data = json.loads(utils.read_file(agent_path, text=True))
-        agent_info = agent_data["ANDROID_TOOL_BRIDGE_APK"]
-        agent_info["start_flag"] = f"__start_flag_{agent_info['md5']}__"
-        agent_info["end_flag"] = f"__end_flag_{agent_info['md5']}__"
-        return agent_info
+        return agent_data["AGENT_APK"]
 
     @cached_property
     def _agent_path(self) -> str:
@@ -434,8 +439,8 @@ class Device(BaseDevice):
         apk_md5 = self._agent_info["md5"]
 
         apk_path = environ.get_asset_path(apk_name)
-        target_dir = self.get_storage_path("apk", apk_md5)
-        target_path = self.get_storage_path("apk", apk_md5, apk_name)
+        target_dir = self.get_data_path("agent", "apk", apk_md5)
+        target_path = self.get_data_path("agent", "apk", apk_md5, apk_name)
 
         # check apk path
         if not self.is_file_exist(target_path):
@@ -446,29 +451,29 @@ class Device(BaseDevice):
 
         return target_path
 
-    def make_agent_args(self, *args: [str], flag: bool = False) -> [str]:
+    def make_agent_args(
+            self,
+            *args: str,
+            data_path: str = None,
+            library_path: str = None,
+            plugin_path: str = None) -> [str]:
         """
         生成agent参数
         :param args: 参数
-        :param flag: 是否添加flag
+        :param data_path: mDataDir路径
+        :param library_path: mLibDir路径
+        :param plugin_path: 插件路径
         :return: 参数列表
         """
-        agent_info = self._agent_info
-        start_flag = agent_info["start_flag"]
-        end_flag = agent_info["end_flag"]
-        main_class = agent_info["main"]
-
-        agent_args = [
-            "CLASSPATH=%s" % self._agent_path,
-            "app_process", "/", main_class,
-        ]
-
-        if flag:
-            agent_args.extend([
-                "--start-flag", start_flag,
-                "--end-flag", end_flag
-            ])
-
+        agent_args = list()
+        agent_args.append(f"CLASSPATH={self._agent_path}")
+        agent_args.append(f"DATA_PATH={data_path or self.get_data_path('agent', 'data')}")
+        if library_path:
+            agent_args.append(f"LIBRARY_PATH={library_path}")
+            agent_args.append(f"LD_LIBRARY_PATH={library_path}:$LD_LIBRARY_PATH")
+        if plugin_path:
+            agent_args.append(f"PLUGIN_PATH={plugin_path}")
+        agent_args.extend(["app_process", "/", self._agent_info["main"]])
         agent_args.extend(args)
 
         return agent_args
@@ -480,24 +485,24 @@ class Device(BaseDevice):
         :param args: 参数
         :return: 输出结果
         """
-        agent_info = self._agent_info
-        start_flag = agent_info["start_flag"]
-        end_flag = agent_info["end_flag"]
-
         # call apk
         result = self.shell(
-            *self.make_agent_args(*args, flag=True),
+            *self.make_agent_args(
+                *args,
+                data_path=kwargs.pop("data_path", None),
+                library_path=kwargs.pop("library_path", None),
+                plugin_path=kwargs.pop("plugin_path", None),
+            ),
             **kwargs
         )
 
-        begin = result.find(start_flag)
-        end = result.rfind(end_flag)
-        if begin >= 0 and end >= 0:
-            begin = begin + len(start_flag)
-            result = result[begin: end]
-        elif begin >= 0:
-            begin = begin + len(start_flag)
-            raise AdbError(result[begin:])
+        if result:
+            match = _agent_output_pattern.search(result)
+            if match is None:
+                raise AdbError(result)
+            index = match.span()[1]
+            result = result[index:]
+
         return result
 
     @utils.timeoutable

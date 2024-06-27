@@ -2,6 +2,10 @@ import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 import java.security.MessageDigest
 
+plugins {
+    id 'maven-publish'
+}
+
 apply plugin: 'com.android.application'
 
 android {
@@ -37,12 +41,11 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation project(':framework')
+    implementation project(':plugin')
     implementation 'com.beust:jcommander:1.82'
-    implementation 'com.google.code.gson:gson:2.9.1'
-    implementation project(path: ':framework')
-
-    compileOnly 'ice.black.tea:android-17:1.0.0'
     annotationProcessor project(':processor')
+    compileOnly 'ice.black.tea:android-17:1.0.0'
 }
 
 
@@ -80,7 +83,7 @@ static def writeConfig(path, config) {
 }
 
 
-task buildTools {
+tasks.register('buildTools') {
 
     buildTools.dependsOn ":tools:assembleRelease"
 
@@ -108,7 +111,7 @@ task buildTools {
                 rename(apkName, targetName)
             }
 
-            def info = config.ANDROID_TOOL_BRIDGE_APK = [:]
+            def info = config.AGENT_APK = [:]
             info.name = targetName
             info.md5 = apkMd5
             info.main = "android.tools.Main"
@@ -118,4 +121,9 @@ task buildTools {
             writeConfig(configPath, config)
         }
     }
+}
+
+tasks.register('sourceJar', Jar) {
+    from android.sourceSets.main.java.srcDirs
+    archiveClassifier = "sources"
 }

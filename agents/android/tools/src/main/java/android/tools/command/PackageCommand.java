@@ -1,6 +1,7 @@
 package android.tools.command;
 
 import android.content.pm.PackageInfo;
+import android.tools.ICommand;
 import android.tools.Output;
 
 import com.beust.jcommander.Parameter;
@@ -14,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Parameters(commandNames = "package")
-public class PackageCommand extends Command {
+public class PackageCommand implements ICommand {
 
     @Parameter(names = {"-p", "--packages"}, variableArity = true, order = 0,
                description = "List packages, list all packages if not set")

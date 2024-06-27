@@ -13,6 +13,8 @@ import org.ironman.framework.util.CommonUtil;
 import org.ironman.framework.util.LogUtil;
 import org.ironman.framework.util.ReflectHelper;
 
+import java.io.File;
+
 public final class Environment {
 
     private static final String TAG = Environment.class.getSimpleName();
@@ -24,7 +26,7 @@ public final class Environment {
                 Looper.prepareMainLooper();
             }
             if (ActivityThread.currentActivityThread() == null) {
-                CommonUtil.runQuietly(ActivityThread::systemMain);
+                ActivityThread.systemMain();
                 initApplication(ActivityThread.currentApplication());
             }
             return ActivityThread.currentApplication();
@@ -54,17 +56,66 @@ public final class Environment {
 
     private static void initApplication(Application application) {
         try {
-            // adapt to usage stats service
+            ReflectHelper helper = ReflectHelper.getDefault();
+            Object context = helper.get(application, "mBase");
+            Object loadedApk = helper.get(context, "mPackageInfo");
+
             PackageManager packageManager = application.getPackageManager();
             String name = packageManager.getNameForUid(Process.myUid());
             if (!TextUtils.isEmpty(name)) {
-                ReflectHelper helper = ReflectHelper.getDefault();
-                Object context = helper.get(application, "mBase");
                 helper.set(context, "mBasePackageName", name);
                 helper.set(context, "mOpPackageName", name);
-                Object loadedApk = helper.get(context, "mPackageInfo");
                 helper.set(loadedApk, "mPackageName", name);
             }
+
+            String appDir = System.getenv("CLASSPATH");
+            if (!TextUtils.isEmpty(appDir)) {
+                try {
+                    File appDirFile = new File(appDir);
+                    helper.set(loadedApk, "mAppDir", appDirFile.getAbsolutePath());
+                    helper.set(loadedApk, "mResDir", appDirFile.getAbsolutePath());
+                } catch (Exception e) {
+                    LogUtil.printStackTrace(TAG, e, null);
+                }
+            }
+
+            String dataDir = System.getenv("DATA_PATH");
+            if (!TextUtils.isEmpty(dataDir)) {
+                File dataDirFile = new File(dataDir);
+                try {
+                    helper.set(loadedApk, "mDataDir", dataDirFile.getAbsolutePath());
+                    helper.set(loadedApk, "mDataDirFile", dataDirFile);
+                } catch (Exception e) {
+                    LogUtil.printStackTrace(TAG, e, null);
+                }
+                try {
+                    helper.set(loadedApk, "mDeviceProtectedDataDirFile", dataDirFile);
+                } catch (Exception e) {
+                    LogUtil.printStackTrace(TAG, e, null);
+                }
+                try {
+                    helper.set(loadedApk, "mCredentialProtectedDataDirFile", dataDirFile);
+                } catch (Exception e) {
+                    LogUtil.printStackTrace(TAG, e, null);
+                }
+                if (!dataDirFile.exists() || !dataDirFile.mkdirs()) {
+                    // ignore
+                }
+            }
+
+            String libDir = System.getenv("LIBRARY_PATH");
+            if (!TextUtils.isEmpty(libDir)) {
+                File libDirFile = new File(libDir);
+                try {
+                    helper.set(loadedApk, "mLibDir", libDirFile.getAbsolutePath());
+                } catch (Exception e) {
+                    LogUtil.printStackTrace(TAG, e, null);
+                }
+                if (!libDirFile.exists() || !libDirFile.mkdirs()) {
+                    // ignore
+                }
+            }
+
         } catch (Exception e) {
             LogUtil.printStackTrace(TAG, e, null);
         }

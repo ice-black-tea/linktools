@@ -1,12 +1,15 @@
 package android.tools;
 
-import android.tools.command.Command;
+import android.annotation.SuppressLint;
 import android.tools.processor.CommandUtils;
 import android.util.Log;
-
 import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
+import java.io.File;
+import java.io.OutputStream;
+import java.io.PrintStream;
+
+import dalvik.system.PathClassLoader;
 
 public class Main {
 
@@ -18,50 +21,106 @@ public class Main {
             Main.class.getName()
     );
 
-    @Parameter(names = "--start-flag", hidden = true)
-    private String startFlag = null;
+    private void printWelcome() {
+        Output.out.println("┌───────────────────────────────────────────────────────┐");
+        Output.out.println("│             Output from android.tools.Main            │");
+        Output.out.println("└───────────────────────────────────────────────────────┘");
+    }
 
-    @Parameter(names = "--end-flag", hidden = true)
-    private String endFlag = null;
+    @SuppressLint("PrivateApi")
+    private IPlugin loadPlugin() throws Exception {
+        String path = System.getenv("PLUGIN_PATH");
+        if (path != null) {
+            if (!new File(path).exists()) {
+                throw new Exception("Plugin not found: " + path);
+            }
+            PathClassLoader classLoader = new PathClassLoader(path, IPlugin.class.getClassLoader());
+            try {
+                Class<?> klass = classLoader.loadClass("android.tools.Plugin");
+                return (IPlugin) klass.newInstance();
+            } catch (ClassNotFoundException e) {
+                throw new Exception("Plugin class 'android.tools.Plugin' not found: " + path);
+            }
+        }
+        return null;
+    }
 
-    private static void parseArgs(String[] args) throws Throwable {
-        Main main = new Main();
+    private void internalMain(String[] args) throws Throwable {
+        IPlugin plugin = loadPlugin();
 
-        JCommander.Builder builder = JCommander.newBuilder().addObject(main);
+        JCommander.Builder builder = JCommander.newBuilder().addObject(this);
         builder.programName(PROGRAM_NAME);
         CommandUtils.addCommands(builder);
+        if (plugin != null) {
+            plugin.init(builder);
+        }
         JCommander commander = builder.build();
         commander.parse(args);
 
-        try {
-            if (main.startFlag != null) {
-                Output.out.print(main.startFlag);
-            }
-            JCommander jCommander = commander.getCommands().get(commander.getParsedCommand());
-            if (jCommander != null) {
-                ((Command) jCommander.getObjects().get(0)).run();
-            } else {
-                commander.usage();
-            }
-        } finally {
-            if (main.endFlag != null) {
-                Output.out.print(main.endFlag);
-            }
+        JCommander jCommander = commander.getCommands().get(commander.getParsedCommand());
+        if (jCommander != null) {
+            ((ICommand) jCommander.getObjects().get(0)).run();
+        } else {
+            StringBuilder sb = new StringBuilder();
+            commander.getUsageFormatter().usage(sb);
+            Output.err.println(sb.toString());
         }
     }
 
     public static void main(String[] args) {
-        if (Output.out.getStream() == null && Output.err.getStream() == null) {
-            Output.out.setStream(System.out);
-            Output.err.setStream(System.err);
-        }
+        Output.out.setStream(System.out);
+        Output.err.setStream(System.err);
+
+        System.setOut(new PrintStream(new LoggerOutputStream() {
+            @Override
+            protected void log(String message) {
+                Log.i("system.out", message);
+            }
+        }));
+        System.setErr(new PrintStream(new LoggerOutputStream() {
+            @Override
+            protected void log(String message) {
+                Log.e("system.err", message);
+            }
+        }));
 
         try {
-            parseArgs(args);
+            Main main = new Main();
+            main.printWelcome();
+            main.internalMain(args);
         } catch (Throwable th) {
             Output.err.println(Log.getStackTraceString(th));
             System.exit(-1);
         }
     }
 
+    private static abstract class LoggerOutputStream extends OutputStream {
+
+        private static class Cache {
+            int length = 0;
+            byte[] data = new byte[4 * 1024];
+        }
+
+        private static final ThreadLocal<Cache> local = new ThreadLocal<Cache>() {
+            @Override
+            protected Cache initialValue() {
+                return new Cache();
+            }
+        };
+
+        @Override
+        public void write(int b) {
+            Cache cache = local.get();
+            if (cache != null) {
+                if (b == '\n' || cache.length >= cache.data.length) {
+                    log(new String(cache.data, 0, cache.length));
+                    cache.length = 0;
+                } else {
+                    cache.data[cache.length++] = (byte) b;
+                }
+            }
+        }
+
+        protected abstract void log(String message);
+    }
 }
