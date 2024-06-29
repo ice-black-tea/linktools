@@ -35,7 +35,7 @@ from linktools.cli import subcommand, subcommand_argument, AndroidCommand
 
 class Command(AndroidCommand):
     """
-    Common intent actions
+    Execute common Android intent actions for automation and testing
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:

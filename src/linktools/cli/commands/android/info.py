@@ -73,7 +73,7 @@ cmds = (
 
 class Command(AndroidCommand):
     """
-    Fetch device information
+    Collect detailed device information
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:

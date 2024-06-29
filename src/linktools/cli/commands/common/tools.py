@@ -38,7 +38,7 @@ from linktools.cli.argparse import KeyValueAction
 
 class Command(BaseCommand):
     """
-    Use the tool from remote url
+    Execute tools directly from remote URLs
     """
 
     def main(self, *args, **kwargs) -> None:

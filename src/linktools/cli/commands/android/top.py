@@ -38,7 +38,7 @@ from linktools.cli import AndroidCommand
 
 class Command(AndroidCommand):
     """
-    Fetch current running app's basic information
+    Fetch basic information about the currently running application
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:

@@ -39,7 +39,7 @@ from linktools.frida.android import AndroidFridaServer
 
 class Command(AndroidCommand):
     """
-    Easy to use frida (require Android device rooted)
+    Use Frida for dynamic analysis on rooted Android devices
     """
 
     def main(self, *args, **kwargs) -> None:

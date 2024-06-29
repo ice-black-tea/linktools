@@ -9,7 +9,7 @@ from linktools.cli import IOSCommand
 
 class Command(IOSCommand):
     """
-    Sib supports managing multiple ios devices
+    Manage multiple iOS devices effortlessly with sib commands
     """
 
     _GENERAL_COMMANDS = [

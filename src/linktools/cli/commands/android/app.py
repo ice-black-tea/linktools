@@ -227,7 +227,7 @@ class AppPrinter:
 
 class Command(AndroidCommand):
     """
-    Fetch application info
+    Retrieve detailed information about installed applications on Android devices
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:

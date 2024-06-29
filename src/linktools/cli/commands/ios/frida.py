@@ -39,7 +39,7 @@ from linktools.frida.ios import IOSFridaServer
 
 class Command(IOSCommand):
     """
-    Easy to use frida (require iOS device jailbreak)
+    Use Frida for dynamic analysis on jailbroken iOS devices
     """
 
     def main(self, *args, **kwargs) -> None:

@@ -40,7 +40,8 @@ class Command(AndroidCommand):
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument('package', nargs='*', help='application package name(s)')
+        parser.add_argument('-p', '--packages', dest='package', action='store', nargs='*', default=None,
+                           help='application package name(s)')
         parser.add_argument('-w', '--tag-width', metavar='N', dest='tag_width', type=int, default=23,
                             help='width of log tag')
         parser.add_argument('-l', '--min-level', dest='min_level', type=str, choices=LOG_LEVELS + LOG_LEVELS.lower(),
@@ -62,7 +63,7 @@ class Command(AndroidCommand):
 
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
-        package = args.package
+        package = args.package or []
         min_level = LOG_LEVELS_MAP[args.min_level.upper()]
 
         if args.current_app:
@@ -180,8 +181,7 @@ class Command(AndroidCommand):
         PID_LINE = re.compile(r'^\w+\s+(\w+)\s+\w+\s+\w+\s+\w+\s+\w+\s+\w+\s+\w\s([\w|\.|\/]+)$')
         PID_START = re.compile(r'^.*: Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$')
         PID_START_5_1 = re.compile(r'^.*: Start proc (\d+):([a-zA-Z0-9._:]+)/[a-z0-9]+ for (.*)$')
-        PID_START_DALVIK = re.compile(
-            r'^E/dalvikvm\(\s*(\d+)\): >>>>> ([a-zA-Z0-9._:]+) \[ userId:0 \| appId:(\d+) \]$')
+        PID_START_DALVIK = re.compile(r'^E/dalvikvm\(\s*(\d+)\): >>>>> ([a-zA-Z0-9._:]+) \[ userId:0 \| appId:(\d+) \]$')
         PID_KILL = re.compile(r'^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$')
         PID_LEAVE = re.compile(r'^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$')
         PID_DEATH = re.compile(r'^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$')

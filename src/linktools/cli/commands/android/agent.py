@@ -36,7 +36,7 @@ from linktools.cli import AndroidCommand, CommandError
 
 class Command(AndroidCommand):
     """
-    Debug android-tools.apk
+    Debug and interact with android-tools.apk for troubleshooting
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:
@@ -44,6 +44,8 @@ class Command(AndroidCommand):
                             help="run with root privilege")
         parser.add_argument("-u", "--user", action="store",
                             help="run with user privilege")
+        parser.add_argument("--data", metavar="PATH", action="store",
+                            help="data path")
         parser.add_argument("--library", metavar="PATH", action="store",
                             help="library path")
         parser.add_argument("--plugin", metavar="PATH", action="store",
@@ -57,6 +59,7 @@ class Command(AndroidCommand):
             *device.make_shell_args(
                 *device.make_agent_args(
                     *args.agent_args,
+                    data_path=args.data or device.get_data_path('agent', 'data'),
                     library_path=args.library,
                     plugin_path=self._push_plugin(device, args.plugin),
                 ),

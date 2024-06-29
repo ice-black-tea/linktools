@@ -37,7 +37,7 @@ from linktools.frida.android import AndroidFridaServer
 
 class Command(AndroidCommand):
     """
-    Easy to use objection (require Android device rooted)
+    Simplify security testing with Objection on rooted Android devices
     """
 
     @property

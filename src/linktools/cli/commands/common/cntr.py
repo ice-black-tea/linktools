@@ -52,7 +52,9 @@ def _iter_installed_container_names():
 
 
 class RepoCommand(BaseCommandGroup):
-    """manage container repository"""
+    """
+    manage container repository
+    """
 
     @property
     def name(self):
@@ -102,7 +104,9 @@ class RepoCommand(BaseCommandGroup):
 
 
 class ConfigCommand(BaseCommand):
-    """manage container configs"""
+    """
+    manage container configs
+    """
 
     @property
     def name(self):
@@ -159,7 +163,9 @@ class ConfigCommand(BaseCommand):
 
 
 class ExecCommand(BaseCommand):
-    """exec container command"""
+    """
+    exec container command
+    """
 
     @property
     def name(self):
@@ -201,7 +207,7 @@ class ExecCommand(BaseCommand):
 
 class Command(BaseCommandGroup):
     """
-    Deploy docker/pod containers
+    Deploy and manage Docker/Podman containers with ease
     """
 
     @property

@@ -24,7 +24,7 @@ python3 -m pip install -U "linktools[all]"
 对于*nix等系统，推荐在~/.bashrc 或 ~/.bash_profile 或 ~/.zshrc等文件中配置，简化调用方式，如：
 
 ```bash
-# 对于未正确设置PATH环境变量，或者使用venv安装模块，会出现命令找不到的情况（command not found: lt）
+# 对于未正确设置PATH环境变量，或者使用venv安装模块，会出现命令找不到的情况（command not found: ct-env）
 # 可通过以下命令生成alias脚本添加相关命令
 # 需要注意此处python3需要替换成自己安装环境下的interpreter，比如~/projects/linktools/venv/bin/python
 eval "$(python3 -m linktools.cli.commands.common.env --silent alias --shell bash)"
@@ -32,13 +32,14 @@ eval "$(python3 -m linktools.cli.commands.common.env --silent alias --shell bash
 # 给命令添加自动补全功能
 eval "$(ct-env --silent completion --shell bash)"  
 
-# 配置全局java环境，指定java版本号（如：11.0.23/17.0.11/22.0.1）
+# 配置全局java环境，指定java版本号（如：11.0.23/17.0.11/21.0.3）
+# 可通过 https://sap.github.io/SapMachine/#download 查找LTS版本号
 eval "$(ct-env --silent java 17.0.11 --shell bash)"
 
 # alias简化调用
 alias adb="at-adb"
-alias pidcat="at-pidcat"
 alias sib="it-sib"
+alias pidcat="at-pidcat"
 
 # alias简化各类工具调用
 alias apktool="ct-tools apktool"
@@ -58,29 +59,29 @@ $ python3 -m linktools
 
 📎 All commands
 ├── 📖 at: Android scripts
-│   ├── 👉 adb: Adb supports managing multiple android devices
-│   ├── 👉 agent: Debug android-tools.apk
-│   ├── 👉 app: Fetch application info
-│   ├── 👉 debug: Debug app by jdb
-│   ├── 👉 frida: Easy to use frida (require Android device rooted)
-│   ├── 👉 info: Fetch device information
-│   ├── 📘 intent: Common intent actions
-│   ├── 👉 objection: Easy to use objection (require Android device rooted)
+│   ├── 👉 adb: Manage multiple Android devices effortlessly with adb commands
+│   ├── 👉 agent: Debug and interact with android-tools.apk for troubleshooting
+│   ├── 👉 app: Retrieve detailed information about installed applications on Android devices
+│   ├── 📘 cert: Display detailed X.509 certificate information for secure communication
+│   ├── 👉 debug: Debug Android apps effectively using the Java Debugger (jdb)
+│   ├── 👉 frida: Use Frida for dynamic analysis on rooted Android devices
+│   ├── 👉 info: Collect detailed device information
+│   ├── 📘 intent: Execute common Android intent actions for automation and testing
+│   ├── 👉 objection: Simplify security testing with Objection on rooted Android devices
 │   ├── 👉 pidcat: Filter logcat by package name
-│   └── 👉 top: Fetch current running app's basic information
+│   └── 👉 top: Fetch basic information about the currently running application
 ├── 📖 ct: Common scripts
-│   ├── 👉 cert: Display X.509 certificate information
-│   ├── 📘 cntr: Deploy docker/pod containers
-│   ├── 📘 env: Linktools environment commands
-│   ├── 👉 grep: Match files with regular expression
-│   └── 👉 tools: Download and use tools
+│   ├── 📘 cntr: Deploy and manage Docker/Podman containers with ease
+│   ├── 📘 env: Manage and configure the Linktools environment
+│   ├── 👉 grep: Search and match files using regular expressions
+│   └── 👉 tools: Execute tools directly from remote URLs
 └── 📖 it: iOS scripts
-    ├── 👉 frida: Easy to use frida (require iOS device jailbreak)
-    ├── 👉 ipa: Parse ipa file
-    ├── 👉 objection: Easy to use objection (require iOS device jailbreak)
-    ├── 👉 scp: OpenSSH secure file copy (require iOS device jailbreak)
-    ├── 👉 sib: Sib supports managing multiple ios devices
-    └── 👉 ssh: OpenSSH remote login client (require iOS device jailbreak)
+    ├── 👉 frida: Use Frida for dynamic analysis on jailbroken iOS devices
+    ├── 👉 ipa: Parse and extract detailed information from IPA files
+    ├── 👉 objection: Simplify security testing with Objection on jailbroken devices
+    ├── 👉 scp: Securely copy files to/from a jailbroken iOS device using OpenSSH
+    ├── 👉 sib: Manage multiple iOS devices effortlessly with sib commands
+    └── 👉 ssh: Remotely login to jailbroken iOS devices using the OpenSSH client
 ```
 
 ### 通用功能（脚本前缀为ct-）
@@ -170,39 +171,26 @@ $ ct-tools --set version=2.5.0 apktool
 <details>
 <summary>若环境变量中存在adb，则直接执行，否则自动下载最新版本。该功能支持操作多台手机</summary>
 
-```
-$ at-adb -h
-usage: at-adb [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l] ...
+##### 常用命令
 
-Adb that supports multiple devices
+at-adb的命令与adb命令一致，以下以adb shell举例
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+```bash
+# 指定序列号，并调用adb shell
+$ at-adb -s xxx shell
 
-positional arguments:
-  adb_args              adb args
+# 上次使用的设备，并调用adb shell
+$ at-adb -l shell
 
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
+# 连接远程端口，并调用adb shell
+$ at-adb -c 127.0.0.1:5555 shell
 
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  -e, --emulator        use TCP/IP device (adb -e option)
-  -c IP[:PORT], --connect IP[:PORT]
-                        use device with TCP/IP
-  -l, --last            use last device
+# 未指定则会需要选择一台设备，并调用adb shell
+$ at-adb shell
+More than one device/emulator
+>> 1: 18201FDF6003BE (Pixel 6)
+   2: 10.10.10.58:5555 (Pixel 6)
+Choose device [1~2] (1): 1
 ```
 
 </details>
@@ -212,52 +200,17 @@ adb arguments:
 <details>
 <summary>集成了pidcat，并且修复了中文字符宽度问题，原项目链接：https://github.com/JakeWharton/pidcat</summary>
 
-```
-$ at-pidcat -h                                                                                                                                      ░▒▓ ✔  12:34:18
-usage: at-pidcat [-h] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | --connect IP[:PORT] | --last] [-w N]
-                 [-l {V,D,I,W,E,F,v,d,i,w,e,f}] [--color-gc] [--always-display-tags] [--top] [-c] [-t TAG] [-i IGNORED_TAG] [-v] [-a]
-                 [package ...]
+##### 常用命令
 
-Filter logcat by package name
+```bash
+# 查看指定包名应用的日志
+$ at-pidcat -p me.ele
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+# 查看当前运行进程的日志
+$ at-pidcat --top
 
-positional arguments:
-  package               application package name(s)
-
-options:
-  -h, --help            show this help message and exit
-  -w N, --tag-width N   width of log tag
-  -l {V,D,I,W,E,F,v,d,i,w,e,f}, --min-level {V,D,I,W,E,F,v,d,i,w,e,f}
-                        minimum level to be displayed
-  --color-gc            color garbage collection
-  --always-display-tags
-                        always display the tag name
-  --top, --current      filter logcat by current running app
-  -c, --clear           clear the entire log before running
-  -t TAG, --tag TAG     filter output by specified tag(s)
-  -i IGNORED_TAG, --ignore-tag IGNORED_TAG
-                        filter output by ignoring specified tag(s)
-  -v, --version         print the version number and exit
-  -a, --all             print all log messages
-
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  -e, --emulator        use TCP/IP device (adb -e option)
-  --connect IP[:PORT]   use device with TCP/IP
-  --last                use last device
+# 查看指定tag的日志
+$ at-pidcat -t XcdnEngine
 ```
 
 </details>
@@ -267,43 +220,17 @@ adb arguments:
 <details>
 <summary>显示顶层应用信息、获取顶层应用apk、截屏等</summary>
 
-```
-$ at-top -h                                                                                                                                         ░▒▓ ✔  12:35:00
-usage: at-top [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l]
-              [-p | -a | --path | --kill | --apk [DEST] | --screen [DEST]]
+##### 常用命令
 
-Fetch current running app's basic information
+```bash
+# 展示当前顶层应用包名、activity、apk路径等信息
+$ at-top 
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+# 将当前顶层应用apk导出
+$ at-top --apk
 
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -p, --package         show current package name
-  -a, --activity        show current activity name
-  --path                show current apk path
-  --kill                kill current package
-  --apk [DEST]          pull current apk file
-  --screen [DEST]       capture screen and pull file
-
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  -e, --emulator        use TCP/IP device (adb -e option)
-  -c IP[:PORT], --connect IP[:PORT]
-                        use device with TCP/IP
-  -l, --last            use last device
+# 将当前页面截屏导出
+$ at-top --screen
 ```
 
 </details>
@@ -313,52 +240,23 @@ adb arguments:
 <details>
 <summary>通过执行agent调用pms读取app基本信息并展示，组件、权限等信息相对静态检测更为准确</summary>
 
-```
-$ at-app -h                                                                                                                                         ░▒▓ ✔  12:36:09
-usage: at-app [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l] [-t | -a | -p pkg [pkg ...] |
-              -u uid [uid ...] | --system | --non-system] [--simple] [--dangerous] [-o field [field ...]]
+##### 常用命令
 
-Fetch application info
+```bash
+# 显示当前应用的基本信息
+$ at-app
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
+# 显示当前应用的详细信息
+$ at-app --detail
 
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -t, --top             fetch current running app only
-  -a, --all             fetch all apps
-  -p pkg [pkg ...], --packages pkg [pkg ...]
-                        fetch target apps only
-  -u uid [uid ...], --uids uid [uid ...]
-                        fetch apps with specified uids only
-  --system              fetch system apps only
-  --non-system          fetch non-system apps only
-  --simple              display simple info only
-  --dangerous           display dangerous permissions and components only
-  -o field [field ...], --order-by field [field ...]
-                        order by target field
+# 显示当前应用信息风险项
+$ at-app --detail --dangerous
 
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  -e, --emulator        use TCP/IP device (adb -e option)
-  -c IP[:PORT], --connect IP[:PORT]
-                        use device with TCP/IP
-  -l, --last            use last device
+# 显示非系统应用信息
+$ at-app --non-system
 ```
 
-**输出效果**
+##### 输出效果
 
 ![at-app](https://raw.githubusercontent.com/ice-black-tea/linktools/master/images/at-app.png)
 
@@ -528,40 +426,14 @@ AndroidHelper.javaUse("p.r.o.x.y.PrivacyApi", function(clazz) {
 <details>
 <summary>测试android-tools.apk时使用</summary>
 
-```
-$ at-agent -h
-usage: at-agent [-h] [--version] [--verbose] [--debug] [--time | --no-time] [--level | --no-level] [-s SERIAL | -d | -e | -c IP[:PORT] | -l] [-p] ...
+##### 常用命令
 
-Debug android-tools.apk
+```bash
+# 调用android-tools.apk中的方法
+$ at-agent common --set-clipboard "剪切板内容"
 
-    ___       __   __              __
-   / (_)___  / /__/ /_____  ____  / /____
-  / / / __ \/ //_/ __/ __ \/ __ \/ / ___/  linktools toolkit (v0.0.1.dev0)
- / / / / / / ,< / /_/ /_/ / /_/ / (__  )   by: Hu Ji <669898595@qq.com>
-/_/_/_/ /_/_/|_|\__/\____/\____/_/____/
-
-positional arguments:
-  agent_args            agent args
-
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -p, --privilege       run with root privilege
-
-log arguments:
-  --verbose             increase log verbosity
-  --debug               enable debug mode and increase log verbosity
-  --time, --no-time     show log time
-  --level, --no-level   show log level
-
-adb arguments:
-  -s SERIAL, --serial SERIAL
-                        use device with given serial (adb -s option)
-  -d, --device          use USB device (adb -d option)
-  -e, --emulator        use TCP/IP device (adb -e option)
-  -c IP[:PORT], --connect IP[:PORT]
-                        use device with TCP/IP
-  -l, --last            use last device
+# 添加插件并调用android-tools.apk中的方法
+$ at-agent --plugin app-release.apk
 ```
 
 </details>

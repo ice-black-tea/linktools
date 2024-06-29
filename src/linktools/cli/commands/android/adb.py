@@ -34,7 +34,7 @@ from linktools.cli import AndroidCommand
 
 class Command(AndroidCommand):
     """
-    Adb supports managing multiple android devices
+    Manage multiple Android devices effortlessly with adb commands
     """
 
     _GENERAL_COMMANDS = [

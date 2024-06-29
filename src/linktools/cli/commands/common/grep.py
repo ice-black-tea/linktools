@@ -194,7 +194,7 @@ class GrepMatcher:
 
 class Command(BaseCommand):
     """
-    Match files with regular expression
+    Search and match files using regular expressions
     """
 
     def init_arguments(self, parser: ArgumentParser) -> None:

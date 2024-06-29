@@ -682,7 +682,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         """
         命令描述，默认从docstring中获取
         """
-        return textwrap.dedent((self.__doc__ or "").strip())
+        return textwrap.dedent((self.__doc__ or "")).strip()
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:

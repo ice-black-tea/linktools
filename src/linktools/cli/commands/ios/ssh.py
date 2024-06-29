@@ -39,7 +39,7 @@ from linktools.ssh import SSHClient
 
 class Command(IOSCommand):
     """
-    OpenSSH remote login client (require iOS device jailbreak)
+    Remotely login to jailbroken iOS devices using the OpenSSH client
     """
 
     def main(self, *args, **kwargs) -> None:

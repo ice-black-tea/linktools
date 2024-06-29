@@ -35,7 +35,7 @@ class SCPFile(os.PathLike):
 
 class Command(IOSCommand):
     """
-    OpenSSH secure file copy (require iOS device jailbreak)
+    Securely copy files to/from a jailbroken iOS device using OpenSSH
     """
 
     @property

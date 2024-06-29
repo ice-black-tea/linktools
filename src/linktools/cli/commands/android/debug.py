@@ -35,7 +35,7 @@ from linktools.cli import AndroidCommand
 
 class Command(AndroidCommand):
     """
-    Debug app by jdb
+    Debug Android apps effectively using the Java Debugger (jdb)
     """
 
     @property

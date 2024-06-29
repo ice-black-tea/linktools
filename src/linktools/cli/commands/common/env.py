@@ -74,7 +74,7 @@ class InitCommand(BaseCommandGroup):
 
 class Command(BaseCommandGroup):
     """
-    Linktools environment commands
+    Manage and configure the Linktools environment
     """
 
     def init_subcommands(self) -> Any:

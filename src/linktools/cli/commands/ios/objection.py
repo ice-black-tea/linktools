@@ -37,7 +37,7 @@ from linktools.frida.ios import IOSFridaServer
 
 class Command(IOSCommand):
     """
-    Easy to use objection (require iOS device jailbreak)
+    Simplify security testing with Objection on jailbroken devices
     """
 
     @property

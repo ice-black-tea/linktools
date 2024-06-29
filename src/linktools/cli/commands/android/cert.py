@@ -43,7 +43,7 @@ from linktools.cli import subcommand, subcommand_argument, AndroidCommand
 
 class Command(AndroidCommand):
     """
-    Display X.509 certificate information
+    Display detailed X.509 certificate information for secure communication
     """
 
     @property
@@ -58,19 +58,6 @@ class Command(AndroidCommand):
         if not subcommand:
             return self.print_subcommands(args)
         return subcommand.run(args)
-
-    @subcommand("install", help="start setting activity", pass_args=True)
-    @subcommand_argument("path", help="cert path")
-    def on_install(self, args: Namespace, path: str):
-        device = args.device_picker.pick()
-        remote_path = device.get_data_path("cert", os.path.basename(path))
-        device.push(path, remote_path, log_output=True)
-        device.shell("am", "start", "--user", "0",
-                     "-n", "com.android.certinstaller/.CertInstallerMain",
-                     "-a", "android.intent.action.VIEW",
-                     "-t", "application/x-x509-ca-cert",
-                     "-d", "file://%s" % remote_path,
-                     log_output=True)
 
     @subcommand("info", help="display certificate information")
     @subcommand_argument("path", help="cert path")
@@ -132,6 +119,19 @@ class Command(AndroidCommand):
 
         console = get_console()
         console.print(table)
+
+    @subcommand("install", help="start setting activity", pass_args=True)
+    @subcommand_argument("path", help="cert path")
+    def on_install(self, args: Namespace, path: str):
+        device = args.device_picker.pick()
+        remote_path = device.get_data_path("cert", os.path.basename(path))
+        device.push(path, remote_path, log_output=True)
+        device.shell("am", "start", "--user", "0",
+                     "-n", "com.android.certinstaller/.CertInstallerMain",
+                     "-a", "android.intent.action.VIEW",
+                     "-t", "application/x-x509-ca-cert",
+                     "-d", "file://%s" % remote_path,
+                     log_output=True)
 
 
 command = Command()
