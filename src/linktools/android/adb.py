@@ -454,12 +454,17 @@ class Device(BaseDevice):
     def make_agent_args(
             self,
             *args: str,
+            app_name: str = None,
+            app_path: str = None,
             data_path: str = None,
             library_path: str = None,
-            plugin_path: str = None) -> [str]:
+            plugin_path: str = None
+    ) -> [str]:
         """
         生成agent参数
         :param args: 参数
+        :param app_name: 伪造的包名
+        :param app_path: 伪造的包名
         :param data_path: mDataDir路径
         :param library_path: mLibDir路径
         :param plugin_path: 插件路径
@@ -467,12 +472,17 @@ class Device(BaseDevice):
         """
         agent_args = list()
         agent_args.append(f"CLASSPATH={self._agent_path}")
-        agent_args.append(f"DATA_PATH={data_path or self.get_data_path('agent', 'data')}")
+        if app_name:
+            agent_args.append(f"APP_PACKAGE_NAME={app_name}")
+        if app_path:
+            agent_args.append(f"APP_PATH={app_path}")
+        if data_path:
+            agent_args.append(f"APP_DATA_PATH={data_path}")
         if library_path:
-            agent_args.append(f"LIBRARY_PATH={library_path}")
+            agent_args.append(f"APP_LIBRARY_PATH={library_path}")
             agent_args.append(f"LD_LIBRARY_PATH={library_path}:$LD_LIBRARY_PATH")
         if plugin_path:
-            agent_args.append(f"PLUGIN_PATH={plugin_path}")
+            agent_args.append(f"AGENT_PLUGIN_PATH={plugin_path}")
         agent_args.extend(["app_process", "/", self._agent_info["main"]])
         agent_args.extend(args)
 
@@ -489,6 +499,8 @@ class Device(BaseDevice):
         result = self.shell(
             *self.make_agent_args(
                 *args,
+                app_name=kwargs.pop("app_name", None),
+                app_path=kwargs.pop("app_path", None),
                 data_path=kwargs.pop("data_path", None),
                 library_path=kwargs.pop("library_path", None),
                 plugin_path=kwargs.pop("plugin_path", None),
@@ -710,15 +722,21 @@ class Device(BaseDevice):
             "/".join([cls.get_safe_path(o) for o in paths])
         )
 
-    @classmethod
-    def get_data_path(cls, *paths: [str]) -> str:
+    @cached_property
+    def _data_path(self):
+        data_path = self.shell("echo", "-n", "$ADB_DATA_PATH").strip()
+        if not data_path:
+            data_path = "/data/local/tmp"
+        return data_path
+
+    def get_data_path(self, *paths: [str]) -> str:
         """
         /data/local/tmp路径
         :param paths: 文件名
         :return: 路径
         """
-        return "/data/local/tmp/%s" % (
-            "/".join([cls.get_safe_path(o) for o in paths])
+        return f"{self._data_path}/%s" % (
+            "/".join([self.get_safe_path(o) for o in paths])
         )
 
     def __repr__(self):

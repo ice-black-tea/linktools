@@ -1,4 +1,4 @@
-package org.ironman.adbd.component;
+package org.ironman.ui;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -51,7 +51,7 @@ public class BaseActivity extends AppCompatActivity {
                     deny.add(permissions[i]);
                 }
             }
-            listener.onResult(deny.toArray(new String[deny.size()]));
+            listener.onResult(deny.toArray(new String[0]));
         }
     }
 

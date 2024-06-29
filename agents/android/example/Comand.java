@@ -5,7 +5,7 @@ import android.tools.ICommand;
 import com.beust.jcommander.Parameters;
 
 @Parameters(commandNames = "debug")
-public class DebugCommand implements ICommand {
+public class Command implements ICommand {
 
     @Override
     public void run() throws Exception {

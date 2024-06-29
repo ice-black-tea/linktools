@@ -29,7 +29,7 @@ public class Main {
 
     @SuppressLint("PrivateApi")
     private IPlugin loadPlugin() throws Exception {
-        String path = System.getenv("PLUGIN_PATH");
+        String path = System.getenv("AGENT_PLUGIN_PATH");
         if (path != null) {
             if (!new File(path).exists()) {
                 throw new Exception("Plugin not found: " + path);
@@ -112,12 +112,14 @@ public class Main {
         public void write(int b) {
             Cache cache = local.get();
             if (cache != null) {
-                if (b == '\n' || cache.length >= cache.data.length) {
-                    log(new String(cache.data, 0, cache.length));
-                    cache.length = 0;
-                } else {
+                if (b != '\n') {
                     cache.data[cache.length++] = (byte) b;
+                    if (cache.length < cache.data.length) {
+                        return;
+                    }
                 }
+                log(new String(cache.data, 0, cache.length));
+                cache.length = 0;
             }
         }
 

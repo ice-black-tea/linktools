@@ -28,6 +28,5 @@ extern "C" jint Java_org_ironman_adbd_Adbd_nativeRun(
 }
 
 extern "C" jboolean Java_org_ironman_adbd_Adbd_nativeIsRunning(JNIEnv* env, jclass cls, jint pid) {
-    return waitpid(pid, nullptr, WNOHANG) != pid;
+    return waitpid(pid, nullptr, WNOHANG) == 0;
 }
-

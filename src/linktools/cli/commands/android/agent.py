@@ -30,6 +30,7 @@ import os
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
+from linktools.android import Device
 from linktools.cli import AndroidCommand, CommandError
 
 
@@ -52,26 +53,29 @@ class Command(AndroidCommand):
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
 
-        plugin_path = None
-        if args.plugin:
-            if not os.path.exists(args.plugin):
-                raise CommandError(f"Plugin file not found: {args.plugin}")
-            plugin_name = os.path.basename(args.plugin)
-            plugin_path = device.get_data_path("agent", "plugin", plugin_name)
-            device.push(args.plugin, plugin_path)
-
         process = device.popen(
             *device.make_shell_args(
                 *device.make_agent_args(
                     *args.agent_args,
                     library_path=args.library,
-                    plugin_path=plugin_path,
+                    plugin_path=self._push_plugin(device, args.plugin),
                 ),
                 privilege=args.privilege,
                 user=args.user
             )
         )
         return process.call()
+
+    @classmethod
+    def _push_plugin(cls, device: Device, path: str = None) -> Optional[str]:
+        if not path:
+            return None
+        if not os.path.exists(path):
+            raise CommandError(f"Plugin file not found: {path}")
+        plugin_name = os.path.basename(path)
+        plugin_path = device.get_data_path("agent", "plugin", plugin_name)
+        device.push(path, plugin_path)
+        return plugin_path
 
 
 command = Command()

@@ -1,4 +1,4 @@
-package org.ironman.adbd.component;
+package org.ironman.adbd;
 
 import android.annotation.SuppressLint;
 import android.app.Notification;
@@ -11,14 +11,8 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteException;
-import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
 import android.util.Log;
 import android.util.SparseArray;
-
-import org.ironman.adbd.Adbd;
-import org.ironman.adbd.IAdbdInterface;
-import org.ironman.adbd.R;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,8 +55,7 @@ public class AdbdService extends Service {
             }
 
             String dataPath = getApplicationContext().getFilesDir().getParent();
-            String env = "ADB_DATA_PATH=" + dataPath;
-            adbd = new Adbd(true, port, env/*, "AAA=BBB", "CCC=DDD"*/);
+            adbd = new Adbd(true, port, "ADB_DATA_PATH=" + dataPath);
             if (adbd.run(DEBUG ? -1 : 0)) {
                 sAdbds.put(port, adbd);
             } else {
@@ -100,7 +93,6 @@ public class AdbdService extends Service {
         }
     };
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
@@ -151,16 +143,16 @@ public class AdbdService extends Service {
             if (notificationManager != null) {
                 notificationManager.createNotificationChannel(channel);
             }
+            Notification notification = new Notification.Builder(getApplicationContext(), channelId)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setSmallIcon(R.drawable.ic_adbd_logo)
+                    .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_adbd_logo))
+                    .setWhen(System.currentTimeMillis())
+                    .setContentIntent(pendingIntent)
+                    .build();
+            AdbdService.this.startForeground(FOREGROUND_ID, notification);
         }
-        Notification notification = new NotificationCompat.Builder(getApplicationContext(), channelId)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(R.drawable.adbd_ic_logo)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.adbd_ic_logo))
-                .setWhen(System.currentTimeMillis())
-                .setContentIntent(pendingIntent)
-                .build();
-        AdbdService.this.startForeground(FOREGROUND_ID, notification);
     }
 
     private void stopForeground() {

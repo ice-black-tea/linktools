@@ -7,8 +7,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
-import org.ironman.adbd.component.AdbdService;
-
 import java.util.List;
 
 /**

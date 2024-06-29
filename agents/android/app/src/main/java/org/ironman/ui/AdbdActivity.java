@@ -1,4 +1,4 @@
-package org.ironman.adbd.component;
+package org.ironman.ui;
 
 import android.Manifest;
 import android.app.PendingIntent;
@@ -17,7 +17,6 @@ import android.widget.Toast;
 
 import org.ironman.adbd.Adbd;
 import org.ironman.adbd.AdbdManager;
-import org.ironman.adbd.R;
 
 import java.lang.ref.WeakReference;
 import java.net.Inet4Address;
@@ -63,7 +62,7 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.adbd_activity);
+        setContentView(R.layout.activity_adbd);
 
         requestPermissions(PERMISSIONS, deniedPermissions -> {
             if (deniedPermissions.length > 0) {
@@ -180,7 +179,7 @@ public class AdbdActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void setPortStatus(List<Adbd> adbds) {
-        if (adbds == null || adbds.size() == 0) {
+        if (adbds == null || adbds.isEmpty()) {
             AdbdManager.stopForeground(getApplicationContext());
             mStatus.setText("");
             return;
