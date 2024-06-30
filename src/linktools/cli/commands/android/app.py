@@ -33,6 +33,7 @@ from linktools import utils, environ
 from linktools.android import App, Permission, \
     Component, Activity, Service, Receiver, Provider, IntentFilter
 from linktools.cli import AndroidCommand
+from linktools.cli.argparse import BooleanOptionalAction
 
 
 class PrintLevel:
@@ -107,6 +108,9 @@ class AppPrinter:
         self.stream.print("userId=%s" % self.app.user_id, indent=indent + 4, level=self.stream.normal)
         self.stream.print("gids=%s" % self.app.gids, indent=indent + 4, level=self.stream.normal)
         self.stream.print("sourceDir=%s" % self.app.source_dir, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("dataDir=%s" % self.app.data_dir, indent=indent + 4, level=self.stream.normal)
+        self.stream.print("nativeLibraryDir=%s" % self.app.native_library_dir, indent=indent + 4,
+                          level=self.stream.normal)
         self.stream.print("versionCode=%s" % self.app.version_code, indent=indent + 4, level=self.stream.normal)
         self.stream.print("versionName=%s" % self.app.version_name, indent=indent + 4, level=self.stream.normal)
         self.stream.print("enabled=%s" % self.app.enabled, indent=indent + 4, level=self.stream.normal)
@@ -115,6 +119,8 @@ class AppPrinter:
                           level=self.stream.dangerous if self.app.debuggable else self.stream.normal)
         self.stream.print("allowBackup=%s" % self.app.allow_backup, indent=indent + 4,
                           level=self.stream.dangerous if self.app.allow_backup else self.stream.normal)
+        self.stream.print("targetSdkVersion=%d" % self.app.target_sdk_version, indent=indent + 4,
+                          level=self.stream.normal)
         self.stream.print_line()
 
     def print_requested_permissions(self, indent: int = 4):
@@ -187,19 +193,24 @@ class AppPrinter:
             cls._print_permission(stream, component.permission, indent=indent + 4, identity="Permission")
         elif isinstance(component, Provider):
             stream.print("Authority [%s]" % component.authority, indent=indent + 4, level=level)
-            cls._print_permission(stream, component.read_permission, indent=indent + 4,
-                                  identity="ReadPermission")
-            cls._print_permission(stream, component.write_permission, indent=indent + 4,
-                                  identity="writePermission")
+            cls._print_permission(
+                stream, component.read_permission, indent=indent + 4,
+                identity="ReadPermission")
+            cls._print_permission(
+                stream, component.write_permission, indent=indent + 4,
+                identity="writePermission")
             for pattern in component.uri_permission_patterns:
                 stream.print("UriPermissionPattern [%s]" % pattern, indent=indent + 4, level=level)
             for permission in component.path_permissions:
-                stream.print("PathPermission [%s]" % permission, indent=indent + 4,
-                             level=stream.dangerous if permission.is_dangerous() else stream.normal)
-                cls._print_permission(stream, permission.read_permission, indent=indent + 8,
-                                      identity="ReadPermission")
-                cls._print_permission(stream, permission.write_permission, indent=indent + 8,
-                                      identity="writePermission")
+                stream.print(
+                    "PathPermission [%s]" % permission, indent=indent + 4,
+                    level=stream.dangerous if permission.is_dangerous() else stream.normal)
+                cls._print_permission(
+                    stream, permission.read_permission, indent=indent + 8,
+                    identity="ReadPermission")
+                cls._print_permission(
+                    stream, permission.write_permission, indent=indent + 8,
+                    identity="writePermission")
 
         if not utils.is_empty(component.intents):
             for intent in component.intents:
@@ -240,19 +251,13 @@ class Command(AndroidCommand):
                            help='fetch target apps only')
         group.add_argument('-u', '--uids', metavar="uid", action='store', nargs='+', type=int, default=None,
                            help='fetch apps with specified uids only')
-        group.add_argument('--system', action='store_true', default=False,
-                           help='fetch system apps only')
-        group.add_argument('--non-system', action='store_true', default=False,
-                           help='fetch non-system apps only')
+        group.add_argument('--system', action=BooleanOptionalAction, default=None,
+                           help='fetch system/non-system apps only')
 
         parser.add_argument('--detail', action='store_true', default=False,
                             help='show app detail info')
         parser.add_argument('--dangerous', action='store_true', default=False,
                             help='show app dangerous permissions and components only')
-        parser.add_argument('-o', '--order-by', metavar="field", action='store', nargs='+', default=['userId', 'name'],
-                            choices=['name', 'appName', 'userId', 'sourceDir',
-                                     'enabled', 'system', 'debuggable', 'allowBackup'],
-                            help='order by target field')
 
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
@@ -261,17 +266,13 @@ class Command(AndroidCommand):
             apps = device.get_apps(*args.packages, detail=args.detail)
         elif not utils.is_empty(args.uids):
             apps = device.get_apps_for_uid(*args.uids, detail=args.detail)
-        elif args.system:
-            apps = device.get_apps(system=True, detail=args.detail)
-        elif args.non_system:
-            apps = device.get_apps(system=False, detail=args.detail)
+        elif args.system is not None:
+            apps = device.get_apps(system=args.system, detail=args.detail)
         elif args.all:
             apps = device.get_apps(detail=args.detail)
         else:
             apps = device.get_apps(device.get_current_package(), detail=args.detail)
-
-        if not utils.is_empty(args.order_by):
-            apps = sorted(apps, key=lambda x: [utils.get_item(x, k, default="") for k in args.order_by])
+        apps = sorted(apps, key=lambda o: tuple(getattr(o, k) for k in ['user_id', 'name']))
 
         min_level = PrintLevel.min
         if args.dangerous:

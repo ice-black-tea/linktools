@@ -21,7 +21,7 @@ public class Main {
             Main.class.getName()
     );
 
-    private void printWelcome() {
+    private void printLogo() {
         Output.out.println("┌───────────────────────────────────────────────────────┐");
         Output.out.println("│             Output from android.tools.Main            │");
         Output.out.println("└───────────────────────────────────────────────────────┘");
@@ -86,7 +86,7 @@ public class Main {
 
         try {
             Main main = new Main();
-            main.printWelcome();
+            main.printLogo();
             main.internalMain(args);
         } catch (Throwable th) {
             Output.err.println(Log.getStackTraceString(th));

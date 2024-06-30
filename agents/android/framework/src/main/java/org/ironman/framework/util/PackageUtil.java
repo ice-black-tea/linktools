@@ -6,6 +6,7 @@ import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -28,6 +29,7 @@ import java.util.Set;
 public class PackageUtil {
 
     private static final String TAG = PackageUtil.class.getSimpleName();
+
     public static final int GET_PACKAGE_INFO_FLAGS = 0;
     public static final int PARSE_PACKAGE_FLAGS = 0;
 
@@ -128,7 +130,7 @@ public class PackageUtil {
                 long end = System.currentTimeMillis();
                 long start = end - 60 * 60 * 1000;
                 List<UsageStats> uss = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end);
-                if (uss != null && uss.size() > 0) {
+                if (uss != null && !uss.isEmpty()) {
                     UsageStats lastStats = null;
                     for (UsageStats stats : uss) {
                         if (lastStats == null || lastStats.getLastTimeUsed() < stats.getLastTimeUsed()) {
@@ -143,8 +145,11 @@ public class PackageUtil {
         } else {
             ActivityManager am = Environment.getActivityManager();
             List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(0);
-            if (tasks != null && tasks.size() > 0) {
-                return tasks.get(0).topActivity.getPackageName();
+            if (tasks != null && !tasks.isEmpty()) {
+                ComponentName topActivity = tasks.get(0).topActivity;
+                if (topActivity != null) {
+                    return topActivity.getPackageName();
+                }
             }
         }
         return "";

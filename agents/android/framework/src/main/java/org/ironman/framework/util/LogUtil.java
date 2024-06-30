@@ -7,8 +7,8 @@ import android.util.Log;
  */
 
 public class LogUtil {
-    
-    private static LogImpl mLog = new LogImpl() {
+
+    private static LogImpl sLogImpl = new LogImpl() {
 
         @Override
         public void v(final String tag, final String format, final Object... args) {
@@ -44,56 +44,55 @@ public class LogUtil {
             Log.e(tag, log + "  " + Log.getStackTraceString(tr));
         }
     };
-
-    private static LogImpl mLogImpl = mLog;
+    ;
 
     public static void setLogImpl(LogImpl impl) {
-        mLogImpl = impl;
+        sLogImpl = impl;
     }
 
     public static LogImpl getImpl() {
-        return mLogImpl;
+        return sLogImpl;
     }
 
     public static void v(final String tag, final String format, final Object... args) {
-        if (mLogImpl != null) {
-            mLogImpl.v(tag, format, args);
+        if (sLogImpl != null) {
+            sLogImpl.v(tag, format, args);
         }
     }
 
     public static void e(final String tag, final String format, final Object... args) {
-        if (mLogImpl != null) {
-            mLogImpl.e(tag, format, args);
+        if (sLogImpl != null) {
+            sLogImpl.e(tag, format, args);
         }
     }
 
     public static void w(final String tag, final String format, final Object... args) {
-        if (mLogImpl != null) {
-            mLogImpl.w(tag, format, args);
+        if (sLogImpl != null) {
+            sLogImpl.w(tag, format, args);
         }
     }
 
     public static void i(final String tag, final String format, final Object... args) {
-        if (mLogImpl != null) {
-            mLogImpl.i(tag, format, args);
+        if (sLogImpl != null) {
+            sLogImpl.i(tag, format, args);
         }
     }
 
     public static void d(final String tag, final String format, final Object... args) {
-        if (mLogImpl != null) {
-            mLogImpl.d(tag, format, args);
+        if (sLogImpl != null) {
+            sLogImpl.d(tag, format, args);
         }
     }
 
     public static void printStackTrace(String tag, Throwable tr) {
-        if (mLogImpl != null) {
-            mLogImpl.printStackTrace(tag, tr, null);
+        if (sLogImpl != null) {
+            sLogImpl.printStackTrace(tag, tr, null);
         }
     }
 
     public static void printStackTrace(String tag, Throwable tr, final String format, final Object... args) {
-        if (mLogImpl != null) {
-            mLogImpl.printStackTrace(tag, tr, format, args);
+        if (sLogImpl != null) {
+            sLogImpl.printStackTrace(tag, tr, format, args);
         }
     }
 

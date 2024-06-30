@@ -9,33 +9,25 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-public class ActivityManagerProxy extends AbstractProxy implements InvocationHandler {
+public class ActivityTaskManagerProxy extends AbstractProxy implements InvocationHandler {
 
     private static final String TAG = ActivityManagerProxy.class.getSimpleName();
 
-    private Object mActivityManager = null;
-    private Object mActivityManagerSingleton = null;
+    private Object mActivityTaskManagerSingleton = null;
+    private Object mActivityTaskManager = null;
 
     @Override
     protected void internalInit() throws Exception {
         ReflectHelper helper = ReflectHelper.getDefault();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            mActivityManagerSingleton = helper.get(
-                    "android.app.ActivityManager",
-                    "IActivityManagerSingleton"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // "android/app/ActivityTaskManager.java"
+            mActivityTaskManagerSingleton = helper.get(
+                    "android.app.ActivityTaskManager",
+                    "IActivityTaskManagerSingleton"
             );
-            mActivityManager = helper.invoke(
-                    mActivityManagerSingleton,
-                    "get"
-            );
-        } else {
-            mActivityManagerSingleton = helper.get(
-                    "android.app.ActivityManagerNative",
-                    "gDefault"
-            );
-            mActivityManager = helper.invoke(
-                    mActivityManagerSingleton,
+            mActivityTaskManager = helper.invoke(
+                    mActivityTaskManagerSingleton,
                     "get"
             );
         }
@@ -43,13 +35,13 @@ public class ActivityManagerProxy extends AbstractProxy implements InvocationHan
 
     @Override
     protected void internalHook() throws Exception {
-        if (mActivityManagerSingleton != null && mActivityManager != null) {
+        if (mActivityTaskManagerSingleton != null && mActivityTaskManager != null) {
             Object proxy = Proxy.newProxyInstance(
-                    mActivityManager.getClass().getClassLoader(),
-                    mActivityManager.getClass().getInterfaces(),
+                    mActivityTaskManager.getClass().getClassLoader(),
+                    mActivityTaskManager.getClass().getInterfaces(),
                     this);
             ReflectHelper.getDefault().set(
-                    mActivityManagerSingleton,
+                    mActivityTaskManagerSingleton,
                     "mInstance",
                     proxy);
         }
@@ -57,11 +49,11 @@ public class ActivityManagerProxy extends AbstractProxy implements InvocationHan
 
     @Override
     protected void internalUnhook() throws Exception {
-        if (mActivityManagerSingleton != null && mActivityManager != null) {
+        if (mActivityTaskManagerSingleton != null && mActivityTaskManager != null) {
             ReflectHelper.getDefault().set(
-                    mActivityManagerSingleton,
+                    mActivityTaskManagerSingleton,
                     "mInstance",
-                    mActivityManager);
+                    mActivityTaskManager);
         }
     }
 
@@ -75,6 +67,6 @@ public class ActivityManagerProxy extends AbstractProxy implements InvocationHan
                 objects[0] = null; // applicationThread = null;
                 break;
         }
-        return method.invoke(mActivityManager, objects);
+        return method.invoke(mActivityTaskManager, objects);
     }
 }

@@ -30,7 +30,7 @@
 import json
 import re
 import time
-from typing import Any, Generator, List, Dict
+from typing import Any, Generator, List
 
 from .struct import App, UnixSocket, InetSocket, Process
 from .. import utils, environ
@@ -39,12 +39,12 @@ from ..device import BridgeError, Bridge, BaseDevice
 from ..reactor import Stoppable
 
 _logger = environ.get_logger("android.adb")
+
 _agent_output_pattern = re.compile(
     r""
-    r"┌─+─┐[^\n]*\n"
-    r"[^\n]*\n"
-    r"└─+─┘[^\n]*\n"
-    r"",
+    r"┌──+──┐[^\n]*\n"
+    r"│[^|]*│[^\n]*\n"
+    r"└──+──┘[^\n]*\n",
     re.MULTILINE
 )
 
@@ -594,8 +594,8 @@ class Device(BaseDevice):
         :return: 包信息
         """
         args = ["package", "--packages", package_name]
-        if detail is not True:
-            args.append("--simple")
+        if detail is True:
+            args.append("--detail")
         objs = json.loads(self.call_agent(*args, **kwargs))
         if len(objs) == 0:
             raise AdbError(f"App '{package_name}' not found")
@@ -619,8 +619,8 @@ class Device(BaseDevice):
             agent_args.append("--system")
         elif system is False:
             agent_args.append("--non-system")
-        if detail is not True:
-            agent_args.append("--simple")
+        if detail is True:
+            agent_args.append("--detail")
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
             result.append(App(obj))
@@ -639,8 +639,8 @@ class Device(BaseDevice):
         if not utils.is_empty(uids):
             agent_args.append("--uids")
             agent_args.extend([str(uid) for uid in uids])
-        if detail is not True:
-            agent_args.append("--simple")
+        if detail is True:
+            agent_args.append("--detail")
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
             result.append(App(obj))
@@ -652,7 +652,7 @@ class Device(BaseDevice):
         同netstat命令，获取设备tcp连接情况，需要读取/proc/net/tcp文件，高版本设备至少需要shell权限
         :return: tcp连接列表
         """
-        return self._get_sockets(InetSocket, "--tcp-sock", **kwargs)
+        return self._get_sockets(InetSocket, ["common", "--tcp-sock"], **kwargs)
 
     @utils.timeoutable
     def get_udp_sockets(self, **kwargs) -> [InetSocket]:
@@ -660,7 +660,7 @@ class Device(BaseDevice):
         同netstat命令，获取设备udp连接情况，需要读取/proc/net/udp文件，高版本设备至少需要shell权限
         :return: udp连接列表
         """
-        return self._get_sockets(InetSocket, "--udp-sock", **kwargs)
+        return self._get_sockets(InetSocket, ["common", "--udp-sock"], **kwargs)
 
     @utils.timeoutable
     def get_raw_sockets(self, **kwargs) -> [InetSocket]:
@@ -668,7 +668,7 @@ class Device(BaseDevice):
         同netstat命令，获取设备raw连接情况，需要读取/proc/net/raw文件，高版本设备至少需要shell权限
         :return: raw连接列表
         """
-        return self._get_sockets(InetSocket, "--raw-sock", **kwargs)
+        return self._get_sockets(InetSocket, ["common", "--raw-sock"], **kwargs)
 
     @utils.timeoutable
     def get_unix_sockets(self, **kwargs) -> [UnixSocket]:
@@ -676,13 +676,12 @@ class Device(BaseDevice):
         同netstat命令，获取设备unix连接情况，需要读取/proc/net/unix文件，高版本设备至少需要shell权限
         :return: unix连接列表
         """
-        return self._get_sockets(UnixSocket, "--unix-sock", **kwargs)
+        return self._get_sockets(UnixSocket, ["common", "--unix-sock"], **kwargs)
 
     @utils.timeoutable
-    def _get_sockets(self, type, command, **kwargs):
+    def _get_sockets(self, type, args, **kwargs):
         result = []
-        agent_args = ["network", command]
-        objs = json.loads(self.call_agent(*agent_args, **kwargs))
+        objs = json.loads(self.call_agent(*args, **kwargs))
         for obj in objs:
             result.append(type(obj))
         return result
@@ -690,7 +689,7 @@ class Device(BaseDevice):
     @utils.timeoutable
     def get_processes(self, **kwargs) -> [Process]:
         result = []
-        agent_args = ["process", "--list"]
+        agent_args = ["common", "--process"]
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
             result.append(Process(obj))
@@ -722,22 +721,23 @@ class Device(BaseDevice):
             "/".join([cls.get_safe_path(o) for o in paths])
         )
 
-    @cached_property
-    def _data_path(self):
-        data_path = self.shell("echo", "-n", "$ADB_DATA_PATH").strip()
-        if not data_path:
-            data_path = "/data/local/tmp"
-        return data_path
-
     def get_data_path(self, *paths: [str]) -> str:
         """
         /data/local/tmp路径
         :param paths: 文件名
         :return: 路径
         """
-        return f"{self._data_path}/%s" % (
+        return "%s/%s" % (
+            self._data_path,
             "/".join([self.get_safe_path(o) for o in paths])
         )
+
+    @cached_property
+    def _data_path(self):
+        data_path = self.shell("echo", "-n", "$ADB_DATA_PATH").strip()
+        if not data_path:
+            data_path = "/data/local/tmp"
+        return data_path
 
     def __repr__(self):
         return f"AdbDevice<{self.id}>"

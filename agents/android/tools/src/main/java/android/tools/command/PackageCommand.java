@@ -33,16 +33,16 @@ public class PackageCommand implements ICommand {
             description = "Display non-system packages only")
     private boolean nonSystem = false;
 
-    @Parameter(names = {"-s", "--simple"}, order = 0,
-               description = "Display basic info only")
-    private boolean simple = false;
+    @Parameter(names = {"--detail"}, order = 0,
+               description = "Display detail info")
+    private boolean detail = false;
 
     @Override
     public void run() {
         List<PackageInfo> packageInfos;
-        if (packages.size() > 0) {
+        if (!packages.isEmpty()) {
             packageInfos = PackageUtil.getPackages(packages);
-        } else if (uids.size() > 0) {
+        } else if (!uids.isEmpty()) {
             packageInfos = PackageUtil.getPackagesForUid(uids);
         } else {
             packageInfos = PackageUtil.getInstalledPackages();
@@ -55,7 +55,7 @@ public class PackageCommand implements ICommand {
             } else if (nonSystem && PackageUtil.isSystemApp(packageInfo)) {
                 // ignore
             } else {
-                packages.add(new Package(packageInfo, simple));
+                packages.add(new Package(packageInfo, detail));
             }
         }
 

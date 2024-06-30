@@ -9,6 +9,9 @@ import android.os.Looper;
 import android.os.Process;
 import android.text.TextUtils;
 
+import org.ironman.framework.proxy.AbstractProxy;
+import org.ironman.framework.proxy.ActivityManagerProxy;
+import org.ironman.framework.proxy.ActivityTaskManagerProxy;
 import org.ironman.framework.util.LogUtil;
 import org.ironman.framework.util.ReflectHelper;
 
@@ -32,8 +35,9 @@ public final class Environment {
                     fixer.fixAppPath();
                     fixer.fixDataPath();
                     fixer.fixLibraryPath();
+                    fixer.fixServices();
                 } catch (Exception e) {
-                    LogUtil.printStackTrace(TAG, e, null);
+                    LogUtil.printStackTrace(TAG, e);
                 }
             }
             return ActivityThread.currentApplication();
@@ -185,6 +189,10 @@ public final class Environment {
             }
         }
 
+        public void fixServices() {
+            AbstractProxy.get(ActivityManagerProxy.class).hook();
+            AbstractProxy.get(ActivityTaskManagerProxy.class).hook();
+        }
     }
 
 }

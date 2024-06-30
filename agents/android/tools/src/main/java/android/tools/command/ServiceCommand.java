@@ -23,8 +23,8 @@ public class ServiceCommand implements ICommand {
     @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
     private boolean list = false;
 
-    @Parameter(names = {"-s", "--simple"}, order = 1, description = "Display Simplified information.")
-    private boolean simple = false;
+    @Parameter(names = {"--detail"}, order = 1, description = "Display detail information.")
+    private boolean detail = false;
 
     @Parameter(names = {"-f", "--fuzz"}, order = 100, variableArity = true, description = "Fuzz system services")
     private List<String> fuzz = new ArrayList<>();
@@ -53,7 +53,7 @@ public class ServiceCommand implements ICommand {
             }
 
             Service service = new Service(name);
-            service.print(simple);
+            service.print(detail);
 
             if (service.valid() && needFuzz) {
                 service.fuzz();
@@ -88,8 +88,8 @@ public class ServiceCommand implements ICommand {
             return binder != null;
         }
 
-        void print(boolean simplify) {
-            if (!simplify) {
+        void print(boolean detail) {
+            if (detail) {
                 Output.out.println("[*] %s: [%s] -> [%s]", name, desc, binder);
             } else {
                 Output.out.println(name);

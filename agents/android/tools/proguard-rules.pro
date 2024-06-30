@@ -20,16 +20,20 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
--keep public class org.ironman.** {*;}
--keep public class android.tools.** {*;}
+-keep public class org.ironman.framework.** { public *; }
+-keep public class org.ironman.framework.bean.** { *; }
+-keep public class android.tools.Main { public *; }
+-keep public interface android.tools.** { public *; }
 
 ##---------------Begin: proguard configuration for jcommander  ----------
 
 -dontwarn com.beust.jcommander.**
--keep class com.beust.jcommander.** { *; }
+-keep public class com.beust.jcommander.** { *; }
+
+-keep @com.beust.jcommander.Parameters class * { public *; }
+-keepclassmembers class * { @com.beust.jcommander.Parameter <fields>; }
 
 ##---------------End: proguard configuration for jcommander  ----------
-
 
 ##---------------Begin: proguard configuration for Gson  ----------
 # Gson uses generic type information stored in a class file when working with fields. Proguard

@@ -23,12 +23,15 @@ public class Package {
     public int userId;
     public int[] gids;
     public String sourceDir;
+    public String dataDir;
+    public String nativeLibraryDir;
     public long versionCode;
     public String versionName;
     public boolean enabled;
     public boolean system;
     public boolean debuggable;
     public boolean allowBackup;
+    public int targetSdkVersion;
 
     public List<Permission> requestedPermissions;
     public List<Permission> permissions;
@@ -38,23 +41,26 @@ public class Package {
     public List<Provider> providers;
 
     public Package(PackageInfo info) {
-        this(info, true);
+        this(info, false);
     }
 
-    public Package(PackageInfo info, boolean skipParse) {
+    public Package(PackageInfo info, boolean detail) {
         name = info.packageName;
         appName = PackageUtil.getApplicationName(info);
         userId = info.applicationInfo.uid;
         gids = info.gids;
         sourceDir = info.applicationInfo.publicSourceDir;
+        dataDir = info.applicationInfo.dataDir;
+        nativeLibraryDir = info.applicationInfo.nativeLibraryDir;
         versionCode = info.versionCode;
         versionName = info.versionName;
         enabled = info.applicationInfo.enabled;
         system = (info.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
         debuggable = (info.applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         allowBackup = (info.applicationInfo.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0;
+        targetSdkVersion = info.applicationInfo.targetSdkVersion;
 
-        if (skipParse) {
+        if (!detail) {
             return;
         }
 
