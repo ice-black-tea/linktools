@@ -77,8 +77,12 @@ jobs:
         git add src/linktools/assets/frida.js
         git add src/linktools/assets/android-tools.json src/linktools/assets/android-tools.apk
         git commit -m "Auto commit artifacts (${{ steps.tag.outputs.tag }})"
+        git tag -d ${{ steps.tag.outputs.tag }}
+        git tag ${{ steps.tag.outputs.tag }}
     - name: Push changes
       if: ${{ !env.ACT }}
       uses: ad-m/github-push-action@master
       with:
         branch: master
+        force: true
+        tags: true
