@@ -146,8 +146,8 @@ public class AdbdService extends Service {
             Notification notification = new Notification.Builder(getApplicationContext(), channelId)
                     .setContentTitle(title)
                     .setContentText(text)
-                    .setSmallIcon(R.drawable.ic_adbd_logo)
-                    .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_adbd_logo))
+                    .setSmallIcon(R.drawable.adbd_ic_main_logo)
+                    .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.adbd_ic_main_logo))
                     .setWhen(System.currentTimeMillis())
                     .setContentIntent(pendingIntent)
                     .build();

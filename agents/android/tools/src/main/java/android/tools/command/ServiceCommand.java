@@ -7,8 +7,11 @@ import android.os.ServiceManager;
 import android.tools.ICommand;
 import android.tools.Output;
 
+import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+
+import org.ironman.annotation.Subcommand;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +20,7 @@ import java.util.List;
  * Created by hu on 18-12-18.
  */
 
+@Subcommand(order = 2)
 @Parameters(commandNames = "service")
 public class ServiceCommand implements ICommand {
 
@@ -33,7 +37,7 @@ public class ServiceCommand implements ICommand {
     private boolean except = false;
 
     @Override
-    public void run() {
+    public void execute(JCommander commander) {
         String[] services = null;
         try {
             services = ServiceManager.listServices();

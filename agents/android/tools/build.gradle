@@ -42,9 +42,10 @@ android {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation project(':framework')
+    implementation project(':annotation')
     implementation project(':plugin')
-    implementation 'com.beust:jcommander:1.82'
     annotationProcessor project(':processor')
+    implementation 'com.beust:jcommander:1.82'
     compileOnly 'ice.black.tea:android-17:1.0.0'
 }
 

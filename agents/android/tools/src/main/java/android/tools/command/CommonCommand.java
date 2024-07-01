@@ -9,9 +9,11 @@ import android.text.TextUtils;
 import android.tools.ICommand;
 import android.tools.Output;
 
+import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import org.ironman.annotation.Subcommand;
 import org.ironman.framework.Environment;
 import org.ironman.framework.util.ActivityUtil;
 import org.ironman.framework.util.GsonUtil;
@@ -21,6 +23,7 @@ import org.ironman.framework.util.ProcessUtil;
 
 import java.util.List;
 
+@Subcommand(order = 0)
 @Parameters(commandNames = "common")
 public class CommonCommand implements ICommand {
 
@@ -55,7 +58,7 @@ public class CommonCommand implements ICommand {
     private boolean usage_access = false;
 
     @Override
-    public void run() throws Exception {
+    public void execute(JCommander commander) throws Exception {
         if (process) {
             Output.out.print(GsonUtil.toJson(ProcessUtil.getProcessList()));
         } else if (top_package) {

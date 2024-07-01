@@ -1,6 +1,8 @@
 package android.tools;
 
 import android.annotation.SuppressLint;
+import android.tools.command.PluginCommand;
+import android.tools.exception.UsageException;
 import android.tools.processor.CommandUtils;
 import android.util.Log;
 import com.beust.jcommander.JCommander;
@@ -14,12 +16,6 @@ import dalvik.system.PathClassLoader;
 public class Main {
 
     private static final String TAG = "android-tools";
-
-    private static final String PROGRAM_NAME = String.format(
-            "CLASSPATH=%s app_process / %s",
-            System.getenv("CLASSPATH"),
-            Main.class.getName()
-    );
 
     private void printLogo() {
         Output.out.println("┌───────────────────────────────────────────────────────┐");
@@ -49,21 +45,25 @@ public class Main {
         IPlugin plugin = loadPlugin();
 
         JCommander.Builder builder = JCommander.newBuilder().addObject(this);
-        builder.programName(PROGRAM_NAME);
+        builder.programName(Main.class.getName());
         CommandUtils.addCommands(builder);
-        if (plugin != null) {
-            plugin.init(builder);
-        }
         JCommander commander = builder.build();
+        if (plugin != null) {
+            commander.addCommand("plugin", new PluginCommand());
+            JCommander command = commander.getCommands().get("plugin");
+            plugin.init(command);
+        }
         commander.parse(args);
 
-        JCommander jCommander = commander.getCommands().get(commander.getParsedCommand());
-        if (jCommander != null) {
-            ((ICommand) jCommander.getObjects().get(0)).run();
+        JCommander subCommander = commander.getCommands().get(commander.getParsedCommand());
+        if (subCommander != null) {
+            for (Object command : subCommander.getObjects()) {
+                if (command instanceof ICommand) {
+                    ((ICommand) command).execute(subCommander);
+                }
+            }
         } else {
-            StringBuilder sb = new StringBuilder();
-            commander.getUsageFormatter().usage(sb);
-            Output.err.println(sb.toString());
+            throw new UsageException(commander);
         }
     }
 
@@ -88,6 +88,11 @@ public class Main {
             Main main = new Main();
             main.printLogo();
             main.internalMain(args);
+        } catch (UsageException e) {
+            StringBuilder sb = new StringBuilder();
+            e.getCommander().getUsageFormatter().usage(sb);
+            Output.err.println(sb.toString());
+            System.exit(-1);
         } catch (Throwable th) {
             Output.err.println(Log.getStackTraceString(th));
             System.exit(-1);

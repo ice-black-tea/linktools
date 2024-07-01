@@ -7,6 +7,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeSpec;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,10 +16,10 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
+import org.ironman.annotation.Subcommand;
 
 public class CommandsProcessor extends AbstractProcessor {
 
@@ -27,20 +28,29 @@ public class CommandsProcessor extends AbstractProcessor {
         final String packageName = "android.tools.processor";
         final String className = "CommandUtils";
 
-        Set<? extends Element> elements = roundEnvironment.getElementsAnnotatedWith(Parameters.class);
-        if (elements == null || elements.size() == 0) {
+        Set<? extends Element> elements = roundEnvironment.getElementsAnnotatedWith(Subcommand.class);
+        if (elements == null || elements.isEmpty()) {
             return true;
         }
+        Element[] commands = elements.toArray(new Element[0]);
+        Arrays.sort(commands, (e1, e2) -> {
+            Subcommand s1 = e1.getAnnotation(Subcommand.class);
+            Subcommand s2 = e2.getAnnotation(Subcommand.class);
+            if (s1.order() < s2.order()) {
+                return -1;
+            } else if (s1.order() > s2.order()) {
+                return 1;
+            }
+            return 0;
+        });
 
         MethodSpec.Builder method = MethodSpec.methodBuilder("addCommands")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(void.class)
                 .addParameter(JCommander.Builder.class, "builder");
 
-        for (Element element : elements) {
-            if (element.getKind() == ElementKind.CLASS) {
-                method.addStatement("builder.addCommand(new $T())", element.asType());
-            }
+        for (Element command : commands) {
+            method.addStatement("builder.addCommand(new $T())", command.asType());
         }
 
         TypeSpec type = TypeSpec.classBuilder(className)

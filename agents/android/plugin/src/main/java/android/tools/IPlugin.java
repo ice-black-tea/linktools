@@ -4,6 +4,6 @@ import com.beust.jcommander.JCommander;
 
 public interface IPlugin {
 
-    void init(JCommander.Builder builder);
+    void init(JCommander commander);
 
 }

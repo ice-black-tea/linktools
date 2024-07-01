@@ -1,1 +1,2 @@
 include ':app', ':framework', ':tools', ':processor', ':adbd', ':plugin'
+include ':annotation'

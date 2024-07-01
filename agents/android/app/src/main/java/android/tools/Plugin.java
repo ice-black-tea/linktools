@@ -5,22 +5,19 @@ import com.beust.jcommander.Parameters;
 
 import java.util.Map;
 
-public class Plugin implements IPlugin {
+@Parameters(commandNames = "env")
+public class Plugin implements IPlugin, ICommand {
 
     @Override
-    public void init(JCommander.Builder builder) {
-        builder.addCommand(new Command());
+    public void init(JCommander builder) {
+        builder.addCommand(this);
     }
 
-    @Parameters(commandNames = "env")
-    private static class Command implements ICommand {
-
-        @Override
-        public void run() throws Exception {
-            Map<String, String> env = System.getenv();
-            for (String key : env.keySet()) {
-                Output.out.println(key + "=" + env.get(key));
-            }
+    @Override
+    public void execute(JCommander commander) throws Exception {
+        Map<String, String> env = System.getenv();
+        for (String key : env.keySet()) {
+            Output.out.println(key + "=" + env.get(key));
         }
     }
 }

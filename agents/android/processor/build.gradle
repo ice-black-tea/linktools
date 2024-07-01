@@ -9,6 +9,7 @@ dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.beust:jcommander:1.82'
     implementation 'com.squareup:javapoet:1.13.0'
+    implementation project(':annotation')
 }
 
 sourceCompatibility = "8"

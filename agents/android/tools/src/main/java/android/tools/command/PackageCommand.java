@@ -4,9 +4,11 @@ import android.content.pm.PackageInfo;
 import android.tools.ICommand;
 import android.tools.Output;
 
+import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import org.ironman.annotation.Subcommand;
 import org.ironman.framework.bean.app.Package;
 import org.ironman.framework.util.GsonUtil;
 import org.ironman.framework.util.PackageUtil;
@@ -14,6 +16,7 @@ import org.ironman.framework.util.PackageUtil;
 import java.util.ArrayList;
 import java.util.List;
 
+@Subcommand(order = 1)
 @Parameters(commandNames = "package")
 public class PackageCommand implements ICommand {
 
@@ -38,7 +41,7 @@ public class PackageCommand implements ICommand {
     private boolean detail = false;
 
     @Override
-    public void run() {
+    public void execute(JCommander commander) {
         List<PackageInfo> packageInfos;
         if (!packages.isEmpty()) {
             packageInfos = PackageUtil.getPackages(packages);
