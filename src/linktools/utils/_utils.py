@@ -569,7 +569,7 @@ class _UserAgent(UserAgent):
 
     def __init__(self):
         super().__init__(
-            path=environ.get_asset_path(f"fake_useragent.json"),
+            path=environ.get_asset_path(f"browsers.json"),
             fallback=environ.get_config("DEFAULT_USER_AGENT", type=str),
         )
 

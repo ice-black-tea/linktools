@@ -34,6 +34,22 @@ from linktools.android import Device
 from linktools.cli import AndroidCommand, CommandError
 
 
+class AgentDevice(Device):
+
+    def get_agent_path(self, *name: str) -> str:
+        return self.get_data_path("agent", *name)
+
+    def push_agent_plugin(self, src_path: str = None) -> Optional[str]:
+        if not src_path:
+            return None
+        if not os.path.exists(src_path):
+            raise CommandError(f"Plugin file not found: {src_path}")
+        dest_name = os.path.basename(src_path)
+        dest_path = self.get_agent_path("plugin", dest_name)
+        self.push(src_path, dest_path)
+        return dest_path
+
+
 class Command(AndroidCommand):
     """
     Debug and interact with android-tools.apk for troubleshooting
@@ -53,32 +69,23 @@ class Command(AndroidCommand):
         parser.add_argument("agent_args", nargs="...", help="agent args")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device = args.device_picker.pick()
+        device = args.device_picker.pick().copy(AgentDevice)
 
-        process = device.popen(
-            *device.make_shell_args(
-                *device.make_agent_args(
-                    *args.agent_args,
-                    data_path=args.data or device.get_data_path('agent', 'data'),
-                    library_path=args.library,
-                    plugin_path=self._push_plugin(device, args.plugin),
-                ),
-                privilege=args.privilege,
-                user=args.user
-            )
+        agent_args = device.make_agent_args(
+            *args.agent_args,
+            data_path=args.data or device.get_agent_path("data"),
+            library_path=args.library or device.get_agent_path("data", "lib"),
+            plugin_path=device.push_agent_plugin(args.plugin),
         )
-        return process.call()
 
-    @classmethod
-    def _push_plugin(cls, device: Device, path: str = None) -> Optional[str]:
-        if not path:
-            return None
-        if not os.path.exists(path):
-            raise CommandError(f"Plugin file not found: {path}")
-        plugin_name = os.path.basename(path)
-        plugin_path = device.get_data_path("agent", "plugin", plugin_name)
-        device.push(path, plugin_path)
-        return plugin_path
+        shell_args = device.make_shell_args(
+            *agent_args,
+            privilege=args.privilege,
+            user=args.user
+        )
+
+        process = device.popen(*shell_args)
+        return process.call()
 
 
 command = Command()

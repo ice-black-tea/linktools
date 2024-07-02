@@ -30,7 +30,7 @@
 import json
 import re
 import time
-from typing import Any, Generator, List
+from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar
 
 from .struct import App, UnixSocket, InetSocket, Process
 from .. import utils, environ
@@ -38,10 +38,11 @@ from ..decorator import cached_property, cached_classproperty
 from ..device import BridgeError, Bridge, BaseDevice
 from ..reactor import Stoppable
 
-_logger = environ.get_logger("android.adb")
+if TYPE_CHECKING:
+    DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
 
+_logger = environ.get_logger("android.adb")
 _agent_output_pattern = re.compile(
-    r""
     r"┌──+──┐[^\n]*\n"
     r"│[^|]*│[^\n]*\n"
     r"└──+──┘[^\n]*\n",
@@ -138,6 +139,9 @@ class Device(BaseDevice):
         """
         return self.get_uid()
 
+    def copy(self, type: "Callable[[str, Adb], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
+        return (type or Device)(self._id, self._adb)
+
     def popen(self, *args: Any, **kwargs) -> utils.Process:
         """
         执行命令
@@ -203,7 +207,7 @@ class Device(BaseDevice):
             apk_path = file.download()
             environ.logger.info(f"Save file to local: {apk_path}")
 
-        remote_path = self.get_data_path("apk", f"{int(time.time())}.apk")
+        remote_path = self.get_data_path("apk", f"installed_{int(time.time())}.apk")
         try:
             self.push(apk_path, remote_path, **kwargs)
             if self.uid >= 10000:

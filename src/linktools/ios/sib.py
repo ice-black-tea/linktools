@@ -5,7 +5,7 @@ import json
 import subprocess
 import time
 from subprocess import TimeoutExpired
-from typing import Any, Generator, List
+from typing import Any, Generator, List, Callable, Dict, TYPE_CHECKING, TypeVar
 
 from .struct import Process, App
 from .. import utils
@@ -13,6 +13,9 @@ from .._environ import environ
 from ..decorator import cached_property
 from ..device import BridgeError, Bridge, BaseDevice
 from ..reactor import Stoppable
+
+if TYPE_CHECKING:
+    DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
 
 _logger = environ.get_logger("android.adb")
 
@@ -49,7 +52,7 @@ class Sib(Bridge):
 
 class Device(BaseDevice):
 
-    def __init__(self, id: str = None, info: dict = None, sib: Sib = None):
+    def __init__(self, id: str = None, info: Dict = None, sib: Sib = None):
         """
         :param id: 设备号
         """
@@ -102,6 +105,9 @@ class Device(BaseDevice):
     @cached_property
     def detail(self) -> dict:
         return self.info.get("deviceDetail")
+
+    def copy(self, type: "Callable[[str, Dict, Sib], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
+        return (type or Device)(self._id, self._info, self._sib)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:
         """
