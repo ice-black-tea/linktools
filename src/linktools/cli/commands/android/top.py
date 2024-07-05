@@ -28,6 +28,7 @@
 """
 
 import datetime
+import json
 import sys
 from argparse import ArgumentParser, Namespace
 from typing import Optional
@@ -72,25 +73,28 @@ class Command(AndroidCommand):
             environ.logger.info(f"Find current package: {name}")
             app = device.get_app(name)
             environ.logger.info(f"Find current apk path: {app.source_dir}")
-            path = device.get_storage_path("{}_{}.apk".format(app.name, app.version_name))
+            path = device.get_data_path("apk", "{}_{}.apk".format(app.name, app.version_name))
             dest = args.apk if not utils.is_empty(args.apk) else "."
-            device.shell("mkdir", "-p", device.get_storage_path(), log_output=True)
+            device.shell("mkdir", "-p", device.get_data_path("apk"), log_output=True)
             device.shell("cp", app.source_dir, path, log_output=True)
-            device.pull(path, dest, log_output=True)
-            device.shell("rm", path)
+            device.exec("pull", path, dest, log_output=True)
+            device.shell("rm", path, ignore_errors=True)
         elif "--screen" in sys.argv:
             now = datetime.datetime.now()
-            path = device.get_storage_path("screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
+            path = device.get_data_path("screenshot", "screenshot-" + now.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
             dest = args.screen if not utils.is_empty(args.screen) else "."
-            device.shell("mkdir", "-p", device.get_storage_path(), log_output=True)
+            device.shell("mkdir", "-p", device.get_data_path("screenshot"), log_output=True)
             device.shell("screencap", "-p", path, log_output=True)
-            device.pull(path, dest, log_output=True)
-            device.shell("rm", path)
+            device.exec("pull", path, dest, log_output=True)
+            device.shell("rm", path, ignore_errors=True)
         else:
-            app = device.get_current_package()
-            environ.logger.info(f"Package:  {app}")
-            environ.logger.info(f"Activity: {device.get_current_activity()}")
-            environ.logger.info(f"Path:     {device.get_apk_path(app)}")
+            package = device.get_current_package()
+            activity = device.get_current_activity()
+            environ.logger.info(json.dumps({
+                "package": package,
+                "activity": activity,
+                "path": device.get_apk_path(package),
+            }, ensure_ascii=False, indent=2))
 
         return
 

@@ -28,11 +28,12 @@
 """
 
 import json
+import os
 import re
 import time
-from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar
+from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar, Optional
 
-from .struct import App, UnixSocket, InetSocket, Process
+from .struct import App, UnixSocket, InetSocket, Process, File, SystemService
 from .. import utils, environ
 from ..decorator import cached_property, cached_classproperty
 from ..device import BridgeError, Bridge, BaseDevice
@@ -203,13 +204,12 @@ class Device(BaseDevice):
         apk_path = path_or_url
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
             environ.logger.info(f"Download file: {path_or_url}")
-            file = environ.get_url_file(path_or_url)
-            apk_path = file.download()
+            apk_path = environ.get_url_file(path_or_url).download()
             environ.logger.info(f"Save file to local: {apk_path}")
 
-        remote_path = self.get_data_path("apk", f"installed_{int(time.time())}.apk")
+        remote_name = f"installed_{int(time.time())}.apk"
+        remote_path = self.push_file(apk_path, self.get_data_path("apk"), remote_name, **kwargs)
         try:
-            self.push(apk_path, remote_path, **kwargs)
             if self.uid >= 10000:
                 self.shell("am", "start", "--user", "0",
                            "-a", "android.intent.action.VIEW",
@@ -232,24 +232,85 @@ class Device(BaseDevice):
         self.exec("uninstall", package_name, **kwargs)
 
     @utils.timeoutable
-    def push(self, src: str, dst: str, **kwargs):
+    def push_file(self, src_path: str, dest_dir: str, dest_name: str = None, skip_exist: bool = False, **kwargs) -> str:
         """
         推送文件到设备
-        :param src: 源文件
-        :param dst: 目标文件
+        :param src_path: 源文件（本地）
+        :param dest_dir: 目标文件夹（Android设备）
+        :param dest_name: 目标文件名（Android设备）
+        :param skip_exist: 跳过已存在的目标文件
+        :return: 目标文件路径
+        """
+        ignore_errors = kwargs.get("ignore_errors", False)
+        dest_name = dest_name or os.path.basename(src_path)
+        dest_path = self.join_path(dest_dir, dest_name)
+        if not ignore_errors and not os.path.exists(src_path):
+            raise AdbError(f"{src_path} does not exist in host")
+        if not skip_exist or not self.is_file_exist(dest_path, **kwargs):
+            self.shell("mkdir", "-p", dest_dir, **kwargs)
+            self.exec("push", src_path, dest_path, **kwargs)
+        return dest_path
+
+    def push_dir(self, src_dir: str, dest_dir: str, skip_exist: bool = False, **kwargs) -> str:
+        """
+        推送文件夹到设备
+        :param src_dir: 源文件夹（本地）
+        :param dest_dir: 目标文件夹（Android设备）
+        :param skip_exist: 跳过已存在的目标文件
         :return: adb输出结果
         """
-        self.exec("push", src, dst, **kwargs)
+        ignore_errors = kwargs.get("ignore_errors", False)
+        src_dir = os.path.abspath(os.path.expanduser(src_dir))
+        if not ignore_errors and not os.path.exists(src_dir):
+            raise AdbError(f"{src_dir} does not exist in host")
+        if not ignore_errors and not os.path.isdir(src_dir):
+            raise AdbError(f"{src_dir} is not a directory in host")
+        if not skip_exist or not self.is_directory_exist(dest_dir, **kwargs):
+            self.shell("mkdir", "-p", dest_dir, **kwargs)
+            self.exec("push", os.path.join(src_dir, "."), dest_dir, **kwargs)
+        return dest_dir
 
     @utils.timeoutable
-    def pull(self, src: str, dst: str, **kwargs):
+    def pull_file(self, src_path: str, dest_dir: str, dest_name: str = None, skip_exist: bool = False, **kwargs) -> str:
         """
-        拉取设备的文件
-        :param src: 源文件
-        :param dst: 目标文件
+        从设备拉取文件
+        :param src_path: 源文件（Android设备）
+        :param dest_dir: 目标文件夹（本地）
+        :param dest_name: 目标文件名（本地）
+        :param skip_exist: 跳过已存在的目标文件
         :return: adb输出结果
         """
-        self.exec("pull", src, dst, **kwargs)
+        ignore_errors = kwargs.get("ignore_errors")
+        dest_name = dest_name or self.get_base_name(src_path)
+        dest_path = os.path.join(dest_dir, dest_name)
+        if not ignore_errors and not self.is_file_exist(src_path):
+            raise AdbError(f"{src_path} does not exist in {self}")
+        is_exist = os.path.exists(dest_path)
+        if not skip_exist or not is_exist:
+            if not is_exist:
+                os.makedirs(dest_dir, exist_ok=True)
+            self.exec("pull", src_path, dest_path, **kwargs)
+        return dest_path
+
+    @utils.timeoutable
+    def pull_dir(self, src_dir: str, dest_dir: str, skip_exist: bool = False, **kwargs) -> str:
+        """
+        从设备拉取文件夹
+        :param src_dir: 源文件（Android设备）
+        :param dest_dir: 目标文件夹（本地）
+        :param skip_exist: 跳过已存在的目标文件
+        :return: adb输出结果
+        """
+        ignore_errors = kwargs.get("ignore_errors")
+        dest_dir = os.path.abspath(os.path.expanduser(dest_dir))
+        if not ignore_errors and not self.is_directory_exist(src_dir):
+            raise AdbError(f"{src_dir} does not exist in {self}")
+        is_exist = os.path.exists(dest_dir)
+        if not skip_exist or not is_exist:
+            if not is_exist:
+                os.makedirs(dest_dir, exist_ok=True)
+            self.exec("pull", self.join_path(src_dir, "."), dest_dir, **kwargs)
+        return dest_dir
 
     def forward(self, local: str, remote: str):
         """
@@ -258,7 +319,6 @@ class Device(BaseDevice):
         :param remote: 远程端口
         :return: 可关闭对象
         """
-
         result = self.exec("forward", local, remote)
         if local == "tcp:0":
             local = f"tcp:{result}"
@@ -427,6 +487,17 @@ class Device(BaseDevice):
         out = self.shell(*args, **kwargs)
         return utils.bool(utils.int(out, default=0), default=False)
 
+    @utils.timeoutable
+    def is_directory_exist(self, path: str, **kwargs) -> bool:
+        """
+        文件夹是否存在
+        :param path: 文件夹路径
+        :return: 是否存在
+        """
+        args = ["[", "-d", path, "]", "&&", "echo", "-n", "1"]
+        out = self.shell(*args, **kwargs)
+        return utils.bool(utils.int(out, default=0), default=False)
+
     @cached_classproperty
     def _agent_info(self) -> dict:
         agent_path = environ.get_asset_path("android-tools.json")
@@ -444,14 +515,9 @@ class Device(BaseDevice):
 
         apk_path = environ.get_asset_path(apk_name)
         target_dir = self.get_data_path("agent", "apk", apk_md5)
-        target_path = self.get_data_path("agent", "apk", apk_md5, apk_name)
-
-        # check apk path
+        target_path = self.push_file(apk_path, target_dir, apk_name, skip_exist=True)
         if not self.is_file_exist(target_path):
-            self.shell("rm", "-rf", target_dir)
-            self.push(apk_path, target_path)
-            if not self.is_file_exist(target_path):
-                raise AdbError("%s does not exist" % target_path)
+            raise AdbError("%s does not exist" % target_path)
 
         return target_path
 
@@ -462,15 +528,15 @@ class Device(BaseDevice):
             app_path: str = None,
             data_path: str = None,
             library_path: str = None,
-            plugin_path: str = None
+            plugin_path: str = None,
     ) -> [str]:
         """
         生成agent参数
         :param args: 参数
         :param app_name: 伪造的包名
-        :param app_path: 伪造的包名
-        :param data_path: mDataDir路径
-        :param library_path: mLibDir路径
+        :param app_path: 伪造的包路径
+        :param data_path: context.getDataDir()路径
+        :param library_path: LD_LIBRARY_PATH路径
         :param plugin_path: 插件路径
         :return: 参数列表
         """
@@ -493,21 +559,35 @@ class Device(BaseDevice):
         return agent_args
 
     @utils.timeoutable
-    def call_agent(self, *args: [str], **kwargs) -> str:
+    def call_agent(
+            self,
+            *args: [str],
+            app_name: str = None,
+            app_path: str = None,
+            data_path: str = None,
+            library_path: str = None,
+            plugin_path: str = None,
+            **kwargs
+    ) -> str:
         """
         调用辅助apk功能
         :param args: 参数
+        :param app_name: 伪造的包名
+        :param app_path: 伪造的包路径
+        :param data_path: context.getDataDir()路径
+        :param library_path: LD_LIBRARY_PATH路径
+        :param plugin_path: 插件路径
         :return: 输出结果
         """
         # call apk
         result = self.shell(
             *self.make_agent_args(
                 *args,
-                app_name=kwargs.pop("app_name", None),
-                app_path=kwargs.pop("app_path", None),
-                data_path=kwargs.pop("data_path", None),
-                library_path=kwargs.pop("library_path", None),
-                plugin_path=kwargs.pop("plugin_path", None),
+                app_name=app_name,
+                app_path=app_path,
+                data_path=data_path,
+                library_path=library_path,
+                plugin_path=plugin_path,
             ),
             **kwargs
         )
@@ -534,7 +614,7 @@ class Device(BaseDevice):
             if items is not None and len(items) >= 2:
                 return items[1].split("/")[0].rstrip()
         # use agent instead of dumpsys
-        out = self.call_agent("common", "--top-package", **kwargs)
+        out = self.call_agent("common", "--top-package", **kwargs).strip()
         if not utils.is_empty(out):
             return out
         raise AdbError("can not fetch top package")
@@ -651,39 +731,75 @@ class Device(BaseDevice):
         return result
 
     @utils.timeoutable
-    def get_tcp_sockets(self, **kwargs) -> [InetSocket]:
+    def get_system_service(self, service_name: str, detail: bool = None, **kwargs) -> SystemService:
+        """
+        根据服务名获取系统服务信息
+        :param service_name: 服务名
+        :param detail: 获取详细信息
+        :return: 包信息
+        """
+        args = ["service", "--names", service_name]
+        if detail is True:
+            args.append("--detail")
+        objs = json.loads(self.call_agent(*args, **kwargs))
+        if len(objs) == 0:
+            raise AdbError(f"Service '{service_name}' not found")
+        return SystemService(objs[0])
+
+    @utils.timeoutable
+    def get_system_services(self, *service_names: str, detail: bool = False, **kwargs) -> [SystemService]:
+        """
+        获取系统服务信息
+        :param service_names: 服务名（不填则全量）
+        :param detail: 获取详细信息
+        :return: 包信息
+        """
+        result = []
+        agent_args = ["service"]
+        if service_names:
+            agent_args.append("--names")
+            agent_args.extend(service_names)
+        if detail is True:
+            agent_args.append("--detail")
+        objs = json.loads(self.call_agent(*agent_args, **kwargs))
+        for obj in objs:
+            result.append(SystemService(obj))
+        return result
+
+    @utils.timeoutable
+    def list_tcp_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备tcp连接情况，需要读取/proc/net/tcp文件，高版本设备至少需要shell权限
         :return: tcp连接列表
         """
-        return self._get_sockets(InetSocket, ["common", "--tcp-sock"], **kwargs)
+        return self._list_sockets(InetSocket, ["common", "--list-tcp-sock"], **kwargs)
 
     @utils.timeoutable
-    def get_udp_sockets(self, **kwargs) -> [InetSocket]:
+    def list_udp_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备udp连接情况，需要读取/proc/net/udp文件，高版本设备至少需要shell权限
         :return: udp连接列表
         """
-        return self._get_sockets(InetSocket, ["common", "--udp-sock"], **kwargs)
+        return self._list_sockets(InetSocket, ["common", "--list-udp-sock"], **kwargs)
 
     @utils.timeoutable
-    def get_raw_sockets(self, **kwargs) -> [InetSocket]:
+    def list_raw_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备raw连接情况，需要读取/proc/net/raw文件，高版本设备至少需要shell权限
         :return: raw连接列表
         """
-        return self._get_sockets(InetSocket, ["common", "--raw-sock"], **kwargs)
+        return self._list_sockets(InetSocket, ["common", "--list-raw-sock"], **kwargs)
 
     @utils.timeoutable
-    def get_unix_sockets(self, **kwargs) -> [UnixSocket]:
+    def list_unix_sockets(self, **kwargs) -> [UnixSocket]:
         """
         同netstat命令，获取设备unix连接情况，需要读取/proc/net/unix文件，高版本设备至少需要shell权限
         :return: unix连接列表
         """
-        return self._get_sockets(UnixSocket, ["common", "--unix-sock"], **kwargs)
+        return self._list_sockets(UnixSocket, ["common", "--list-unix-sock"], **kwargs)
 
     @utils.timeoutable
-    def _get_sockets(self, type, args, **kwargs):
+    def _list_sockets(self, type, args, **kwargs):
         result = []
         objs = json.loads(self.call_agent(*args, **kwargs))
         for obj in objs:
@@ -691,13 +807,60 @@ class Device(BaseDevice):
         return result
 
     @utils.timeoutable
-    def get_processes(self, **kwargs) -> [Process]:
+    def list_processes(self, **kwargs) -> [Process]:
+        """
+        列出所有进程
+        """
         result = []
-        agent_args = ["common", "--process"]
+        agent_args = ["common", "--list-process"]
         objs = json.loads(self.call_agent(*agent_args, **kwargs))
         for obj in objs:
             result.append(Process(obj))
         return result
+
+    @utils.timeoutable
+    def list_files(self, path: str, **kwargs) -> [File]:
+        """
+        列出指定目录下的所有文件
+        """
+        result = []
+        agent_args = ["common", "--list-file", path]
+        objs = json.loads(self.call_agent(*agent_args, **kwargs))
+        for obj in objs:
+            result.append(File(obj))
+        return result
+
+    @cached_property
+    def _data_path(self):
+        data_path = f"/data/local/tmp/{environ.name}_{self.uid}"
+        if self.uid < 10000:
+            return data_path
+        adb_data_path = self.shell("echo", "-n", "$ADB_DATA_PATH").strip()
+        if not adb_data_path:
+            return f"/data/local/tmp/{environ.name}"
+        return data_path
+
+    def get_data_path(self, *names: [str]) -> str:
+        """
+        /data/local/tmp 路径
+        :param names: 文件名
+        :return: 路径
+        """
+        return self.join_path(self._data_path, *names)
+
+    @classmethod
+    def join_path(cls, *names: str):
+        path = ""
+        for name in names:
+            path += "/" + cls.get_safe_path(name).strip("/")
+        return path
+
+    @classmethod
+    def get_base_name(cls, path: str) -> str:
+        index = path.rfind("/")
+        if index >= 0:
+            return path[index + 1:]
+        return path
 
     @classmethod
     def get_safe_path(cls, path: str) -> str:
@@ -712,36 +875,6 @@ class Device(BaseDevice):
             if temp == result:
                 return result
             temp = result
-
-    @classmethod
-    def get_storage_path(cls, *paths: [str]) -> str:
-        """
-        存储文件路径
-        :param paths: 文件名
-        :return: 路径
-        """
-        return "/sdcard/%s/%s" % (
-            environ.name,
-            "/".join([cls.get_safe_path(o) for o in paths])
-        )
-
-    def get_data_path(self, *paths: [str]) -> str:
-        """
-        /data/local/tmp路径
-        :param paths: 文件名
-        :return: 路径
-        """
-        return "%s/%s" % (
-            self._data_path,
-            "/".join([self.get_safe_path(o) for o in paths])
-        )
-
-    @cached_property
-    def _data_path(self):
-        data_path = self.shell("echo", "-n", "$ADB_DATA_PATH").strip()
-        if not data_path:
-            data_path = "/data/local/tmp"
-        return data_path
 
     def __repr__(self):
         return f"AdbDevice<{self.id}>"

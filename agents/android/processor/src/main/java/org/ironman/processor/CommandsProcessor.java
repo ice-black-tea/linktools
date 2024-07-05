@@ -47,10 +47,10 @@ public class CommandsProcessor extends AbstractProcessor {
         MethodSpec.Builder method = MethodSpec.methodBuilder("addCommands")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(void.class)
-                .addParameter(JCommander.Builder.class, "builder");
+                .addParameter(JCommander.class, "commander");
 
         for (Element command : commands) {
-            method.addStatement("builder.addCommand(new $T())", command.asType());
+            method.addStatement("commander.addCommand(new $T())", command.asType());
         }
 
         TypeSpec type = TypeSpec.classBuilder(className)

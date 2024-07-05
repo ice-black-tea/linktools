@@ -1,4 +1,4 @@
-package org.ironman.framework.bean.process;
+package org.ironman.framework.bean.os;
 
 public class Process {
     public long pid;

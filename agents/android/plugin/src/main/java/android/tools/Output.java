@@ -29,28 +29,6 @@ public interface Output {
         }
 
         @Override
-        public Output indent(int indent) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < indent; i++) {
-                sb.append(" ");
-            }
-            printStream.print(sb);
-            return this;
-        }
-
-        @Override
-        public Output print(String format, Object... args) {
-            printStream.print(args.length > 0 ? String.format(format, args) : format);
-            return this;
-        }
-
-        @Override
-        public Output print(Object object) {
-            printStream.print(object);
-            return this;
-        }
-
-        @Override
         public Output println(String format, Object... args) {
             printStream.println(args.length > 0 ? String.format(format, args) : format);
             return this;
@@ -77,9 +55,6 @@ public interface Output {
 
     PrintStream getStream();
     Output setStream(PrintStream stream);
-    Output indent(int indent);
-    Output print(Object object);
-    Output print(String format, Object... args);
     Output println(Object object);
     Output println(String format, Object... args);
     Output println(Throwable th);

@@ -16,23 +16,71 @@ import java.io.IOException;
 
 public class FileUtil {
 
+    public static File[] listFiles(File file) {
+        try {
+            return file.listFiles();
+        } catch (SecurityException e) {
+            return null;
+        }
+    }
+
     public static boolean canWrite(String fileName) {
-        return new File(fileName).canWrite();
+        return canWrite(new File(fileName));
+    }
+
+    public static boolean canWrite(File file) {
+        try {
+            return file.canWrite();
+        } catch (SecurityException e) {
+            return false;
+        }
     }
 
     public static boolean canRead(String fileName) {
-        return new File(fileName).canRead();
+        return canRead(new File(fileName));
+    }
+
+    public static boolean canRead(File file) {
+        try {
+            return file.canRead();
+        } catch (SecurityException e) {
+            return false;
+        }
     }
 
     public static boolean canExecute(String fileName) {
-        return new File(fileName).canExecute();
+        return canExecute(new File(fileName));
+    }
+
+    public static boolean canExecute(File file) {
+        try {
+            return file.canExecute();
+        } catch (SecurityException e) {
+            return false;
+        }
+    }
+
+    public static boolean isDirectory(String fileName) {
+        return isDirectory(new File(fileName));
+    }
+
+    public static boolean isDirectory(File file) {
+        try {
+            return file.isDirectory();
+        } catch (SecurityException e) {
+            return false;
+        }
     }
 
     public static String readString(String fileName) throws IOException {
+        return readString(new File(fileName));
+    }
+
+    public static String readString(File file) throws IOException {
         StringBuilder result = new StringBuilder();
         BufferedReader reader = null;
         try {
-            reader = new BufferedReader(new FileReader(fileName));
+            reader = new BufferedReader(new FileReader(file));
             String line;
             while ((line = reader.readLine()) != null) {
                 result.append(line);
@@ -46,9 +94,13 @@ public class FileUtil {
     }
 
     public static void writeString(String fileName, String buffer) throws IOException {
+        writeString(new File(fileName), buffer);
+    }
+
+    public static void writeString(File file, String buffer) throws IOException {
         FileWriter writer = null;
         try {
-            writer = new FileWriter(fileName);
+            writer = new FileWriter(file);
             writer.write(buffer);
         } finally {
             CommonUtil.closeQuietly(writer);

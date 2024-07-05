@@ -7,6 +7,8 @@ import android.tools.processor.CommandUtils;
 import android.util.Log;
 import com.beust.jcommander.JCommander;
 
+import org.ironman.framework.util.LogUtil;
+
 import java.io.File;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -44,21 +46,22 @@ public class Main {
     private void internalMain(String[] args) throws Throwable {
         IPlugin plugin = loadPlugin();
 
-        JCommander.Builder builder = JCommander.newBuilder().addObject(this);
-        builder.programName(Main.class.getName());
-        CommandUtils.addCommands(builder);
-        JCommander commander = builder.build();
+        JCommander commander = JCommander.newBuilder()
+                .programName(Main.class.getName())
+                .addObject(this)
+                .build();
+        CommandUtils.addCommands(commander);
         if (plugin != null) {
             commander.addCommand("plugin", new PluginCommand());
-            JCommander command = commander.getCommands().get("plugin");
-            plugin.init(command);
+            plugin.init(commander.getCommands().get("plugin"));
         }
-        commander.parse(args);
 
+        commander.parse(args);
         JCommander subCommander = commander.getCommands().get(commander.getParsedCommand());
         if (subCommander != null) {
             for (Object command : subCommander.getObjects()) {
                 if (command instanceof ICommand) {
+                    LogUtil.i(TAG, "Execute %s", command.getClass().getSimpleName());
                     ((ICommand) command).execute(subCommander);
                 }
             }
@@ -94,7 +97,7 @@ public class Main {
             Output.err.println(sb.toString());
             System.exit(-1);
         } catch (Throwable th) {
-            Output.err.println(Log.getStackTraceString(th));
+            Output.err.println(th);
             System.exit(-1);
         }
     }

@@ -44,10 +44,7 @@ class AgentDevice(Device):
             return None
         if not os.path.exists(src_path):
             raise CommandError(f"Plugin file not found: {src_path}")
-        dest_name = os.path.basename(src_path)
-        dest_path = self.get_agent_path("plugin", dest_name)
-        self.push(src_path, dest_path)
-        return dest_path
+        return self.push_file(src_path, self.get_agent_path("plugin"))
 
 
 class Command(AndroidCommand):

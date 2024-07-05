@@ -689,7 +689,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         """
         已知错误类型
         """
-        return [CommandError]
+        return []
 
     @abc.abstractmethod
     def init_arguments(self, parser: ArgumentParser) -> None:
@@ -856,7 +856,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
 
             exit_code = self.run(args) or 0
 
-        except (KeyboardInterrupt, EOFError, *self.known_errors) as e:
+        except (KeyboardInterrupt, EOFError, CommandError, *self.known_errors) as e:
             exit_code = 1
             error_type, error_message = e.__class__.__name__, str(e).strip()
             self.logger.error(

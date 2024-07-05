@@ -88,7 +88,7 @@ class AndroidFridaServer(FridaServer):
             if self._serve:
                 # 就算杀死adb进程，frida server也不一定真的结束了，所以kill一下frida server进程
                 process_name_lc = f"{self._server_prefix}*".lower()
-                for process in self._device.get_processes():
+                for process in self._device.list_processes():
                     if fnmatch.fnmatchcase(process.name.lower(), process_name_lc):
                         _logger.debug(f"Find frida server process({process.name}:{process.pid}), kill it")
                         self._device.sudo("kill", "-9", process.pid, ignore_errors=True)
@@ -129,7 +129,6 @@ class AndroidFridaServer(FridaServer):
         for executable in executables:
             remote_dir = self._device.get_data_path("fs")
             remote_path = self._device.get_data_path("fs", executable.name)
-            remote_temp_path = self._device.get_storage_path("frida", executable.name)
 
             # 先下载frida server，然后把server推送到设备上
             try:
@@ -140,9 +139,11 @@ class AndroidFridaServer(FridaServer):
                 raise e
 
             _logger.info(f"Push {executable.name} to remote: {remote_path}")
-            self._device.push(executable.path, remote_temp_path, log_output=True)
+
+            temp_dir = self._device.get_data_path("temp")
+            temp_path = self._device.push_file(executable.path, temp_dir, log_output=True)
             self._device.sudo("mkdir", "-p", remote_dir, log_output=True)
-            self._device.sudo("mv", remote_temp_path, remote_path, log_output=True)
+            self._device.sudo("mv", temp_path, remote_path, log_output=True)
             self._device.sudo("chmod", "755", remote_path, log_output=True)
 
             return remote_path

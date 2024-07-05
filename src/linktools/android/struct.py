@@ -362,3 +362,30 @@ class Process:
 
     def __repr__(self):
         return f"Process<{self.name}>"
+
+
+class File:
+
+    def __init__(self, obj: dict):
+        self.name = utils.get_item(obj, "name", type=str, default="")
+        self.path = utils.get_item(obj, "path", type=str, default="")
+        self.is_directory = utils.get_item(obj, "isDirectory", type=bool, default=False)
+        self.readable = utils.get_item(obj, "readable", type=bool, default=False)
+        self.writable = utils.get_item(obj, "writable", type=bool, default=False)
+        self.executable = utils.get_item(obj, "executable", type=bool, default=False)
+
+    def __repr__(self):
+        return f"File<{self.path}>"
+
+
+class SystemService:
+
+    def __init__(self, obj: dict):
+        self.name = utils.get_item(obj, "name", type=str, default="")
+        self.desc = utils.get_item(obj, "desc", type=str, default="")
+        self.binder = utils.get_item(obj, "binder", type=str, default="")
+        self.owner = utils.get_item(obj, "owner", type=Process, default=None)
+        self.users = utils.get_list_item(obj, "users", type=Process, default=[])
+
+    def __repr__(self):
+        return f"SystemService<{self.name}>"

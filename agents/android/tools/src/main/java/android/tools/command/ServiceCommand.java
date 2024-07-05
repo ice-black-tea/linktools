@@ -2,9 +2,10 @@ package android.tools.command;
 
 import android.os.IBinder;
 import android.os.Parcel;
-import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.text.TextUtils;
 import android.tools.ICommand;
+import android.tools.Main;
 import android.tools.Output;
 
 import com.beust.jcommander.JCommander;
@@ -12,9 +13,33 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
 import org.ironman.annotation.Subcommand;
+import org.ironman.framework.bean.os.Process;
+import org.ironman.framework.bean.os.Service;
+import org.ironman.framework.util.CommandUtil;
+import org.ironman.framework.util.CommonUtil;
+import org.ironman.framework.util.FileUtil;
+import org.ironman.framework.util.GsonUtil;
+import org.ironman.framework.util.LogUtil;
+import org.ironman.framework.util.ProcessUtil;
+import org.ironman.framework.util.ServiceUtil;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by hu on 18-12-18.
@@ -24,133 +49,256 @@ import java.util.List;
 @Parameters(commandNames = "service")
 public class ServiceCommand implements ICommand {
 
-    @Parameter(names = {"-l", "--list"}, order = 0, description = "List all system services")
-    private boolean list = false;
+    private static final String TAG = ServiceCommand.class.getSimpleName();
 
-    @Parameter(names = {"--detail"}, order = 1, description = "Display detail information.")
+    private static final String PATH_DEBUG_FS = "/sys/kernel/debug/binder/proc/";
+    private static final String NODE_PREFIX = "Service Node: ";
+    private static final Pattern NODE_PATTERN = Pattern.compile("^" + NODE_PREFIX + "\\D*(\\d+)$");
+
+    @Parameter(names = {"--names"}, order = 1, variableArity = true, description = "Display target services")
+    private List<String> names = new ArrayList<>();
+
+    @Parameter(names = {"--detail"}, order = 2, description = "Display detail information.")
     private boolean detail = false;
 
-    @Parameter(names = {"-f", "--fuzz"}, order = 100, variableArity = true, description = "Fuzz system services")
-    private List<String> fuzz = new ArrayList<>();
-
-    @Parameter(names = {"-e", "--except-mode"}, order = 101, description = "Fuzz system services (except mode)")
-    private boolean except = false;
+    @Parameter(names = {"--node"}, order = 3, description = "Get service node", hidden = true)
+    private String node = null;
 
     @Override
     public void execute(JCommander commander) {
-        String[] services = null;
+        if (!TextUtils.isEmpty(node)) {
+            if (canReadDebugFS()) {
+                Output.out.println(NODE_PREFIX + getServiceNode(node));
+            }
+        } else {
+            Output.out.println(GsonUtil.toJson(listServices()));
+        }
+    }
+
+    private boolean canReadDebugFS() {
         try {
-            services = ServiceManager.listServices();
+            File debugFS = new File(PATH_DEBUG_FS, String.valueOf(android.os.Process.myPid()));
+            return debugFS.exists() && debugFS.canRead();
+        } catch (SecurityException e) {
+            return false;
+        }
+    }
+
+    private List<Service> listServices() {
+        List<String> allServices = Arrays.asList(ServiceUtil.listServices());
+
+        List<String> targetServices = names;
+        if (!targetServices.isEmpty()) {
+            Iterator<String> it = targetServices.iterator();
+            while (it.hasNext()) {
+                if (!allServices.contains(it.next())) {
+                    it.remove();
+                }
+            }
+        } else {
+            targetServices = allServices;
+        }
+
+        ConcurrentMap<Integer, Service> nodes = new ConcurrentHashMap<>();
+
+        boolean multiThreading = detail && !targetServices.isEmpty();
+        boolean fetchServiceNode = detail && canReadDebugFS();
+
+        ThreadPoolExecutor executor = null;
+        if (multiThreading) {
+            executor = new ThreadPoolExecutor(
+                    100,
+                    100,
+                    0,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>());
+        }
+
+        List<Service> result = new ArrayList<>();
+        for (String name : targetServices) {
+            Service service = new Service();
+            service.name = name;
+            if (multiThreading) {
+                executor.submit(() -> {
+                    try {
+                        service.binder = ServiceManager.getService(service.name);
+                        service.desc = service.binder.getInterfaceDescriptor();
+                    } catch (Exception e) {
+                        service.binder = null;
+                        service.desc = "";
+                    }
+
+                    try {
+                        if (fetchServiceNode) {
+                            int node = getServiceNodeFromSubprocess(service.name);
+                            if (node != Integer.MIN_VALUE) {
+                                nodes.put(node, service);
+                            }
+                        }
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                });
+            }
+            result.add(service);
+        }
+
+        if (multiThreading) {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException ex) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        if (!nodes.isEmpty()) {
+            iterateProcFs(nodes);
+        }
+
+        return result;
+    }
+
+    private Map<Integer, String> probeService(String service) {
+        Map<Integer, String> map = new HashMap<>();
+
+        if (ServiceManager.getService(service) != null) {
+            for (int code = 1; code <= 1000; code++) {
+                int transactCode = code;
+                IBinder binder = ServiceUtil.getService(service, 3_000);
+                if (binder != null && binder.isBinderAlive()) {
+                    ServiceUtil.transact(binder, code, new ServiceUtil.Callback() {
+
+                        @Override
+                        public void onTransacted(IBinder binder, boolean result, Parcel reply) {
+                            reply.readException();
+                            map.put(transactCode, "success");
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            map.put(transactCode, String.format("%s: %s", e.getClass().getName(), e.getMessage()));
+                        }
+                    });
+                }
+            }
+        }
+
+        return map;
+    }
+
+    private static int getServiceNodeFromSubprocess(String service) throws IOException {
+        String output = CommandUtil.execCommand(
+                "app_process", "/", Main.class.getName(),
+                "service", "--node", service);
+        for (String line : output.split("\n")) {
+            if (line.startsWith(NODE_PREFIX)) {
+                Matcher matcher = NODE_PATTERN.matcher(line);
+                if (matcher.matches()) {
+                    int node = CommonUtil.parseInt(matcher.group(1), Integer.MIN_VALUE);
+                    if (node != Integer.MIN_VALUE) {
+                        return node;
+                    }
+                }
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    private static int getServiceNode(String service) {
+        IBinder binder = null;
+        LogUtil.i(TAG, "trying " + service + " ...");
+        try {
+            binder = ServiceManager.getService(service);
+            LogUtil.i(TAG, "service got is " + binder);
+            try {
+                return getSelfHoldingNode();
+            } catch (IOException e) {
+                LogUtil.printStackTrace(TAG, e);
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("we did not find service " + service + ".");
         }
+        return Integer.MIN_VALUE;
+    }
 
-        if (services == null || services.length == 0) {
-            return;
+    private static int getSelfHoldingNode() throws IOException {
+        String path = new File(PATH_DEBUG_FS, String.valueOf(android.os.Process.myPid())).getAbsolutePath();
+        String binderStat = FileUtil.readString(path);
+//        LogUtil.i(TAG, binderStat);
+        return extractStatAndGetServiceNode(binderStat);
+    }
+
+    protected static int extractStatAndGetServiceNode(String binderStat) {
+        //find first "context binder"
+        //first ref is usually service manager
+        int svcMgrNodeIndex = binderStat.indexOf("context binder");
+        if (svcMgrNodeIndex == -1) {
+            throw new IllegalArgumentException("unreachable: the process does not have context binder");
         }
+        svcMgrNodeIndex = binderStat.indexOf("node", svcMgrNodeIndex + 1);
+        if (svcMgrNodeIndex == -1) {
+            //wtf? cannot find any node?
+            throw new IllegalArgumentException("cannot find any node in binder stat");
+        }
+        //next ref is the service we opened
+        int svcNodeIndex = binderStat.indexOf("node", svcMgrNodeIndex + 1);
+        Scanner scanner = new Scanner(binderStat.substring(svcNodeIndex + 1));
+        scanner.next();
+        return scanner.nextInt();
+    }
 
-        for (String name : services) {
+    private static void iterateProcFs(Map<Integer, Service> nodes) {
+        File debugFS = new File(PATH_DEBUG_FS);
+        List<Process> processes = ProcessUtil.getProcessList();
+        for (Process process : processes) {
+            if (android.os.Process.myPid() != process.pid) {
+                try {
+                    File file = new File(debugFS, String.valueOf(process.pid));
+                    String binderStat = FileUtil.readString(file);
+                    procUserOrOwner(process, binderStat, nodes);
+                } catch (IOException e) {
+                    LogUtil.printStackTrace(TAG, e);
+                    //this pid may have died while we iterate. ignore exception
+                }
+            }
+        }
+    }
 
-            boolean needFuzz = inFuzzList(name);
-            if (!needFuzz && !list) {
+    private static void procUserOrOwner(Process process, String binderStat, Map<Integer, Service> nodes) {
+        for (Integer nodeId : nodes.keySet()) {
+            Service service = nodes.get(nodeId);
+            int beginIndex = binderStat.indexOf("context binder");
+            int endIndex = binderStat.indexOf("binder proc state", beginIndex + 15);
+            String symbol = String.format(Locale.getDefault(), "node %d", nodeId);
+            if (beginIndex == -1) {
+                //this process only holds one kind of binder, but not what we desired
                 continue;
             }
-
-            Service service = new Service(name);
-            service.print(detail);
-
-            if (service.valid() && needFuzz) {
-                service.fuzz();
-                Output.out.println();
+            if (endIndex != -1) {
+                binderStat = binderStat.substring(beginIndex + 1, endIndex);
             }
-        }
-    }
-
-    private boolean inFuzzList(String service) {
-        boolean contains = fuzz.contains(service);
-        return !(!except && !contains) && !(except && contains);
-    }
-
-    private static class Service {
-
-        String name;
-        String desc;
-        IBinder binder;
-
-        Service(String name) {
-            this.name = name;
-            try {
-                this.binder = ServiceManager.getService(name);
-                this.desc = this.binder.getInterfaceDescriptor();
-            } catch (Exception e) {
-                this.binder = null;
-                this.desc = "";
-            }
-        }
-
-        boolean valid() {
-            return binder != null;
-        }
-
-        void print(boolean detail) {
-            if (detail) {
-                Output.out.println("[*] %s: [%s] -> [%s]", name, desc, binder);
-            } else {
-                Output.out.println(name);
-            }
-        }
-
-        void transact(int code, Parcel data, Parcel reply, int flags) {
-            try {
-                if (!binder.isBinderAlive()) {
-                    binder = ServiceManager.getService(name);
-                    for (int i = 0; (binder == null || !binder.isBinderAlive()) && i < 50; i++) {
-                        Thread.sleep(100);
-                        binder = ServiceManager.getService(name);
+            for (String line : binderStat.split("\n")) {
+                line = line.trim();
+                if (line.contains(symbol + " ") || line.contains(symbol + ":")) {
+                    if (line.startsWith("ref ")) {
+                        //this process uses this binder node
+                        service.owner = process;
+                    } else if (line.startsWith("node ")) {
+                        //this process holds this binder node
+                        if (service.users == null) {
+                            service.users = new ArrayList<>();
+                        }
+                        service.users.add(process);
+                    } else {
+                        //???wtf
                     }
                 }
-
-                if (binder.transact(code, data, reply, flags)) {
-                    try {
-                        reply.readException();
-                        Output.out.indent(4).println("%d", code);
-                        // Thread.sleep(0);
-                    } catch (Exception e) {
-                        Output.out.indent(4).println("%d -> %s: %s",
-                                code, e.getClass().getName(), e.getMessage());
-                    }
-                }
-            } catch (RemoteException e) {
-                Output.out.indent(4).println("%d -> %s: %s",
-                        code, e.getClass().getName(), e.getMessage() != null);
-            } catch (Exception e) {
-                // e.printStackTrace();
             }
-        }
-
-        void list() {
-            Parcel data = Parcel.obtain();
-            for (int i = 1; i <= 1000; i++) {
-                Parcel reply = Parcel.obtain();
-                transact(i, data, reply, 0);
-                reply.recycle();
-            }
-            data.recycle();
-        }
-
-        void fuzz() {
-            Parcel data = Parcel.obtain();
-            data.writeInterfaceToken(desc);
-//            while (data.dataSize() < 0x1000) {
-//                data.writeInt(0);
-//            }
-
-            for (int i = 1; i <= 1000; i++) {
-                Parcel reply = Parcel.obtain();
-                transact(i, data, reply, 0);
-                reply.recycle();
-            }
-            data.recycle();
         }
     }
+
 }

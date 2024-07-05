@@ -124,13 +124,12 @@ class Command(AndroidCommand):
     @subcommand_argument("path", help="cert path")
     def on_install(self, args: Namespace, path: str):
         device = args.device_picker.pick()
-        remote_path = device.get_data_path("cert", os.path.basename(path))
-        device.push(path, remote_path, log_output=True)
+        dest = device.push_file(path, device.get_data_path("cert"), log_output=True)
         device.shell("am", "start", "--user", "0",
                      "-n", "com.android.certinstaller/.CertInstallerMain",
                      "-a", "android.intent.action.VIEW",
                      "-t", "application/x-x509-ca-cert",
-                     "-d", "file://%s" % remote_path,
+                     "-d", "file://%s" % dest,
                      log_output=True)
 
 

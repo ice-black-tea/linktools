@@ -432,7 +432,13 @@ AndroidHelper.javaUse("p.r.o.x.y.PrivacyApi", function(clazz) {
 # 调用android-tools.apk中的方法
 $ at-agent common --set-clipboard "剪切板内容"
 
-# 添加插件并调用android-tools.apk中的方法
+# 获取剪切板内容
+$ at-agent common --get-clipboard
+
+# 以root权限dump系统服务信息，包括服务所在进程信息，需要root设备并且挂载DebugFS：https://source.android.com/docs/core/architecture/kernel/using-debugfs-12?hl=zh-cn
+$ at-agent -u root --debug service --detail
+
+# 添加插件并调用插件方法
 $ at-agent --plugin app-release.apk
 ```
 

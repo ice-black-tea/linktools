@@ -1,6 +1,6 @@
 package org.ironman.framework.util;
 
-import org.ironman.framework.bean.process.Process;
+import org.ironman.framework.bean.os.Process;
 
 import java.io.BufferedReader;
 import java.io.File;
