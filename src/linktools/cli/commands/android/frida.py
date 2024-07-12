@@ -30,7 +30,7 @@ import re
 from argparse import ArgumentParser, Namespace
 from typing import Optional, List, Type
 
-from linktools import utils, environ, DownloadError
+from linktools import utils, DownloadError
 from linktools.cli import CommandError, AndroidCommand
 from linktools.cli.argparse import range_type, KeyValueAction, BooleanOptionalAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
@@ -98,6 +98,7 @@ class Command(AndroidCommand):
 
     def run(self, args: Namespace) -> Optional[int]:
 
+        logger = self.logger
         user_parameters = args.user_parameters
         user_scripts = args.user_scripts
 
@@ -107,12 +108,12 @@ class Command(AndroidCommand):
         class Application(FridaApplication):
 
             def on_session_detached(self, session, reason, crash) -> None:
-                environ.logger.info(f"{session} detached, reason={reason}")
+                logger.info(f"{session} detached, reason={reason}")
                 if reason in ("connection-terminated", "device-lost"):
                     self.stop()
                 elif len(self.sessions) == 0:
                     if args.auto_start:
-                        app.load_script(app.device.spawn(package), resume=True)
+                        app.spawn(package, resume=True)
 
         server = AndroidFridaServer(
             device=device,
@@ -128,7 +129,8 @@ class Command(AndroidCommand):
                 if target_app is None:
                     raise CommandError("Unknown frontmost application")
                 package = target_app.identifier
-            environ.logger.info(f"Frida inject target application: {package}")
+
+            logger.info(f"Frida inject target application: {package}")
 
             app = Application(
                 server,
@@ -141,7 +143,7 @@ class Command(AndroidCommand):
 
             if args.spawn:
                 # 打开进程后注入
-                app.load_script(app.device.spawn(package), resume=True)
+                app.spawn(package, resume=True)
 
             elif app.inject_all(resume=True):
                 # 注入所有进程进程
@@ -149,7 +151,7 @@ class Command(AndroidCommand):
 
             elif args.auto_start:
                 # 进程不存在，打开进程后注入
-                app.load_script(app.device.spawn(package), resume=True)
+                app.spawn(package, resume=True)
 
             if args.redirect_address or args.redirect_port:
                 # 如果需要重定向到本地端口

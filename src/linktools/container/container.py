@@ -210,7 +210,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                         path = self.get_docker_file_path()
                         if path and os.path.exists(path):
                             service["build"] = {
-                                "context": self.get_path(),
+                                "context": self.get_docker_context_path(),
                                 "dockerfile": path
                             }
                     if "env_file" not in service:
@@ -319,13 +319,13 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             "logs", *options, service.get("container_name")
         ).call()
 
-    def get_path(self, *paths: str):
+    def get_path(self, *paths: str) -> str:
         return utils.get_path(
             self.root_path,
             *paths
         )
 
-    def get_app_path(self, *paths: str, create: bool = False, create_parent: bool = False):
+    def get_app_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
         return utils.get_path(
             self.manager.app_path,
             self.name,
@@ -334,7 +334,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             create_parent=create_parent
         )
 
-    def get_app_data_path(self, *paths: str, create: bool = False, create_parent: bool = False):
+    def get_app_data_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
         return utils.get_path(
             self.manager.app_data_path,
             self.name,
@@ -343,7 +343,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             create_parent=create_parent
         )
 
-    def get_user_data_path(self, *paths: str, create: bool = False, create_parent: bool = False):
+    def get_user_data_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
         return utils.get_path(
             self.manager.user_data_path,
             *paths,
@@ -351,7 +351,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             create_parent=create_parent
         )
 
-    def get_download_path(self, *paths: str, create: bool = False, create_parent: bool = False):
+    def get_download_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
         return utils.get_path(
             self.manager.download_path,
             *paths,
@@ -359,7 +359,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             create_parent=create_parent
         )
 
-    def get_temp_path(self, *paths: str, create: bool = False, create_parent: bool = False):
+    def get_temp_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
         return utils.get_path(
             self.manager.temp_path,
             "container",
@@ -411,6 +411,9 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                 self.docker_file
             )
         return destination
+
+    def get_docker_context_path(self) -> str:
+        return self.get_path()
 
     def is_depend_on(self, name: str):
         next_items = set(self.dependencies)

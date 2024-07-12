@@ -651,13 +651,28 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
     def schedule(self, fn: Callable[[], any], delay: float = None):
         self._reactor.schedule(fn, delay)
 
-    def load_script(self, pid, resume=False):
+    def load_script(self, process_id: int, process_name: str = None, resume: bool = False):
         """
         加载脚本，注入到指定进程
-        :param pid: 进程id
+        :param process_id: 进程id
+        :param process_name: 进程名称
         :param resume: 注入后是否需要resume进程
         """
-        self._reactor.schedule(lambda: self._load_script(pid, resume))
+        self._reactor.schedule(lambda: self._load_script(process_id, process_name, resume))
+
+    def spawn(self, program: str, resume: bool = False, **kwargs) -> int:
+        """
+        启动进程，若进程匹配target_identifiers则注入脚本
+        """
+        pid = self.device.spawn(program, **kwargs)
+        for identifier in self._target_identifiers:
+            if identifier.search(program):
+                self.load_script(pid, program, resume=resume)
+                break
+        else:
+            if resume:
+                self._reactor.schedule(lambda: utils.ignore_error(self.device.resume, args=(pid,)))
+        return pid
 
     def inject_all(self, resume: bool = False) -> [int]:
         """
@@ -665,26 +680,32 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         :return: 注入的进程pid
         """
 
-        target_pids = set()
-
+        # 匹配所有app的进程id
+        app_pids = set()
+        app_list = self.device.enumerate_applications()
         for identifier in self._target_identifiers:
+            for app in app_list:
+                if app.pid > 0:
+                    if identifier.search(app.identifier):
+                        app_pids.add(app.pid)
 
-            # 匹配所有app
-            for target_app in self.device.enumerate_applications():
-                if target_app.pid > 0 and identifier.search(target_app.identifier):
-                    target_pids.add(target_app.pid)
+        # 匹配所有进程
+        processes = set()
+        process_list = self.device.enumerate_processes()
+        for identifier in self._target_identifiers:
+            for process in process_list:
+                if process.pid > 0:
+                    if process.pid in app_pids or identifier.search(process.name):
+                        processes.add(process)
 
-            # 匹配所有进程
-            for target_process in self.device.enumerate_processes():
-                if target_process.pid > 0 and identifier.search(target_process.name):
-                    target_pids.add(target_process.pid)
-
-        if len(target_pids) > 0:
+        pids = list()
+        if len(processes) > 0:
             # 进程存在，直接注入
-            for pid in target_pids:
-                self.load_script(pid, resume=resume)
+            for process in processes:
+                self.load_script(process.pid, process.name, resume=resume)
+                pids.append(process.pid)
 
-        return target_pids
+        return pids
 
     @property
     def sessions(self) -> Dict[int, FridaSession]:
@@ -728,10 +749,10 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
 
         return [o.as_dict() for o in script_files]
 
-    def _load_script(self, pid: int, resume: bool = False):
-        _logger.debug(f"Attempt to load script: pid={pid}, resume={resume}")
+    def _load_script(self, process_id: int, process_name: str, resume: bool = False):
+        _logger.debug(f"Attempt to load script: pid={process_id}, resume={resume}")
 
-        session = self._attach_session(pid)
+        session = self._attach_session(process_id, process_name)
         self._unload_script(session)
 
         kw = {}
@@ -743,30 +764,33 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
 
         try:
             script.load()
-            script.exports_sync.load_scripts(self._load_script_files(), self._user_parameters)
+            script.exports_sync.load_scripts(
+                self._load_script_files(),
+                self._user_parameters
+            )
         finally:
             if resume:
-                utils.ignore_error(self.device.resume, args=(pid,))
+                utils.ignore_error(self.device.resume, args=(process_id,))
 
         self._reactor.schedule(lambda: self.on_script_loaded(script))
 
-    def _attach_session(self, pid: int):
-        session = self._manager.get_session(pid)
+    def _attach_session(self, process_id: int, process_name: str = None):
+        session = self._manager.get_session(process_id)
         if session:
             return session
 
-        _logger.debug(f"Attempt to attach process: pid={pid}")
+        _logger.debug(f"Attempt to attach process: pid={process_id}")
 
-        target_process = None
-        for process in self.device.enumerate_processes():
-            if process.pid == pid:
-                target_process = process
-                break
-        if target_process is None:
-            raise frida.ProcessNotFoundError(f"unable to find process with pid '{pid}'")
+        if not process_name:
+            for process in self.device.enumerate_processes():
+                if process.pid == process_id:
+                    process_name = process.name
+                    break
+            else:
+                raise frida.ProcessNotFoundError(f"unable to find process with pid '{process_id}'")
 
-        session = self.device.attach(target_process.pid)
-        session = FridaSession(session, target_process.name)
+        session = self.device.attach(process_id)
+        session = FridaSession(session, process_name)
         self._manager.set_session(session)
 
         if self._enable_child_gating:
@@ -864,7 +888,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         if spawn and spawn.identifier:
             for identifier in self._target_identifiers:
                 if identifier.search(spawn.identifier):
-                    self.load_script(spawn.pid, resume=True)
+                    self.load_script(spawn.pid, spawn.identifier, resume=True)
                     return
         try:
             self.device.resume(spawn.pid)

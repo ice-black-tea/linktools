@@ -348,9 +348,14 @@ class BaseEnviron(abc.ABC):
         :param url: url地址
         :return: UrlFile对象
         """
-        from ._url import UrlFile
+        from ._url import HttpFile, LocalFile
 
-        return UrlFile(self, url)
+        if url.startswith("http://") or url.startswith("https://"):
+            return HttpFile(self, url)
+        elif url.startswith("file://"):
+            return LocalFile(self, url[len("file://"):])
+
+        return LocalFile(self, url)
 
 
 class Environ(BaseEnviron):

@@ -201,11 +201,9 @@ class Device(BaseDevice):
         :param path_or_url: apk文件路径
         :param opts: 安装参数
         """
-        apk_path = path_or_url
-        if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
-            environ.logger.info(f"Download file: {path_or_url}")
-            apk_path = environ.get_url_file(path_or_url).download()
-            environ.logger.info(f"Save file to local: {apk_path}")
+        environ.logger.info(f"Install apk url: {path_or_url}")
+        apk_path = environ.get_url_file(path_or_url).download()
+        environ.logger.info(f"Local apk path: {apk_path}")
 
         remote_name = f"installed_{int(time.time())}.apk"
         remote_path = self.push_file(apk_path, self.get_data_path("apk"), remote_name, **kwargs)

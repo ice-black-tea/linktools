@@ -26,7 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,``--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+import abc
 import contextlib
 import os
 import shelve
@@ -190,11 +190,92 @@ class DownloadContext:
                 yield chunk
 
 
-class UrlFile:
+class UrlFile(metaclass=abc.ABCMeta):
 
     def __init__(self, environ: "BaseEnviron", url: str):
         self._url = url
         self._environ = environ
+
+    @property
+    def is_local(self):
+        return False
+
+    @timeoutable
+    @abc.abstractmethod
+    def download(self, retry: int = 2, timeout: "Timeout" = None, **kwargs) -> str:
+        """
+        从指定url下载文件到临时目录
+        :param timeout: 超时时间
+        :param retry: 重试次数
+        :return: 文件路径
+        """
+        pass
+
+    @timeoutable
+    @abc.abstractmethod
+    def save(self, dir: str, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
+        """
+        从指定url下载文件
+        :param dir: 文件路径
+        :param name: 文件名，如果为空，则默认为下载的文件名
+        :param timeout: 超时时间
+        :param retry: 重试次数
+        :return: 文件路径
+        """
+        pass
+
+    @timeoutable
+    @abc.abstractmethod
+    def clear(self, timeout: "Timeout" = None):
+        """
+        清空缓存文件
+        """
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+
+class LocalFile(UrlFile):
+
+    def __init__(self, environ: "BaseEnviron", url: str):
+        super().__init__(environ, os.path.abspath(os.path.expanduser(url)))
+
+    @property
+    def is_local(self):
+        return True
+
+    @timeoutable
+    def download(self, *args, **kwargs) -> str:
+        src_path = self._url
+        if not os.path.exists(src_path):
+            raise DownloadError(f"{src_path} does not exist")
+        return src_path
+
+    @timeoutable
+    def save(self, dir: str, name: str = None, *args, **kwargs) -> str:
+        src_path = self._url
+        if not os.path.exists(src_path):
+            raise DownloadError(f"{src_path} does not exist")
+        if not os.path.exists(dir):
+            self._environ.logger.debug(f"{dir} does not exist, create")
+            os.makedirs(dir)
+        dest_path = os.path.join(dir, name or guess_file_name(src_path))
+        shutil.copy(src_path, dest_path)
+        return dest_path
+
+    @timeoutable
+    def clear(self, timeout: "Timeout" = None):
+        pass
+
+
+class HttpFile(UrlFile):
+
+    def __init__(self, environ: "BaseEnviron", url: str):
+        super().__init__(environ, url)
         self._ident = f"{get_md5(url)}_{guess_file_name(url)[-100:]}"
         self._root_path = self._environ.get_temp_path("download", self._ident)
         self._temp_path = os.path.join(self._root_path, "file")
@@ -247,13 +328,6 @@ class UrlFile:
 
     @timeoutable
     def download(self, retry: int = 2, timeout: "Timeout" = None, **kwargs) -> str:
-        """
-        从指定url下载文件到临时目录
-        :param timeout: 超时时间
-        :param retry: 重试次数
-        :return: 文件路径
-        """
-
         try:
             self._lock.acquire(timeout=timeout.remain, poll_interval=1)
 
@@ -276,15 +350,6 @@ class UrlFile:
 
     @timeoutable
     def save(self, dir: str, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
-        """
-        从指定url下载文件
-        :param dir: 文件路径
-        :param name: 文件名，如果为空，则默认为下载的文件名
-        :param timeout: 超时时间
-        :param retry: 重试次数
-        :return: 文件路径
-        """
-
         try:
             self._lock.acquire(timeout=timeout.remain, poll_interval=1)
 
@@ -300,14 +365,14 @@ class UrlFile:
                     os.makedirs(dir)
 
                 # 然后把文件保存到指定路径下
-                target_path = os.path.join(dir, name or context.file_name)
-                self._environ.logger.debug(f"Rename {temp_path} to {target_path}")
-                os.rename(temp_path, target_path)
+                dest_path = os.path.join(dir, name or context.file_name)
+                self._environ.logger.debug(f"Rename {temp_path} to {dest_path}")
+                os.rename(temp_path, dest_path)
 
                 # 把文件移动到指定目录之后，就可以清理缓存文件了
                 self.clear(timeout=timeout.remain)
 
-                return target_path
+                return dest_path
 
         except DownloadError:
             raise
@@ -320,9 +385,6 @@ class UrlFile:
 
     @timeoutable
     def clear(self, timeout: "Timeout" = None):
-        """
-        清空缓存文件
-        """
         lock = self._lock
         with lock.acquire(timeout.remain):
             if not os.path.exists(self._root_path):

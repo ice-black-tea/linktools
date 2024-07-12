@@ -380,11 +380,12 @@ class Config:
         for key in self.keys():
             yield key, self.get(key)
 
-    def set(self, key: str, value: Any) -> None:
+    def set(self, key: str, value: Any) -> "Config":
         """
         更新配置
         """
         self._data[key] = value
+        return self
 
     def set_default(self, key: str, value: Any) -> Any:
         """
@@ -392,18 +393,20 @@ class Config:
         """
         return self._data.setdefault(key, value)
 
-    def update(self, **kwargs) -> None:
+    def update(self, **kwargs) -> "Config":
         """
         更新配置
         """
         self._data.update(**kwargs)
+        return self
 
-    def update_defaults(self, **kwargs) -> None:
+    def update_defaults(self, **kwargs) -> "Config":
         """
         更新默认配置
         """
         for key, value in kwargs.items():
             self._data.setdefault(key, value)
+        return self
 
     def update_from_file(self, path: str, load: Callable[[IO[Any]], Mapping] = None) -> bool:
         """
@@ -448,7 +451,7 @@ class Config:
         """
         return self._cache_path
 
-    def load_cache(self) -> None:
+    def load_cache(self) -> "Config":
         """
         从缓存中加载配置
         """
@@ -456,8 +459,9 @@ class Config:
         with self.__lock__:
             self._cache_data.clear()
             self._cache_data.update(parser.items())
+        return self
 
-    def save_cache(self, **kwargs: Any) -> None:
+    def save_cache(self, **kwargs: Any) -> "Config":
         """
         保存配置到缓存
         :param kwargs: 需要保存的配置
@@ -468,8 +472,9 @@ class Config:
                 self._cache_data[key] = value
                 parser.set(key, self.cast(value, type=str))
         parser.dump()
+        return self
 
-    def remove_cache(self, *keys: str) -> None:
+    def remove_cache(self, *keys: str) -> "Config":
         """
         删除缓存
         :param keys: 需要删除的缓存键
@@ -480,6 +485,7 @@ class Config:
                 self._cache_data.pop(key, None)
                 parser.remove(key)
         parser.dump()
+        return self
 
     def __contains__(self, key) -> bool:
         return f"{self._prefix}{key}" in os.environ or \

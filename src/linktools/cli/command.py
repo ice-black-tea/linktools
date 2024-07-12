@@ -135,7 +135,7 @@ class _SubCommandMethodInfo:
         return self
 
     def __repr__(self):
-        return f"<SubCommandMethod func={self.func.__qualname__}>"
+        return f"SubCommandMethod(func={self.func.__qualname__})"
 
 
 class _SubCommandMethodArgumentInfo:
@@ -316,7 +316,7 @@ class SubCommand(metaclass=abc.ABCMeta):
         pass
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} id={self.id}>"
+        return f"{self.__class__.__name__}(id='{self.id}', parent_id='{self.parent_id}', name='{self.name}')"
 
 
 class SubCommandGroup(SubCommand):
@@ -520,28 +520,28 @@ class SubCommandMixin:
         parser = parser or self._argument_parser
         parser.set_defaults(**{f"__subcommands_{id(self):x}__": subcommand_infos})
 
-        subparsers_map = {}
-        subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
-        subparsers.required = required
+        parsers = {}
+        root_parser = parser.add_subparsers(metavar="COMMAND", help="Command Help")
+        root_parser.required = required
 
         for subcommand in self.walk_subcommands(target):
             subcommand_info = _SubCommandInfo(subcommand)
             subcommand_infos.append(subcommand_info)
 
-            parent_subparsers = subparsers
+            parent_parser = root_parser
             if subcommand.has_parent:
-                parent_subparsers = subparsers_map.get(subcommand.parent_id, None)
-                if not parent_subparsers:
-                    raise SubCommandError(f"Subcommand {subcommand} has no parent subparser")
+                parent_parser = parsers.get(subcommand.parent_id, None)
+                if not parent_parser:
+                    raise SubCommandError(f"{subcommand} has no parent subparser")
 
-            parser = subcommand.create_parser(type=parent_subparsers.add_parser)
+            parser = subcommand.create_parser(type=parent_parser.add_parser)
             parser.set_defaults(**{f"__subcommand_{id(self):x}__": subcommand})
             self.init_global_arguments(parser)
 
             if subcommand.is_group:
-                _subparsers = parser.add_subparsers(metavar="COMMAND", help="Command Help")
-                _subparsers.required = False
-                subparsers_map[subcommand.id] = _subparsers
+                subparser = parser.add_subparsers(metavar="COMMAND", help="Command Help")
+                subparser.required = False
+                parsers[subcommand.id] = subparser
 
             # BaseCommand 类型单独处理，因为有可能在init_arguments中添加了子命令
             if isinstance(subcommand, SubCommandWrapper):

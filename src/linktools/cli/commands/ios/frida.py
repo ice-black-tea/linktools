@@ -30,7 +30,7 @@ import re
 from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
-from linktools import utils, environ, DownloadError
+from linktools import utils, DownloadError
 from linktools.cli import CommandError, IOSCommand
 from linktools.cli.argparse import KeyValueAction, range_type, BooleanOptionalAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
@@ -89,6 +89,7 @@ class Command(IOSCommand):
 
     def run(self, args: Namespace) -> Optional[int]:
 
+        logger = self.logger
         user_parameters = args.user_parameters
         user_scripts = args.user_scripts
 
@@ -98,12 +99,12 @@ class Command(IOSCommand):
         class Application(FridaApplication):
 
             def on_session_detached(self, session, reason, crash) -> None:
-                environ.logger.info(f"{session} detached, reason={reason}")
+                logger.info(f"{session} detached, reason={reason}")
                 if reason in ("connection-terminated", "device-lost"):
                     self.stop()
                 elif len(self.sessions) == 0:
                     if args.auto_start:
-                        app.load_script(app.device.spawn(bundle_id), resume=True)
+                        app.spawn(bundle_id, resume=True)
 
         server = IOSFridaServer(
             device=device,
@@ -118,7 +119,8 @@ class Command(IOSCommand):
                 if target_app is None:
                     raise CommandError("Unknown frontmost application")
                 bundle_id = target_app.identifier
-            environ.logger.info(f"Frida inject target application: {bundle_id}")
+
+            logger.info(f"Frida inject target application: {bundle_id}")
 
             app = Application(
                 server,
@@ -131,7 +133,7 @@ class Command(IOSCommand):
 
             if args.spawn:
                 # 打开进程后注入
-                app.load_script(app.device.spawn(bundle_id), resume=True)
+                app.spawn(bundle_id, resume=True)
 
             elif app.inject_all():
                 # 注入所有进程进程
@@ -139,7 +141,7 @@ class Command(IOSCommand):
 
             elif args.auto_start:
                 # 进程不存在，打开进程后注入
-                app.load_script(app.device.spawn(bundle_id), resume=True)
+                app.spawn(bundle_id, resume=True)
 
             return app.run()
 

@@ -127,22 +127,28 @@ class FridaShareScript(FridaUserScript):
         return self._url
 
     def _load(self):
-
         with environ.get_url_file(self._url) as file:  # 文件锁，避免多进程同时操作
 
+            # 如果是本地文件，直接就返回了
+            if file.is_local:
+                _logger.info(f"Load local {self}")
+                source = utils.read_file(file.download(), text=True)
+                return source
+
+            # 判断是否需要情况缓存
             if not self._cached:
                 file.clear()
 
             _logger.info(f"Download {self}")
-            target_path = file.download()
+            dest_path = file.download()
 
-            source = utils.read_file(target_path, text=True)
+            source = utils.read_file(dest_path, text=True)
             if self._trusted:
                 _logger.info(f"Load trusted {self}")
                 return source
 
             cached_md5 = ""
-            cached_md5_path = target_path + ".md5"
+            cached_md5_path = dest_path + ".md5"
             if os.path.exists(cached_md5_path):
                 cached_md5 = utils.read_file(cached_md5_path, text=True)
 
