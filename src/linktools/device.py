@@ -24,9 +24,12 @@ class Bridge:
     def list_devices(self, alive: bool = None) -> Generator["BaseDevice", None, None]:
         from .android import Adb
         from .ios import Sib
+        from .harmony import Hdc
         for device in Adb().list_devices(alive=alive):
             yield device
         for device in Sib().list_devices(alive=alive):
+            yield device
+        for device in Hdc().list_devices(alive=alive):
             yield device
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:

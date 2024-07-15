@@ -31,7 +31,7 @@ import json
 import os
 import re
 import time
-from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar, Optional
+from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar
 
 from .struct import App, UnixSocket, InetSocket, Process, File, SystemService
 from .. import utils, environ
@@ -71,9 +71,8 @@ class Adb(Bridge):
         :return: 设备号数组
         """
         result = self.exec("devices")
-        lines = result.splitlines()
-        for i in range(1, len(lines)):
-            splits = lines[i].split(maxsplit=1)
+        for line in result.splitlines():
+            splits = line.split(maxsplit=1)
             if len(splits) >= 2:
                 device, status = splits
                 if alive is None:
@@ -658,11 +657,11 @@ class Device(BaseDevice):
         else:
             default = -1
             out = self.shell("id", "-u", timeout=timeout)
-            uid = utils.int(out, default=default)
+            uid = utils.int(out.strip(), default=default)
             if uid != default:
                 return uid
             out = self.shell("echo", "-n", "${USER_ID}", timeout=timeout)
-            uid = utils.int(out, default=default)
+            uid = utils.int(out.strip(), default=default)
             if uid != default:
                 return uid
             raise AdbError("unknown adb uid: %s" % out)

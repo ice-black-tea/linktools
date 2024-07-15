@@ -76,12 +76,6 @@ TOOL_BURPSUITE_KEYGEN:
   download_url: 'https://github.com/ice-black-tea/archives/releases/download/burp-loader-keygen-{version}/burp-loader-keygen-{version}.jar'
 
 ############################################################################################
-# python libraries
-############################################################################################
-TOOL_TIDEVICE:
-  <<: *PY
-
-############################################################################################
 # java
 ############################################################################################
 TOOL_JAVA: &TOOL_JAVA
@@ -222,32 +216,59 @@ TOOL_JADX_GUI:
   name: 'jadx-gui'
 
 ############################################################################################
-# chromedriver
+# vdexExtractor
 ############################################################################################
-TOOL_CHROMEDRIVER:
-  version: '80.0.3987.106'
-  base_url: 'http://chromedriver.storage.googleapis.com'
+TOOL_VDEX_EXTRACTOR:
+  name: 'vdexExtractor'
+  version: '20240430'
+  depends_on:
+    when:
+      - system: windows
+        then: 'flinux'
+      - else: ~
   download_url:
     when:
-      - system: darwin1
+      - system: darwin
         machine: arm64
-        then: '{base_url}/{version}/chromedriver_mac64_m1.zip'
+        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-macos-arm64'
       - system: darwin
         machine: x86_64
-        then: '{base_url}/{version}/chromedriver_mac64.zip'
+        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-macos-amd64'
       - system: linux
         machine: x86_64
-        then: '{base_url}/{version}/chromedriver_linux64.zip'
+        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-linux-amd64'
       - system: windows
-        then: '{base_url}/{version}/chromedriver_win32.zip'
+        machine: amd64
+        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-windows-amd64.exe'
       - else: ~
-  unpack_path: 'chromedriver-{version}'
+
+TOOL_COMPACT_DEX_CONVERTER:
+  version: '20240430'
+  depends_on:
+    when:
+      - system: windows
+        then: 'flinux'
+      - else: ~
+  download_url: 'https://github.com/ice-black-tea/archives/releases/download/compact_dex_converter-{version}/compact_dex_converter.zip'
+  unpack_path: 'compact_dex_converter-{version}'
   target_path:
     when:
-      - system: [darwin, linux]
-        then: 'chromedriver'
+      - system: darwin
+        machine: [x86_64, arm64]
+        then: 'compact_dex_converter_mac'
+      - system: linux
+        machine: x86_64
+        then: 'compact_dex_converter_linux64'
       - system: windows
-        then: 'chromedriver.exe'
+        machine: amd64
+        then: 'compact_dex_converter_linux'
+      - else: ~
+  executable_cmdline:
+    when:
+      - system: windows
+        then:
+          - 'flinux'
+          - '\??\{absolute_path}'
       - else: ~
 
 ############################################################################################
@@ -317,6 +338,35 @@ TOOL_IPATOOL:
       - else: ~
 
 ############################################################################################
+# hdc
+############################################################################################
+TOOL_HDC:
+  version: '20240715'
+  download_url:
+    when:
+      - system: darwin
+        machine: arm64
+        then: 'https://github.com/ice-black-tea/archives/releases/download/harmonyos-toolchains-{version}/toolchains-macos-arm64.zip'
+      - system: darwin
+        machine: x86_64
+        then: 'https://github.com/ice-black-tea/archives/releases/download/harmonyos-toolchains-{version}/toolchains-macos-x64.zip'
+      - system: linux
+        machine: x86_64
+        then: 'https://github.com/ice-black-tea/archives/releases/download/harmonyos-toolchains-{version}/toolchains-linux-x64.zip'
+      - system: windows
+        machine: amd64
+        then: 'https://github.com/ice-black-tea/archives/releases/download/harmonyos-toolchains-{version}/toolchains-windows-x64.zip'
+      - else: ~
+  unpack_path: 'harmony-toolchains-{version}'
+  target_path:
+    when:
+      - system: [darwin, linux]
+        then: 'hdc'
+      - system: windows
+        then: 'hdc.exe'
+      - else: ~
+
+############################################################################################
 # flinux
 ############################################################################################
 TOOL_FLINUX:
@@ -331,60 +381,4 @@ TOOL_FLINUX:
     when:
       - system: windows
         then: 'flinux.exe'
-      - else: ~
-
-############################################################################################
-# vdexExtractor
-############################################################################################
-TOOL_VDEX_EXTRACTOR:
-  name: 'vdexExtractor'
-  version: '20240430'
-  depends_on:
-    when:
-      - system: windows
-        then: 'flinux'
-      - else: ~
-  download_url:
-    when:
-      - system: darwin
-        machine: arm64
-        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-macos-arm64'
-      - system: darwin
-        machine: x86_64
-        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-macos-amd64'
-      - system: linux
-        machine: x86_64
-        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-linux-amd64'
-      - system: windows
-        machine: amd64
-        then: 'https://github.com/ice-black-tea/archives/releases/download/vdexExtractor-{version}/vdexExtractor-windows-amd64.exe'
-      - else: ~
-
-TOOL_COMPACT_DEX_CONVERTER:
-  version: '20240430'
-  depends_on:
-    when:
-      - system: windows
-        then: 'flinux'
-      - else: ~
-  download_url: 'https://github.com/ice-black-tea/archives/releases/download/compact_dex_converter-{version}/compact_dex_converter.zip'
-  unpack_path: 'compact_dex_converter-{version}'
-  target_path:
-    when:
-      - system: darwin
-        machine: [x86_64, arm64]
-        then: 'compact_dex_converter_mac'
-      - system: linux
-        machine: x86_64
-        then: 'compact_dex_converter_linux64'
-      - system: windows
-        machine: amd64
-        then: 'compact_dex_converter_linux'
-      - else: ~
-  executable_cmdline:
-    when:
-      - system: windows
-        then:
-          - 'flinux'
-          - '\??\{absolute_path}'
       - else: ~
