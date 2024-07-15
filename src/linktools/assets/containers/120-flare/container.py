@@ -40,14 +40,25 @@ class Container(BaseContainer):
     @cached_property
     def configs(self):
         return dict(
-            WILDCARD_DOMAIN=True,
-
             FLARE_TAG="latest",
-            FLARE_ENABLE_LOGIN=Config.Confirm(default=False, cached=True),
+
+            WILDCARD_DOMAIN=True,
             FLARE_DOAMIN=self.get_nginx_domain(""),
             FLARE_EXPOSE_PORT=None,
-            FLARE_USER=Config.Prompt(default="admin", cached=True),
-            FLARE_PASSWORD=Config.Prompt(cached=True),
+
+            FLARE_ENABLE_LOGIN=Config.Confirm(default=False, cached=True),
+            FLARE_USER=Config.Lazy(
+                lambda cfg:
+                Config.Prompt(default="admin", cached=True)
+                if cfg.get("FLARE_ENABLE_LOGIN", type=bool)
+                else ""
+            ),
+            FLARE_PASSWORD=Config.Lazy(
+                lambda cfg:
+                Config.Prompt(cached=True)
+                if cfg.get("FLARE_ENABLE_LOGIN", type=bool)
+                else ""
+            )
         )
 
     @cached_property
@@ -110,11 +121,6 @@ class Container(BaseContainer):
         utils.write_file(
             self.get_app_path("app", "bookmarks.yml", create_parent=True),
             yaml.dump(data),
-        )
-
-        self.manager.change_owner(
-            self.get_app_path("app"),
-            self.manager.config.get("DOCKER_USER"),
         )
 
         self.write_nginx_conf(

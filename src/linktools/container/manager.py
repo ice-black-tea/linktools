@@ -387,13 +387,23 @@ class ContainerManager:
 
         return self.create_process(*commands, *options, *args, privilege=privilege, **kwargs)
 
-    def change_owner(self, path: str, user: str):
-        if hasattr(os, "chown") and os.path.exists(path):
-            info = os.stat(path)
-            self.create_process(
-                "chown", "-R", user, path,
-                privilege=self.uid != info.st_uid or self.uid != utils.get_uid(user)
-            ).check_call()
+    def change_file_owner(self, path: str, uid: int, gid: int, force: bool = False, privilege: bool = False) -> None:
+        if not os.path.exists(path):
+            self.logger.debug(f"Path not found: {path}")
+            return
+        if not shutil.which("chown"):
+            self.logger.debug("Command `chown` not found")
+            return
+        stat = os.stat(path)
+        if force or stat.st_uid != uid or stat.st_gid != gid:
+            try:
+                self.create_process(
+                    "chown", "-R", f"{uid}:{gid}", path,
+                    privilege=privilege or self.uid != stat.st_uid or self.uid != uid
+                ).check_call()
+            except Exception as e:
+                self.logger.warning(f"Failed to change owner of {path}")
+                raise e
 
     def get_all_repos(self) -> Dict[str, Dict[str, str]]:
         with self._repo_lock:

@@ -1,5 +1,6 @@
 FROM nginx:{{ NGINX_TAG }}
 
+# {% if bool(HTTPS_ENABLE) %}
 RUN apk --no-cache add openssl socat
 
 RUN curl https://get.acme.sh | sh -s email=acme@google.com && \
@@ -25,3 +26,4 @@ RUN acme.sh --install-cert --domain {{ ROOT_DOMAIN }} --domain *.{{ ROOT_DOMAIN 
     --key-file /etc/certs/{{ ROOT_DOMAIN }}_key.pem \
     --fullchain-file /etc/certs/{{ ROOT_DOMAIN }}_fullchain.pem \
     --reloadcmd "killall nginx 2>/dev/null || true"
+# {% endif %}

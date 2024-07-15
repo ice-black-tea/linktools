@@ -29,10 +29,10 @@
 import os
 import re
 import textwrap
-from typing import TYPE_CHECKING, Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional, Callable, Union
 
 import yaml
-from jinja2 import Template
+from jinja2 import Template, Environment
 
 from .. import utils, Config
 from ..cli import subcommand, subcommand_argument
@@ -73,20 +73,23 @@ class ExposeMixin:
     expose_container = ExposeCategory("container", "Container")
     expose_other = ExposeCategory("other", "Other")
 
-    def load_config_url(self: "BaseContainer", key: str):
-        return self.manager.config.get(key, type=str, default=None)
-
-    def load_port_url(self: "BaseContainer", key: str, https: bool = True):
-        port = self.manager.config.get(key, type=int, default=0)
-        if 0 < port < 65535:
-            return f"{'https' if https else 'http'}://{self.manager.host}:{port}"
+    def load_config_url(self: "BaseContainer", key: str, *path: str):
+        url = self.manager.config.get(key, type=str, default=None)
+        if url:
+            return utils.make_url(url, *path)
         return None
 
-    def load_nginx_url(self: "BaseContainer", key: str, https: bool = True):
+    def load_port_url(self: "BaseContainer", key: str, *path: str, https: bool = True):
+        port = self.manager.config.get(key, type=int, default=0)
+        if 0 < port < 65535:
+            return utils.make_url(f"{'https' if https else 'http'}://{self.manager.host}:{port}", *path)
+        return None
+
+    def load_nginx_url(self: "BaseContainer", key: str, *path: str, https: bool = True):
         domain = self.manager.config.get(key, type=str, default=None)
         if domain:
             port = self.manager.config.get("HTTPS_PORT" if https else "HTTP_PORT", type=int)
-            return f"{'https' if https else 'http'}://{domain}:{port}/"
+            return utils.make_url(f"{'https' if https else 'http'}://{domain}:{port}/", *path)
         return None
 
 
@@ -99,17 +102,22 @@ class NginxMixin:
                 return ""
             if not cfg.get("WILDCARD_DOMAIN", type=bool):
                 return cfg.get("ROOT_DOMAIN")
+            root_domain = cfg.get("ROOT_DOMAIN")
+            if root_domain in ("_", "0.0.0.0"):
+                return root_domain
             if name is None:
-                return f"{self.name}.{cfg.get('ROOT_DOMAIN')}"
+                return f"{self.name}.{root_domain}"
             elif name.strip() == "":
-                return cfg.get("ROOT_DOMAIN")
-            return f"{name}.{cfg.get('ROOT_DOMAIN')}"
+                return root_domain
+            return f"{name}.{root_domain}"
 
         return Config.Lazy(get_domain)
 
     def write_nginx_conf(self: "BaseContainer", domain: str, template: str, name: str = None, https: bool = True):
         nginx = self.manager.containers["nginx"]
         if domain and nginx.enable:
+            if not self.manager.config.get("HTTPS_ENABLE", type=bool):
+                https = False
             self.render_template(
                 nginx.get_path("https.conf" if https else "http.conf"),
                 nginx.get_app_path("temporary", self.name, f"{domain}.conf", create_parent=True),
@@ -235,6 +243,14 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         if not services or not isinstance(services, dict):
             return {}
         return services
+
+    @cached_property
+    def start_hooks(self) -> List[Callable[[], Any]]:
+        return []
+
+    @cached_property
+    def stop_hooks(self) -> List[Callable[[], Any]]:
+        return []
 
     def on_init(self):
         pass
@@ -433,22 +449,58 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def render_template(self, source: str, destination: str = None, **kwargs: Any):
         config = self.manager.config
 
-        context = {key: utils.lazy_load(config.get, key) for key in config.keys()}
+        context = {
+            key: utils.lazy_load(config.get, key)
+            for key in config.keys()
+        }
+
+        context.update(
+            DEBUG=self.manager.debug,
+
+            manager=self.manager,
+            container=self,
+            config=config,
+            user=self.manager.user,
+            docker_user=utils.lazy_load(self.manager.config.get, "DOCKER_USER"),
+            docker_uid=utils.lazy_load(self.manager.config.get, "DOCKER_UID"),
+            docker_gid=utils.lazy_load(self.manager.config.get, "DOCKER_GID"),
+
+            bool=lambda obj, default=False: config.cast(obj, type=bool, default=default),
+            str=lambda obj, default="": config.cast(obj, type=str, default=default),
+            int=lambda obj, default=0: config.cast(obj, type=int, default=default),
+            float=lambda obj, default=0.0: config.cast(obj, type=float, default=default),
+            path=lambda obj, default="": config.cast(obj, type="path", default=default),
+            json=lambda obj, default="": config.cast(obj, type="json", default=default),
+        )
+
         context.update(kwargs)
 
-        context.setdefault("DEBUG", self.manager.debug)
-        context.setdefault("bool", lambda obj, default=False: config.cast(obj, type=bool, default=default))
-        context.setdefault("str", lambda obj, default="": config.cast(obj, type=str, default=default))
-        context.setdefault("int", lambda obj, default=0: config.cast(obj, type=int, default=default))
-        context.setdefault("float", lambda obj, default=0.0: config.cast(obj, type=float, default=default))
-        context.setdefault("path", lambda obj, default="": config.cast(obj, type="path", default=default))
-        context.setdefault("json", lambda obj, default="": config.cast(obj, type="json", default=default))
+        def mkdir(path: str):
+            path = config.cast(path, type="path")
+            self.start_hooks.append(lambda: os.makedirs(path, exist_ok=True))
+            return path
 
-        context.setdefault("manager", self.manager)
-        context.setdefault("config", config)
-        context.setdefault("container", self)
+        def chown(path: str, user: str = None):
+            path = config.cast(path, type="path")
+            if user:
+                uid, gid = utils.get_uid(user), utils.get_gid(user)
+                self.start_hooks.append(lambda: self.manager.change_file_owner(path, uid, gid))
+            return path
 
-        template = Template(utils.read_file(source, text=True))
+        environment = Environment()
+        environment.filters.update(
+            mkdir=mkdir,
+            chown=chown,
+
+            bool=lambda obj, default=False: config.cast(obj, type=bool, default=default),
+            str=lambda obj, default="": config.cast(obj, type=str, default=default),
+            int=lambda obj, default=0: config.cast(obj, type=int, default=default),
+            float=lambda obj, default=0.0: config.cast(obj, type=float, default=default),
+            path=lambda obj, default="": config.cast(obj, type="path", default=default),
+            json=lambda obj, default="": config.cast(obj, type="json", default=default),
+        )
+
+        template = environment.from_string(utils.read_file(source, text=True))
         result = template.render(context)
         if destination:
             utils.write_file(destination, result)

@@ -26,6 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,``--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
+import contextlib
 from argparse import Namespace, ArgumentParser
 from subprocess import SubprocessError
 from typing import Optional, List, Type, Dict, Tuple, Any
@@ -37,7 +38,7 @@ from linktools import environ, ConfigError, utils
 from linktools.cli import BaseCommand, subcommand, SubCommandWrapper, subcommand_argument, SubCommandGroup, \
     BaseCommandGroup
 from linktools.cli.argparse import KeyValueAction, BooleanOptionalAction, ParserCompleter
-from linktools.container import ContainerManager, ContainerError
+from linktools.container import ContainerManager, ContainerError, BaseContainer
 from linktools.rich import confirm, choose
 
 manager = ContainerManager(environ)
@@ -298,14 +299,11 @@ class Command(BaseCommandGroup):
         else:
             options.extend(["--remove-orphans"])
 
-        for container in target_containers:
-            container.on_starting()
-        manager.create_docker_compose_process(
-            containers,
-            "up", *options, *services
-        ).check_call()
-        for container in reversed(target_containers):
-            container.on_started()
+        with self._notify_start(target_containers):
+            manager.create_docker_compose_process(
+                containers,
+                "up", *options, *services
+            ).check_call()
 
     @subcommand("restart", help="restart installed containers")
     @subcommand_argument("--build", action=BooleanOptionalAction, help="build images before starting")
@@ -330,23 +328,17 @@ class Command(BaseCommandGroup):
         else:
             options.extend(["--remove-orphans"])
 
-        for container in reversed(target_containers):
-            container.on_stopping()
-        manager.create_docker_compose_process(
-            containers,
-            "stop", *services
-        ).check_call()
-        for container in target_containers:
-            container.on_stopped()
+        with self._notify_stop(target_containers):
+            manager.create_docker_compose_process(
+                containers,
+                "stop", *services
+            ).check_call()
 
-        for container in target_containers:
-            container.on_starting()
-        manager.create_docker_compose_process(
-            containers,
-            "up", *options, *services
-        ).check_call()
-        for container in reversed(target_containers):
-            container.on_started()
+        with self._notify_start(target_containers):
+            manager.create_docker_compose_process(
+                containers,
+                "up", *options, *services
+            ).check_call()
 
     @subcommand("down", help="stop installed containers")
     @subcommand_argument("name", metavar="CONTAINER", nargs="?", help="container name",
@@ -361,16 +353,49 @@ class Command(BaseCommandGroup):
             if not services:
                 raise ContainerError(f"No service found in container `{name}`")
 
-        for container in reversed(target_containers):
-            container.on_stopping()
-        manager.create_docker_compose_process(
-            containers,
-            "down", *services
-        ).check_call()
-        for container in target_containers:
-            container.on_stopped()
+        with self._notify_stop(target_containers):
+            manager.create_docker_compose_process(
+                containers,
+                "down", *services
+            ).check_call()
 
-        for container in target_containers:
+        with self._notify_remove(target_containers):
+            pass
+
+    @classmethod
+    @contextlib.contextmanager
+    def _notify_start(cls, containers: List[BaseContainer]):
+        for container in containers:
+            if container.start_hooks:
+                for hook in container.start_hooks:
+                    hook()
+            container.on_starting()
+
+        yield
+
+        for container in reversed(containers):
+            container.on_started()
+
+    @classmethod
+    @contextlib.contextmanager
+    def _notify_stop(cls, containers: List[BaseContainer]):
+        for container in reversed(containers):
+            container.on_stopping()
+
+        yield
+
+        for container in containers:
+            container.on_stopped()
+            if container.stop_hooks:
+                for hook in container.stop_hooks:
+                    hook()
+
+    @classmethod
+    @contextlib.contextmanager
+    def _notify_remove(cls, containers: List[BaseContainer]):
+        yield
+
+        for container in containers:
             container.on_removed()
 
 

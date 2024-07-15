@@ -1,10 +1,12 @@
 services:
   nginx:
     volumes:
-      - '{{ container.get_app_path("conf.d") }}:/etc/nginx/conf.d'
+      - '{{ container.get_app_path("conf.d") | mkdir | chown }}:/etc/nginx/conf.d'
     ports:
       - '{{ HTTP_PORT }}:{{ HTTP_PORT }}'
+#     {% if bool(HTTPS_ENABLE) %}
       - '{{ HTTPS_PORT }}:{{ HTTPS_PORT }}'
+#     {% endif %}
     networks:
       - nginx
 

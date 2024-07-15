@@ -18,7 +18,7 @@ services:
 #   {% endif %}
       - 'FLARE_GUIDE=1'
     volumes:
-      - '{{ container.get_app_path("app") }}:/app'
+      - '{{ container.get_app_path("app") | mkdir | chown(docker_user) }}:/app'
     networks:
       - nginx
 

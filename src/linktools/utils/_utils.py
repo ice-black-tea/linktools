@@ -479,7 +479,7 @@ def remove_file(path: str) -> None:
         if os.path.isdir(path):
             shutil.rmtree(path, ignore_errors=True)
         else:
-            ignore_error(os.remove, args=(path, ))
+            ignore_error(os.remove, args=(path,))
 
 
 def clear_directory(path: str) -> None:
@@ -690,47 +690,45 @@ def get_machine():
     return MACHINE
 
 
-def get_user():
-    """
-    获取当前用户
-    """
-    return getpass.getuser()
+if SYSTEM in ("darwin", "linux"):
+
+    def get_user(uid: int = None):
+        """
+        获取用户名，如果没有指定uid则返回当前用户名
+        """
+        if uid is not None:
+            import pwd
+            return pwd.getpwuid(int(uid))
+        else:
+            return getpass.getuser()
 
 
-def get_uid(user: str = None):
-    """
-    获取用户ID，如果没有指定用户则返回当前用户ID
-    """
-    if get_system() in ("darwin", "linux"):
+    def get_uid(user: str = None):
+        """
+        获取用户ID，如果没有指定用户则返回当前用户ID
+        """
         if user:
             import pwd
-            return pwd.getpwnam(user).pw_uid
+            return pwd.getpwnam(str(user)).pw_uid
         else:
             return os.getuid()
-    else:
-        return 0
 
 
-def get_gid(user: str = None):
-    """
-    获取用户组ID，如果没有指定用户则返回当前用户组ID
-    """
-    if get_system() in ("darwin", "linux"):
+    def get_gid(user: str = None):
+        """
+        获取用户组ID，如果没有指定用户则返回当前用户组ID
+        """
         if user:
             import pwd
-            return pwd.getpwnam(user).pw_gid
+            return pwd.getpwnam(str(user)).pw_gid
         else:
             return os.getgid()
-    else:
-        return 0
 
 
-def get_shell_path():
-    """
-    获取当前用户shell路径
-    """
-
-    if SYSTEM in ["darwin", "linux"]:
+    def get_shell_path():
+        """
+        获取当前用户shell路径
+        """
         if "SHELL" in os.environ:
             shell_path = os.environ["SHELL"]
             if shell_path and os.path.exists(shell_path):
@@ -741,14 +739,55 @@ def get_shell_path():
         except:
             return shutil.which("zsh") or shutil.which("bash") or shutil.which("sh")
 
-    elif SYSTEM in ["windows"]:
+elif SYSTEM in ("windows",):
+
+    def get_user(uid: int = None):
+        """
+        获取当前用户，固定为当前用户名
+        """
+        return getpass.getuser()
+
+
+    def get_uid(user: str = None):
+        """
+        获取用户ID，固定为0
+        """
+        return 0
+
+
+    def get_gid(user: str = None):
+        """
+        获取用户组ID，固定为0
+        """
+        return 0
+
+
+    def get_shell_path():
+        """
+        获取当前用户shell路径
+        """
         if "ComSpec" in os.environ:
             shell_path = os.environ["ComSpec"]
             if shell_path and os.path.exists(shell_path):
                 return shell_path
         return shutil.which("powershell") or shutil.which("cmd")
 
-    return ""
+else:
+
+    def get_user(uid: int = None):
+        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+
+
+    def get_uid(user: str = None):
+        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+
+
+    def get_gid(user: str = None):
+        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+
+
+    def get_shell_path():
+        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
 
 
 def import_module(name: str, spec: ModuleSpec = None) -> "T":

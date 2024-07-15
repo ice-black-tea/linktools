@@ -50,19 +50,30 @@ class Container(BaseContainer):
     def configs(self):
         return dict(
             NGINX_TAG="1.27.0-alpine",
-            ROOT_DOMAIN=Config.Prompt(cached=True),
-            WILDCARD_DOMAIN=Config.Confirm(default=False, cached=True),
+            WILDCARD_DOMAIN=False,
+            ROOT_DOMAIN=Config.Prompt(default="_", cached=True),
             HTTP_PORT=Config.Prompt(default=80, type=int, cached=True),
-            HTTPS_PORT=Config.Prompt(default=443, type=int, cached=True),
-            ACME_DNS_API=Config.Error(textwrap.dedent(
-                """
-                Ensure ACME_DNS_API config matches --dns parameter in acme command is set.
-                · Also, set corresponding environment variables.
-                · For details, see: https://github.com/acmesh-official/acme.sh/wiki/dnsapi.
-                · Example command:
-                  $ ct-cntr config set ACME_DNS_API=dns_ali Ali_Key=xxx Ali_Secret=yyy
-                """
-            ))
+            HTTPS_ENABLE=Config.Confirm(default=True, cached=True),
+            HTTPS_PORT=Config.Lazy(
+                lambda cfg:
+                Config.Prompt(default=443, type=int, cached=True)
+                if cfg.get("HTTPS_ENABLE", type=bool)
+                else ""
+            ),
+            ACME_DNS_API=Config.Lazy(
+                lambda cfg:
+                Config.Error(textwrap.dedent(
+                    """
+                    Ensure ACME_DNS_API config matches --dns parameter in acme command is set.
+                    · Also, set corresponding environment variables.
+                    · For details, see: https://github.com/acmesh-official/acme.sh/wiki/dnsapi.
+                    · Example command:
+                      $ ct-cntr config set ACME_DNS_API=dns_ali Ali_Key=xxx Ali_Secret=yyy
+                    """
+                ))
+                if cfg.get("HTTPS_ENABLE", type=bool)
+                else ""
+            )
         )
 
     def on_started(self):
@@ -75,10 +86,6 @@ class Container(BaseContainer):
                     self.get_app_path("conf.d", create_parent=True),
                     dirs_exist_ok=True,
                 )
-        self.manager.change_owner(
-            self.get_app_path(),
-            self.manager.user
-        )
         self.manager.create_docker_process(
             "exec", "-it", "nginx",
             "sh", "-c", "killall nginx 1>/dev/null 2>&1"
