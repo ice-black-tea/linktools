@@ -56,9 +56,9 @@ class Container(BaseContainer):
             HTTPS_ENABLE=Config.Confirm(default=True, cached=True),
             HTTPS_PORT=Config.Lazy(
                 lambda cfg:
-                Config.Prompt(default=443, type=int, cached=True)
+                Config.Prompt(type=int, default=443, cached=True)
                 if cfg.get("HTTPS_ENABLE", type=bool)
-                else ""
+                else Config.Alias(type=int, default=0)
             ),
             ACME_DNS_API=Config.Lazy(
                 lambda cfg:
@@ -72,7 +72,7 @@ class Container(BaseContainer):
                     """
                 ))
                 if cfg.get("HTTPS_ENABLE", type=bool)
-                else ""
+                else Config.Alias(type=str, default="")
             )
         )
 

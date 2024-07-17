@@ -1,6 +1,6 @@
 FROM nginx:{{ NGINX_TAG }}
 
-# {% if bool(HTTPS_ENABLE) %}
+# {% if HTTPS_ENABLE %}
 RUN apk --no-cache add openssl socat
 
 RUN curl https://get.acme.sh | sh -s email=acme@google.com && \

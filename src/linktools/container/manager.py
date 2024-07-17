@@ -59,7 +59,7 @@ class ContainerManager:
         self.environ = environ
         self.logger = environ.get_logger("container")
 
-        self.config = self.environ.wrap_config(namespace="container", prefix="")
+        self.config = self.environ.wrap_config(namespace="container", env_prefix="")
         self.config.update_defaults(
             COMPOSE_PROJECT_NAME=name or self.environ.name,
             DOCKER_USER=Config.Prompt(default=os.environ.get("SUDO_USER", self.user).replace(" ", ""), cached=True),
@@ -70,7 +70,7 @@ class ContainerManager:
         self.docker_container_name = "container.py"
         self.docker_compose_names = ("compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml")
 
-        self._config_caches = {}
+        self._file_caches = {}
 
     @property
     def debug(self) -> bool:
@@ -172,7 +172,7 @@ class ContainerManager:
                 self.logger.debug(f"Container `{container.name}` already exists, overwrite.")
             result[container.name] = container
         with self._config_lock:
-            for name in self._load_config(self._config_path):
+            for name in self._load_json_file(self._config_path):
                 if name not in result:
                     self.logger.warning(f"Not found installed container `{name}`, skip.")
         return result
@@ -322,13 +322,13 @@ class ContainerManager:
 
     def _load_installed_containers(self, reload: bool = False) -> List[BaseContainer]:
         result = set()
-        for name in self._load_config(self._config_path, reload=reload, default=()):
+        for name in self._load_json_file(self._config_path, reload=reload, default=()):
             if name in self.containers:
                 result.add(self.containers[name])
         return list(result)
 
     def _dump_installed_containers(self, containers: List[BaseContainer]) -> None:
-        self._dump_config(
+        self._dump_json_file(
             self._config_path,
             list(set([container.name for container in containers])),
         )
@@ -407,13 +407,13 @@ class ContainerManager:
 
     def get_all_repos(self) -> Dict[str, Dict[str, str]]:
         with self._repo_lock:
-            repos = self._load_config(self._repo_config_path)
+            repos = self._load_json_file(self._repo_config_path)
         return repos
 
     def add_repo(self, url: str, branch: str = None, force: bool = False):
 
         with self._repo_lock:
-            repos = self._load_config(self._repo_config_path, reload=True)
+            repos = self._load_json_file(self._repo_config_path, reload=True)
 
             def ensure_repo_not_exist(key):
                 if key not in repos:
@@ -421,7 +421,7 @@ class ContainerManager:
                 if not force:
                     raise ContainerError(f"Repository `{key}` already exists.")
                 self._remove_repo_file(repos.pop(key))
-                self._dump_config(self._repo_config_path, repos)
+                self._dump_json_file(self._repo_config_path, repos)
 
             if url.startswith("http://") or url.startswith("https://") or \
                     url.startswith("ssh://") or url.startswith("git@"):
@@ -444,7 +444,7 @@ class ContainerManager:
                 os.symlink(path, repo_path, target_is_directory=True)
                 repos[path] = dict(type="local", repo_path=repo_path, repo_name=repo_name)
 
-            self._dump_config(self._repo_config_path, repos)
+            self._dump_json_file(self._repo_config_path, repos)
 
     def update_repos(self, force: bool = False):
         for url, meta in self.get_all_repos().items():
@@ -465,11 +465,11 @@ class ContainerManager:
 
     def remove_repo(self, url: str):
         with self._repo_lock:
-            repos = self._load_config(self._repo_config_path, reload=True)
+            repos = self._load_json_file(self._repo_config_path, reload=True)
             if url not in repos:
                 raise ContainerError(f"Repository `{url}` not found.")
             self._remove_repo_file(repos.pop(url))
-            self._dump_config(self._repo_config_path, repos)
+            self._dump_json_file(self._repo_config_path, repos)
 
     def _choose_repo_path(self, name: str):
         index = 0
@@ -509,22 +509,22 @@ class ContainerManager:
     def _repo_config_path(self):
         return self.environ.get_data_path("container", "repo", "repo.json", create_parent=True)
 
-    def _load_config(self, path: str, reload: bool = False, default: Any = None) -> Union[Dict, List, Tuple]:
+    def _load_json_file(self, path: str, reload: bool = False, default: Any = None) -> Union[Dict, List, Tuple]:
         if reload:
-            self._config_caches.pop(path, None)
-        elif path in self._config_caches:
-            return self._config_caches[path]
+            self._file_caches.pop(path, None)
+        elif path in self._file_caches:
+            return self._file_caches[path]
         if os.path.exists(path):
             try:
-                self._config_caches[path] = json.loads(utils.read_file(path, text=True))
-                return self._config_caches[path]
+                self._file_caches[path] = json.loads(utils.read_file(path, text=True))
+                return self._file_caches[path]
             except Exception as e:
                 self.logger.warning(f"Failed to load config file {path}: {e}")
         return default if default is not None else {}
 
-    def _dump_config(self, path: str, config: Union[Dict, List, Tuple]):
+    def _dump_json_file(self, path: str, config: Union[Dict, List, Tuple]):
         try:
-            self._config_caches.pop(path, None)
+            self._file_caches.pop(path, None)
             utils.write_file(path, json.dumps(config, indent=2, ensure_ascii=False))
         except Exception as e:
             self.logger.warning(f"Failed to dump config file {path}: {e}")

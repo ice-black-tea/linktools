@@ -258,7 +258,7 @@ class BaseEnviron(abc.ABC):
                 SHOW_LOG_TIME=False,
             ),
             namespace="MAIN",
-            prefix=f"{self.name.upper()}_"
+            env_prefix=f"{self.name.upper()}_"
         )
 
     @cached_property
@@ -268,16 +268,16 @@ class BaseEnviron(abc.ABC):
         """
         return self._create_config()
 
-    def wrap_config(self, namespace: str = metadata.__missing__, prefix: str = metadata.__missing__) -> "Config":
+    def wrap_config(self, namespace: str = metadata.__missing__, env_prefix: str = metadata.__missing__) -> "Config":
         """
         环境相关配置，与environ.config共享配置数据，但不共享缓存数据和环境变量信息
         :param namespace: 缓存对应的命名空间
-        :param prefix: 环境变量使用前缀
+        :param env_prefix: 环境变量使用前缀
         :return: 配置对象
         """
         from ._config import ConfigWrapper
 
-        return ConfigWrapper(self.config, namespace=namespace, prefix=prefix)
+        return ConfigWrapper(self.config, namespace=namespace, env_prefix=env_prefix)
 
     def get_config(self, key: str, type: "Type[T]" = None, default: Any = metadata.__missing__) -> "T":
         """

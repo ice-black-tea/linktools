@@ -40,12 +40,10 @@ class Container(BaseContainer):
     @cached_property
     def configs(self):
         return dict(
-            FLARE_TAG="latest",
-
             WILDCARD_DOMAIN=True,
+            FLARE_TAG="latest",
             FLARE_DOAMIN=self.get_nginx_domain(""),
-            FLARE_EXPOSE_PORT=None,
-
+            FLARE_EXPOSE_PORT=Config.Alias(type=int, default=0),
             FLARE_ENABLE_LOGIN=Config.Confirm(default=False, cached=True),
             FLARE_USER=Config.Lazy(
                 lambda cfg:

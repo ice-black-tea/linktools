@@ -182,7 +182,7 @@ def subcommand(
         subcommand_info.pass_args = pass_args
         subcommand_info.set_args(
             name,
-            help=help,
+            help=help if help != __missing__ else "",
             aliases=aliases,
             prog=prog,
             usage=usage,

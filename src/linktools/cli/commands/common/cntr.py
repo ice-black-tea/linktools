@@ -130,7 +130,7 @@ class ConfigCommand(BaseCommand):
     @subcommand("set", help="set container configs")
     @subcommand_argument("configs", action=KeyValueAction, nargs="+", help="container config key=value")
     def on_command_set(self, configs: Dict[str, str]):
-        manager.config.save_cache(**configs)
+        manager.config.cache.save(**configs)
         for key in sorted(configs.keys()):
             value = manager.config.get(key)
             self.logger.info(f"{key}: {value}")
@@ -138,8 +138,8 @@ class ConfigCommand(BaseCommand):
     @subcommand("unset", help="remove container configs")
     @subcommand_argument("configs", action=KeyValueAction, metavar="KEY", nargs="+", help="container config keys")
     def on_command_remove(self, configs: Dict[str, str]):
-        manager.config.remove_cache(*configs)
-        self.logger.info(f"Unset {', '.join(configs)} success")
+        manager.config.cache.remove(*configs)
+        self.logger.info(f"Unset {', '.join(configs.keys())} success")
 
     @subcommand("list", help="list container configs")
     def on_command_list(self):
@@ -148,6 +148,7 @@ class ConfigCommand(BaseCommand):
             keys.update(container.configs.keys())
             if hasattr(container, "keys") and isinstance(container.keys, (Tuple, List, Dict)):
                 keys.update([key for key in container.keys if key in manager.config])
+        keys.update(manager.config.cache.keys())
         for key in sorted(keys):
             value = manager.config.get(key)
             self.logger.info(f"{key}: {value}")
@@ -155,7 +156,7 @@ class ConfigCommand(BaseCommand):
     @subcommand("edit", help="edit the config file in an editor")
     @subcommand_argument("--editor", help="editor to use to edit the file")
     def on_command_edit(self, editor: str):
-        return manager.create_process(editor, manager.config.cache_path).call()
+        return manager.create_process(editor, manager.config.cache.path).call()
 
     @subcommand("reload", help="reload container configs")
     def on_command_reload(self):

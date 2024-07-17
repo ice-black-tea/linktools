@@ -26,7 +26,7 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,``--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-
+from linktools import Config
 from linktools.container import BaseContainer, ExposeLink
 from linktools.decorator import cached_property
 
@@ -38,7 +38,7 @@ class Container(BaseContainer):
         return dict(
             PORTAINER_TAG="alpine",
             PORTAINER_DOMAIN=self.get_nginx_domain(),
-            PORTAINER_EXPOSE_PORT=None,
+            PORTAINER_EXPOSE_PORT=Config.Alias(type=int, default=0),
         )
 
     @cached_property

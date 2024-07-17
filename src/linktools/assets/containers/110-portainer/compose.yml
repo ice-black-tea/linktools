@@ -1,13 +1,13 @@
 services:
   portainer:
     image: portainer/portainer-ce:{{ PORTAINER_TAG }}
-#   {% if int(PORTAINER_EXPOSE_PORT, 0) > 0 %}
+#   {% if PORTAINER_EXPOSE_PORT > 0 %}
     ports:
       - '{{ PORTAINER_EXPOSE_PORT }}:9000'
 #   {% endif %}
     volumes:
       - '{{ manager.container_host }}:/var/run/docker.sock'
-      - '{{ container.get_app_path("data") | mkdir | chown }}:/data'
+      - '{{ mkdir(APP_PATH/"data") | chown }}:/data'
     networks:
       - nginx
 

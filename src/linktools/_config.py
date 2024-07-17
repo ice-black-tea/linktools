@@ -32,6 +32,7 @@ import configparser
 import errno
 import json
 import os
+import pathlib
 import threading
 from types import ModuleType
 from typing import \
@@ -48,8 +49,8 @@ if TYPE_CHECKING:
 
     T = TypeVar("T")
     EnvironType = TypeVar("EnvironType", bound=BaseEnviron)
-    ConfigType = Literal["path", "json"]
-
+    LiteralType = Literal["path", "json"]
+    ConfigType = Union[Type[T], LiteralType]
 
 SUPPRESS = object()
 
@@ -82,7 +83,7 @@ def cast_str(obj: Any) -> str:
 
 
 def cast_path(obj: Any) -> str:
-    if isinstance(obj, str):
+    if isinstance(obj, (str, pathlib.Path)):
         return os.path.abspath(
             os.path.expanduser(
                 str(obj)  # support Proxy object
@@ -99,72 +100,58 @@ def cast_json(obj: Any) -> Union[List, Dict]:
     raise TypeError(f"{type(obj)} cannot be converted to json")
 
 
-CONFIG_TYPES: "Dict[Union[Type[T], ConfigType], Callable[[Any], T]]" = {
+CONFIG_TYPES: "Dict[ConfigType, Callable[[Any], T]]" = dict({
     bool: cast_bool,
     str: cast_str,
     "path": cast_path,
     "json": cast_json,
-}
+})
 
 
 class ConfigError(Exception):
     pass
 
 
-class ConfigParser(configparser.ConfigParser):
+class ConfigProperty(metaclass=abc.ABCMeta):
 
-    def optionxform(self, optionstr: str):
-        return optionstr
-
-
-class ConfigCacheParser:
-
-    def __init__(self, config: "Config"):
-        self._parser = ConfigParser(default_section="ENV")  # 兼容老版本，默认ENV作为默认节
-        self._path = config.cache_path
-        self._section = f"{config._namespace}.CACHE".upper()
-        self.load()
-
-    def load(self):
-        if self._path and os.path.exists(self._path):
-            self._parser.read(self._path)
-        if not self._parser.has_section(self._section):
-            self._parser.add_section(self._section)
-
-    def dump(self):
-        with open(self._path, "wt") as fd:
-            self._parser.write(fd)
-
-    def get(self, key: str, default: Any) -> Any:
-        if self._parser.has_option(self._section, key):
-            return self._parser.get(self._section, key)
-        return default
-
-    def set(self, key: str, value: str) -> None:
-        self._parser.set(self._section, key, value)
-
-    def remove(self, key: str) -> bool:
-        return self._parser.remove_option(self._section, key)
-
-    def items(self) -> Generator[Tuple[str, Any], None, None]:
-        for key, value in self._parser.items(self._section):
-            yield key, value
-
-
-class ConfigProperty(abc.ABC):
-
-    def __init__(self, type: "Union[Type[T], ConfigType]" = None, cached: bool = False, reloadable: bool = False):
-        self._data = __missing__
+    def __init__(self, *, type: "ConfigType" = None, default: Any = __missing__):
         self._type = type
-        self._cached = cached
-        self._reloadable = reloadable
+        self._default = default
 
     @property
-    def reloadable(self):
-        return self._reloadable
+    def type(self) -> "ConfigType":
+        return self._type
 
-    def load(self, config: "Config", key: str, type: "Union[Type[T], ConfigType]" = None,
-             cache: Any = __missing__) -> Any:
+    @property
+    def default(self) -> Any:
+        return self._default
+
+    @abc.abstractmethod
+    def get(self, config: "Config", key: str, *, type: "ConfigType", default: Any) -> Any:
+        pass
+
+
+class LazyConfigProperty(ConfigProperty, metaclass=abc.ABCMeta):
+
+    def get(self, config: "Config", key: str, *, type: "ConfigType", default: Any) -> Any:
+        result = self.load(config, key, type=type, default=default)
+        if isinstance(result, ConfigProperty):
+            result = result.get(config, key, type=type, default=default)
+        return result
+
+    @abc.abstractmethod
+    def load(self, config: "Config", key: str, *, type: "ConfigType", default: Any) -> Any:
+        pass
+
+
+class CacheConfigProperty(ConfigProperty, metaclass=abc.ABCMeta):
+
+    def __init__(self, *, type: "ConfigType" = None, default: Any = __missing__, cached: bool = False):
+        super().__init__(type=type, default=default)
+        self._data = __missing__
+        self._cached = cached
+
+    def get(self, config: "Config", key: str, type: "ConfigType", default: Any) -> Any:
 
         if self._data != __missing__:
             return self._data
@@ -172,34 +159,34 @@ class ConfigProperty(abc.ABC):
         type = type or self._type
         if self._cached:
             # load cache from config file
-            config_parser = ConfigCacheParser(config)
-            config_cache = cache
-            if config_cache == __missing__:
-                config_cache = config_parser.get(key, __missing__)
+            parser = ConfigCacheParser(config.cache.path, config.cache.namespace)
+            cache = default
+            if cache == __missing__:
+                cache = parser.get(key, __missing__)
 
             # load config value
-            result = self._load(config, key, config_cache)
+            result = self.load(config, key, type=type, cache=cache)
             if isinstance(result, ConfigProperty):
-                result = result.load(config, key, type=type, cache=cache)
-            elif not is_type(type) or not isinstance(result, type):
+                result = result.get(config, key, type=type, default=default)
+            elif type is not None:
                 result = config.cast(result, type)
 
             # update cache to config file
-            config_parser.set(key, config.cast(result, type=str))
-            config_parser.dump()
+            parser.set(key, cast_str(result))
+            parser.dump()
 
         else:
-            result = self._load(config, key, __missing__)
+            result = self.load(config, key, type=type, cache=__missing__)
             if isinstance(result, ConfigProperty):
-                result = result.load(config, key, type=type, cache=cache)
-            elif not is_type(type) or not isinstance(result, type):
+                result = result.get(config, key, type=type, default=default)
+            elif type is not None:
                 result = config.cast(result, type)
 
         self._data = result
         return result
 
     @abc.abstractmethod
-    def _load(self, config: "Config", key: str, cache: Any):
+    def load(self, config: "Config", key: str, *, type: "ConfigType", cache: Any) -> Any:
         pass
 
 
@@ -253,31 +240,128 @@ class ConfigDict(dict):
         return True
 
 
-class Config:
+class ConfigParser(configparser.ConfigParser):
+
+    def optionxform(self, optionstr: str):
+        return optionstr
+
+
+class ConfigCacheParser:
+
+    def __init__(self, path: str, namespace: str):
+        self._parser = ConfigParser(default_section="ENV")  # 兼容老版本，默认ENV作为默认节
+        self._path = path
+        self._section = f"{namespace}.CACHE".upper()
+        self.load()
+
+    def load(self):
+        if self._path and os.path.exists(self._path):
+            self._parser.read(self._path)
+        if not self._parser.has_section(self._section):
+            self._parser.add_section(self._section)
+
+    def dump(self):
+        with open(self._path, "wt") as fd:
+            self._parser.write(fd)
+
+    def get(self, key: str, default: Any) -> Any:
+        if self._parser.has_option(self._section, key):
+            return self._parser.get(self._section, key)
+        return default
+
+    def set(self, key: str, value: str) -> None:
+        self._parser.set(self._section, key, value)
+
+    def remove(self, key: str) -> bool:
+        return self._parser.remove_option(self._section, key)
+
+    def items(self) -> Generator[Tuple[str, Any], None, None]:
+        for key, value in self._parser.items(self._section):
+            yield key, value
+
+
+class ConfigCache(dict):
     __lock__ = threading.RLock()
+
+    def __init__(self, environ: "BaseEnviron", namespace: str = __missing__):
+        super().__init__()
+        self._environ = environ
+        self._namespace = namespace if namespace != __missing__ else "MAIN"
+        self._path = self._environ.get_data_path(f"{self._environ.name}.cfg", create_parent=True)
+        self.load()
+
+    @property
+    def path(self) -> str:
+        """
+        缓存文件路径
+        """
+        return self._path
+
+    @property
+    def namespace(self) -> str:
+        """
+        缓存命名空间
+        """
+        return self._namespace
+
+    def load(self) -> "ConfigCache":
+        """
+        从缓存中加载配置
+        """
+        parser = ConfigCacheParser(self._path, self._namespace)
+        with self.__lock__:
+            self.clear()
+            self.update(parser.items())
+        return self
+
+    def save(self, **kwargs: Any) -> "ConfigCache":
+        """
+        保存配置到缓存
+        :param kwargs: 需要保存的配置
+        """
+        parser = ConfigCacheParser(self._path, self._namespace)
+        with self.__lock__:
+            for key, value in kwargs.items():
+                self[key] = value
+                parser.set(key, cast_str(value))
+        parser.dump()
+        return self
+
+    def remove(self, *keys: str) -> "ConfigCache":
+        """
+        删除缓存
+        :param keys: 需要删除的缓存键
+        """
+        parser = ConfigCacheParser(self._path, self._namespace)
+        with self.__lock__:
+            for key in keys:
+                self.pop(key, None)
+                parser.remove(key)
+        parser.dump()
+        return self
+
+
+class Config:
 
     def __init__(
             self,
             environ: "BaseEnviron",
             data: ConfigDict,
             namespace: str = __missing__,
-            prefix: str = __missing__,
+            env_prefix: str = __missing__,
     ):
         """
         初始化配置对象
         :param environ: 环境对象
         :param data: 配置相关数据
         :param namespace: 缓存对应的命名空间
-        :param prefix: 环境变量前缀
+        :param env_prefix: 环境变量前缀
         """
         self._environ = environ
         self._data = data
-        self._namespace = namespace if namespace != __missing__ else "MAIN"
-        self._prefix = prefix.upper() if prefix != __missing__ else ""
+        self._cache = ConfigCache(environ, namespace if namespace != __missing__ else "MAIN")
+        self._prefix = env_prefix.upper() if env_prefix != __missing__ else ""
         self._reload = None
-        self._cache_data = dict()
-        self._cache_path = self._environ.get_data_path(f"{self._environ.name}.cfg", create_parent=True)
-        self.load_cache()
 
     @property
     def reload(self) -> bool:
@@ -299,7 +383,14 @@ class Config:
         """
         self._reload = value
 
-    def cast(self, obj: Any, type: "Union[Type[T], ConfigType]", default: Any = __missing__) -> "T":
+    @property
+    def cache(self):
+        """
+        缓存对象
+        """
+        return self._cache
+
+    def cast(self, obj: Any, type: "ConfigType", default: Any = __missing__) -> "T":
         """
         类型转换
         """
@@ -313,38 +404,46 @@ class Config:
                 raise e
         return obj
 
-    def get(self, key: str, type: "Union[Type[T], ConfigType]" = None, default: Any = __missing__) -> "T":
+    def get(self, key: str, type: "ConfigType" = None, default: Any = __missing__) -> "T":
         """
         获取指定配置，优先会从环境变量中获取
         """
         last_error = __missing__
+
+        data_value = self._data.get(key, __missing__)
+        if isinstance(data_value, ConfigProperty):
+            if type in (None, __missing__):
+                type = data_value.type
+            if default == __missing__:
+                default = data_value.default
+
         try:
             env_key = f"{self._prefix}{key}"
-            if env_key in os.environ:
-                value = os.environ.get(env_key)
-                return self.cast(value, type=type)
+            env_value = os.environ.get(env_key, __missing__)
+            if env_value != __missing__:
+                return self.cast(env_value, type=type)
 
-            if key in self._cache_data:
-                value = self._cache_data.get(key)
-                prop = self._data.get(key, None)
+            cache_value = self._cache.get(key, __missing__)
+            if cache_value != __missing__:
                 if self.reload:
-                    if isinstance(prop, ConfigProperty) and prop.reloadable:
-                        with self.__lock__:
-                            value = self._cache_data[key] = prop.load(self, key, type=type, cache=value)
-                            return value
-                    if isinstance(default, ConfigProperty) and default.reloadable:
-                        with self.__lock__:
-                            value = self._cache_data[key] = default.load(self, key, type=type, cache=value)
-                            return value
-                return self.cast(value, type=type)
+                    prop = data_value
+                    if isinstance(prop, CacheConfigProperty):
+                        with self._cache.__lock__:
+                            result = self._cache[key] = prop.get(self, key, type=type, default=cache_value)
+                            return result
+                    prop = default
+                    if isinstance(prop, CacheConfigProperty):
+                        with self._cache.__lock__:
+                            result = self._cache[key] = prop.get(self, key, type=type, default=cache_value)
+                            return result
+                return self.cast(cache_value, type=type)
 
-            if key in self._data:
-                value = self._data.get(key)
-                if isinstance(value, ConfigProperty):
-                    with self.__lock__:
-                        value = self._cache_data[key] = value.load(self, key, type=type)
-                        return value
-                return self.cast(value, type=type)
+            if data_value != __missing__:
+                if isinstance(data_value, ConfigProperty):
+                    with self._cache.__lock__:
+                        result = self._cache[key] = data_value.get(self, key, type=type, default=__missing__)
+                        return result
+                return self.cast(data_value, type=type)
 
         except Exception as e:
             last_error = e
@@ -355,9 +454,7 @@ class Config:
             raise ConfigError(f"Not found environment variable \"{self._prefix}{key}\" or config \"{key}\"")
 
         if isinstance(default, ConfigProperty):
-            with self.__lock__:
-                value = self._cache_data[key] = default.load(self, key, type=type)
-            return value
+            return default.get(self, key, type=type, default=__missing__)
 
         return default
 
@@ -366,7 +463,7 @@ class Config:
         遍历配置名，默认不遍历内置配置
         """
         keys = set(self._data.keys())
-        keys.update(self._cache_data.keys())
+        keys.update(self._cache.keys())
         for key in os.environ.keys():
             if key.startswith(self._prefix):
                 keys.add(key[len(self._prefix):])
@@ -444,53 +541,10 @@ class Config:
                 self.update_from_file(os.path.join(root, name))
         return True
 
-    @property
-    def cache_path(self) -> str:
-        """
-        缓存文件路径
-        """
-        return self._cache_path
-
-    def load_cache(self) -> "Config":
-        """
-        从缓存中加载配置
-        """
-        parser = ConfigCacheParser(self)
-        with self.__lock__:
-            self._cache_data.clear()
-            self._cache_data.update(parser.items())
-        return self
-
-    def save_cache(self, **kwargs: Any) -> "Config":
-        """
-        保存配置到缓存
-        :param kwargs: 需要保存的配置
-        """
-        parser = ConfigCacheParser(self)
-        with self.__lock__:
-            for key, value in kwargs.items():
-                self._cache_data[key] = value
-                parser.set(key, self.cast(value, type=str))
-        parser.dump()
-        return self
-
-    def remove_cache(self, *keys: str) -> "Config":
-        """
-        删除缓存
-        :param keys: 需要删除的缓存键
-        """
-        parser = ConfigCacheParser(self)
-        with self.__lock__:
-            for key in keys:
-                self._cache_data.pop(key, None)
-                parser.remove(key)
-        parser.dump()
-        return self
-
     def __contains__(self, key) -> bool:
         return f"{self._prefix}{key}" in os.environ or \
             key in self._data or \
-            key in self._cache_data
+            key in self._cache
 
     def __getitem__(self, key: str) -> Any:
         return self.get(key)
@@ -498,30 +552,28 @@ class Config:
     def __setitem__(self, key: str, value: Any):
         self.set(key, value)
 
-    class Prompt(ConfigProperty):
+    class Prompt(CacheConfigProperty):
 
         def __init__(
                 self,
                 prompt: str = None,
                 password: bool = False,
                 choices: Optional[List[str]] = None,
-                type: "Union[Type[Union[str, int, float]], ConfigType]" = str,
+                type: "Union[Type[Union[str, int, float]], LiteralType]" = str,
                 default: Any = __missing__,
                 cached: bool = False,
                 always_ask: bool = False,
                 allow_empty: bool = False,
         ):
-            super().__init__(type=type, cached=cached, reloadable=True)
+            super().__init__(type=type, default=default, cached=cached)
 
-            self.type = type
             self.prompt = prompt
             self.password = password
             self.choices = choices
-            self.default = default
             self.always_ask = always_ask
             self.allow_empty = allow_empty
 
-        def _load(self, config: "Config", key: str, cache: Any):
+        def load(self, config: "Config", key: str, type: "ConfigType", cache: Any):
 
             default = cache
             if default != __missing__ and not self.always_ask:
@@ -531,7 +583,7 @@ class Config:
             if default == __missing__:
                 default = self.default
                 if isinstance(default, ConfigProperty):
-                    default = default.load(config, key, cache=cache)
+                    default = default.get(config, key, type=type or self.type, default=cache)
 
             if default != __missing__:
                 default = config.cast(default, self.type)
@@ -557,7 +609,7 @@ class Config:
                 show_choices=True
             )
 
-    class Confirm(ConfigProperty):
+    class Confirm(CacheConfigProperty):
 
         def __init__(
                 self,
@@ -566,13 +618,12 @@ class Config:
                 cached: bool = False,
                 always_ask: bool = False,
         ):
-            super().__init__(type=bool, cached=cached, reloadable=True)
+            super().__init__(type=bool, default=default, cached=cached)
 
             self.prompt = prompt
-            self.default = default
             self.always_ask = always_ask
 
-        def _load(self, config: "Config", key: str, cache: Any):
+        def load(self, config: "Config", key: str, type: "ConfigType", cache: Any):
 
             default = cache
             if default != __missing__ and not self.always_ask:
@@ -582,7 +633,7 @@ class Config:
             if default == __missing__:
                 default = self.default
                 if isinstance(default, ConfigProperty):
-                    default = default.load(config, key, cache=cache)
+                    default = default.get(config, key, type=type or self.type, default=cache)
 
             if default != __missing__:
                 default = config.cast(default, bool)
@@ -593,20 +644,19 @@ class Config:
                 show_default=True,
             )
 
-    class Alias(ConfigProperty):
+    class Alias(CacheConfigProperty):
 
         def __init__(
                 self,
                 *keys: str,
-                type: "Union[Type[T], ConfigType]" = str,
+                type: "ConfigType" = str,
                 default: Any = __missing__,
                 cached: bool = False
         ):
-            super().__init__(type=type, cached=cached)
+            super().__init__(type=type, default=default, cached=cached)
             self.keys = keys
-            self.default = default
 
-        def _load(self, config: "Config", key: str, cache: Any):
+        def load(self, config: "Config", key: str, type: "ConfigType", cache: Any):
             if cache != __missing__:
                 return cache
 
@@ -614,7 +664,7 @@ class Config:
                 last_error = None
                 for key in self.keys:
                     try:
-                        return config.get(key)
+                        return config.get(key, type=type or self.type)
                     except Exception as e:
                         last_error = e
                 if last_error is not None:
@@ -622,33 +672,33 @@ class Config:
 
             else:
                 for key in self.keys:
-                    result = config.get(key, default=SUPPRESS)
+                    result = config.get(key, type=type or self.type, default=SUPPRESS)
                     if result is not SUPPRESS:
                         return result
 
                 return self.default
 
-    class Lazy(ConfigProperty):
+    class Lazy(LazyConfigProperty):
 
         def __init__(self, func: "Callable[[Config], T]"):
             super().__init__()
             self.func = func
 
-        def _load(self, config: "Config", key: str, cache: Any):
+        def load(self, config: "Config", key: str, type: "ConfigType", default: Any) -> Any:
             return self.func(config)
 
-    class Error(ConfigProperty):
+    class Error(LazyConfigProperty):
 
         def __init__(self, message: str = None):
             super().__init__()
             self.message = message
 
-        def _load(self, config: "Config", key: str, cache: Any):
+        def load(self, config: "Config", key: str, type: "ConfigType", default: Any) -> Any:
             message = self.message or \
                       f"Cannot find config \"{key}\". {os.linesep}" \
                       f"You can use any of the following methods to fix it: {os.linesep}" \
                       f"1. set \"{config._prefix}{key}\" as an environment variable, {os.linesep}" \
-                      f"2. call config.save_cache method to save the value to file. {os.linesep}"
+                      f"2. call config.cache.save() method to save the value to file. {os.linesep}"
             raise ConfigError(message)
 
 
@@ -658,11 +708,11 @@ class ConfigWrapper(Config):
             self,
             config: "Config",
             namespace: str = __missing__,
-            prefix: str = __missing__,
+            env_prefix: str = __missing__,
     ):
         super().__init__(
             config._environ,
             config._data,
-            namespace=namespace if namespace != __missing__ else config._namespace,
-            prefix=prefix if prefix != __missing__ else config._prefix
+            namespace=namespace if namespace != __missing__ else config.cache.namespace,
+            env_prefix=env_prefix if env_prefix != __missing__ else config._prefix
         )

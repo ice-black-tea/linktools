@@ -27,12 +27,13 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import os
+import pathlib
 import re
 import textwrap
-from typing import TYPE_CHECKING, Dict, Any, List, Optional, Callable, Union
+from typing import TYPE_CHECKING, Dict, Any, List, Optional, Callable
 
 import yaml
-from jinja2 import Template, Environment
+from jinja2 import Environment, TemplateError
 
 from .. import utils, Config
 from ..cli import subcommand, subcommand_argument
@@ -125,12 +126,17 @@ class NginxMixin:
             )
             self.render_template(
                 template,
-                nginx.get_app_path("temporary", self.name, f"{domain}_confs", f"{name or self.name}.conf", create_parent=True),
+                nginx.get_app_path("temporary", self.name, f"{domain}_confs", f"{name or self.name}.conf",
+                                   create_parent=True),
                 DOMAIN=domain
             )
 
 
 class ContainerError(Exception):
+    pass
+
+
+class ContainerTemplateError(ContainerError):
     pass
 
 
@@ -454,27 +460,6 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             for key in config.keys()
         }
 
-        context.update(
-            DEBUG=self.manager.debug,
-
-            manager=self.manager,
-            container=self,
-            config=config,
-            user=self.manager.user,
-            docker_user=utils.lazy_load(self.manager.config.get, "DOCKER_USER"),
-            docker_uid=utils.lazy_load(self.manager.config.get, "DOCKER_UID"),
-            docker_gid=utils.lazy_load(self.manager.config.get, "DOCKER_GID"),
-
-            bool=lambda obj, default=False: config.cast(obj, type=bool, default=default),
-            str=lambda obj, default="": config.cast(obj, type=str, default=default),
-            int=lambda obj, default=0: config.cast(obj, type=int, default=default),
-            float=lambda obj, default=0.0: config.cast(obj, type=float, default=default),
-            path=lambda obj, default="": config.cast(obj, type="path", default=default),
-            json=lambda obj, default="": config.cast(obj, type="json", default=default),
-        )
-
-        context.update(kwargs)
-
         def mkdir(path: str):
             path = config.cast(path, type="path")
             self.start_hooks.append(lambda: os.makedirs(path, exist_ok=True))
@@ -487,25 +472,43 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                 self.start_hooks.append(lambda: self.manager.change_file_owner(path, uid, gid))
             return path
 
+        context.update(
+            DEBUG=self.manager.debug,
+
+            CONTAINER_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_path())),
+            APP_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_app_path())),
+            APP_DATA_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_app_data_path())),
+            USER_DATA_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_user_data_path())),
+            DOWNLOAD_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_download_path())),
+
+            manager=self.manager,
+            container=self,
+            config=config,
+            user=self.manager.user,
+            docker_user=utils.lazy_load(self.manager.config.get, "DOCKER_USER"),
+
+            mkdir=mkdir,
+            chown=chown,
+        )
+
+        context.update(kwargs)
+
         environment = Environment()
         environment.filters.update(
             mkdir=mkdir,
-            chown=chown,
-
-            bool=lambda obj, default=False: config.cast(obj, type=bool, default=default),
-            str=lambda obj, default="": config.cast(obj, type=str, default=default),
-            int=lambda obj, default=0: config.cast(obj, type=int, default=default),
-            float=lambda obj, default=0.0: config.cast(obj, type=float, default=default),
-            path=lambda obj, default="": config.cast(obj, type="path", default=default),
-            json=lambda obj, default="": config.cast(obj, type="json", default=default),
+            chown=chown
         )
 
-        template = environment.from_string(utils.read_file(source, text=True))
-        result = template.render(context)
-        if destination:
-            utils.write_file(destination, result)
+        try:
+            self.logger.debug(f"{self} render template {source} to {destination}")
+            template = environment.from_string(utils.read_file(source, text=True))
+            result = template.render(context)
+            if destination:
+                utils.write_file(destination, result)
+            return result
 
-        return result
+        except TemplateError as e:
+            raise ContainerTemplateError(e)
 
     def __repr__(self):
         return f"Container<{self.name}>"
