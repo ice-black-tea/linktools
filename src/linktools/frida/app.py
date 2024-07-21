@@ -20,8 +20,10 @@ from frida.core import Session, Script
 from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .. import utils, environ
+from ..decorator import timeoutable
 from ..reactor import Reactor
 from ..metadata import __release__
+from ..types import TimeoutType, Event
 
 if TYPE_CHECKING:
     import _frida
@@ -535,8 +537,8 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
 
         # 初始化运行环境
         self._last_error = None
-        self._stop_request = utils.InterruptableEvent()
-        self._finished = utils.InterruptableEvent()
+        self._stop_request = Event()
+        self._finished = Event()
         self._reactor = FridaReactor(on_stop=self._on_stop, on_error=self._on_error)
         self._manager = FridaManager(self._reactor)
 
@@ -616,8 +618,8 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
     def is_running(self) -> bool:
         return self._reactor.is_running()
 
-    @utils.timeoutable
-    def run(self, timeout: utils.Timeout = None):
+    @timeoutable
+    def run(self, timeout: TimeoutType = None):
         assert not self.is_running
         try:
             self._init()
@@ -626,8 +628,8 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         finally:
             self._deinit()
 
-    @utils.timeoutable
-    def wait(self, timeout: utils.Timeout = None) -> bool:
+    @timeoutable
+    def wait(self, timeout: TimeoutType = None) -> bool:
         return self._finished.wait(timeout)
 
     def stop(self):

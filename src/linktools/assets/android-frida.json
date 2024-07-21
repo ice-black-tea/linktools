@@ -15,7 +15,7 @@
             "name": "strong-frida-server-{version}-android-{abi}",
             "url": "https://github.com/hzzheyang/strongR-frida-android/releases/download/{version}/hluda-server-{version}-android-{abi}.xz",
             "min_version": "15.1.8",
-            "max_version": "16.0.19"
+            "max_version": "16.0.11"
         },
         {
             "name": "frida-server-{version}-android-{abi}",

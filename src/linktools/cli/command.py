@@ -49,6 +49,7 @@ from .._environ import environ
 from ..decorator import cached_property
 from ..metadata import __missing__
 from ..rich import LogHandler, is_terminal
+from ..types import Error
 
 if TYPE_CHECKING:
     from typing import TypeVar, Union, Literal
@@ -58,7 +59,7 @@ if TYPE_CHECKING:
     ERROR_HANDLER = Union[Literal["error", "ignore", "warn"], Callable[[str, Exception], None]]
 
 
-class CommandError(Exception):
+class CommandError(Error):
     pass
 
 

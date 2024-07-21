@@ -12,10 +12,12 @@ import re
 import zipfile
 from typing import Optional, Dict, Any, List
 
+from ..types import Error
+
 _INFO_PLIST = "Info.plist"
 
 
-class IPAError(Exception):
+class IPAError(Error):
     pass
 
 

@@ -32,8 +32,8 @@ import configparser
 import errno
 import json
 import os
-import pathlib
 import threading
+from pathlib import Path
 from types import ModuleType
 from typing import \
     TYPE_CHECKING, TypeVar, Type, Optional, Generator, \
@@ -42,6 +42,7 @@ from typing import \
 from . import utils
 from .metadata import __missing__
 from .rich import prompt, confirm, choose
+from .types import PathType, Error, get_args
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -83,7 +84,7 @@ def cast_str(obj: Any) -> str:
 
 
 def cast_path(obj: Any) -> str:
-    if isinstance(obj, (str, pathlib.Path)):
+    if isinstance(obj, get_args(PathType)):
         return os.path.abspath(
             os.path.expanduser(
                 str(obj)  # support Proxy object
@@ -108,7 +109,7 @@ CONFIG_TYPES: "Dict[ConfigType, Callable[[Any], T]]" = dict({
 })
 
 
-class ConfigError(Exception):
+class ConfigError(Error):
     pass
 
 
@@ -192,7 +193,7 @@ class CacheConfigProperty(ConfigProperty, metaclass=abc.ABCMeta):
 
 class ConfigDict(dict):
 
-    def update_from_pyfile(self, filename: str, silent: bool = False) -> bool:
+    def update_from_pyfile(self, filename: PathType, silent: bool = False) -> bool:
         d = ModuleType("config")
         d.__file__ = filename
         d.prompt = Config.Prompt
@@ -211,7 +212,7 @@ class ConfigDict(dict):
         self.update_from_object(d)
         return True
 
-    def update_from_file(self, filename: str, load: Callable[[IO[Any]], Mapping], silent: bool = False) -> bool:
+    def update_from_file(self, filename: PathType, load: Callable[[IO[Any]], Mapping], silent: bool = False) -> bool:
         try:
             with open(filename, "rb") as f:
                 obj = load(f)
@@ -248,7 +249,7 @@ class ConfigParser(configparser.ConfigParser):
 
 class ConfigCacheParser:
 
-    def __init__(self, path: str, namespace: str):
+    def __init__(self, path: PathType, namespace: str):
         self._parser = ConfigParser(default_section="ENV")  # 兼容老版本，默认ENV作为默认节
         self._path = path
         self._section = f"{namespace}.CACHE".upper()
@@ -291,7 +292,7 @@ class ConfigCache(dict):
         self.load()
 
     @property
-    def path(self) -> str:
+    def path(self) -> Path:
         """
         缓存文件路径
         """
@@ -398,10 +399,10 @@ class Config:
             cast = CONFIG_TYPES.get(type, type)
             try:
                 return cast(obj)
-            except Exception as e:
+            except Exception:
                 if default != __missing__:
                     return default
-                raise e
+                raise
         return obj
 
     def get(self, key: str, type: "ConfigType" = None, default: Any = __missing__) -> "T":

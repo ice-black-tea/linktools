@@ -28,7 +28,6 @@
 """
 
 from ._utils import (
-    timeoutable, Timeout, InterruptableEvent,
     ignore_error,
     cast, cast_int as int, cast_bool as bool,
     coalesce, is_contain, is_empty,
@@ -39,15 +38,12 @@ from ._utils import (
     parse_version, get_char_width,
     make_url, parse_header, parser_cookie, guess_file_name, user_agent,
     get_system, get_machine, get_user, get_uid, get_gid, get_shell_path,
-    import_module, import_module_file
-)
-
-from ._proxy import (
+    import_module, import_module_file,
     get_derived_type, lazy_load, lazy_iter, lazy_raise
 )
 
 from ._subprocess import (
-    Process,
+    Process, create_process,
     list2cmdline, cmdline2list,
 )
 

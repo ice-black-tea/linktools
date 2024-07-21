@@ -1,21 +1,144 @@
 #!/usr/bin/env python3
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
 
-# Datetime  : 2022/11/4 下午1:18
-# Author    : HuJi <jihu.hj@alibaba-inc.com>
+"""
+@author  : Hu Ji
+@file    : types.py 
+@time    : 2024/7/21
+@site    : https://github.com/ice-black-tea
+@software: PyCharm 
 
-import functools
-from typing import TYPE_CHECKING, TypeVar, Type, Callable, Iterable
+              ,----------------,              ,---------,
+         ,-----------------------,          ,"        ,"|
+       ,"                      ,"|        ,"        ,"  |
+      +-----------------------+  |      ,"        ,"    |
+      |  .-----------------.  |  |     +---------+      |
+      |  |                 |  |  |     | -==----'|      |
+      |  | $ sudo rm -rf / |  |  |     |         |      |
+      |  |                 |  |  |/----|`---=    |      |
+      |  |                 |  |  |   ,/|==== ooo |      ;
+      |  |                 |  |  |  // |(((( [33]|    ,"
+      |  `-----------------'  |," .;'| |((((     |  ,"
+      +-----------------------+  ;;  | |         |,"
+         /_)______________(_/  //'   | +---------+
+    ___________________________/___  `,
+   /  oooooooooooooooo  .o.  oooo /,   `,"-----------
+  / ==ooooooooooooooo==.o.  ooo= //   ,``--{)B     ,"
+ /_==__==========__==_ooo__ooo=_/'   /___________,"
+"""
+import abc as _abc
+import threading as _threading
+import time as _time
+import types as _types
+import typing as _t
+from pathlib import Path as _Path
 
-if TYPE_CHECKING:
-    from typing import ParamSpec
+if _t.TYPE_CHECKING:
+    T = _t.TypeVar("T")
+    P = _t.ParamSpec("P")
 
-    T = TypeVar("T")
-    P = ParamSpec("P")
+PathType = _t.Union[str, _Path]
+QueryDataType = _t.Union[str, int, float]
+QueryType = _t.Union[QueryDataType, _t.List[QueryDataType], _t.Tuple[QueryDataType]]
+TimeoutType = _t.Union["Timeout", float, int, None]
 
-_PROXY_FN = "_Proxy__fn"
-_PROXY_OBJECT = "_Proxy__object"
-_PROXY_MISSING = ...
+
+class Error(Exception):
+    pass
+
+
+def get_origin(tp):
+    if hasattr(_t, "get_origin"):
+        return _t.get_origin(tp)
+    if tp is _t.Generic:
+        return _t.Generic
+    if isinstance(tp, _types.UnionType):
+        return _types.UnionType
+    if hasattr(tp, "__origin__"):
+        return tp.__origin__
+    raise TypeError(f"{tp} has no attribute '__origin__'")
+
+
+def get_args(tp):
+    if hasattr(_t, "get_args"):
+        return _t.get_args(tp)
+    if hasattr(tp, "__args__"):
+        return tp.__args__
+    raise TypeError(f"{tp} has no attribute '__args__'")
+
+
+class Timeout:
+
+    def __init__(self, timeout: TimeoutType = None):
+        if isinstance(timeout, Timeout):
+            self._timeout = timeout._timeout
+            self._deadline = timeout._deadline
+        elif isinstance(timeout, (float, int, type(None))):
+            self._timeout = timeout
+            self._deadline = None
+            self.reset()
+        else:
+            raise TypeError(f"Timeout/int/float was expects, got {type(timeout)}")
+
+    @property
+    def remain(self) -> _t.Union[float, None]:
+        timeout = None
+        if self._deadline is not None:
+            timeout = max(self._deadline - _time.time(), 0)
+        return timeout
+
+    @property
+    def deadline(self) -> _t.Union[float, None]:
+        return self._deadline
+
+    def reset(self) -> None:
+        if self._timeout is not None and self._timeout >= 0:
+            self._deadline = _time.time() + self._timeout
+
+    def check(self) -> bool:
+        if self._deadline is not None:
+            if _time.time() > self._deadline:
+                return False
+        return True
+
+    def ensure(self, err_type: _t.Type[Exception] = TimeoutError, message=None) -> None:
+        if not self.check():
+            raise err_type(message)
+
+    def __repr__(self):
+        return f"Timeout(timeout={self._timeout})"
+
+
+class Event(_threading.Event):
+    """
+    解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
+    """
+
+    def wait(self, timeout: TimeoutType = None):
+        timeout = Timeout(timeout)
+        interval = 1
+        wait = super().wait
+        while True:
+            t = timeout.remain
+            if t is None:
+                t = interval
+            elif t <= 0:
+                break
+            if wait(min(t, interval)):
+                break
+
+
+class Stoppable(_abc.ABC):
+
+    @_abc.abstractmethod
+    def stop(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.stop()
 
 
 # Code stolen from celery.local.Proxy: https://github.com/celery/celery/blob/main/celery/local.py
@@ -42,15 +165,19 @@ def _default_cls_attr(name, type_, cls_value):
 
 __module__ = __name__  # used by Proxy class body
 
+_proxy_fn = "_Proxy__fn"
+_proxy_object = "_Proxy__object"
 
-class _Proxy(object):
+
+class Proxy(object):
     """Proxy to another object."""
 
     __slots__ = ('__fn', '__object', '__dict__')
+    __missing__ = object()
 
-    def __init__(self, fn, name=None, doc=None):
-        object.__setattr__(self, _PROXY_FN, fn or _PROXY_MISSING)
-        object.__setattr__(self, _PROXY_OBJECT, _PROXY_MISSING)
+    def __init__(self, fn=__missing__, name=None, doc=None):
+        object.__setattr__(self, _proxy_fn, fn)
+        object.__setattr__(self, _proxy_object, Proxy.__missing__)
         if name is not None:
             object.__setattr__(self, "__custom_name__", name)
         if doc is not None:
@@ -86,10 +213,10 @@ class _Proxy(object):
         return self._get_class()
 
     def _get_current_object(self):
-        obj = getattr(self, _PROXY_OBJECT)
-        if obj == _PROXY_MISSING:
-            obj = getattr(self, _PROXY_FN)()
-            object.__setattr__(self, _PROXY_OBJECT, obj)
+        obj = getattr(self, _proxy_object)
+        if obj == Proxy.__missing__:
+            obj = getattr(self, _proxy_fn)()
+            object.__setattr__(self, _proxy_object, obj)
         return obj
 
     @property
@@ -257,70 +384,16 @@ class _Proxy(object):
         return self._get_current_object().__reduce__()
 
 
-def get_derived_type(t: "Type[T]") -> "Type[T]":
-    """
-    生成委托类型，常用于自定义类继承委托类，替换某些方法, 如：
+class IterProxy(_t.Iterable):
+    __missing__ = object()
 
-    import subprocess
+    def __init__(self, func: "_t.Callable[P, _t.Iterable[T]]", *args: "P.args", **kwargs: "P.kwargs"):
+        self._data = IterProxy.__missing__
+        self._fn = func
+        self._args = args
+        self._kwargs = kwargs
 
-    class Popen(get_derived_type(subprocess.Popen)):
-        __super__: subprocess.Popen
-
-        def communicate(self, *args, **kwargs):
-            out, err = self.__super__.communicate(*args, **kwargs)
-            return 'fake out!!!', 'fake error!!!'
-
-    process = Popen(subprocess.Popen(["/usr/bin/git", "status"]))
-    print(process.communicate())  # ('fake out!!!', 'fake error!!!')
-
-    :param t: 需要委托的类型
-    :return: 同参数t，需要委托的类型
-    """
-
-    class Derived(_Proxy):
-
-        def __init__(self, obj: "T"):
-            super().__init__(_PROXY_MISSING)
-            object.__setattr__(self, "__super__", obj)
-
-        def _get_current_object(self):
-            return self.__super__
-
-    return Derived
-
-
-def lazy_load(fn: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs") -> "T":
-    """
-    延迟加载
-    :param fn: 延迟加载的方法
-    :return: proxy
-    """
-    return _Proxy(functools.partial(fn, *args, **kwargs))
-
-
-def lazy_iter(fn: "Callable[P, Iterable[T]]", *args: "P.args", **kwargs: "P.kwargs") -> "Iterable[T]":
-    """
-    延迟迭代
-    :param fn: 延迟迭代的方法
-    :return: proxy
-    """
-
-    class IterProxy(Iterable):
-
-        def __init__(self):
-            self._data: Iterable[T] = _PROXY_MISSING
-
-        def __iter__(self):
-            if self._data == _PROXY_MISSING:
-                self._data = fn(*args, **kwargs)
-            return iter(self._data)
-
-    return IterProxy()
-
-
-def raise_error(e: BaseException):
-    raise e
-
-
-def lazy_raise(e: BaseException) -> "T":
-    return lazy_load(raise_error, e)
+    def __iter__(self):
+        if self._data == IterProxy.__missing__:
+            self._data = self._fn(*self._args, **self._kwargs)
+        return iter(self._data)

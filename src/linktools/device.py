@@ -5,12 +5,14 @@ from abc import ABC, abstractmethod
 from typing import Any, Generator, TypeVar, Type
 
 from . import utils, Tool
+from .decorator import timeoutable
+from .types import TimeoutType, Error
 
 BridgeType = TypeVar("BridgeType", bound="Bridge")
 DeviceType = TypeVar("DeviceType", bound="BaseDevice")
 
 
-class BridgeError(Exception):
+class BridgeError(Error):
     pass
 
 
@@ -40,8 +42,8 @@ class Bridge:
             **kwargs
         )
 
-    @utils.timeoutable
-    def exec(self, *args: [Any], timeout: utils.Timeout = None,
+    @timeoutable
+    def exec(self, *args: [Any], timeout: TimeoutType = None,
              ignore_errors: bool = False, log_output: bool = False) -> str:
         """
         执行命令

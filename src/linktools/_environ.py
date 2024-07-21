@@ -30,13 +30,14 @@ import abc
 import json
 import logging
 import os
-import pathlib
 import shutil
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, Type, Any
 
 from . import utils, metadata
 from .decorator import cached_property, cached_classproperty
+from .types import PathType
 
 if TYPE_CHECKING:
     from ._config import ConfigDict, Config
@@ -71,7 +72,7 @@ class BaseEnviron(abc.ABC):
         return NotImplemented
 
     @property
-    def root_path(self) -> str:
+    def root_path(self) -> PathType:
         """
         模块路径
         """
@@ -106,36 +107,36 @@ class BaseEnviron(abc.ABC):
         self.set_config("DEBUG", value)
 
     @cached_property
-    def data_path(self) -> str:
+    def data_path(self) -> Path:
         """
         存放文件目录
         """
         prefix = f"{metadata.__name__}".upper()
         path = os.environ.get(f"{prefix}_DATA_PATH", None)
         if path:  # 优先使用环境变量中的${DATA_PATH}
-            return path
+            return Path(path)
         path = os.environ.get(f"{prefix}_STORAGE_PATH", None)
         if path:  # 其次使用环境变量中的${STORAGE_PATH}/data
-            return os.path.join(path, "data")
+            return Path(path, "data")
         # 最后使用默认路径${HOME}/.linktools/data
-        return os.path.join(str(pathlib.Path.home()), f".{metadata.__name__}", "data")
+        return Path.home().joinpath(f".{metadata.__name__}", "data")
 
     @cached_property
-    def temp_path(self) -> str:
+    def temp_path(self) -> Path:
         """
         存放临时文件目录
         """
         prefix = f"{metadata.__name__}".upper()
         path = os.environ.get(f"{prefix}_TEMP_PATH", None)
         if path:  # 优先使用环境变量中的${TEMP_PATH}
-            return path
+            return Path(path)
         path = os.environ.get(f"{prefix}_STORAGE_PATH", None)
         if path:  # 其次使用环境变量中的${STORAGE_PATH}/temp
-            return os.path.join(path, "temp")
+            return Path(path, "temp")
         # 最后使用默认路径${HOME}/.linktools/temp
-        return os.path.join(str(pathlib.Path.home()), f".{metadata.__name__}", "temp")
+        return Path.home().joinpath(f".{metadata.__name__}", "temp")
 
-    def get_path(self, *paths: str) -> str:
+    def get_path(self, *paths: str) -> Path:
         """
         获取模块目录下的子路径
         """
@@ -143,29 +144,17 @@ class BaseEnviron(abc.ABC):
             raise RuntimeError("root_path not implemented")
         return utils.get_path(self.root_path, *paths)
 
-    def get_data_path(self, *paths: str, create_parent: bool = False) -> str:
+    def get_data_path(self, *paths: str, create_parent: bool = False) -> Path:
         """
         获取数据目录下的子路径
         """
-        return utils.get_path(self.data_path, *paths, create=False, create_parent=create_parent)
+        return utils.get_path(self.data_path, *paths, create_parent=create_parent)
 
-    def get_data_dir(self, *paths: str, create: bool = False) -> str:
-        """
-        获取数据目录下的子目录
-        """
-        return utils.get_path(self.data_path, *paths, create=create, create_parent=False)
-
-    def get_temp_path(self, *paths: str, create_parent: bool = False) -> str:
+    def get_temp_path(self, *paths: str, create_parent: bool = False) -> Path:
         """
         获取临时文件目录下的子路径
         """
-        return utils.get_path(self.temp_path, *paths, create=False, create_parent=create_parent)
-
-    def get_temp_dir(self, *paths: str, create: bool = False) -> str:
-        """
-        获取临时文件目录下的子目录
-        """
-        return utils.get_path(self.temp_path, *paths, create=create, create_parent=False)
+        return utils.get_path(self.temp_path, *paths, create_parent=create_parent)
 
     def clean_temp_files(self, expire_days: int = 7) -> None:
         """
@@ -376,7 +365,7 @@ class Environ(BaseEnviron):
     def root_path(self) -> str:
         return os.path.dirname(__file__)
 
-    def get_asset_path(self, *paths: str) -> str:
+    def get_asset_path(self, *paths: str) -> Path:
         return self.get_path("assets", *paths)
 
     def _create_config(self):

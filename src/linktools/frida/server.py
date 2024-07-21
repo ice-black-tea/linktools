@@ -32,6 +32,7 @@ import time
 import frida
 
 from .. import environ, utils
+from ..types import Timeout
 
 _logger = environ.get_logger("frida.server")
 
@@ -68,7 +69,7 @@ class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMe
             _logger.info("Start frida server ...")
             self._start()
 
-            timeout = utils.Timeout(10)
+            timeout = Timeout(10)
             while timeout.check():
                 if self.is_running:
                     _logger.info("Frida server is running ...")

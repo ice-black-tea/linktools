@@ -14,8 +14,8 @@ from scp import SCPClient
 
 from . import utils
 from ._environ import environ
-from .reactor import Stoppable
 from .rich import create_progress, prompt
+from .types import Stoppable
 from .utils import list2cmdline, ignore_error
 
 try:

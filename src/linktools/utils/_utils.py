@@ -30,7 +30,6 @@ import functools
 import getpass
 import gzip
 import hashlib
-import inspect
 import os
 import platform
 import random
@@ -38,13 +37,12 @@ import re
 import shutil
 import socket
 import sys
-import threading
-import time
 import uuid
 from collections.abc import Iterable, Sized
 from importlib.machinery import ModuleSpec
 from importlib.util import find_spec, LazyLoader, module_from_spec, spec_from_file_location
-from typing import TYPE_CHECKING, Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict
+from pathlib import Path
+from typing import TYPE_CHECKING, Union, Callable, Optional, Type, Any, List, TypeVar, Tuple, Set, Dict, overload
 from urllib import parse
 from urllib.request import urlopen
 
@@ -52,9 +50,10 @@ from .._environ import environ
 from ..decorator import singleton
 from ..metadata import __missing__
 from ..references.fake_useragent import UserAgent
+from ..types import PathType, QueryType, Proxy, IterProxy
 
 if TYPE_CHECKING:
-    from typing import ParamSpec
+    from typing import ParamSpec, Literal
 
     T = TypeVar("T")
     P = ParamSpec("P")
@@ -62,116 +61,6 @@ if TYPE_CHECKING:
 DEFAULT_ENCODING = "utf-8"
 SYSTEM = platform.system().lower()
 MACHINE = platform.machine().lower()
-
-
-class Timeout:
-
-    def __init__(self, timeout: Union[float, int] = None):
-        self._deadline = None
-        self._timeout = timeout
-        self.reset()
-
-    @property
-    def remain(self) -> Union[float, None]:
-        timeout = None
-        if self._deadline is not None:
-            timeout = max(self._deadline - time.time(), 0)
-        return timeout
-
-    @property
-    def deadline(self) -> Union[float, None]:
-        return self._deadline
-
-    def reset(self) -> None:
-        if self._timeout is not None and self._timeout >= 0:
-            self._deadline = time.time() + self._timeout
-
-    def check(self) -> bool:
-        if self._deadline is not None:
-            if time.time() > self._deadline:
-                return False
-        return True
-
-    def ensure(self, err_type=TimeoutError, message=None) -> None:
-        if not self.check():
-            raise err_type(message)
-
-    def __repr__(self):
-        return f"Timeout(timeout={self._timeout})"
-
-
-def _timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
-    timeout_keyword = "timeout"
-
-    timeout_index = -1
-    positional_index = -1
-    keyword_index = -1
-
-    index = 0
-    for key, parameter in inspect.signature(fn).parameters.items():
-        if key == timeout_keyword:
-            timeout_index = index
-            break
-        elif parameter.kind in (parameter.KEYWORD_ONLY, parameter.VAR_KEYWORD):
-            keyword_index = index
-        elif parameter.kind in (parameter.VAR_POSITIONAL,):
-            positional_index = index
-        index += 1
-
-    if timeout_index < 0 and keyword_index < 0:
-        raise RuntimeError(f"Not found timeout parameter in {fn}")
-
-    if 0 <= positional_index < timeout_index:
-        # 如果timeout在*args参数后面，那就只能通过**kwargs访问了
-        timeout_index = -1
-
-    @functools.wraps(fn)
-    def wrapper(*args: "P.args", **kwargs: "P.kwargs") -> "T":
-        if 0 <= timeout_index < len(args):
-            timeout = args[timeout_index]
-            if isinstance(timeout, Timeout):
-                pass
-            elif isinstance(timeout, (float, int, type(None))):
-                args = list(args)
-                args[timeout_index] = Timeout(timeout)
-            else:
-                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
-        elif timeout_keyword in kwargs:
-            timeout = kwargs.get(timeout_keyword)
-            if isinstance(timeout, Timeout):
-                pass
-            elif isinstance(timeout, (float, int, type(None))):
-                kwargs[timeout_keyword] = Timeout(timeout)
-            else:
-                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
-        else:
-            kwargs[timeout_keyword] = Timeout()
-
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-timeoutable: Any = _timeoutable
-
-
-class InterruptableEvent(threading.Event):
-    """
-    解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
-    """
-
-    @timeoutable
-    def wait(self, timeout: Timeout = None):
-        interval = 1
-        wait = super().wait
-        while True:
-            t = timeout.remain
-            if t is None:
-                t = interval
-            elif t <= 0:
-                break
-            if wait(min(t, interval)):
-                break
 
 
 def ignore_error(
@@ -408,46 +297,37 @@ def gzip_compress(data: Union[str, bytes]) -> bytes:
     return gzip.compress(data)
 
 
-def get_path(root_path: str, *paths: [str], create: bool = False, create_parent: bool = False):
-    target_path = parent_path = os.path.abspath(root_path)
+def get_path(root_path: PathType, *paths: [str], create_parent: bool = False) -> Path:
+    target_path = Path(root_path)
     for path in paths:
-        target_path = os.path.abspath(os.path.join(parent_path, path))
-        common_path = os.path.commonpath([parent_path, target_path])
-        if target_path == parent_path or parent_path != common_path:
-            raise Exception(f"Unsafe path \"{path}\"")
         parent_path = target_path
-    dir_path = None
-    if create:
-        dir_path = target_path
-    elif create_parent:
-        dir_path = os.path.dirname(target_path)
-    if dir_path is not None:
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path, exist_ok=True)
+        target_path = parent_path.joinpath(path)
+        try:
+            target_path.relative_to(parent_path)
+        except ValueError:
+            raise Exception(f"Unsafe path \"{path}\"")
+    if create_parent:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
     return target_path
 
 
-if TYPE_CHECKING:
-    from typing import Literal, overload
+@overload
+def read_file(path: "PathType") -> bytes: ...
 
 
-    @overload
-    def read_file(path: str) -> bytes: ...
+@overload
+def read_file(path: "PathType", text: "Literal[False]") -> bytes: ...
 
 
-    @overload
-    def read_file(path: str, text: Literal[False]) -> bytes: ...
+@overload
+def read_file(path: "PathType", text: "Literal[True]", encoding=DEFAULT_ENCODING) -> str: ...
 
 
-    @overload
-    def read_file(path: str, text: Literal[True], encoding=DEFAULT_ENCODING) -> str: ...
+@overload
+def read_file(path: "PathType", text: bool, encoding=DEFAULT_ENCODING) -> Union[str, bytes]: ...
 
 
-    @overload
-    def read_file(path: str, text: bool, encoding=DEFAULT_ENCODING) -> Union[str, bytes]: ...
-
-
-def read_file(path: str, text: bool = False, encoding=DEFAULT_ENCODING) -> Union[str, bytes]:
+def read_file(path: "PathType", text: bool = False, encoding=DEFAULT_ENCODING) -> Union[str, bytes]:
     """
     读取文件数据
     """
@@ -459,7 +339,7 @@ def read_file(path: str, text: bool = False, encoding=DEFAULT_ENCODING) -> Union
             return fd.read()
 
 
-def write_file(path: str, data: [str, bytes], encoding=DEFAULT_ENCODING) -> None:
+def write_file(path: "PathType", data: [str, bytes], encoding=DEFAULT_ENCODING) -> None:
     """
     写入文件数据
     """
@@ -471,28 +351,30 @@ def write_file(path: str, data: [str, bytes], encoding=DEFAULT_ENCODING) -> None
             fd.write(data)
 
 
-def remove_file(path: str) -> None:
+def remove_file(path: "PathType") -> None:
     """
     删除文件/目录
     """
-    if os.path.exists(path):
-        if os.path.isdir(path):
-            shutil.rmtree(path, ignore_errors=True)
-        else:
-            ignore_error(os.remove, args=(path,))
+    if not os.path.exists(path):
+        return
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)
+    else:
+        ignore_error(os.remove, args=(path,))
 
 
-def clear_directory(path: str) -> None:
+def clear_directory(path: "PathType") -> None:
     """
     删除子目录
     """
-    if os.path.isdir(path):
-        for name in os.listdir(path):
-            target_path = os.path.join(path, name)
-            if os.path.isdir(target_path):
-                shutil.rmtree(target_path, ignore_errors=True)
-            else:
-                ignore_error(os.remove, args=(target_path,))
+    if not os.path.isdir(path):
+        return
+    for name in os.listdir(path):
+        target_path = os.path.join(path, name)
+        if os.path.isdir(target_path):
+            shutil.rmtree(target_path, ignore_errors=True)
+        else:
+            ignore_error(os.remove, args=(target_path,))
 
 
 def get_lan_ip() -> Optional[str]:
@@ -590,11 +472,6 @@ def user_agent(style=None) -> str:
         environ.logger.debug(f"fetch user agent error: {e}")
 
     return ua.fallback
-
-
-if TYPE_CHECKING:
-    QueryDataType = Union[str, int, float]
-    QueryType = Union[QueryDataType, List[QueryDataType], Tuple[QueryDataType]]
 
 
 def make_url(url: str, *paths: str, **kwargs: "QueryType") -> str:
@@ -832,3 +709,61 @@ def import_module_file(name: str, path: str) -> "T":
     sys.modules[name] = module
     loader.exec_module(module)
     return module
+
+
+def get_derived_type(t: "Type[T]") -> "Type[T]":
+    """
+    生成委托类型，常用于自定义类继承委托类，替换某些方法, 如：
+
+    import subprocess
+
+    class Popen(get_derived_type(subprocess.Popen)):
+        __super__: subprocess.Popen
+
+        def communicate(self, *args, **kwargs):
+            out, err = self.__super__.communicate(*args, **kwargs)
+            return 'fake out!!!', 'fake error!!!'
+
+    process = Popen(subprocess.Popen(["/usr/bin/git", "status"]))
+    print(process.communicate())  # ('fake out!!!', 'fake error!!!')
+
+    :param t: 需要委托的类型
+    :return: 同参数t，需要委托的类型
+    """
+
+    class Derived(Proxy):
+
+        def __init__(self, obj: "T"):
+            super().__init__()
+            object.__setattr__(self, "__super__", obj)
+
+        def _get_current_object(self):
+            return self.__super__
+
+    return Derived
+
+
+def lazy_load(fn: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs") -> "T":
+    """
+    延迟加载
+    :param fn: 延迟加载的方法
+    :return: proxy
+    """
+    return Proxy(functools.partial(fn, *args, **kwargs))
+
+
+def lazy_iter(fn: "Callable[P, Iterable[T]]", *args: "P.args", **kwargs: "P.kwargs") -> "Iterable[T]":
+    """
+    延迟迭代
+    :param fn: 延迟迭代的方法
+    :return: proxy
+    """
+    return IterProxy(fn, *args, **kwargs)
+
+
+def raise_error(e: BaseException):
+    raise e
+
+
+def lazy_raise(e: BaseException) -> "T":
+    return lazy_load(raise_error, e)

@@ -10,9 +10,9 @@ from typing import Any, Generator, List, Callable, Dict, TYPE_CHECKING, TypeVar
 from .struct import Process, App
 from .. import utils
 from .._environ import environ
-from ..decorator import cached_property
+from ..decorator import cached_property, timeoutable
 from ..device import BridgeError, Bridge, BaseDevice
-from ..reactor import Stoppable
+from ..types import Stoppable
 
 if TYPE_CHECKING:
     DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
@@ -118,7 +118,7 @@ class Device(BaseDevice):
         args = ["--udid", self.id, *args]
         return self._sib.popen(*args, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def exec(self, *args: [Any], **kwargs) -> str:
         """
         执行命令
@@ -128,22 +128,22 @@ class Device(BaseDevice):
         args = ["--udid", self.id, *args]
         return self._sib.exec(*args, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def install(self, path_or_url: str, **kwargs) -> str:
         environ.logger.info(f"Install ipa url: {path_or_url}")
         ipa_path = environ.get_url_file(path_or_url).download()
         environ.logger.info(f"Local ipa path: {ipa_path}")
         return self.exec("app", "install", "--path", ipa_path, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def uninstall(self, bundle_id: str, **kwargs) -> str:
         return self.exec("app", "uninstall", "--bundleId", bundle_id, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def kill(self, bundle_id: str, **kwargs) -> str:
         return self.exec("app", "kill", "--bundleId", bundle_id, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def get_app(self, bundle_id: str, detail: bool = None, **kwargs) -> App:
         """
         根据包名获取包信息
@@ -163,7 +163,7 @@ class Device(BaseDevice):
 
         raise SibError(f"App '{bundle_id}' not found")
 
-    @utils.timeoutable
+    @timeoutable
     def get_apps(self, *bundle_ids: str, system: bool = None, detail: bool = False, **kwargs) -> [App]:
         """
         获取包信息
@@ -193,7 +193,7 @@ class Device(BaseDevice):
 
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def get_processes(self, **kwargs):
         result = []
         objs = json.loads(self.exec("ps", "-f", **kwargs))

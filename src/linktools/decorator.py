@@ -27,10 +27,12 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import functools
+import inspect
 import threading
 from typing import TYPE_CHECKING, TypeVar, Type, Any, Callable, Tuple
 
 from .metadata import __missing__
+from .types import Timeout, TimeoutType
 
 if TYPE_CHECKING:
     from typing import ParamSpec
@@ -166,3 +168,58 @@ class cached_classproperty:
                     self.val = self.func(owner)
 
         return self.val
+
+
+def _timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
+    timeout_keyword = "timeout"
+
+    timeout_index = -1
+    positional_index = -1
+    keyword_index = -1
+
+    index = 0
+    for key, parameter in inspect.signature(fn).parameters.items():
+        if key == timeout_keyword:
+            timeout_index = index
+            break
+        elif parameter.kind in (parameter.KEYWORD_ONLY, parameter.VAR_KEYWORD):
+            keyword_index = index
+        elif parameter.kind in (parameter.VAR_POSITIONAL,):
+            positional_index = index
+        index += 1
+
+    if timeout_index < 0 and keyword_index < 0:
+        raise RuntimeError(f"Not found timeout parameter in {fn}")
+
+    if 0 <= positional_index < timeout_index:
+        # 如果timeout在*args参数后面，那就只能通过**kwargs访问了
+        timeout_index = -1
+
+    @functools.wraps(fn)
+    def wrapper(*args: "P.args", **kwargs: "P.kwargs") -> "T":
+        if 0 <= timeout_index < len(args):
+            timeout = Timeout(args[timeout_index])
+            if isinstance(timeout, Timeout):
+                pass
+            elif isinstance(timeout, TimeoutType):
+                args = list(args)
+                args[timeout_index] = Timeout(timeout)
+            else:
+                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
+        elif timeout_keyword in kwargs:
+            timeout = Timeout(kwargs.get(timeout_keyword))
+            if isinstance(timeout, Timeout):
+                pass
+            elif isinstance(timeout, TimeoutType):
+                kwargs[timeout_keyword] = Timeout(timeout)
+            else:
+                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
+        else:
+            kwargs[timeout_keyword] = Timeout()
+
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+timeoutable: Any = _timeoutable

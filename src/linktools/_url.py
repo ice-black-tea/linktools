@@ -33,16 +33,16 @@ import shelve
 import shutil
 from typing import TYPE_CHECKING
 
-from .decorator import cached_property
+from .decorator import cached_property, timeoutable
 from .rich import create_progress
-from .utils import get_md5, ignore_error, timeoutable, parse_header, guess_file_name, user_agent
+from .types import TimeoutType, Error, PathType
+from .utils import get_md5, ignore_error, parse_header, guess_file_name, user_agent
 
 if TYPE_CHECKING:
     from ._environ import BaseEnviron
-    from .utils import Timeout
 
 
-class DownloadError(Exception):
+class DownloadError(Error):
     pass
 
 
@@ -85,7 +85,7 @@ class DownloadContext:
     def __exit__(self, *args, **kwargs):
         self._db.__exit__(*args, **kwargs)
 
-    def download(self, timeout: "Timeout"):
+    def download(self, timeout: TimeoutType):
         self._environ.logger.debug(f"Download file to temp path {self.file_path}")
 
         initial = 0
@@ -202,7 +202,7 @@ class UrlFile(metaclass=abc.ABCMeta):
 
     @timeoutable
     @abc.abstractmethod
-    def download(self, retry: int = 2, timeout: "Timeout" = None, **kwargs) -> str:
+    def download(self, retry: int = 2, timeout: TimeoutType = None, **kwargs) -> str:
         """
         从指定url下载文件到临时目录
         :param timeout: 超时时间
@@ -213,7 +213,7 @@ class UrlFile(metaclass=abc.ABCMeta):
 
     @timeoutable
     @abc.abstractmethod
-    def save(self, dir: str, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
+    def save(self, dir: PathType, name: str = None, timeout: TimeoutType = None, retry: int = 2, **kwargs) -> str:
         """
         从指定url下载文件
         :param dir: 文件路径
@@ -226,7 +226,7 @@ class UrlFile(metaclass=abc.ABCMeta):
 
     @timeoutable
     @abc.abstractmethod
-    def clear(self, timeout: "Timeout" = None):
+    def clear(self, timeout: TimeoutType = None):
         """
         清空缓存文件
         """
@@ -256,7 +256,7 @@ class LocalFile(UrlFile):
         return src_path
 
     @timeoutable
-    def save(self, dir: str, name: str = None, *args, **kwargs) -> str:
+    def save(self, dir: PathType, name: str = None, *args, **kwargs) -> str:
         src_path = self._url
         if not os.path.exists(src_path):
             raise DownloadError(f"{src_path} does not exist")
@@ -268,7 +268,7 @@ class LocalFile(UrlFile):
         return dest_path
 
     @timeoutable
-    def clear(self, timeout: "Timeout" = None):
+    def clear(self, timeout: TimeoutType = None):
         pass
 
 
@@ -289,7 +289,7 @@ class HttpFile(UrlFile):
         )
 
     @timeoutable
-    def _download(self, context: DownloadContext, retry: int, timeout: "Timeout", **kwargs) -> str:
+    def _download(self, context: DownloadContext, retry: int, timeout: TimeoutType, **kwargs) -> str:
         if os.path.exists(self._temp_path) and context.completed:
             # 下载完成了，那就不用再下载了
             self._environ.logger.debug(f"{self._temp_path} downloaded, skip")
@@ -327,7 +327,7 @@ class HttpFile(UrlFile):
         return self._temp_path
 
     @timeoutable
-    def download(self, retry: int = 2, timeout: "Timeout" = None, **kwargs) -> str:
+    def download(self, retry: int = 2, timeout: TimeoutType = None, **kwargs) -> str:
         try:
             self._lock.acquire(timeout=timeout.remain, poll_interval=1)
 
@@ -349,7 +349,7 @@ class HttpFile(UrlFile):
             ignore_error(self._lock.release)
 
     @timeoutable
-    def save(self, dir: str, name: str = None, timeout: "Timeout" = None, retry: int = 2, **kwargs) -> str:
+    def save(self, dir: PathType, name: str = None, timeout: TimeoutType = None, retry: int = 2, **kwargs) -> str:
         try:
             self._lock.acquire(timeout=timeout.remain, poll_interval=1)
 
@@ -384,7 +384,7 @@ class HttpFile(UrlFile):
             ignore_error(self._lock.release)
 
     @timeoutable
-    def clear(self, timeout: "Timeout" = None):
+    def clear(self, timeout: TimeoutType = None):
         lock = self._lock
         with lock.acquire(timeout.remain):
             if not os.path.exists(self._root_path):

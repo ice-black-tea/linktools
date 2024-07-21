@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import abc
 import asyncio
 import atexit
 import functools
@@ -11,22 +10,9 @@ from collections import deque
 from typing import Optional, Callable, Any, Coroutine
 
 from ._environ import environ
-from .utils import InterruptableEvent
+from .types import Event, Stoppable
 
 _logger = environ.get_logger("reactor")
-
-
-class Stoppable(abc.ABC):
-
-    @abc.abstractmethod
-    def stop(self):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        self.stop()
 
 
 class Reactor(Stoppable):
@@ -134,7 +120,7 @@ class ReactorThread(threading.Thread):
 
         super().__init__(target=run)
 
-        event = InterruptableEvent()
+        event = Event()
         self.daemon = True
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self.start()

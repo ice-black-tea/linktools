@@ -35,8 +35,9 @@ import warnings
 from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Type, Optional, Generator
 
 from . import utils
-from .decorator import cached_property
+from .decorator import cached_property, timeoutable
 from .metadata import __missing__
+from .types import TimeoutType, Error
 
 if TYPE_CHECKING:
     from ._environ import BaseEnviron
@@ -154,7 +155,7 @@ class ToolMeta(type):
             else property(lambda self: self.config.get(name))
 
 
-class ToolError(Exception):
+class ToolError(Error):
     pass
 
 
@@ -278,7 +279,7 @@ class Tool(metaclass=ToolMeta):
                 if self.version
                 else self.name
             )
-        config["root_path"] = root_path = self._tools.environ.get_data_dir(*paths)
+        config["root_path"] = root_path = str(self._tools.environ.get_data_path(*paths))
 
         if absolute_path:
             config["absolute_path"] = absolute_path.format(tools=self._tools, **config)
@@ -408,13 +409,13 @@ class Tool(metaclass=ToolMeta):
             tool = self._tools[executable_cmdline[0]]
             return tool.popen(*args, **kwargs)
 
-        return utils.Process(*[*executable_cmdline, *args], **kwargs)
+        return utils.create_process(*[*executable_cmdline, *args], **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def exec(
             self,
             *args: [Any],
-            timeout: utils.Timeout = None,
+            timeout: TimeoutType = None,
             ignore_errors: bool = False,
             log_output: bool = False,
             error_type: Type[Exception] = ToolExecError

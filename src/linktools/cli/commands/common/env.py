@@ -91,7 +91,7 @@ class Command(BaseCommandGroup):
             raise NotImplementedError(f"Not found shell path")
 
         if command:
-            process = utils.Process(command, shell=True)
+            process = utils.create_process(command, shell=True)
             return process.call()
 
         process = shell.popen()

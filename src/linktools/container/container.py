@@ -27,9 +27,9 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import os
-import pathlib
 import re
 import textwrap
+from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Optional, Callable
 
 import yaml
@@ -39,6 +39,7 @@ from .. import utils, Config
 from ..cli import subcommand, subcommand_argument
 from ..decorator import cached_property
 from ..rich import choose
+from ..types import PathType, Error
 
 if TYPE_CHECKING:
     from .manager import ContainerManager
@@ -114,7 +115,7 @@ class NginxMixin:
 
         return Config.Lazy(get_domain)
 
-    def write_nginx_conf(self: "BaseContainer", domain: str, template: str, name: str = None, https: bool = True):
+    def write_nginx_conf(self: "BaseContainer", domain: str, template: PathType, name: str = None, https: bool = True):
         nginx = self.manager.containers["nginx"]
         if domain and nginx.enable:
             if not self.manager.config.get("HTTPS_ENABLE", type=bool):
@@ -126,13 +127,12 @@ class NginxMixin:
             )
             self.render_template(
                 template,
-                nginx.get_app_path("temporary", self.name, f"{domain}_confs", f"{name or self.name}.conf",
-                                   create_parent=True),
+                nginx.get_app_path("temporary", self.name, f"{domain}_confs", f"{name or self.name}.conf", create_parent=True),
                 DOMAIN=domain
             )
 
 
-class ContainerError(Exception):
+class ContainerError(Error):
     pass
 
 
@@ -151,7 +151,7 @@ class AbstractMetaClass(type):
 class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     __abstract__ = True
 
-    def __init__(self, manager: "ContainerManager", root_path: str, name: str = None):
+    def __init__(self, manager: "ContainerManager", root_path: PathType, name: str = None):
         name = name or self.__module__
         index = name.rfind(".")
         if index >= 0:
@@ -224,14 +224,14 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                         path = self.get_docker_file_path()
                         if path and os.path.exists(path):
                             service["build"] = {
-                                "context": self.get_docker_context_path(),
-                                "dockerfile": path
+                                "context": str(self.get_docker_context_path()),
+                                "dockerfile": str(path)
                             }
                     if "env_file" not in service:
                         path = self.get_path(".env")
                         if path and os.path.exists(path):
                             service["env_file"] = [
-                                path
+                                str(path)
                             ]
                 return data
         return None
@@ -341,53 +341,48 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             "logs", *options, service.get("container_name")
         ).call()
 
-    def get_path(self, *paths: str) -> str:
+    def get_path(self, *paths: str) -> Path:
         return utils.get_path(
             self.root_path,
             *paths
         )
 
-    def get_app_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
+    def get_app_path(self, *paths: str, create_parent: bool = False) -> Path:
         return utils.get_path(
             self.manager.app_path,
             self.name,
             *paths,
-            create=create,
             create_parent=create_parent
         )
 
-    def get_app_data_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
+    def get_app_data_path(self, *paths: str, create_parent: bool = False) -> Path:
         return utils.get_path(
             self.manager.app_data_path,
             self.name,
             *paths,
-            create=create,
             create_parent=create_parent
         )
 
-    def get_user_data_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
+    def get_user_data_path(self, *paths: str, create_parent: bool = False) -> Path:
         return utils.get_path(
             self.manager.user_data_path,
             *paths,
-            create=create,
             create_parent=create_parent
         )
 
-    def get_download_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
+    def get_download_path(self, *paths: str, create_parent: bool = False) -> Path:
         return utils.get_path(
             self.manager.download_path,
             *paths,
-            create=create,
             create_parent=create_parent
         )
 
-    def get_temp_path(self, *paths: str, create: bool = False, create_parent: bool = False) -> str:
+    def get_temp_path(self, *paths: str, create_parent: bool = False) -> Path:
         return utils.get_path(
             self.manager.temp_path,
             "container",
             self.name,
             *paths,
-            create=create,
             create_parent=create_parent
         )
 
@@ -404,7 +399,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         )
         return services[index]
 
-    def get_docker_compose_file(self) -> Optional[str]:
+    def get_docker_compose_file(self) -> Optional[Path]:
         destination = None
         if self.docker_compose:
             destination = utils.get_path(
@@ -419,7 +414,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             )
         return destination
 
-    def get_docker_file_path(self) -> Optional[str]:
+    def get_docker_file_path(self) -> Optional[Path]:
         destination = None
         if self.docker_file:
             destination = utils.get_path(
@@ -434,7 +429,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             )
         return destination
 
-    def get_docker_context_path(self) -> str:
+    def get_docker_context_path(self) -> Path:
         return self.get_path()
 
     def is_depend_on(self, name: str):
@@ -452,34 +447,34 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
                         next_items.add(next_dependency)
         return False
 
-    def render_template(self, source: str, destination: str = None, **kwargs: Any):
+    def render_template(self, source: PathType, destination: PathType = None, **kwargs: Any):
         config = self.manager.config
 
-        context = {
-            key: utils.lazy_load(config.get, key)
-            for key in config.keys()
-        }
-
-        def mkdir(path: str):
+        def mkdir(path: PathType, mode: int = 0o755) -> str:
             path = config.cast(path, type="path")
-            self.start_hooks.append(lambda: os.makedirs(path, exist_ok=True))
+            self.start_hooks.append(lambda: os.makedirs(path, mode=mode, exist_ok=True))
             return path
 
-        def chown(path: str, user: str = None):
+        def chown(path: PathType, user: str = None) -> str:
             path = config.cast(path, type="path")
             if user:
                 uid, gid = utils.get_uid(user), utils.get_gid(user)
                 self.start_hooks.append(lambda: self.manager.change_file_owner(path, uid, gid))
             return path
 
+        context = {
+            key: utils.lazy_load(config.get, key)
+            for key in config.keys()
+        }
+
         context.update(
             DEBUG=self.manager.debug,
 
-            CONTAINER_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_path())),
-            APP_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_app_path())),
-            APP_DATA_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_app_data_path())),
-            USER_DATA_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_user_data_path())),
-            DOWNLOAD_PATH=utils.lazy_load(lambda: pathlib.Path(self.get_download_path())),
+            CONTAINER_PATH=utils.lazy_load(self.get_path),
+            APP_PATH=utils.lazy_load(self.get_app_path),
+            APP_DATA_PATH=utils.lazy_load(self.get_app_data_path),
+            USER_DATA_PATH=utils.lazy_load(self.get_user_data_path),
+            DOWNLOAD_PATH=utils.lazy_load(self.get_download_path),
 
             manager=self.manager,
             container=self,

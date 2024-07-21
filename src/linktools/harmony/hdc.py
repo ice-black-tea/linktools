@@ -5,8 +5,9 @@ from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar
 
 from .. import utils
 from .._environ import environ
-from ..decorator import cached_property
+from ..decorator import cached_property, timeoutable
 from ..device import BridgeError, Bridge, BaseDevice
+from ..types import TimeoutType
 
 if TYPE_CHECKING:
     DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
@@ -101,7 +102,7 @@ class Device(BaseDevice):
     def copy(self, type: "Callable[[str, Hdc], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
         return (type or Device)(self._id, self._hdc)
 
-    @utils.timeoutable
+    @timeoutable
     def exec(self, *args: Any, **kwargs) -> str:
         """
         执行命令
@@ -115,7 +116,7 @@ class Device(BaseDevice):
         cmd = utils.list2cmdline([str(arg) for arg in args])
         return ["shell", cmd]
 
-    @utils.timeoutable
+    @timeoutable
     def shell(self, *args: Any, **kwargs) -> str:
         """
         执行shell
@@ -125,7 +126,7 @@ class Device(BaseDevice):
         args = self.make_shell_args(*args)
         return self.exec(*args, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def get_prop(self, prop: str, **kwargs) -> str:
         """
         获取属性值
@@ -134,8 +135,8 @@ class Device(BaseDevice):
         """
         return self.shell("param", "get", prop, **kwargs).rstrip()
 
-    @utils.timeoutable
-    def get_uid(self, timeout: utils.Timeout = None) -> int:
+    @timeoutable
+    def get_uid(self, timeout: TimeoutType = None) -> int:
         default = -1
         out = self.shell("id", "-u", timeout=timeout)
         uid = utils.int(out.strip(), default=default)

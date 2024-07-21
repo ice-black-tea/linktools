@@ -40,6 +40,7 @@ from .repository import Repository
 from .. import utils, Config
 from .._environ import environ
 from ..decorator import cached_property
+from ..types import PathType
 
 if TYPE_CHECKING:
     from .._environ import BaseEnviron
@@ -196,7 +197,7 @@ class ContainerManager:
 
         return containers
 
-    def _walk_containers(self, path: str, max_level: int):
+    def _walk_containers(self, path: PathType, max_level: int):
         if not os.path.isdir(path):
             return
         yield from self._load_container(path)
@@ -208,7 +209,7 @@ class ContainerManager:
                 max_level - 1
             )
 
-    def _load_container(self, path: str):
+    def _load_container(self, path: PathType):
         container_path = os.path.join(path, self.docker_container_name)
         if os.path.exists(container_path):
             try:
@@ -342,7 +343,7 @@ class ContainerManager:
         if privilege:
             if self.system in ("darwin", "linux") and self.uid != 0:
                 args = ["sudo", *args]
-        return utils.Process(*args, **kwargs)
+        return utils.create_process(*args, **kwargs)
 
     def create_docker_process(
             self,
@@ -368,26 +369,15 @@ class ContainerManager:
             privilege: bool = None,
             **kwargs: Any
     ) -> utils.Process:
-        commands = []
-        if self.container_type in ("docker", "docker-rootless"):
-            commands.extend(["docker", "compose"])
-            if privilege is None:
-                privilege = self.container_type == "docker"
-        elif self.container_type == "podman":
-            commands.extend(["podman", "compose"])
-        else:
-            raise ContainerError(f"Invalid container type: {self.container_type}")
-
         options = []
         for container in containers:
             path = container.get_docker_compose_file()
             if path and os.path.exists(path):
                 options.extend(["--file", path])
         options.extend(["--project-name", self.config.get("COMPOSE_PROJECT_NAME")])
+        return self.create_docker_process("compose", *options, *args, privilege=privilege, **kwargs)
 
-        return self.create_process(*commands, *options, *args, privilege=privilege, **kwargs)
-
-    def change_file_owner(self, path: str, uid: int, gid: int, force: bool = False, privilege: bool = False) -> None:
+    def change_file_owner(self, path: PathType, uid: int, gid: int, force: bool = False, privilege: bool = False) -> None:
         if not os.path.exists(path):
             self.logger.debug(f"Path not found: {path}")
             return
@@ -509,7 +499,7 @@ class ContainerManager:
     def _repo_config_path(self):
         return self.environ.get_data_path("container", "repo", "repo.json", create_parent=True)
 
-    def _load_json_file(self, path: str, reload: bool = False, default: Any = None) -> Union[Dict, List, Tuple]:
+    def _load_json_file(self, path: PathType, reload: bool = False, default: Any = None) -> Union[Dict, List, Tuple]:
         if reload:
             self._file_caches.pop(path, None)
         elif path in self._file_caches:
@@ -522,7 +512,7 @@ class ContainerManager:
                 self.logger.warning(f"Failed to load config file {path}: {e}")
         return default if default is not None else {}
 
-    def _dump_json_file(self, path: str, config: Union[Dict, List, Tuple]):
+    def _dump_json_file(self, path: PathType, config: Union[Dict, List, Tuple]):
         try:
             self._file_caches.pop(path, None)
             utils.write_file(path, json.dumps(config, indent=2, ensure_ascii=False))

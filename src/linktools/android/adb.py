@@ -35,9 +35,9 @@ from typing import Any, Generator, List, Callable, TYPE_CHECKING, TypeVar
 
 from .struct import App, UnixSocket, InetSocket, Process, File, SystemService
 from .. import utils, environ
-from ..decorator import cached_property, cached_classproperty
+from ..decorator import cached_property, cached_classproperty, timeoutable
 from ..device import BridgeError, Bridge, BaseDevice
-from ..reactor import Stoppable
+from ..types import TimeoutType, Stoppable
 
 if TYPE_CHECKING:
     DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
@@ -151,7 +151,7 @@ class Device(BaseDevice):
         args = ["-s", self.id, *args]
         return self._adb.popen(*args, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def exec(self, *args: Any, **kwargs) -> str:
         """
         执行命令
@@ -171,7 +171,7 @@ class Device(BaseDevice):
             args = ["shell", cmd]
         return args
 
-    @utils.timeoutable
+    @timeoutable
     def shell(self, *args: Any, privilege: bool = False, user: str = None, **kwargs) -> str:
         """
         执行shell
@@ -183,7 +183,7 @@ class Device(BaseDevice):
         args = self.make_shell_args(*args, privilege=privilege, user=user)
         return self.exec(*args, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def sudo(self, *args: [Any], **kwargs) -> str:
         """
         以root权限执行shell
@@ -193,7 +193,7 @@ class Device(BaseDevice):
         kwargs["privilege"] = True
         return self.shell(*args, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def install(self, path_or_url: str, opts: [str] = (), **kwargs):
         """
         安装apk
@@ -219,7 +219,7 @@ class Device(BaseDevice):
         finally:
             self.shell("rm", remote_path, **kwargs, ignore_errors=True)
 
-    @utils.timeoutable
+    @timeoutable
     def uninstall(self, package_name: str, **kwargs):
         """
         卸载apk
@@ -228,7 +228,7 @@ class Device(BaseDevice):
         """
         self.exec("uninstall", package_name, **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def push_file(self, src_path: str, dest_dir: str, dest_name: str = None, skip_exist: bool = False, **kwargs) -> str:
         """
         推送文件到设备
@@ -267,7 +267,7 @@ class Device(BaseDevice):
             self.exec("push", os.path.join(src_dir, "."), dest_dir, **kwargs)
         return dest_dir
 
-    @utils.timeoutable
+    @timeoutable
     def pull_file(self, src_path: str, dest_dir: str, dest_name: str = None, skip_exist: bool = False, **kwargs) -> str:
         """
         从设备拉取文件
@@ -289,7 +289,7 @@ class Device(BaseDevice):
             self.exec("pull", src_path, dest_path, **kwargs)
         return dest_path
 
-    @utils.timeoutable
+    @timeoutable
     def pull_dir(self, src_dir: str, dest_dir: str, skip_exist: bool = False, **kwargs) -> str:
         """
         从设备拉取文件夹
@@ -410,7 +410,7 @@ class Device(BaseDevice):
 
         return Redirect()
 
-    @utils.timeoutable
+    @timeoutable
     def get_prop(self, prop: str, **kwargs) -> str:
         """
         获取属性值
@@ -419,7 +419,7 @@ class Device(BaseDevice):
         """
         return self.shell("getprop", prop, **kwargs).rstrip()
 
-    @utils.timeoutable
+    @timeoutable
     def set_prop(self, prop: str, value: str, **kwargs) -> str:
         """
         设置属性值
@@ -430,7 +430,7 @@ class Device(BaseDevice):
         args = ["setprop", prop, value]
         return self.shell(*args, **kwargs).rstrip()
 
-    @utils.timeoutable
+    @timeoutable
     def start(self, package_name: str, activity_name: str = None, **kwargs) -> str:
         """
         启动app的launcher页面
@@ -453,7 +453,7 @@ class Device(BaseDevice):
             **kwargs
         )
 
-    @utils.timeoutable
+    @timeoutable
     def kill(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
@@ -463,7 +463,7 @@ class Device(BaseDevice):
         args = ["am", "kill", package_name]
         return self.shell(*args, **kwargs).rstrip()
 
-    @utils.timeoutable
+    @timeoutable
     def force_stop(self, package_name: str, **kwargs) -> str:
         """
         关闭进程
@@ -473,7 +473,7 @@ class Device(BaseDevice):
         args = ["am", "force-stop", package_name]
         return self.shell(*args, **kwargs).rstrip()
 
-    @utils.timeoutable
+    @timeoutable
     def is_file_exist(self, path: str, **kwargs) -> bool:
         """
         文件是否存在
@@ -484,7 +484,7 @@ class Device(BaseDevice):
         out = self.shell(*args, **kwargs)
         return utils.bool(utils.int(out, default=0), default=False)
 
-    @utils.timeoutable
+    @timeoutable
     def is_directory_exist(self, path: str, **kwargs) -> bool:
         """
         文件夹是否存在
@@ -555,7 +555,7 @@ class Device(BaseDevice):
 
         return agent_args
 
-    @utils.timeoutable
+    @timeoutable
     def call_agent(
             self,
             *args: [str],
@@ -598,7 +598,7 @@ class Device(BaseDevice):
 
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def get_current_package(self, **kwargs) -> str:
         """
         获取顶层包名
@@ -616,7 +616,7 @@ class Device(BaseDevice):
             return out
         raise AdbError("can not fetch top package")
 
-    @utils.timeoutable
+    @timeoutable
     def get_current_activity(self, **kwargs) -> str:
         """
         获取顶层activity名
@@ -629,7 +629,7 @@ class Device(BaseDevice):
             return items[1].rstrip()
         raise AdbError("can not fetch top activity")
 
-    @utils.timeoutable
+    @timeoutable
     def get_apk_path(self, package_name: str, **kwargs) -> str:
         """
         获取apk路径
@@ -643,8 +643,8 @@ class Device(BaseDevice):
         obj = self.get_apps(package_name, **kwargs)
         return utils.get_item(obj, 0, "sourceDir", default="")
 
-    @utils.timeoutable
-    def get_uid(self, package_name: str = None, timeout: utils.Timeout = None) -> int:
+    @timeoutable
+    def get_uid(self, package_name: str = None, timeout: TimeoutType = None) -> int:
         """
         根据包名获取uid
         :param package_name: 包名，为空则返回当前uid
@@ -666,7 +666,7 @@ class Device(BaseDevice):
                 return uid
             raise AdbError("unknown adb uid: %s" % out)
 
-    @utils.timeoutable
+    @timeoutable
     def get_app(self, package_name: str, detail: bool = None, **kwargs) -> App:
         """
         根据包名获取包信息
@@ -682,7 +682,7 @@ class Device(BaseDevice):
             raise AdbError(f"App '{package_name}' not found")
         return App(objs[0])
 
-    @utils.timeoutable
+    @timeoutable
     def get_apps(self, *package_names: str, system: bool = None, detail: bool = False, **kwargs) -> [App]:
         """
         获取包信息
@@ -707,7 +707,7 @@ class Device(BaseDevice):
             result.append(App(obj))
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def get_apps_for_uid(self, *uids: int, detail: bool = False, **kwargs) -> [App]:
         """
         获取指定uid包信息
@@ -727,7 +727,7 @@ class Device(BaseDevice):
             result.append(App(obj))
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def get_system_service(self, service_name: str, detail: bool = None, **kwargs) -> SystemService:
         """
         根据服务名获取系统服务信息
@@ -743,7 +743,7 @@ class Device(BaseDevice):
             raise AdbError(f"Service '{service_name}' not found")
         return SystemService(objs[0])
 
-    @utils.timeoutable
+    @timeoutable
     def get_system_services(self, *service_names: str, detail: bool = False, **kwargs) -> [SystemService]:
         """
         获取系统服务信息
@@ -763,7 +763,7 @@ class Device(BaseDevice):
             result.append(SystemService(obj))
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def list_tcp_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备tcp连接情况，需要读取/proc/net/tcp文件，高版本设备至少需要shell权限
@@ -771,7 +771,7 @@ class Device(BaseDevice):
         """
         return self._list_sockets(InetSocket, ["common", "--list-tcp-sock"], **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def list_udp_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备udp连接情况，需要读取/proc/net/udp文件，高版本设备至少需要shell权限
@@ -779,7 +779,7 @@ class Device(BaseDevice):
         """
         return self._list_sockets(InetSocket, ["common", "--list-udp-sock"], **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def list_raw_sockets(self, **kwargs) -> [InetSocket]:
         """
         同netstat命令，获取设备raw连接情况，需要读取/proc/net/raw文件，高版本设备至少需要shell权限
@@ -787,7 +787,7 @@ class Device(BaseDevice):
         """
         return self._list_sockets(InetSocket, ["common", "--list-raw-sock"], **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def list_unix_sockets(self, **kwargs) -> [UnixSocket]:
         """
         同netstat命令，获取设备unix连接情况，需要读取/proc/net/unix文件，高版本设备至少需要shell权限
@@ -795,7 +795,7 @@ class Device(BaseDevice):
         """
         return self._list_sockets(UnixSocket, ["common", "--list-unix-sock"], **kwargs)
 
-    @utils.timeoutable
+    @timeoutable
     def _list_sockets(self, type, args, **kwargs):
         result = []
         objs = json.loads(self.call_agent(*args, **kwargs))
@@ -803,7 +803,7 @@ class Device(BaseDevice):
             result.append(type(obj))
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def list_processes(self, **kwargs) -> [Process]:
         """
         列出所有进程
@@ -815,7 +815,7 @@ class Device(BaseDevice):
             result.append(Process(obj))
         return result
 
-    @utils.timeoutable
+    @timeoutable
     def list_files(self, path: str, **kwargs) -> [File]:
         """
         列出指定目录下的所有文件

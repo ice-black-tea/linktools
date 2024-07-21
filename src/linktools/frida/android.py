@@ -22,7 +22,7 @@ from .. import environ, utils
 from .._url import DownloadHttpError
 from ..android import Device
 from ..decorator import cached_classproperty
-from ..reactor import Stoppable
+from ..types import Stoppable
 
 _logger = environ.get_logger("frida.server.android")
 

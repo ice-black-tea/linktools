@@ -9,9 +9,9 @@ import subprocess
 import threading
 from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union, List
 
-from . import Timeout, timeoutable
 from .._environ import environ
-from ..decorator import cached_property
+from ..decorator import cached_property, timeoutable
+from ..types import TimeoutType
 
 
 def list2cmdline(args: List[str]) -> str:
@@ -71,7 +71,7 @@ class Output:
             event.set()
             self._queue.put((None, None))
 
-    def get_lines(self, timeout: Timeout):
+    def get_lines(self, timeout: TimeoutType):
         while self.is_alive:
             try:
                 # 给个1秒超时时间防止有多个线程消费的时候死锁
@@ -94,50 +94,8 @@ class Output:
 
 class Process(subprocess.Popen):
 
-    def __init__(
-            self,
-            *args: Any,
-            capture_output: bool = False,
-            stdin: Union[int, IO] = None, stdout: Union[int, IO] = None, stderr: Union[int, IO] = None,
-            shell: bool = False, cwd: str = None,
-            env: Dict[str, str] = None, append_env: Dict[str, str] = None, default_env: Dict[str, str] = None,
-            **kwargs,
-    ):
-        args = [str(arg) for arg in args]
-
-        if capture_output is True:
-            if stdout is not None or stderr is not None:
-                raise ValueError("stdout and stderr arguments may not be used "
-                                 "with capture_output.")
-            stdout = subprocess.PIPE
-            stderr = subprocess.PIPE
-
-        if not cwd:
-            try:
-                cwd = os.getcwd()
-            except FileNotFoundError:
-                cwd = environ.get_temp_dir(create=True)
-
-        if append_env or default_env:
-            env = dict(env) if env else dict(os.environ)
-            if default_env:
-                for key, value in default_env.items():
-                    env.setdefault(key, value)
-            if append_env:
-                env.update(append_env)
-
-        super().__init__(
-            args,
-            stdin=stdin, stdout=stdout, stderr=stderr,
-            shell=shell, cwd=cwd,
-            env=env,
-            **kwargs
-        )
-
-        environ.logger.debug(f"Exec cmdline: {list2cmdline(args)}")
-
     @timeoutable
-    def call(self, timeout: Timeout = None) -> int:
+    def call(self, timeout: TimeoutType = None) -> int:
         with self:
             try:
                 return self.wait(timeout=timeout.remain)
@@ -146,14 +104,14 @@ class Process(subprocess.Popen):
                 raise
 
     @timeoutable
-    def call_as_daemon(self, timeout: Timeout = None) -> int:
+    def call_as_daemon(self, timeout: TimeoutType = None) -> int:
         try:
             return self.wait(timeout=timeout.remain or .1)
         except subprocess.TimeoutExpired:
             return 0
 
     @timeoutable
-    def check_call(self, timeout: Timeout = None) -> int:
+    def check_call(self, timeout: TimeoutType = None) -> int:
         with self:
             try:
                 retcode = self.wait(timeout=timeout.remain)
@@ -167,7 +125,7 @@ class Process(subprocess.Popen):
     @timeoutable
     def exec(
             self,
-            timeout: Timeout = None,
+            timeout: TimeoutType = None,
             on_stdout: Callable[[str], Any] = None,
             on_stderr: Callable[[str], Any] = None
     ) -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
@@ -211,3 +169,45 @@ class Process(subprocess.Popen):
     @cached_property
     def _output(self):
         return Output(self.stdout, self.stderr)
+
+
+def create_process(
+        *args: Any,
+        capture_output: bool = False,
+        stdin: Union[int, IO] = None, stdout: Union[int, IO] = None, stderr: Union[int, IO] = None,
+        shell: bool = False, cwd: str = None,
+        env: Dict[str, str] = None, append_env: Dict[str, str] = None, default_env: Dict[str, str] = None,
+        **kwargs) -> Process:
+    args = [str(arg) for arg in args]
+
+    if capture_output is True:
+        if stdout is not None or stderr is not None:
+            raise ValueError("stdout and stderr arguments may not be used "
+                             "with capture_output.")
+        stdout = subprocess.PIPE
+        stderr = subprocess.PIPE
+
+    if not cwd:
+        try:
+            cwd = os.getcwd()
+        except FileNotFoundError:
+            cwd = environ.temp_path
+            cwd.mkdir(parents=True, exist_ok=True)
+
+    if append_env or default_env:
+        env = dict(env) if env else dict(os.environ)
+        if default_env:
+            for key, value in default_env.items():
+                env.setdefault(key, value)
+        if append_env:
+            env.update(append_env)
+
+    environ.logger.debug(f"Exec cmdline: {list2cmdline(args)}")
+
+    return Process(
+        args,
+        stdin=stdin, stdout=stdout, stderr=stderr,
+        shell=shell, cwd=cwd,
+        env=env,
+        **kwargs
+    )

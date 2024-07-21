@@ -21,8 +21,10 @@
 import socket
 from typing import Iterable
 
+from ..types import Error
 
-class NoFreePortFoundError(Exception):
+
+class NoFreePortFoundError(Error):
     """Exception indicating that no free port could be found."""
 
 
