@@ -69,16 +69,16 @@ def get_args(tp):
 
 class Timeout:
 
-    def __init__(self, timeout: TimeoutType = None):
-        if isinstance(timeout, Timeout):
-            self._timeout = timeout._timeout
-            self._deadline = timeout._deadline
+    def __new__(cls, timeout: TimeoutType = None):
+        if isinstance(timeout, cls):
+            return timeout
         elif isinstance(timeout, (float, int, type(None))):
-            self._timeout = timeout
-            self._deadline = None
-            self.reset()
-        else:
-            raise TypeError(f"Timeout/int/float was expects, got {type(timeout)}")
+            t = super().__new__(cls)
+            t._timeout = timeout
+            t._deadline = None
+            t.reset()
+            return t
+        raise TypeError(f"Timeout/int/float was expects, got {type(timeout)}")
 
     @property
     def remain(self) -> _t.Union[float, None]:

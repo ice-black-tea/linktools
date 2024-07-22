@@ -32,7 +32,7 @@ from typing import Optional, List, Type
 from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, AndroidCommand
 from linktools.cli.argparse import range_type, BooleanOptionalAction
-from linktools.frida.android import AndroidFridaServer
+from linktools.frida import FridaAndroidServer
 
 
 class Command(AndroidCommand):
@@ -76,7 +76,7 @@ class Command(AndroidCommand):
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
 
-        server = AndroidFridaServer(
+        server = FridaAndroidServer(
             device=device,
             local_port=args.local_port or utils.pick_unused_port(),
             remote_port=args.remote_port,

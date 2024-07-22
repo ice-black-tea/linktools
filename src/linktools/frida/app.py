@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import threading
-from typing import TYPE_CHECKING, Optional, Union, Dict, Collection, Callable, Any
+from typing import TYPE_CHECKING, Optional, Union, Dict, Collection, Callable, Any, List
 
 import frida
 from frida.core import Session, Script
@@ -193,7 +193,7 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
             if payload and isinstance(payload, dict):
 
                 # 单独解析Emitter发出来的消息
-                events = payload.pop("$events", None)
+                events: Optional[List[Any]] = payload.pop("$events", None)
                 if events:
                     for event in events:
                         # 如果消息类型是log，那就直接调on_log
@@ -202,10 +202,20 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
                             level = log.get("level") or self.LogLevel.DEBUG
                             message = log.get("message")
                             self.on_script_log(script, level, message, data)
+
                         # 如果只是普通消息，则调用on_event
                         msg = event.pop("msg", None)
                         if msg is not None:
-                            self.on_script_event(script, msg, data)
+                            try:
+                                self.on_script_event(script, msg, data)
+                            except Exception as e:
+                                _logger.error(f"on_script_event error", exc_info=e)
+
+                        # 如果是error消息，则调用on_log展示stack
+                        error = event.pop("error", None)
+                        if error is not None:
+                            stack = utils.get_item(error, "stack")
+                            self.on_script_log(script, self.LogLevel.ERROR, stack if stack else error, data)
 
                     return
 
@@ -242,15 +252,15 @@ class FridaScriptHandler(metaclass=abc.ABCMeta):
         if not utils.is_empty(message):
             log_fn(message)
 
-    def on_script_event(self, script: FridaScript, message: Any, data: Any):
+    def on_script_event(self, script: FridaScript, event: Any, data: Any):
         """
         脚本发送事件回调
         :param script: frida的脚本
-        :param message: 事件消息
+        :param event: 事件消息
         :param data: 事件带回来的数据
         """
         message = f"{script} event: {os.linesep}" \
-                  f"{json.dumps(message, indent=2, ensure_ascii=False)}"
+                  f"{json.dumps(event, indent=2, ensure_ascii=False)}"
         self.on_script_log(script, self.LogLevel.INFO, message, None)
 
     def on_script_send(self, script: FridaScript, payload: Any, data: Any):
@@ -439,7 +449,7 @@ class FridaManager:
 
         def make_monitor(file):
             _logger.debug(f"Monitor file: {file.path}")
-            monitor = frida.FileMonitor(file.path)
+            monitor = frida.FileMonitor(str(file.path))
             monitor.on("change", lambda changed_file, other_file, event_type: on_change_handler(event_type, file))
             monitor.enable()
             return monitor
@@ -653,7 +663,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
     def schedule(self, fn: Callable[[], any], delay: float = None):
         self._reactor.schedule(fn, delay)
 
-    def load_script(self, process_id: int, process_name: str = None, resume: bool = False):
+    def load_script(self, process_id: int, process_name: str = None, resume: bool = True):
         """
         加载脚本，注入到指定进程
         :param process_id: 进程id
@@ -662,7 +672,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         """
         self._reactor.schedule(lambda: self._load_script(process_id, process_name, resume))
 
-    def spawn(self, program: str, resume: bool = False, **kwargs) -> int:
+    def spawn(self, program: str, resume: bool = True, **kwargs) -> int:
         """
         启动进程，若进程匹配target_identifiers则注入脚本
         """
@@ -676,7 +686,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
                 self._reactor.schedule(lambda: utils.ignore_error(self.device.resume, args=(pid,)))
         return pid
 
-    def inject_all(self, resume: bool = False) -> [int]:
+    def inject_all(self, resume: bool = True) -> [int]:
         """
         根据target_identifiers注入所有匹配的进程
         :return: 注入的进程pid
@@ -751,7 +761,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
 
         return [o.as_dict() for o in script_files]
 
-    def _load_script(self, process_id: int, process_name: str, resume: bool = False):
+    def _load_script(self, process_id: int, process_name: str, resume: bool):
         _logger.debug(f"Attempt to load script: pid={process_id}, resume={resume}")
 
         session = self._attach_session(process_id, process_name)
@@ -912,24 +922,25 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         """
         _logger.debug(f"{script} loaded")
 
-    def on_script_event(self, script: FridaScript, message: Any, data: Any):
+    def on_script_event(self, script: FridaScript, event: Any, data: Any):
         """
         脚本发送事件回调
         :param script: frida的脚本
-        :param message: 事件消息
+        :param event: 事件消息
         :param data: 事件数据
         """
         group = FridaEventCounter.Group(accept_empty=False)
         count = self._event_counter.increase(
             group.add(
                 pid=script.session.pid,
-                method=utils.get_item(message, "method_name"),
+                method=utils.get_item(event, "method_name"),
             )
         )
 
+        # 日志展示当前进程当前方法一共出现的次数和具体详情
         _logger.info(
-            f"{script} event count={count} in the {group}: {os.linesep}"
-            f"{json.dumps(message, indent=2, ensure_ascii=False)}",
+            f"{script} event count={count} {os.linesep}"
+            f"{json.dumps(event, indent=2, ensure_ascii=False)}",
         )
 
     def on_script_send(self, script: FridaScript, payload: Any, data: Any):

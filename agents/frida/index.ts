@@ -1,131 +1,60 @@
+import * as log from "./lib/log"
+import * as c from "./lib/c"
+import * as java from "./lib/java";
+import * as objc from "./lib/objc";
+
 ////////////////////////////////////////////////////////////////////////
-// emitter
+// 处理 console相关方法 和 未处理exception的log
 ////////////////////////////////////////////////////////////////////////
 
-
-class EmitterWorker {
-
-    private pendingEvents: any[] = [];
-    private flushTimer: any = null;
-
-    emit(type: string, message: any, data?: ArrayBuffer | number[] | null) {
-        const event = {};
-        event[type] = message;
-
-        if (data == null) {
-            // 如果data为空，则加到pending队列，打包一起发送
-            this.pendingEvents.push(event);
-            if (this.pendingEvents.length >= 50) {
-                // 当短时间积累的事件太多，可能会出现卡死的情况
-                // 所以设置一个pending队列的阈值
-                this.flush();
-            } else if (this.flushTimer === null) {
-                this.flushTimer = setTimeout(this.flush, 50);
+const logWrapper = (fn: (msg: string) => any) => {
+    return function () {
+        if (arguments.length > 0) {
+            var message = pretty2String(arguments[0]);
+            for (var i = 1; i < arguments.length; i++) {
+                message += " ";
+                message += pretty2String(arguments[i]);
             }
+            fn(message);
         } else {
-            // data不为空，就不能一次性发送多个event
-            // 立即把pending队列的发过去，然后发送带data的message
-            this.flush();
-            send({ $events: [event] }, data);
+            fn("");
         }
     }
+};
 
-    private flush = () => {
-        if (this.flushTimer !== null) {
-            clearTimeout(this.flushTimer);
-            this.flushTimer = null;
-        }
-
-        if (this.pendingEvents.length === 0) {
-            return;
-        }
-
-        const events = this.pendingEvents;
-        this.pendingEvents = [];
-
-        send({ $events: events });
-    };
-}
+console.debug = logWrapper(log.d.bind(log));
+console.info = logWrapper(log.i.bind(log));
+console.warn = logWrapper(log.w.bind(log));
+console.error = logWrapper(log.e.bind(log));
+console.log = logWrapper(log.i.bind(log));
 
 
-class Emitter {
-
-    emit(message: any, data?: ArrayBuffer | number[] | null) {
-        emitterWorker.emit("msg", message, data);
-    }
-}
-
-
-////////////////////////////////////////////////////////////////////////
-// log
-////////////////////////////////////////////////////////////////////////
-
-class Log {
-
-    DEBUG = 1;
-    INFO = 2;
-    WARNING = 3;
-    ERROR = 4;
-    private $level = this.INFO;
-
-    constructor() {
-        const createFn = (function (fn) {
-            return function () {
-                var message = "";
-                for (var i = 0; i < arguments.length; i++) {
-                    if (i > 0) {
-                        message += " ";
-                    }
-                    message += pretty2String(arguments[i]);
-                }
-                fn(message);
+if (global._setUnhandledExceptionCallback != void 0) {
+    global._setUnhandledExceptionCallback(error => {
+        let stack = void 0;
+        if (error instanceof Error) {
+            const errorStack = error.stack;
+            if (errorStack !== void 0) {
+                stack = errorStack;
             }
-        });
-
-        console.debug = createFn(this.d.bind(this));
-        console.info = createFn(this.i.bind(this));
-        console.warn = createFn(this.w.bind(this));
-        console.error = createFn(this.e.bind(this));
-        console.log = createFn(this.i.bind(this));
-    }
-
-    get level(): number {
-        return this.$level;
-    }
-
-    setLevel(level: number) {
-        this.$level = level;
-        this.d("Set log level: " + level);
-    }
-
-    d(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.DEBUG) {
-            emitterWorker.emit("log", { level: "debug", message: message }, data);
         }
-    }
-
-    i(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.INFO) {
-            emitterWorker.emit("log", { level: "info", message: message }, data);
+        if (Java.available) {
+            const javaStack = java.getErrorStack(error);
+            if (javaStack !== void 0) {
+                if (stack !== void 0) {
+                    stack += `\n\nCaused by: \n${javaStack}`;
+                } else {
+                    stack = javaStack;
+                }
+            }
         }
-    }
-
-    w(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.WARNING) {
-            emitterWorker.emit("log", { level: "warning", message: message }, data);
-        }
-    }
-
-    e(message: any, data?: ArrayBuffer | number[] | null) {
-        if (this.$level <= this.ERROR) {
-            emitterWorker.emit("log", { level: "error", message: message }, data);
-        }
-    }
+        log.exception("" + error, stack);
+    });
 }
 
 
 ////////////////////////////////////////////////////////////////////////
-// script loader
+// 处理 script loader
 ////////////////////////////////////////////////////////////////////////
 
 interface Parameters {
@@ -166,78 +95,36 @@ rpc.exports = {
 };
 
 ////////////////////////////////////////////////////////////////////////
-// local variables
-////////////////////////////////////////////////////////////////////////
-
-const emitterWorker = new EmitterWorker();
-const debugSymbolAddressCache: { [key: string]: DebugSymbol; } = {};
-
-////////////////////////////////////////////////////////////////////////
 // global variables
 ////////////////////////////////////////////////////////////////////////
 
-import { CHelper } from "./lib/c"
-import { JavaHelper } from "./lib/java";
-import { AndroidHelper } from "./lib/android";
-import { ObjCHelper } from "./lib/objc";
-import { IOSHelper } from "./lib/ios";
-
-const emitter = new Emitter();
-const log = new Log();
-const cHelper = new CHelper();
-const javaHelper = new JavaHelper();
-const androidHelper = new AndroidHelper();
-const objCHelper = new ObjCHelper();
-const iosHelper = new IOSHelper();
-
-
 declare global {
-    const Emitter: Emitter;
-    const Log: Log;
-    const CHelper: CHelper;
-    const JavaHelper: JavaHelper;
-    const AndroidHelper: AndroidHelper;
-    const ObjCHelper: ObjCHelper;
-    const IOSHelper: IOSHelper;
     function isFunction(obj: any): boolean;
     function ignoreError<T>(fn: () => T): T;
     function ignoreError<T>(fn: () => T, defaultValue: T): T;
-    function parseBoolean(value: string | boolean);
-    function parseBoolean(value: string | boolean, defaultValue: boolean);
+    function parseBoolean(value: string | boolean): boolean;
+    function parseBoolean(value: string | boolean, defaultValue: boolean): boolean;
     function pretty2String(obj: any): any;
     function pretty2Json(obj: any): any;
-    function getDebugSymbolFromAddress(pointer: NativePointer): DebugSymbol;
 }
 
 
 Object.defineProperties(globalThis, {
-    Emitter: {
-        enumerable: true,
-        value: emitter
-    },
     Log: {
         enumerable: true,
         value: log
     },
     CHelper: {
         enumerable: true,
-        value: cHelper
+        value: c
     },
     JavaHelper: {
         enumerable: true,
-        value: javaHelper
-    },
-    AndroidHelper: {
-        enumerable: true,
-        value: androidHelper
+        value: java
     },
     ObjCHelper: {
         enumerable: true,
-        value: objCHelper
-    },
-    IOSHelper: {
-        enumerable: true,
-        value: iosHelper
+        value: objc
     },
     isFunction: {
         enumerable: false,
@@ -295,22 +182,10 @@ Object.defineProperties(globalThis, {
                 }
                 return result;
             }
-            if (Java.available) {
-                if (javaHelper.isJavaObject(obj)) {
-                    return javaHelper.objectClass.toString.apply(obj);
-                }
+            if (Java.available && java.isJavaObject(obj)) {
+                return java.o.objectClass.toString.apply(obj);
             }
             return ignoreError(() => obj.toString());
         }
     },
-    getDebugSymbolFromAddress: {
-        enumerable: false,
-        value: function (pointer: NativePointer): DebugSymbol {
-            const key = pointer.toString();
-            if (debugSymbolAddressCache[key] === void 0) {
-                debugSymbolAddressCache[key] = DebugSymbol.fromAddress(pointer);
-            }
-            return debugSymbolAddressCache[key];
-        }
-    }
 });

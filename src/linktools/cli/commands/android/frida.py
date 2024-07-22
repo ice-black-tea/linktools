@@ -33,8 +33,7 @@ from typing import Optional, List, Type
 from linktools import utils, DownloadError
 from linktools.cli import CommandError, AndroidCommand
 from linktools.cli.argparse import range_type, KeyValueAction, BooleanOptionalAction
-from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
-from linktools.frida.android import AndroidFridaServer
+from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode, FridaAndroidServer
 
 
 class Command(AndroidCommand):
@@ -113,9 +112,9 @@ class Command(AndroidCommand):
                     self.stop()
                 elif len(self.sessions) == 0:
                     if args.auto_start:
-                        app.spawn(package, resume=True)
+                        app.spawn(package)
 
-        server = AndroidFridaServer(
+        server = FridaAndroidServer(
             device=device,
             local_port=args.local_port or utils.pick_unused_port(),
             remote_port=args.remote_port,
@@ -143,15 +142,15 @@ class Command(AndroidCommand):
 
             if args.spawn:
                 # 打开进程后注入
-                app.spawn(package, resume=True)
+                app.spawn(package)
 
-            elif app.inject_all(resume=True):
+            elif app.inject_all():
                 # 注入所有进程进程
                 pass
 
             elif args.auto_start:
                 # 进程不存在，打开进程后注入
-                app.spawn(package, resume=True)
+                app.spawn(package)
 
             if args.redirect_address or args.redirect_port:
                 # 如果需要重定向到本地端口

@@ -29,4 +29,4 @@
 
 from .app import FridaApplication
 from .script import FridaScriptFile, FridaShareScript, FridaEvalCode
-from .server import FridaServer
+from .server import FridaServer, FridaAndroidServer, FridaIOSServer

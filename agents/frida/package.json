@@ -5,7 +5,8 @@
   "main": "index.ts",
   "private": "true",
   "scripts": {
-    "build": "frida-compile index.ts -o ../../src/linktools/assets/frida.js -c && uglifyjs ../../src/linktools/assets/frida.js -m -o ../../src/linktools/assets/frida.min.js",
+    "tsc": "tsc --declaration -t es2015 --emitDeclarationOnly --outDir types index.ts",
+    "build": "frida-compile index.ts -o ../../src/linktools/assets/frida.js -c && uglifyjs ../../src/linktools/assets/frida.js --mangle --output ../../src/linktools/assets/frida.min.js",
     "watch": "frida-compile index.ts -o ../../src/linktools/assets/frida.js -w"
   },
   "dependencies": {

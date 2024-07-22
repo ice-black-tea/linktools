@@ -330,8 +330,8 @@ $ at-frida --no-serve --remote-port 27042 -p me.ele
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from linktools.cli import BaseCommand
-from linktools.frida import FridaApplication, FridaEvalCode
-from linktools.frida.android import AndroidFridaServer
+from linktools.frida import FridaApplication, FridaEvalCode, FridaAndroidServer
+
 
 class Command(BaseCommand):
 
@@ -349,14 +349,14 @@ class Command(BaseCommand):
             });
             """
         
-        with AndroidFridaServer() as server:
+        with FridaAndroidServer() as server:
             app = FridaApplication(
                 server,
                 user_scripts=(FridaEvalCode(code),),
                 enable_spawn_gating=True,
                 target_identifiers=rf"^com.topjohnwu.magisk($|:)"
             )
-            app.inject_all(resume=True)
+            app.inject_all()
             app.run()
 
 
@@ -367,7 +367,7 @@ if __name__ == "__main__":
 
 ##### 内置接口
 
-e.g. [hook接口](https://github.com/ice-black-tea/linktools/blob/master/agents/frida/lib/java.ts)
+e.g. [java相关接口](https://github.com/ice-black-tea/linktools/blob/master/agents/frida/lib/java.ts)
 
 ```javascript
 Java.perform(function () {
@@ -400,22 +400,26 @@ Java.perform(function () {
             customKey1: "自定义参数",                 // 自定义参数，会回显日志中
         })
     );
-});
-```
-
-e.g. [扩展接口](https://github.com/ice-black-tea/linktools/blob/master/agents/frida/lib/android.ts)
-
-```javascript
-// 禁用ssl pinning
-AndroidHelper.bypassSslPinning();
-
-// 开启webview调试模式
-AndroidHelper.setWebviewDebuggingEnabled();
-
-// 类似Java.use()
-// 如果当前classloader不存在需要找的类，则会持续监控动态加载的classloader，直到找到指定类为止
-AndroidHelper.javaUse("p.r.o.x.y.PrivacyApi", function(clazz) {
-    // 终于等到class出现，干点想干的事吧
+    
+    // 类似Java.use()
+    // 如果当前classloader不存在需要找的类，则会持续监控动态加载的classloader，直到找到指定类为止
+    JavaHelper.use("p.r.o.x.y.PrivacyApi", function(clazz) {
+        // 终于等到class出现，干点想干的事吧
+        JavaHelper.hookAllMethods(
+            clazz,
+            JavaHelper.getEventImpl({
+                stack: true,
+                args: true,
+            })
+        );
+    });
+    
+    // 禁用ssl pinning
+    JavaHelper.bypassSslPinning();
+    
+    // 开启webview调试模式
+    JavaHelper.setWebviewDebuggingEnabled();
+    
 });
 ```
 

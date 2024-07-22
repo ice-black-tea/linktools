@@ -32,7 +32,7 @@ import re
 import shutil
 import zipfile
 from argparse import ArgumentParser, Namespace
-from typing import Optional
+from typing import Optional, Union, Callable
 
 import lief
 import magic
@@ -50,44 +50,46 @@ class GrepHandler:
     _handlers = {}
     _filter_handlers = {}
 
-    @staticmethod
-    def match(*mimetypes, **kwargs):
+    @classmethod
+    def match(cls, *mimetypes: Union[str, Callable[[str], bool]]):
 
         def decorator(fn):
 
+            @functools.wraps(fn)
             def wrapper(instance, filename: str, mimetype: str):
                 try:
                     fn(instance, filename, mimetype)
                     return True
-                except (KeyboardInterrupt, EOFError) as e:
-                    raise e
+                except (KeyboardInterrupt, EOFError):
+                    raise
                 except:
                     return False
 
             for mimetype in mimetypes:
-                if mimetype in GrepHandler._handlers:
-                    raise Exception("redefine {} handler".format(mimetype))
-                GrepHandler._handlers[mimetype] = wrapper
-
-            filter = kwargs.get("filter")
-            if filter is not None:
-                if filter in GrepHandler._filter_handlers:
-                    raise Exception("redefine {} handler".format(filter))
-                GrepHandler._filter_handlers[filter] = wrapper
+                if isinstance(mimetype, str):
+                    if mimetype in cls._handlers:
+                        raise Exception("redefine {} handler".format(mimetype))
+                    cls._handlers[mimetype] = wrapper
+                elif callable(mimetype):
+                    if mimetype in cls._filter_handlers:
+                        raise Exception("redefine {} handler".format(mimetype))
+                    cls._filter_handlers[mimetype] = wrapper
+                else:
+                    raise Exception("invalid mimetype type")
 
             return wrapper
 
         return decorator
 
-    @staticmethod
-    def handle(instance, filename: str, mimetype: str):
-        if mimetype in GrepHandler._handlers:
-            fn = GrepHandler._handlers[mimetype]
+    @classmethod
+    def handle(cls, instance, filename: str, mimetype: str):
+        if mimetype in cls._handlers:
+            fn = cls._handlers[mimetype]
             if fn(instance, filename, mimetype):
                 return True
-        for key in GrepHandler._filter_handlers:
+        for key in cls._filter_handlers:
             if key(mimetype):
-                fn = GrepHandler._filter_handlers[key]
+                fn = cls._filter_handlers[key]
                 if fn(instance, filename, mimetype):
                     return True
         return False
@@ -95,7 +97,7 @@ class GrepHandler:
 
 class GrepMatcher:
 
-    def __init__(self, pattern):
+    def __init__(self, pattern: re.Pattern):
         self.pattern = pattern
 
     def match(self, path: str):
@@ -121,10 +123,9 @@ class GrepMatcher:
 
     @GrepHandler.match(
         "application/xml",
-        filter=lambda t: t.startswith("text/"),
+        lambda t: t.startswith("text/"),
     )
     def on_text(self, filename: str, mimetype: str):
-
         with open(filename, "rb") as fd:
             lines = fd.readlines()
             for i in range(0, len(lines)):
@@ -154,7 +155,26 @@ class GrepMatcher:
         "application/x-sharedlib"
     )
     def on_elf(self, filename: str, mimetype: str):
-        file = lief.parse(filename)
+        file: "lief.ELF.Binary" = lief.parse(filename)
+        for symbol in file.imported_symbols:
+            out = self.match_content(symbol.name)
+            if not utils.is_empty(out):
+                pprint(Text(filename, style="cyan"), ":",
+                       Text("import_symbols", style="green"), ": ", *out, " match")
+
+        for symbol in file.exported_symbols:
+            out = self.match_content(symbol.name)
+            if not utils.is_empty(out):
+                pprint(Text(filename, style="cyan"), ":",
+                       Text("export_symbols", style="green"), ": ", *out, " match")
+
+        self.on_binary(filename, mimetype=mimetype)
+
+    @GrepHandler.match(
+        "application/x-mach-binary"
+    )
+    def on_mach(self, filename: str, mimetype: str):
+        file: "lief.MachO.Binary" = lief.parse(filename)
         for symbol in file.imported_symbols:
             out = self.match_content(symbol.name)
             if not utils.is_empty(out):
@@ -213,7 +233,7 @@ class Command(BaseCommand):
         pattern = re.compile(bytes(args.pattern, encoding="utf8"), flags=flags)
 
         if utils.is_empty(args.files):
-            args.files = ["."]
+            args.files = [os.getcwd()]
 
         lief.logging.disable()
         for file in args.files:

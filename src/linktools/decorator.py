@@ -198,22 +198,10 @@ def _timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
     @functools.wraps(fn)
     def wrapper(*args: "P.args", **kwargs: "P.kwargs") -> "T":
         if 0 <= timeout_index < len(args):
-            timeout = Timeout(args[timeout_index])
-            if isinstance(timeout, Timeout):
-                pass
-            elif isinstance(timeout, TimeoutType):
-                args = list(args)
-                args[timeout_index] = Timeout(timeout)
-            else:
-                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
+            args = list(args)
+            args[timeout_index] = Timeout(args[timeout_index])
         elif timeout_keyword in kwargs:
-            timeout = Timeout(kwargs.get(timeout_keyword))
-            if isinstance(timeout, Timeout):
-                pass
-            elif isinstance(timeout, TimeoutType):
-                kwargs[timeout_keyword] = Timeout(timeout)
-            else:
-                raise RuntimeError(f"Timeout/int/float was expects, got {type(timeout)}")
+            kwargs[timeout_keyword] = Timeout(kwargs.get(timeout_keyword))
         else:
             kwargs[timeout_keyword] = Timeout()
 

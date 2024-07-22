@@ -33,8 +33,7 @@ from typing import Optional, Type, List
 from linktools import utils, DownloadError
 from linktools.cli import CommandError, IOSCommand
 from linktools.cli.argparse import KeyValueAction, range_type, BooleanOptionalAction
-from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode
-from linktools.frida.ios import IOSFridaServer
+from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode, FridaIOSServer
 
 
 class Command(IOSCommand):
@@ -104,9 +103,9 @@ class Command(IOSCommand):
                     self.stop()
                 elif len(self.sessions) == 0:
                     if args.auto_start:
-                        app.spawn(bundle_id, resume=True)
+                        app.spawn(bundle_id)
 
-        server = IOSFridaServer(
+        server = FridaIOSServer(
             device=device,
             local_port=args.local_port or utils.pick_unused_port(),
             remote_port=args.remote_port,
@@ -133,7 +132,7 @@ class Command(IOSCommand):
 
             if args.spawn:
                 # 打开进程后注入
-                app.spawn(bundle_id, resume=True)
+                app.spawn(bundle_id)
 
             elif app.inject_all():
                 # 注入所有进程进程
@@ -141,7 +140,7 @@ class Command(IOSCommand):
 
             elif args.auto_start:
                 # 进程不存在，打开进程后注入
-                app.spawn(bundle_id, resume=True)
+                app.spawn(bundle_id)
 
             return app.run()
 

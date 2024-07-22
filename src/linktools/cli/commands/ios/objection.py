@@ -32,7 +32,7 @@ from typing import Optional, List, Type
 from linktools import utils, environ, DownloadError
 from linktools.cli import CommandError, IOSCommand
 from linktools.cli.argparse import range_type
-from linktools.frida.ios import IOSFridaServer
+from linktools.frida import FridaIOSServer
 
 
 class Command(IOSCommand):
@@ -67,7 +67,7 @@ class Command(IOSCommand):
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
 
-        server = IOSFridaServer(
+        server = FridaIOSServer(
             device=device,
             local_port=args.local_port or utils.pick_unused_port(),
             remote_port=args.remote_port,
