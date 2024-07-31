@@ -1,131 +1,74 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function (global){(function (){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: !0
 }), exports.ScriptLoader = void 0;
 
-var e = function() {
-  function e() {
-    var e = this;
-    this.pendingEvents = [], this.flushTimer = null, this.flush = function() {
-      if (null !== e.flushTimer && (clearTimeout(e.flushTimer), e.flushTimer = null), 
-      0 !== e.pendingEvents.length) {
-        var t = e.pendingEvents;
-        e.pendingEvents = [], send({
-          $events: t
-        });
-      }
-    };
+var e = require("./lib/log"), r = require("./lib/c"), n = require("./lib/java"), t = require("./lib/objc"), o = function(e) {
+  return function() {
+    if (arguments.length > 0) {
+      for (var r = pretty2String(arguments[0]), n = 1; n < arguments.length; n++) r += " ", 
+      r += pretty2String(arguments[n]);
+      e(r);
+    } else e("");
+  };
+};
+
+console.debug = o(e.d.bind(e)), console.info = o(e.i.bind(e)), console.warn = o(e.w.bind(e)), 
+console.error = o(e.e.bind(e)), console.log = o(e.i.bind(e)), null != global._setUnhandledExceptionCallback && global._setUnhandledExceptionCallback((function(r) {
+  var t = void 0;
+  if (r instanceof Error) {
+    var o = r.stack;
+    void 0 !== o && (t = o);
   }
-  return e.prototype.emit = function(e, t, n) {
-    var r = {};
-    r[e] = t, null == n ? (this.pendingEvents.push(r), this.pendingEvents.length >= 50 ? this.flush() : null === this.flushTimer && (this.flushTimer = setTimeout(this.flush, 50))) : (this.flush(), 
-    send({
-      $events: [ r ]
-    }, n));
-  }, e;
-}(), t = function() {
-  function e() {}
-  return e.prototype.emit = function(e, t) {
-    o.emit("msg", e, t);
-  }, e;
-}(), n = function() {
-  function e() {
-    this.DEBUG = 1, this.INFO = 2, this.WARNING = 3, this.ERROR = 4, this.$level = this.INFO;
-    var e = function(e) {
-      return function() {
-        for (var t = "", n = 0; n < arguments.length; n++) n > 0 && (t += " "), t += pretty2String(arguments[n]);
-        e(t);
-      };
-    };
-    console.debug = e(this.d.bind(this)), console.info = e(this.i.bind(this)), console.warn = e(this.w.bind(this)), 
-    console.error = e(this.e.bind(this)), console.log = e(this.i.bind(this));
+  if (Java.available) {
+    var a = n.getErrorStack(r);
+    void 0 !== a && (void 0 !== t ? t += "\n\nCaused by: \n".concat(a) : t = a);
   }
-  return Object.defineProperty(e.prototype, "level", {
-    get: function() {
-      return this.$level;
-    },
-    enumerable: !1,
-    configurable: !0
-  }), e.prototype.setLevel = function(e) {
-    this.$level = e, this.d("Set log level: " + e);
-  }, e.prototype.d = function(e, t) {
-    this.$level <= this.DEBUG && o.emit("log", {
-      level: "debug",
-      message: e
-    }, t);
-  }, e.prototype.i = function(e, t) {
-    this.$level <= this.INFO && o.emit("log", {
-      level: "info",
-      message: e
-    }, t);
-  }, e.prototype.w = function(e, t) {
-    this.$level <= this.WARNING && o.emit("log", {
-      level: "warning",
-      message: e
-    }, t);
-  }, e.prototype.e = function(e, t) {
-    this.$level <= this.ERROR && o.emit("log", {
-      level: "error",
-      message: e
-    }, t);
-  }, e;
-}(), r = function() {
+  e.exception("" + r, t);
+}));
+
+var a = function() {
   function e() {}
-  return e.prototype.load = function(e, t) {
-    for (var n = 0, r = e; n < r.length; n++) {
-      var i = r[n];
+  return e.prototype.load = function(e, r) {
+    for (var n = 0, t = e; n < t.length; n++) {
+      var o = t[n];
       try {
-        var o = i.filename;
-        o = (o = o.replace(/[\/\\]/g, "$")).replace(/[^A-Za-z0-9_$]+/g, "_"), o = "fn_".concat(o).substring(0, 255), 
-        (0, eval)("(function ".concat(o, "(parameters) {").concat(i.source, "\n})\n") + "//# sourceURL=".concat(i.filename))(t);
+        var a = o.filename;
+        a = (a = a.replace(/[\/\\]/g, "$")).replace(/[^A-Za-z0-9_$]+/g, "_"), a = "fn_".concat(a).substring(0, 255), 
+        (0, eval)("(function ".concat(a, "(parameters) {").concat(o.source, "\n})\n") + "//# sourceURL=".concat(o.filename))(r);
       } catch (e) {
-        var l = e.hasOwnProperty("stack") ? e.stack : e;
-        throw new Error("Unable to load ".concat(i.filename, ": ").concat(l));
+        var i = e.hasOwnProperty("stack") ? e.stack : e;
+        throw new Error("Unable to load ".concat(o.filename, ": ").concat(i));
       }
     }
   }, e;
 }();
 
-exports.ScriptLoader = r;
+exports.ScriptLoader = a;
 
-var i = new r;
+var i = new a;
 
 rpc.exports = {
   loadScripts: i.load.bind(i)
-};
-
-var o = new e, l = {}, s = require("./lib/c"), u = require("./lib/java"), a = require("./lib/android"), c = require("./lib/objc"), f = require("./lib/ios"), p = new t, v = new n, h = new s.CHelper, b = new u.JavaHelper, d = new a.AndroidHelper, g = new c.ObjCHelper, m = new f.IOSHelper;
-
-Object.defineProperties(globalThis, {
-  Emitter: {
-    enumerable: !0,
-    value: p
-  },
+}, Object.defineProperties(globalThis, {
   Log: {
     enumerable: !0,
-    value: v
+    value: e
   },
   CHelper: {
     enumerable: !0,
-    value: h
+    value: r
   },
   JavaHelper: {
     enumerable: !0,
-    value: b
-  },
-  AndroidHelper: {
-    enumerable: !0,
-    value: d
+    value: n
   },
   ObjCHelper: {
     enumerable: !0,
-    value: g
-  },
-  IOSHelper: {
-    enumerable: !0,
-    value: m
+    value: t
   },
   isFunction: {
     enumerable: !1,
@@ -135,25 +78,25 @@ Object.defineProperties(globalThis, {
   },
   ignoreError: {
     enumerable: !1,
-    value: function(e, t) {
-      void 0 === t && (t = void 0);
+    value: function(r, n) {
+      void 0 === n && (n = void 0);
       try {
-        return e();
-      } catch (e) {
-        return v.d("Catch ignored error. " + e), t;
+        return r();
+      } catch (r) {
+        return e.d("Catch ignored error. " + r), n;
       }
     }
   },
   parseBoolean: {
     enumerable: !1,
-    value: function(e, t) {
-      if (void 0 === t && (t = void 0), "boolean" == typeof e) return e;
+    value: function(e, r) {
+      if (void 0 === r && (r = void 0), "boolean" == typeof e) return e;
       if ("string" == typeof e) {
         var n = e.toLowerCase();
         if ("true" === n) return !0;
         if ("false" === n) return !1;
       }
-      return t;
+      return r;
     }
   },
   pretty2String: {
@@ -167,332 +110,149 @@ Object.defineProperties(globalThis, {
     value: function(e) {
       if (!(e instanceof Object)) return e;
       if (Array.isArray(e)) {
-        for (var t = [], n = 0; n < e.length; n++) t.push(pretty2Json(e[n]));
-        return t;
+        for (var r = [], t = 0; t < e.length; t++) r.push(pretty2Json(e[t]));
+        return r;
       }
-      return Java.available && b.isJavaObject(e) ? b.objectClass.toString.apply(e) : ignoreError((function() {
+      return Java.available && n.isJavaObject(e) ? n.o.objectClass.toString.apply(e) : ignoreError((function() {
         return e.toString();
       }));
-    }
-  },
-  getDebugSymbolFromAddress: {
-    enumerable: !1,
-    value: function(e) {
-      var t = e.toString();
-      return void 0 === l[t] && (l[t] = DebugSymbol.fromAddress(e)), l[t];
     }
   }
 });
 
-},{"./lib/android":2,"./lib/c":3,"./lib/ios":4,"./lib/java":5,"./lib/objc":6}],2:[function(require,module,exports){
+}).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+
+},{"./lib/c":2,"./lib/java":3,"./lib/log":4,"./lib/objc":5}],2:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: !0
-}), exports.AndroidHelper = void 0;
+}), exports.getDebugSymbolFromAddress = exports.getEventImpl = exports.hookFunction = exports.hookFunctionWithCallbacks = exports.hookFunctionWithOptions = exports.getExportFunction = void 0;
 
-var e = function() {
-  function e() {
-    this.$useClassCallbackMap = null;
-  }
-  return e.prototype.setWebviewDebuggingEnabled = function() {
-    Log.w("Android Enable Webview Debugging"), Java.perform((function() {
-      var e = "android.webkit.WebView";
-      JavaHelper.hookMethods(e, "setWebContentsDebuggingEnabled", (function(e, o) {
-        return Log.d("android.webkit.WebView.setWebContentsDebuggingEnabled: " + o[0]), 
-        o[0] = !0, this(e, o);
-      })), JavaHelper.hookMethods(e, "loadUrl", (function(e, o) {
-        return Log.d("android.webkit.WebView.loadUrl: " + o[0]), e.setWebContentsDebuggingEnabled(!0), 
-        this(e, o);
-      }));
-      ignoreError((function() {
-        return JavaHelper.hookMethods(e, "setWebContentsDebuggingEnabled", (function(e, o) {
-          return Log.d("com.uc.webview.export.WebView.setWebContentsDebuggingEnabled: " + o[0]), 
-          o[0] = !0, this(e, o);
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("com.uc.webview.export.WebView", "loadUrl", (function(e, o) {
-          return Log.d("com.uc.webview.export.WebView.loadUrl: " + o[0]), e.setWebContentsDebuggingEnabled(!0), 
-          this(e, o);
-        }));
-      }));
-    }));
-  }, e.prototype.bypassSslPinning = function() {
-    Log.w("Android Bypass ssl pinning"), Java.perform((function() {
-      var e = Java.use("java.util.Arrays");
-      ignoreError((function() {
-        return JavaHelper.hookMethods("com.android.org.conscrypt.TrustManagerImpl", "checkServerTrusted", (function(o, n) {
-          if (Log.d("SSL bypassing " + this), "void" != this.returnType.type) return "pointer" == this.returnType.type && "java.util.List" == this.returnType.className ? e.asList(n[0]) : void 0;
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("com.google.android.gms.org.conscrypt.Platform", "checkServerTrusted", (function(e, o) {
-          Log.d("SSL bypassing " + this);
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("com.android.org.conscrypt.Platform", "checkServerTrusted", (function(e, o) {
-          Log.d("SSL bypassing " + this);
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("okhttp3.CertificatePinner", "check", (function(e, o) {
-          if (Log.d("SSL bypassing " + this), "boolean" == this.returnType.type) return !0;
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("okhttp3.CertificatePinner", "check$okhttp", (function(e, o) {
-          Log.d("SSL bypassing " + this);
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("com.android.okhttp.CertificatePinner", "check", (function(e, o) {
-          if (Log.d("SSL bypassing " + this), "boolean" == this.returnType.type) return !0;
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("com.android.okhttp.CertificatePinner", "check$okhttp", (function(e, o) {
-          Log.d("SSL bypassing " + this);
-        }));
-      })), ignoreError((function() {
-        return JavaHelper.hookMethods("com.android.org.conscrypt.TrustManagerImpl", "verifyChain", (function(e, o) {
-          return Log.d("SSL bypassing " + this), o[0];
-        }));
-      }));
-    }));
-  }, e.prototype.chooseClassLoader = function(e) {
-    Log.w("choose classloder: " + e), Java.perform((function() {
-      Java.enumerateClassLoaders({
-        onMatch: function(o) {
-          try {
-            null != o.findClass(e) && (Log.i("choose classloader: " + o), Reflect.set(Java.classFactory, "loader", o));
-          } catch (e) {
-            Log.e(pretty2Json(e));
-          }
-        },
-        onComplete: function() {
-          Log.d("enumerate classLoaders complete");
-        }
-      });
-    }));
-  }, e.prototype.traceClasses = function(e, o, n) {
-    void 0 === o && (o = void 0), void 0 === n && (n = void 0), e = null != e ? e.trim().toLowerCase() : "", 
-    o = null != o ? o.trim().toLowerCase() : "", n = null != n ? n : {
-      stack: !0,
-      args: !0
-    }, Log.w("trace classes, include: " + e + ", exclude: " + o + ", options: " + JSON.stringify(n)), 
-    Java.perform((function() {
-      Java.enumerateLoadedClasses({
-        onMatch: function(t) {
-          var r = t.toString().toLowerCase();
-          r.indexOf(e) >= 0 && ("" == o || r.indexOf(o) < 0) && JavaHelper.hookAllMethods(t, JavaHelper.getEventImpl(n));
-        },
-        onComplete: function() {
-          Log.d("enumerate classLoaders complete");
-        }
-      });
-    }));
-  }, e.prototype.runOnCreateContext = function(e) {
-    Java.perform((function() {
-      JavaHelper.hookMethods("android.app.ContextImpl", "createAppContext", (function(o, n) {
-        var t = this(o, n);
-        return e(t), t;
-      }));
-    }));
-  }, e.prototype.runOnCreateApplication = function(e) {
-    Java.perform((function() {
-      JavaHelper.hookMethods("android.app.LoadedApk", "makeApplication", (function(o, n) {
-        var t = this(o, n);
-        return e(t), t;
-      }));
-    }));
-  }, e.prototype.javaUse = function(e, o) {
-    var n = this;
-    Java.perform((function() {
-      var t = null;
-      try {
-        t = JavaHelper.findClass(e);
-      } catch (t) {
-        var r;
-        if (null == n.$useClassCallbackMap && (n.$useClassCallbackMap = new Map, n.$registerUseClassCallback(n.$useClassCallbackMap)), 
-        n.$useClassCallbackMap.has(e)) void 0 !== (r = n.$useClassCallbackMap.get(e)) && r.add(o); else (r = new Set).add(o), 
-        n.$useClassCallbackMap.set(e, r);
-        return;
-      }
-      o(t);
-    }));
-  }, e.prototype.$registerUseClassCallback = function(e) {
-    var o = Java.use("java.util.HashSet").$new(), n = function(o) {
-      for (var n, t = e.entries(), r = function() {
-        var t = n.value[0], r = n.value[1], a = null;
-        try {
-          a = JavaHelper.findClass(t, o);
-        } catch (e) {}
-        null != a && (e.delete(t), r.forEach((function(e, o, n) {
-          e(a);
-        })));
-      }; !(n = t.next()).done; ) r();
-    };
-    JavaHelper.hookMethod("java.lang.Class", "forName", [ "java.lang.String", "boolean", "java.lang.ClassLoader" ], (function(e, t) {
-      var r = t[2];
-      return null == r || o.contains(r) || (o.add(r), n(r)), this(e, t);
-    })), JavaHelper.hookMethod("java.lang.ClassLoader", "loadClass", [ "java.lang.String", "boolean" ], (function(e, t) {
-      var r = e;
-      return o.contains(r) || (o.add(r), n(r)), this(e, t);
-    }));
-  }, e;
-}();
-
-exports.AndroidHelper = e;
-
-},{}],3:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.CHelper = void 0;
-
-var t = function() {
-  function t() {
-    this.$funcCaches = {};
-  }
+var t = require("./log"), r = function() {
+  function t() {}
   return Object.defineProperty(t.prototype, "dlopen", {
     get: function() {
-      return this.getExportFunction(null, "dlopen", "pointer", [ "pointer", "int" ]);
+      return a(null, "dlopen", "pointer", [ "pointer", "int" ]);
     },
     enumerable: !1,
     configurable: !0
-  }), t.prototype.getExportFunction = function(t, e, r, n) {
-    var o = (t || "") + "|" + e;
-    if (o in this.$funcCaches) return this.$funcCaches[o];
-    var a = Module.findExportByName(t, e);
-    if (null === a) throw Error("cannot find " + e);
-    return this.$funcCaches[o] = new NativeFunction(a, r, n), this.$funcCaches[o];
-  }, t.prototype.hookFunctionWithOptions = function(t, e, r) {
-    return this.hookFunctionWithCallbacks(t, e, this.getEventImpl(r));
-  }, t.prototype.hookFunctionWithCallbacks = function(t, e, r) {
-    var n = Module.findExportByName(t, e);
-    if (null === n) throw Error("cannot find " + e);
-    var o = {
-      get: function(t, r, n) {
-        return "name" === r ? e : t[r];
+  }), t;
+}(), e = new r, n = {}, o = {};
+
+function a(t, r, e, o) {
+  var a = (t || "") + "|" + r;
+  if (a in n) return n[a];
+  var i = Module.findExportByName(t, r);
+  if (null === i) throw Error("cannot find " + r);
+  return n[a] = new NativeFunction(i, e, o), n[a];
+}
+
+function i(t, r, e) {
+  return s(t, r, u(e));
+}
+
+function s(r, e, n) {
+  var o = Module.findExportByName(r, e);
+  if (null === o) throw Error("cannot find " + e);
+  var a = {
+    get: function(t, r, n) {
+      return "name" === r ? e : t[r];
+    }
+  }, i = {};
+  "onEnter" in n && (i.onEnter = function(t) {
+    n.onEnter.call(new Proxy(this, a), t);
+  }), "onLeave" in n && (i.onLeave = function(t) {
+    n.onLeave.call(new Proxy(this, a), t);
+  });
+  var s = Interceptor.attach(o, i);
+  return t.i("Hook function: " + e + " (" + o + ")"), s;
+}
+
+function c(r, e, n, o, i) {
+  var s = a(r, e, n, o);
+  if (null === s) throw Error("cannot find " + e);
+  isFunction(i) || (i = u(i));
+  var c = o;
+  Interceptor.replace(s, new NativeCallback((function() {
+    for (var t = this, r = [], a = 0; a < o.length; a++) r[a] = arguments[a];
+    var c = new Proxy(s, {
+      get: function(r, a, i) {
+        switch (a) {
+         case "name":
+          return e;
+
+         case "argumentTypes":
+          return o;
+
+         case "returnType":
+          return n;
+
+         case "context":
+          return t.context;
+
+         default:
+          r[a];
+        }
+      },
+      apply: function(t, r, e) {
+        return t.apply(null, e[0]);
       }
-    }, a = {};
-    "onEnter" in r && (a.onEnter = function(t) {
-      r.onEnter.call(new Proxy(this, o), t);
-    }), "onLeave" in r && (a.onLeave = function(t) {
-      r.onLeave.call(new Proxy(this, o), t);
     });
-    var i = Interceptor.attach(n, a);
-    return Log.i("Hook function: " + e + " (" + n + ")"), i;
-  }, t.prototype.hookFunction = function(t, e, r, n, o) {
-    var a = this.getExportFunction(t, e, r, n);
-    if (null === a) throw Error("cannot find " + e);
-    isFunction(o) || (o = this.getEventImpl(o));
-    var i = n;
-    Interceptor.replace(a, new NativeCallback((function() {
-      for (var t = this, i = [], c = 0; c < n.length; c++) i[c] = arguments[c];
-      var s = new Proxy(a, {
-        get: function(o, a, i) {
-          switch (a) {
-           case "name":
-            return e;
+    return i.call(c, r);
+  }), n, c)), t.i("Hook function: " + e + " (" + s + ")");
+}
 
-           case "argumentTypes":
-            return n;
-
-           case "returnType":
-            return r;
-
-           case "context":
-            return t.context;
-
-           default:
-            o[a];
-          }
-        },
-        apply: function(t, e, r) {
-          return t.apply(null, r[0]);
-        }
-      });
-      return o.call(s, i);
-    }), r, i)), Log.i("Hook function: " + e + " (" + a + ")");
-  }, t.prototype.getEventImpl = function(t) {
-    var e = new function() {
-      for (var e in this.method = !0, this.thread = !1, this.stack = !1, this.args = !1, 
-      this.extras = {}, t) e in this ? this[e] = t[e] : this.extras[e] = t[e];
-    }, r = function(t) {
-      var r = {};
-      for (var n in e.extras) r[n] = e.extras[n];
-      !1 !== e.method && (r.method_name = this.name), !1 !== e.thread && (r.thread_id = Process.getCurrentThreadId()), 
-      !1 !== e.args && (r.args = pretty2Json(t), r.result = null, r.error = null);
-      try {
-        var o = this(t);
-        return !1 !== e.args && (r.result = pretty2Json(o)), o;
-      } catch (t) {
-        throw !1 !== e.args && (r.error = pretty2Json(t)), t;
-      } finally {
-        if (!1 !== e.stack) {
-          for (var a = [], i = "fuzzy" !== e.stack ? Backtracer.ACCURATE : Backtracer.FUZZY, c = Thread.backtrace(this.context, i), s = 0; s < c.length; s++) a.push(getDebugSymbolFromAddress(c[s]).toString());
-          r.stack = a;
-        }
-        Emitter.emit(r);
-      }
-    };
-    return r.onLeave = function(t) {
-      var r = {};
-      for (var n in e.extras) r[n] = e.extras[n];
-      if (!1 !== e.method && (r.method_name = this.name), !1 !== e.thread && (r.thread_id = Process.getCurrentThreadId()), 
-      !1 !== e.args && (r.result = pretty2Json(t)), !1 !== e.stack) {
-        for (var o = [], a = "fuzzy" !== e.stack ? Backtracer.ACCURATE : Backtracer.FUZZY, i = Thread.backtrace(this.context, a), c = 0; c < i.length; c++) o.push(getDebugSymbolFromAddress(i[c]).toString());
-        r.stack = o;
-      }
-      Emitter.emit(r);
-    }, r;
-  }, t;
-}();
-
-exports.CHelper = t;
-
-},{}],4:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.IOSHelper = void 0;
-
-var t = function() {
-  function t() {}
-  return t.prototype.bypassSslPinning = function() {
-    Log.w("iOS Bypass ssl pinning");
+function u(r) {
+  var e = new function() {
+    for (var t in this.method = !0, this.thread = !1, this.stack = !1, this.args = !1, 
+    this.extras = {}, r) t in this ? this[t] = r[t] : this.extras[t] = r[t];
+  }, n = function(r) {
+    var n = {};
+    for (var o in e.extras) n[o] = e.extras[o];
+    !1 !== e.method && (n.method_name = this.name), !1 !== e.thread && (n.thread_id = Process.getCurrentThreadId()), 
+    !1 !== e.args && (n.args = pretty2Json(r), n.result = null, n.error = null);
     try {
-      Module.ensureInitialized("libboringssl.dylib");
+      var a = this(r);
+      return !1 !== e.args && (n.result = pretty2Json(a)), a;
     } catch (t) {
-      Log.d("libboringssl.dylib module not loaded. Trying to manually load it."), Module.load("libboringssl.dylib");
+      throw !1 !== e.args && (n.error = pretty2Json(t)), t;
+    } finally {
+      if (!1 !== e.stack) {
+        for (var i = [], s = "fuzzy" !== e.stack ? Backtracer.ACCURATE : Backtracer.FUZZY, c = Thread.backtrace(this.context, s), u = 0; u < c.length; u++) i.push(h(c[u]).toString());
+        n.stack = i;
+      }
+      t.event(n);
     }
-    var t = new NativeCallback((function(t, i) {
-      return Log.d("custom SSL context verify callback, returning SSL_VERIFY_NONE"), 0;
-    }), "int", [ "pointer", "pointer" ]);
-    try {
-      CHelper.hookFunction("libboringssl.dylib", "SSL_set_custom_verify", "void", [ "pointer", "int", "pointer" ], (function(i) {
-        return Log.d("SSL_set_custom_verify(), setting custom callback."), i[2] = t, this(i);
-      }));
-    } catch (i) {
-      CHelper.hookFunction("libboringssl.dylib", "SSL_CTX_set_custom_verify", "void", [ "pointer", "int", "pointer" ], (function(i) {
-        return Log.d("SSL_CTX_set_custom_verify(), setting custom callback."), i[2] = t, 
-        this(i);
-      }));
+  };
+  return n.onLeave = function(r) {
+    var n = {};
+    for (var o in e.extras) n[o] = e.extras[o];
+    if (!1 !== e.method && (n.method_name = this.name), !1 !== e.thread && (n.thread_id = Process.getCurrentThreadId()), 
+    !1 !== e.args && (n.result = pretty2Json(r)), !1 !== e.stack) {
+      for (var a = [], i = "fuzzy" !== e.stack ? Backtracer.ACCURATE : Backtracer.FUZZY, s = Thread.backtrace(this.context, i), c = 0; c < s.length; c++) a.push(h(s[c]).toString());
+      n.stack = a;
     }
-    CHelper.hookFunction("libboringssl.dylib", "SSL_get_psk_identity", "pointer", [ "pointer" ], (function(t) {
-      return Log.d('SSL_get_psk_identity(), returning "fakePSKidentity"'), Memory.allocUtf8String("fakePSKidentity");
-    }));
-  }, t;
-}();
+    t.event(n);
+  }, n;
+}
 
-exports.IOSHelper = t;
+function h(t) {
+  var r = t.toString();
+  return void 0 === o[r] && (o[r] = DebugSymbol.fromAddress(t)), o[r];
+}
 
-},{}],5:[function(require,module,exports){
+exports.getExportFunction = a, exports.hookFunctionWithOptions = i, exports.hookFunctionWithCallbacks = s, 
+exports.hookFunction = c, exports.getEventImpl = u, exports.getDebugSymbolFromAddress = h;
+
+},{"./log":4}],3:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: !0
-}), exports.JavaHelper = void 0;
+}), exports.getErrorStack = exports.runOnCreateApplication = exports.runOnCreateContext = exports.traceClasses = exports.chooseClassLoader = exports.bypassSslPinning = exports.setWebviewDebuggingEnabled = exports.use = exports.getStackTrace = exports.getJavaEnumValue = exports.fromJavaArray = exports.isJavaArray = exports.isJavaObject = exports.getEventImpl = exports.hookClass = exports.hookAllMethods = exports.hookAllConstructors = exports.hookMethods = exports.hookMethod = exports.findClass = exports.getClassMethod = exports.getClassName = exports.getObjectHandle = exports.isSameObject = exports.o = void 0;
 
-var e = function() {
+var e = require("./log"), t = function() {
   function e() {
     this.excludeHookPackages = [ "java.", "javax.", "android.", "androidx." ];
   }
@@ -505,6 +265,12 @@ var e = function() {
   }), Object.defineProperty(e.prototype, "classClass", {
     get: function() {
       return Java.use("java.lang.Class");
+    },
+    enumerable: !1,
+    configurable: !0
+  }), Object.defineProperty(e.prototype, "classLoaderClass", {
+    get: function() {
+      return Java.use("java.lang.ClassLoader");
     },
     enumerable: !1,
     configurable: !0
@@ -544,329 +310,656 @@ var e = function() {
     },
     enumerable: !1,
     configurable: !0
+  }), Object.defineProperty(e.prototype, "hashSetClass", {
+    get: function() {
+      return Java.use("java.util.HashSet");
+    },
+    enumerable: !1,
+    configurable: !0
   }), Object.defineProperty(e.prototype, "applicationContext", {
     get: function() {
       return Java.use("android.app.ActivityThread").currentApplication().getApplicationContext();
     },
     enumerable: !1,
     configurable: !0
-  }), e.prototype.isSameObject = function(e, t) {
-    return e === t || null != e && null != t && (!!e.hasOwnProperty("$isSameObject") && e.$isSameObject(t));
-  }, e.prototype.getObjectHandle = function(e) {
-    if (null == e) return null;
-    if (e.hasOwnProperty("$h")) return e.$h;
-    throw new Error("not implemented for 'getObjectHandle'");
-  }, e.prototype.getClassName = function(e) {
-    var t = e.$className;
-    if (null != t) return t;
-    if (null != (t = e.__name__)) return t;
-    if (null != e.$classWrapper) {
-      if (null != (t = e.$classWrapper.$className)) return t;
-      if (null != (t = e.$classWrapper.__name__)) return t;
-    }
-    Log.e("Cannot get class name: " + e);
-  }, e.prototype.getClassMethod = function(e, t) {
-    var r = e[t];
-    return void 0 !== r || "$" == t[0] && void 0 !== (r = e["_" + t]) ? r : void 0;
-  }, e.prototype.$prettyClassName = function(e) {
-    if (e.startsWith("[L") && e.endsWith(";")) return "".concat(e.substring(2, e.length - 1), "[]");
-    if (e.startsWith("[")) switch (e.substring(1, 2)) {
-     case "B":
-      return "byte[]";
+  }), e;
+}();
 
-     case "C":
-      return "char[]";
+function r(e, t) {
+  return e === t || null != e && null != t && (!!e.hasOwnProperty("$isSameObject") && e.$isSameObject(t));
+}
 
-     case "D":
-      return "double[]";
+function n(e) {
+  return null == e ? null : e.hasOwnProperty("$h") ? e.$h : void 0;
+}
 
-     case "F":
-      return "float[]";
+function a(t) {
+  var r = t.$className;
+  if (null != r) return r;
+  if (null != (r = t.__name__)) return r;
+  if (null != t.$classWrapper) {
+    if (null != (r = t.$classWrapper.$className)) return r;
+    if (null != (r = t.$classWrapper.__name__)) return r;
+  }
+  e.e("Cannot get class name: " + t);
+}
 
-     case "I":
-      return "int[]";
+function o(e, t) {
+  var r = e[t];
+  return void 0 !== r || "$" == t[0] && void 0 !== (r = e["_" + t]) ? r : void 0;
+}
 
-     case "S":
-      return "short[]";
-
-     case "J":
-      return "long[]";
-
-     case "Z":
-      return "boolean[]";
-
-     case "V":
-      return "void[]";
-    }
-    return e;
-  }, e.prototype.$defineMethodProperties = function(e) {
-    var t = this;
-    Object.defineProperties(e, {
-      className: {
-        configurable: !0,
-        enumerable: !0,
-        writable: !1,
-        value: this.getClassName(e.holder)
-      },
-      name: {
-        configurable: !0,
-        enumerable: !0,
-        get: function() {
-          var e = t.$prettyClassName(this.returnType.className), r = t.$prettyClassName(this.className) + "." + this.methodName, a = "";
-          if (this.argumentTypes.length > 0) {
-            a = t.$prettyClassName(this.argumentTypes[0].className);
-            for (var n = 1; n < this.argumentTypes.length; n++) a = a + ", " + t.$prettyClassName(this.argumentTypes[n].className);
-          }
-          return e + " " + r + "(" + a + ")";
-        }
-      },
-      toString: {
-        configurable: !0,
-        value: function() {
-          return this.name;
-        }
-      }
-    });
-  }, e.prototype.findClass = function(e, t) {
-    if (void 0 === t && (t = void 0), void 0 !== t && null != t) return Java.ClassFactory.get(t).use(e);
-    if (parseInt(Java.androidVersion) < 7) return Java.use(e);
-    var r = null, a = Java.enumerateClassLoadersSync();
-    for (var n in a) try {
-      var o = this.findClass(e, a[n]);
-      if (null != o) return o;
+function s(e, t) {
+  if (void 0 === t && (t = void 0), void 0 !== t && null != t) return Java.ClassFactory.get(t).use(e);
+  if (parseInt(Java.androidVersion) < 7) return Java.use(e);
+  for (var r = null, n = 0, a = Java.enumerateClassLoadersSync(); n < a.length; n++) {
+    var o = a[n];
+    try {
+      var i = s(e, o);
+      if (null != i) return i;
     } catch (e) {
       null == r && (r = e);
     }
-    throw r;
-  }, e.prototype.$hookMethod = function(e, t) {
-    if (void 0 === t && (t = null), null != t) {
-      var r = new Proxy(e, {
-        apply: function(e, t, r) {
-          var a = r[0], n = r[1];
-          return e.apply(a, n);
-        }
-      });
-      isFunction(t) || (t = this.getEventImpl(t)), e.implementation = function() {
-        return t.call(r, this, Array.prototype.slice.call(arguments));
-      }, Log.i("Hook method: " + e);
-    } else e.implementation = null, Log.i("Unhook method: " + e);
-  }, e.prototype.hookMethod = function(e, t, r, a) {
-    void 0 === a && (a = null);
-    var n = t;
-    if ("string" == typeof n) {
-      var o = n, s = e;
-      "string" == typeof s && (s = this.findClass(s));
-      var i = this.getClassMethod(s, o);
-      if (void 0 === i || void 0 === i.overloads) throw Error("Cannot find method: " + this.getClassName(s) + "." + o);
-      if (null != r) {
-        var l = r;
-        for (var u in l) "string" != typeof l[u] && (l[u] = this.getClassName(l[u]));
-        n = i.overload.apply(i, l);
-      } else {
-        if (1 != i.overloads.length) throw Error(this.getClassName(s) + "." + o + " has too many overloads");
-        n = i.overloads[0];
-      }
+  }
+  throw r;
+}
+
+function i(e, t, r, n) {
+  void 0 === n && (n = null);
+  var i = t;
+  if ("string" == typeof i) {
+    var l = i, c = e;
+    "string" == typeof c && (c = s(c));
+    var u = o(c, l);
+    if (void 0 === u || void 0 === u.overloads) throw Error("Cannot find method: " + a(c) + "." + l);
+    if (null != r) {
+      var p = r;
+      for (var d in p) "string" != typeof p[d] && (p[d] = a(p[d]));
+      i = u.overload.apply(u, p);
+    } else {
+      if (1 != u.overloads.length) throw Error(a(c) + "." + l + " has too many overloads");
+      i = u.overloads[0];
     }
-    this.$defineMethodProperties(n), this.$hookMethod(n, a);
-  }, e.prototype.hookMethods = function(e, t, r) {
-    void 0 === r && (r = null);
-    var a = e;
-    "string" == typeof a && (a = this.findClass(a));
-    var n = this.getClassMethod(a, t);
-    if (void 0 === n || void 0 === n.overloads) throw Error("Cannot find method: " + this.getClassName(a) + "." + t);
-    for (var o = 0; o < n.overloads.length; o++) {
-      var s = n.overloads[o];
-      void 0 !== s.returnType && void 0 !== s.returnType.className && (this.$defineMethodProperties(s), 
-      this.$hookMethod(s, r));
+  }
+  P(i), E(i, n);
+}
+
+function l(e, t, r) {
+  void 0 === r && (r = null);
+  var n = e;
+  "string" == typeof n && (n = s(n));
+  var i = o(n, t);
+  if (void 0 === i || void 0 === i.overloads) throw Error("Cannot find method: " + a(n) + "." + t);
+  for (var l = 0; l < i.overloads.length; l++) {
+    var c = i.overloads[l];
+    void 0 !== c.returnType && void 0 !== c.returnType.className && (P(c), E(c, r));
+  }
+}
+
+function c(e, t) {
+  void 0 === t && (t = null);
+  var r = e;
+  "string" == typeof r && (r = s(r)), l(r, "$init", t);
+}
+
+function u(e, t) {
+  void 0 === t && (t = null);
+  var r = e;
+  "string" == typeof r && (r = s(r));
+  for (var n = [], a = null, o = r.class; null != o; ) {
+    for (var i = o.getDeclaredMethods(), c = 0; c < i.length; c++) {
+      var u = i[c].getName();
+      n.indexOf(u) < 0 && (n.push(u), l(r, u, t));
     }
-  }, e.prototype.hookAllConstructors = function(e, t) {
-    void 0 === t && (t = null);
-    var r = e;
-    "string" == typeof r && (r = this.findClass(r)), this.hookMethods(r, "$init", t);
-  }, e.prototype.$isExcludeClass = function(e) {
-    for (var t in this.excludeHookPackages) if (0 == e.indexOf(this.excludeHookPackages[t])) return !0;
-    return !1;
-  }, e.prototype.hookAllMethods = function(e, t) {
-    void 0 === t && (t = null);
-    var r = e;
-    "string" == typeof r && (r = this.findClass(r));
-    for (var a = [], n = null, o = r.class; null != o; ) {
-      for (var s = o.getDeclaredMethods(), i = 0; i < s.length; i++) {
-        var l = s[i].getName();
-        a.indexOf(l) < 0 && (a.push(l), this.hookMethods(r, l, t));
-      }
-      if (n = o.getSuperclass(), o.$dispose(), null == n) break;
-      if (o = Java.cast(n, this.classClass), this.$isExcludeClass(o.getName())) break;
+    if (a = o.getSuperclass(), o.$dispose(), null == a) break;
+    if (L((o = Java.cast(a, exports.o.classClass)).getName())) break;
+  }
+}
+
+function p(e, t) {
+  void 0 === t && (t = null);
+  var r = e;
+  "string" == typeof r && (r = s(r)), c(r, t), u(r, t);
+}
+
+function d(t) {
+  var r = new function() {
+    for (var e in this.method = !0, this.thread = !1, this.stack = !1, this.args = !1, 
+    this.extras = {}, t) e in this ? this[e] = t[e] : this.extras[e] = t[e];
+  };
+  return function(t, n) {
+    var a = {};
+    for (var o in r.extras) a[o] = r.extras[o];
+    !1 !== r.method && (a.class_name = t.$className, a.method_name = this.name, a.method_simple_name = this.methodName), 
+    !1 !== r.thread && (a.thread_id = Process.getCurrentThreadId(), a.thread_name = exports.o.threadClass.currentThread().getName()), 
+    !1 !== r.args && (a.args = pretty2Json(n), a.result = null, a.error = null);
+    try {
+      var s = this(t, n);
+      return !1 !== r.args && (a.result = pretty2Json(s)), s;
+    } catch (e) {
+      throw !1 !== r.args && (a.error = pretty2Json(e)), e;
+    } finally {
+      !1 !== r.stack && (a.stack = pretty2Json(b())), e.event(a);
     }
-  }, e.prototype.hookClass = function(e, t) {
-    void 0 === t && (t = null);
-    var r = e;
-    "string" == typeof r && (r = this.findClass(r)), this.hookAllConstructors(r, t), 
-    this.hookAllMethods(r, t);
-  }, e.prototype.getEventImpl = function(e) {
-    var t = this, r = new function() {
-      for (var t in this.method = !0, this.thread = !1, this.stack = !1, this.args = !1, 
-      this.extras = {}, e) t in this ? this[t] = e[t] : this.extras[t] = e[t];
-    };
-    return function(e, a) {
-      var n = {};
-      for (var o in r.extras) n[o] = r.extras[o];
-      !1 !== r.method && (n.class_name = e.$className, n.method_name = this.name, n.method_simple_name = this.methodName), 
-      !1 !== r.thread && (n.thread_id = Process.getCurrentThreadId(), n.thread_name = t.threadClass.currentThread().getName()), 
-      !1 !== r.args && (n.args = pretty2Json(a), n.result = null, n.error = null);
+  };
+}
+
+function f(e) {
+  if (e instanceof Object && e.hasOwnProperty("class") && e.class instanceof Object) {
+    var t = e.class;
+    if (t.hasOwnProperty("getName") && t.hasOwnProperty("getDeclaredClasses") && t.hasOwnProperty("getDeclaredFields") && t.hasOwnProperty("getDeclaredMethods")) return !0;
+  }
+  return !1;
+}
+
+function g(e) {
+  if (e instanceof Object && e.hasOwnProperty("class") && e.class instanceof Object) {
+    var t = e.class;
+    if (t.hasOwnProperty("isArray") && t.isArray()) return !0;
+  }
+  return !1;
+}
+
+function h(e, t) {
+  var r = e;
+  "string" == typeof r && (r = s(r));
+  for (var n = [], a = Java.vm.getEnv(), o = 0; o < a.getArrayLength(t.$handle); o++) n.push(Java.cast(a.getObjectArrayElement(t.$handle, o), r));
+  return n;
+}
+
+function v(e, t) {
+  var r = e;
+  "string" == typeof r && (r = s(r));
+  var n = r.class.getEnumConstants();
+  n instanceof Array || (n = h(r, n));
+  for (var a = 0; a < n.length; a++) if (n[a].toString() === t) return n[a];
+  throw new Error("Name of " + t + " does not match " + r);
+}
+
+function b(e) {
+  void 0 === e && (e = void 0);
+  for (var t = [], r = (e || exports.o.throwableClass.$new()).getStackTrace(), n = 0; n < r.length; n++) t.push(r[n]);
+  return t;
+}
+
+exports.o = new t, exports.isSameObject = r, exports.getObjectHandle = n, exports.getClassName = a, 
+exports.getClassMethod = o, exports.findClass = s, exports.hookMethod = i, exports.hookMethods = l, 
+exports.hookAllConstructors = c, exports.hookAllMethods = u, exports.hookClass = p, 
+exports.getEventImpl = d, exports.isJavaObject = f, exports.isJavaArray = g, exports.fromJavaArray = h, 
+exports.getJavaEnumValue = v, exports.getStackTrace = b;
+
+var y = null;
+
+function m(t) {
+  var r = exports.o.hashSetClass.$new(), n = function(r) {
+    for (var n, a = t.entries(), o = function() {
+      var a = n.value[0], o = n.value[1], i = null;
       try {
-        var s = this(e, a);
-        return !1 !== r.args && (n.result = pretty2Json(s)), s;
-      } catch (e) {
-        throw !1 !== r.args && (n.error = pretty2Json(e)), e;
-      } finally {
-        !1 !== r.stack && (n.stack = pretty2Json(t.getStackTrace())), Emitter.emit(n);
+        i = s(a, r);
+      } catch (e) {}
+      null != i && (t.delete(a), o.forEach((function(t, r, n) {
+        try {
+          t(i);
+        } catch (t) {
+          e.w("Call JavaHelper.use callback error: " + t);
+        }
+      })));
+    }; !(n = a.next()).done; ) o();
+  }, a = exports.o.classClass, o = exports.o.classLoaderClass;
+  i(a, "forName", [ "java.lang.String", "boolean", o ], (function(e, t) {
+    var a = t[2];
+    return null == a || r.contains(a) || (r.add(a), n(a)), this(e, t);
+  })), i(o, "loadClass", [ "java.lang.String", "boolean" ], (function(e, t) {
+    var a = e;
+    return r.contains(a) || (r.add(a), n(a)), this(e, t);
+  }));
+}
+
+function x(t, r) {
+  var n = null;
+  try {
+    n = s(t);
+  } catch (e) {
+    var a;
+    if (null == y && m(y = new Map), y.has(t)) void 0 !== (a = y.get(t)) && a.add(r); else (a = new Set).add(r), 
+    y.set(t, a);
+    return;
+  }
+  try {
+    r(n);
+  } catch (t) {
+    e.w("Call JavaHelper.use callback error: " + t);
+  }
+}
+
+function C() {
+  e.w("Android Enable Webview Debugging"), ignoreError((function() {
+    var t = s("android.webkit.WebView");
+    l(t, "setWebContentsDebuggingEnabled", (function(r, n) {
+      return e.d("".concat(t, ".setWebContentsDebuggingEnabled: ").concat(n[0])), n[0] = !0, 
+      this(r, n);
+    })), l(t, "loadUrl", (function(r, n) {
+      return e.d("".concat(t, ".loadUrl: ").concat(n[0])), t.setWebContentsDebuggingEnabled(!0), 
+      this(r, n);
+    }));
+  })), ignoreError((function() {
+    var t = s("com.uc.webview.export.WebView");
+    l(t, "setWebContentsDebuggingEnabled", (function(r, n) {
+      return e.d("".concat(t, ".setWebContentsDebuggingEnabled: ").concat(n[0])), n[0] = !0, 
+      this(r, n);
+    })), l(t, "loadUrl", (function(r, n) {
+      return e.d("".concat(t, ".loadUrl: ").concat(n[0])), t.setWebContentsDebuggingEnabled(!0), 
+      this(r, n);
+    }));
+  }));
+}
+
+function k() {
+  e.w("Android Bypass ssl pinning");
+  var t = Java.use("java.util.Arrays");
+  ignoreError((function() {
+    return l("com.android.org.conscrypt.TrustManagerImpl", "checkServerTrusted", (function(r, n) {
+      if (e.d("SSL bypassing " + this), "void" != this.returnType.type) return "pointer" == this.returnType.type && "java.util.List" == this.returnType.className ? t.asList(n[0]) : void 0;
+    }));
+  })), ignoreError((function() {
+    return l("com.google.android.gms.org.conscrypt.Platform", "checkServerTrusted", (function(t, r) {
+      e.d("SSL bypassing " + this);
+    }));
+  })), ignoreError((function() {
+    return l("com.android.org.conscrypt.Platform", "checkServerTrusted", (function(t, r) {
+      e.d("SSL bypassing " + this);
+    }));
+  })), ignoreError((function() {
+    return l("okhttp3.CertificatePinner", "check", (function(t, r) {
+      if (e.d("SSL bypassing " + this), "boolean" == this.returnType.type) return !0;
+    }));
+  })), ignoreError((function() {
+    return l("okhttp3.CertificatePinner", "check$okhttp", (function(t, r) {
+      e.d("SSL bypassing " + this);
+    }));
+  })), ignoreError((function() {
+    return l("com.android.okhttp.CertificatePinner", "check", (function(t, r) {
+      if (e.d("SSL bypassing " + this), "boolean" == this.returnType.type) return !0;
+    }));
+  })), ignoreError((function() {
+    return l("com.android.okhttp.CertificatePinner", "check$okhttp", (function(t, r) {
+      e.d("SSL bypassing " + this);
+    }));
+  })), ignoreError((function() {
+    return l("com.android.org.conscrypt.TrustManagerImpl", "verifyChain", (function(t, r) {
+      return e.d("SSL bypassing " + this), r[0];
+    }));
+  }));
+}
+
+function w(t) {
+  e.w("choose classloder: " + t), Java.enumerateClassLoaders({
+    onMatch: function(r) {
+      try {
+        null != r.findClass(t) && (e.i("choose classloader: " + r), Reflect.set(Java.classFactory, "loader", r));
+      } catch (t) {
+        e.e(pretty2Json(t));
       }
-    };
-  }, e.prototype.isJavaObject = function(e) {
-    if (e instanceof Object && e.hasOwnProperty("class") && e.class instanceof Object) {
-      var t = e.class;
-      if (t.hasOwnProperty("getName") && t.hasOwnProperty("getDeclaredClasses") && t.hasOwnProperty("getDeclaredFields") && t.hasOwnProperty("getDeclaredMethods")) return !0;
+    },
+    onComplete: function() {
+      e.d("enumerate classLoaders complete");
     }
-    return !1;
-  }, e.prototype.isJavaArray = function(e) {
-    if (e instanceof Object && e.hasOwnProperty("class") && e.class instanceof Object) {
-      var t = e.class;
-      if (t.hasOwnProperty("isArray") && t.isArray()) return !0;
+  });
+}
+
+function O(t, r, n) {
+  void 0 === r && (r = void 0), void 0 === n && (n = void 0), t = null != t ? t.trim().toLowerCase() : "", 
+  r = null != r ? r.trim().toLowerCase() : "", n = null != n ? n : {
+    stack: !0,
+    args: !0
+  }, e.w("trace classes, include: " + t + ", exclude: " + r + ", options: " + JSON.stringify(n)), 
+  Java.enumerateLoadedClasses({
+    onMatch: function(e) {
+      var a = e.toString().toLowerCase();
+      a.indexOf(t) >= 0 && ("" == r || a.indexOf(r) < 0) && u(e, d(n));
+    },
+    onComplete: function() {
+      e.d("enumerate classLoaders complete");
     }
-    return !1;
-  }, e.prototype.fromJavaArray = function(e, t) {
-    var r = e;
-    "string" == typeof r && (r = this.findClass(r));
-    for (var a = [], n = Java.vm.getEnv(), o = 0; o < n.getArrayLength(t.$handle); o++) a.push(Java.cast(n.getObjectArrayElement(t.$handle, o), r));
-    return a;
-  }, e.prototype.getJavaEnumValue = function(e, t) {
-    var r = e;
-    "string" == typeof r && (r = this.findClass(r));
-    var a = r.class.getEnumConstants();
-    a instanceof Array || (a = this.fromJavaArray(r, a));
-    for (var n = 0; n < a.length; n++) if (a[n].toString() === t) return a[n];
-    throw new Error("Name of " + t + " does not match " + r);
-  }, e.prototype.getStackTrace = function() {
-    for (var e = [], t = this.throwableClass.$new().getStackTrace(), r = 0; r < t.length; r++) e.push(t[r]);
-    return e;
-  }, e;
-}();
+  });
+}
 
-exports.JavaHelper = e;
+function S(e) {
+  l("android.app.ContextImpl", "createAppContext", (function(t, r) {
+    var n = this(t, r);
+    return e(n), n;
+  }));
+}
 
-},{}],6:[function(require,module,exports){
+function j(e) {
+  l("android.app.LoadedApk", "makeApplication", (function(t, r) {
+    var n = this(t, r);
+    return e(n), n;
+  }));
+}
+
+function J(e) {
+  if (e.startsWith("[L") && e.endsWith(";")) return "".concat(e.substring(2, e.length - 1), "[]");
+  if (e.startsWith("[")) switch (e.substring(1, 2)) {
+   case "B":
+    return "byte[]";
+
+   case "C":
+    return "char[]";
+
+   case "D":
+    return "double[]";
+
+   case "F":
+    return "float[]";
+
+   case "I":
+    return "int[]";
+
+   case "S":
+    return "short[]";
+
+   case "J":
+    return "long[]";
+
+   case "Z":
+    return "boolean[]";
+
+   case "V":
+    return "void[]";
+  }
+  return e;
+}
+
+function P(e) {
+  Object.defineProperties(e, {
+    className: {
+      configurable: !0,
+      enumerable: !0,
+      writable: !1,
+      value: a(e.holder)
+    },
+    name: {
+      configurable: !0,
+      enumerable: !0,
+      get: function() {
+        var e = J(this.returnType.className), t = J(this.className) + "." + this.methodName, r = "";
+        if (this.argumentTypes.length > 0) {
+          r = J(this.argumentTypes[0].className);
+          for (var n = 1; n < this.argumentTypes.length; n++) r = r + ", " + J(this.argumentTypes[n].className);
+        }
+        return e + " " + t + "(" + r + ")";
+      }
+    },
+    toString: {
+      configurable: !0,
+      value: function() {
+        return this.name;
+      }
+    }
+  });
+}
+
+function E(t, r) {
+  if (void 0 === r && (r = null), null != r) {
+    var n = new Proxy(t, {
+      apply: function(e, t, r) {
+        var n = r[0], a = r[1];
+        return e.apply(n, a);
+      }
+    });
+    isFunction(r) || (r = d(r)), t.implementation = function() {
+      return r.call(n, this, Array.prototype.slice.call(arguments));
+    }, e.i("Hook method: " + t);
+  } else t.implementation = null, e.i("Unhook method: " + t);
+}
+
+function L(e) {
+  for (var t in exports.o.excludeHookPackages) if (0 == e.indexOf(exports.o.excludeHookPackages[t])) return !0;
+  return !1;
+}
+
+function A(t) {
+  try {
+    var r = n(t);
+    if (void 0 !== r) {
+      for (var a = Java.cast(r, exports.o.throwableClass), o = [], s = 0, i = b(a); s < i.length; s++) {
+        var l = i[s];
+        o.push("    at ".concat(l));
+      }
+      return o.length > 0 ? "".concat(a, "\n").concat(o.join("\n")) : "".concat(a);
+    }
+  } catch (t) {
+    e.d("getErrorStack error: ".concat(t));
+  }
+}
+
+exports.use = x, exports.setWebviewDebuggingEnabled = C, exports.bypassSslPinning = k, 
+exports.chooseClassLoader = w, exports.traceClasses = O, exports.runOnCreateContext = S, 
+exports.runOnCreateApplication = j, exports.getErrorStack = A;
+
+},{"./log":4}],4:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: !0
-}), exports.ObjCHelper = void 0;
+}), exports.exception = exports.event = exports.e = exports.w = exports.i = exports.d = exports.setLevel = exports.getLevel = exports.ERROR = exports.WARNING = exports.INFO = exports.DEBUG = void 0, 
+exports.DEBUG = 1, exports.INFO = 2, exports.WARNING = 3, exports.ERROR = 4;
 
-var t = function() {
-  function t() {}
-  return t.prototype.$defineMethodProperties = function(t, e) {
-    var r = e.origImplementation || e.implementation, n = t.toString(), o = ObjC.selectorAsString(e.selector), i = ObjC.classes.NSThread.hasOwnProperty(o);
-    Object.defineProperties(e, {
-      className: {
-        configurable: !0,
-        enumerable: !0,
-        get: function() {
-          return n;
-        }
-      },
-      methodName: {
-        configurable: !0,
-        enumerable: !0,
-        get: function() {
-          return o;
-        }
-      },
-      name: {
-        configurable: !0,
-        enumerable: !0,
-        get: function() {
-          return (i ? "+" : "-") + "[" + n + " " + o + "]";
-        }
-      },
-      origImplementation: {
-        configurable: !0,
-        enumerable: !0,
-        get: function() {
-          return r;
-        }
-      },
-      toString: {
-        value: function() {
-          return this.name;
-        }
-      }
+var e = exports.INFO, t = [], o = null;
+
+function s() {
+  return e;
+}
+
+function r(t) {
+  e = t, n("Set log level: " + t);
+}
+
+function n(t, o) {
+  e <= exports.DEBUG && v("log", {
+    level: "debug",
+    message: t
+  }, o);
+}
+
+function p(t, o) {
+  e <= exports.INFO && v("log", {
+    level: "info",
+    message: t
+  }, o);
+}
+
+function l(t, o) {
+  e <= exports.WARNING && v("log", {
+    level: "warning",
+    message: t
+  }, o);
+}
+
+function x(t, o) {
+  e <= exports.ERROR && v("log", {
+    level: "error",
+    message: t
+  }, o);
+}
+
+function i(e, t) {
+  v("msg", e, t);
+}
+
+function u(e, t) {
+  v("error", {
+    description: e,
+    stack: t
+  });
+}
+
+function v(e, s, r) {
+  var n = {};
+  n[e] = s, null == r ? (t.push(n), t.length >= 50 ? c() : null === o && (o = setTimeout(c, 50))) : (c(), 
+  send({
+    $events: [ n ]
+  }, r));
+}
+
+function c() {
+  if (null !== o && (clearTimeout(o), o = null), 0 !== t.length) {
+    var e = t;
+    t = [], send({
+      $events: e
     });
-  }, t.prototype.$hookMethod = function(t, e) {
-    void 0 === e && (e = null), null != e ? (isFunction(e) || (e = this.getEventImpl(e)), 
-    t.implementation = ObjC.implement(t, (function() {
-      var r = this, n = Array.prototype.slice.call(arguments), o = n.shift(), i = n.shift(), a = new Proxy(t, {
-        get: function(t, e, n) {
-          return e in r ? r[e] : t[e];
-        },
-        apply: function(t, e, r) {
-          var n = r[0], o = r[1];
-          return t.origImplementation.apply(null, [].concat(n, i, o));
-        }
-      });
-      return e.call(a, o, n);
-    })), Log.i("Hook method: " + t)) : (t.implementation = t.origImplementation, Log.i("Unhook method: " + pretty2String(t)));
-  }, t.prototype.hookMethod = function(t, e, r) {
-    void 0 === r && (r = null);
-    var n = t;
-    if ("string" == typeof n && (n = ObjC.classes[n]), void 0 === n) throw Error('cannot find class "' + t + '"');
-    var o = e;
-    if ("string" == typeof o && (o = n[o]), void 0 === o) throw Error('cannot find method "' + e + '" in class "' + n + '"');
-    this.$defineMethodProperties(n, o), this.$hookMethod(o, r);
-  }, t.prototype.hookMethods = function(t, e, r) {
-    void 0 === r && (r = null);
-    var n = t;
-    if ("string" == typeof n && (n = ObjC.classes[n]), void 0 === n) throw Error('cannot find class "' + t + '"');
-    for (var o = n.$ownMethods.length, i = 0; i < o; i++) {
-      var a = n.$ownMethods[i];
-      if (a.indexOf(e) >= 0) {
-        var s = n[a];
-        this.$defineMethodProperties(n, s), this.$hookMethod(s, r);
+  }
+}
+
+exports.getLevel = s, exports.setLevel = r, exports.d = n, exports.i = p, exports.w = l, 
+exports.e = x, exports.event = i, exports.exception = u;
+
+},{}],5:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: !0
+}), exports.bypassSslPinning = exports.convert2ObjcObject = exports.getEventImpl = exports.hookMethods = exports.hookMethod = void 0;
+
+var t = require("./log"), e = require("./c");
+
+function n(t, e, n) {
+  void 0 === n && (n = null);
+  var r = t;
+  if ("string" == typeof r && (r = ObjC.classes[r]), void 0 === r) throw Error('cannot find class "' + t + '"');
+  var o = e;
+  if ("string" == typeof o && (o = r[o]), void 0 === o) throw Error('cannot find method "' + e + '" in class "' + r + '"');
+  a(r, o), l(o, n);
+}
+
+function r(t, e, n) {
+  void 0 === n && (n = null);
+  var r = t;
+  if ("string" == typeof r && (r = ObjC.classes[r]), void 0 === r) throw Error('cannot find class "' + t + '"');
+  for (var o = r.$ownMethods.length, i = 0; i < o; i++) {
+    var s = r.$ownMethods[i];
+    if (s.indexOf(e) >= 0) {
+      var c = r[s];
+      a(r, c), l(c, n);
+    }
+  }
+}
+
+function o(n) {
+  var r = new function() {
+    for (var t in this.method = !0, this.thread = !1, this.stack = !1, this.args = !1, 
+    this.extras = {}, n) t in this ? this[t] = n[t] : this.extras[t] = n[t];
+  };
+  return function(n, o) {
+    var s = {};
+    for (var a in r.extras) s[a] = r.extras[a];
+    if (!1 !== r.method && (s.class_name = new ObjC.Object(n).$className, s.method_name = this.name, 
+    s.method_simple_name = this.methodName), !1 !== r.thread && (s.thread_id = Process.getCurrentThreadId(), 
+    s.thread_name = ObjC.classes.NSThread.currentThread().name().toString()), !1 !== r.args) {
+      for (var l = [], c = 0; c < o.length; c++) l.push(i(o[c]));
+      s.args = pretty2Json(l), s.result = null, s.error = null;
+    }
+    try {
+      var u = this(n, o);
+      return !1 !== r.args && (s.result = pretty2Json(i(u))), u;
+    } catch (t) {
+      throw !1 !== r.args && (s.error = pretty2Json(t)), t;
+    } finally {
+      if (!1 !== r.stack) {
+        var d = [], h = "fuzzy" !== r.stack ? Backtracer.ACCURATE : Backtracer.FUZZY, f = Thread.backtrace(this.context, h);
+        for (c = 0; c < f.length; c++) d.push(e.getDebugSymbolFromAddress(f[c]).toString());
+        s.stack = d;
+      }
+      t.event(s);
+    }
+  };
+}
+
+function i(t) {
+  return t instanceof NativePointer || "object" == typeof t && t.hasOwnProperty("handle") ? new ObjC.Object(t) : t;
+}
+
+function s() {
+  t.w("iOS Bypass ssl pinning");
+  try {
+    Module.ensureInitialized("libboringssl.dylib");
+  } catch (e) {
+    t.d("libboringssl.dylib module not loaded. Trying to manually load it."), Module.load("libboringssl.dylib");
+  }
+  var n = new NativeCallback((function(e, n) {
+    return t.d("custom SSL context verify callback, returning SSL_VERIFY_NONE"), 0;
+  }), "int", [ "pointer", "pointer" ]);
+  try {
+    e.hookFunction("libboringssl.dylib", "SSL_set_custom_verify", "void", [ "pointer", "int", "pointer" ], (function(e) {
+      return t.d("SSL_set_custom_verify(), setting custom callback."), e[2] = n, this(e);
+    }));
+  } catch (r) {
+    e.hookFunction("libboringssl.dylib", "SSL_CTX_set_custom_verify", "void", [ "pointer", "int", "pointer" ], (function(e) {
+      return t.d("SSL_CTX_set_custom_verify(), setting custom callback."), e[2] = n, this(e);
+    }));
+  }
+  e.hookFunction("libboringssl.dylib", "SSL_get_psk_identity", "pointer", [ "pointer" ], (function(e) {
+    return t.d('SSL_get_psk_identity(), returning "fakePSKidentity"'), Memory.allocUtf8String("fakePSKidentity");
+  }));
+}
+
+function a(t, e) {
+  var n = e.origImplementation || e.implementation, r = t.toString(), o = ObjC.selectorAsString(e.selector), i = ObjC.classes.NSThread.hasOwnProperty(o);
+  Object.defineProperties(e, {
+    className: {
+      configurable: !0,
+      enumerable: !0,
+      get: function() {
+        return r;
+      }
+    },
+    methodName: {
+      configurable: !0,
+      enumerable: !0,
+      get: function() {
+        return o;
+      }
+    },
+    name: {
+      configurable: !0,
+      enumerable: !0,
+      get: function() {
+        return (i ? "+" : "-") + "[" + r + " " + o + "]";
+      }
+    },
+    origImplementation: {
+      configurable: !0,
+      enumerable: !0,
+      get: function() {
+        return n;
+      }
+    },
+    toString: {
+      value: function() {
+        return this.name;
       }
     }
-  }, t.prototype.getEventImpl = function(t) {
-    var e = this, r = new function() {
-      for (var e in this.method = !0, this.thread = !1, this.stack = !1, this.args = !1, 
-      this.extras = {}, t) e in this ? this[e] = t[e] : this.extras[e] = t[e];
-    };
-    return function(t, n) {
-      var o = {};
-      for (var i in r.extras) o[i] = r.extras[i];
-      if (!1 !== r.method && (o.class_name = new ObjC.Object(t).$className, o.method_name = this.name, 
-      o.method_simple_name = this.methodName), !1 !== r.thread && (o.thread_id = Process.getCurrentThreadId(), 
-      o.thread_name = ObjC.classes.NSThread.currentThread().name().toString()), !1 !== r.args) {
-        for (var a = [], s = 0; s < n.length; s++) a.push(e.convert2ObjcObject(n[s]));
-        o.args = pretty2Json(a), o.result = null, o.error = null;
-      }
-      try {
-        var c = this(t, n);
-        return !1 !== r.args && (o.result = pretty2Json(e.convert2ObjcObject(c))), c;
-      } catch (t) {
-        throw !1 !== r.args && (o.error = pretty2Json(t)), t;
-      } finally {
-        if (!1 !== r.stack) {
-          var h = [], l = "fuzzy" !== r.stack ? Backtracer.ACCURATE : Backtracer.FUZZY, u = Thread.backtrace(this.context, l);
-          for (s = 0; s < u.length; s++) h.push(getDebugSymbolFromAddress(u[s]).toString());
-          o.stack = h;
-        }
-        Emitter.emit(o);
-      }
-    };
-  }, t.prototype.convert2ObjcObject = function(t) {
-    return t instanceof NativePointer || "object" == typeof t && t.hasOwnProperty("handle") ? new ObjC.Object(t) : t;
-  }, t;
-}();
+  });
+}
 
-exports.ObjCHelper = t;
+function l(e, n) {
+  void 0 === n && (n = null), null != n ? (isFunction(n) || (n = o(n)), e.implementation = ObjC.implement(e, (function() {
+    var t = this, r = Array.prototype.slice.call(arguments), o = r.shift(), i = r.shift(), s = new Proxy(e, {
+      get: function(e, n, r) {
+        return n in t ? t[n] : e[n];
+      },
+      apply: function(t, e, n) {
+        var r = n[0], o = n[1];
+        return t.origImplementation.apply(null, [].concat(r, i, o));
+      }
+    });
+    return n.call(s, o, r);
+  })), t.i("Hook method: " + e)) : (e.implementation = e.origImplementation, t.i("Unhook method: " + pretty2String(e)));
+}
 
-},{}]},{},[1])
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIm5vZGVfbW9kdWxlcy9icm93c2VyLXBhY2svX3ByZWx1ZGUuanMiLCJpbmRleC50cyIsImxpYi9hbmRyb2lkLnRzIiwibGliL2MudHMiLCJsaWIvaW9zLnRzIiwibGliL2phdmEudHMiLCJsaWIvb2JqYy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7OztBQ0tBLElBQUEsSUFBQTtFQUFBLFNBQUE7SUFBQSxJQUFBLElBQUE7SUFFWSxLQUFBLGdCQUF1QixJQUN2QixLQUFBLGFBQWtCLE1Bd0JsQixLQUFBLFFBQVE7TUFNWixJQUx3QixTQUFwQixFQUFLLGVBQ0wsYUFBYSxFQUFLLGFBQ2xCLEVBQUssYUFBYTtNQUdZLE1BQTlCLEVBQUssY0FBYyxRQUF2QjtRQUlBLElBQU0sSUFBUyxFQUFLO1FBQ3BCLEVBQUssZ0JBQWdCLElBRXJCLEtBQUs7VUFBRSxTQUFTOzs7QUFDcEI7QUFDSjtFQUFBLE9BckNJLEVBQUEsVUFBQSxPQUFBLFNBQUssR0FBYyxHQUFjO0lBQzdCLElBQU0sSUFBUTtJQUNkLEVBQU0sS0FBUSxHQUVGLFFBQVIsS0FFQSxLQUFLLGNBQWMsS0FBSyxJQUNwQixLQUFLLGNBQWMsVUFBVSxLQUc3QixLQUFLLFVBQ3NCLFNBQXBCLEtBQUssZUFDWixLQUFLLGFBQWEsV0FBVyxLQUFLLE9BQU8sU0FLN0MsS0FBSztJQUNMLEtBQUs7TUFBRSxTQUFTLEVBQUM7T0FBVTtBQUVuQyxLQWlCSjtBQUFBLENBMUNBLElBNkNBLElBQUE7RUFBQSxTQUFBLEtBS0E7RUFBQSxPQUhJLEVBQUEsVUFBQSxPQUFBLFNBQUssR0FBYztJQUNmLEVBQWMsS0FBSyxPQUFPLEdBQVM7QUFDdkMsS0FDSjtBQUFBLENBTEEsSUFZQSxJQUFBO0VBUUksU0FBQTtJQU5BLEtBQUEsUUFBUSxHQUNSLEtBQUEsT0FBTyxHQUNQLEtBQUEsVUFBVSxHQUNWLEtBQUEsUUFBUSxHQUNBLEtBQUEsU0FBUyxLQUFLO0lBR2xCLElBQU0sSUFBVyxTQUFXO01BQ3hC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QUFRO01BSXBCLFlBSHFDLE1BQWpDLEVBQXdCLE9BQ3hCLEVBQXdCLEtBQU8sWUFBWSxZQUFZLEtBRXBELEVBQXdCO0FBQ25DOzs7OztBQ3pUUjtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7Ozs7Ozs7QUM1SUEsSUFBQSxJQUFBO0VBQUEsU0FBQTtJQUVJLEtBQUEsY0FBYztBQXdO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SztBQUNqQixPQUVPO0FBQ1gsS0FFSjtBQUFBLENBMU5BOztBQUFhLFFBQUE7OztBQ2JiO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNuQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUM1UUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0EiLCJmaWxlIjoiZ2VuZXJhdGVkLmpzIiwic291cmNlUm9vdCI6IiJ9
+exports.hookMethod = n, exports.hookMethods = r, exports.getEventImpl = o, exports.convert2ObjcObject = i, 
+exports.bypassSslPinning = s;
+
+},{"./c":2,"./log":4}]},{},[1])
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIm5vZGVfbW9kdWxlcy9icm93c2VyLXBhY2svX3ByZWx1ZGUuanMiLCJpbmRleC50cyIsImxpYi9jLnRzIiwibGliL2phdmEudHMiLCJsaWIvbG9nLnRzIiwibGliL29iamMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7Ozs7Ozs7O0FDQUEsSUFBQSxJQUFBLFFBQUEsY0FDQSxJQUFBLFFBQUEsWUFDQSxJQUFBLFFBQUEsZUFDQSxJQUFBLFFBQUEsZUFNTSxJQUFhLFNBQUM7RUFDaEIsT0FBTztJQUNILElBQUksVUFBVSxTQUFTLEdBQUc7TUFFdEIsS0FEQSxJQUFJLElBQVUsY0FBYyxVQUFVLEtBQzdCLElBQUksR0FBRyxJQUFJLFVBQVUsUUFBUSxLQUNsQyxLQUFXO01BQ1gsS0FBVyxjQUFjLFVBQVU7TUFFdkMsRUFBRztXQUVILEVBQUc7QUFFWDtBQUNKOztBQUVBLFFBQVEsUUFBUSxFQUFXLEVBQUksRUFBRSxLQUFLLEtBQ3RDLFFBQVEsT0FBTyxFQUFXLEVBQUksRUFBRSxLQUFLLEtBQ3JDLFFBQVEsT0FBTyxFQUFXLEVBQUksRUFBRSxLQUFLO0FBQ3JDLFFBQVEsUUFBUSxFQUFXLEVBQUksRUFBRSxLQUFLLEtBQ3RDLFFBQVEsTUFBTSxFQUFXLEVBQUksRUFBRSxLQUFLLEtBR1MsUUFBekMsT0FBTyxrQ0FDUCxPQUFPLGdDQUErQixTQUFBO0VBQ2xDLElBQUksU0FBUTtFQUNaLElBQUksYUFBaUIsT0FBTztJQUN4QixJQUFNLElBQWEsRUFBTTtTQUNOLE1BQWYsTUFDQSxJQUFROztFQUdoQixJQUFJLEtBQUssV0FBVztJQUNoQixJQUFNLElBQVksRUFBSyxjQUFjO1NBQ25CLE1BQWQsV0FDYyxNQUFWLElBQ0EsS0FBUyxvQkFBQSxPQUFvQixLQUU3QixJQUFROztFQUlwQixFQUFJLFVBQVUsS0FBSyxHQUFPO0FBQzlCOztBQWlCSixJQUFBLElBQUE7RUFBQSxTQUFBLEtBb0JBO0VBQUEsT0FsQkksRUFBQSxVQUFBLE9BQUEsU0FBSyxH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QTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDekhBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7Ozs7OztBQzNlYSxRQUFBLFFBQVEsR0FDUixRQUFB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
