@@ -305,11 +305,11 @@ class BaseEnviron(abc.ABC):
             config.update_from_file(template_path, yaml.safe_load)
 
         tools = Tools(self, config)
-
-        os.environ["PATH"] = os.pathsep.join(
-            tools.env_path + os.environ["PATH"].split(os.pathsep)
-        )
-
+        path = os.environ["PATH"].split(os.pathsep)
+        stub = str(tools.stub)
+        if stub not in path:
+            path.append(stub)
+            os.environ["PATH"] = os.pathsep.join(path)
         return tools
 
     @cached_property

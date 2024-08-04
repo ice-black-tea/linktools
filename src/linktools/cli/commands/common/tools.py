@@ -82,8 +82,7 @@ class Command(BaseCommand):
             return 0
 
         elif args.download:
-            if not tool.exists:
-                tool.prepare()
+            tool.prepare()
             self.logger.info(f"Download tool files success: {tool.absolute_path}")
             return 0
 

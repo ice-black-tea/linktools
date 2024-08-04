@@ -32,7 +32,7 @@ import threading
 from typing import TYPE_CHECKING, TypeVar, Type, Any, Callable, Tuple
 
 from .metadata import __missing__
-from .types import Timeout, TimeoutType
+from .types import Timeout
 
 if TYPE_CHECKING:
     from typing import ParamSpec
@@ -210,4 +210,4 @@ def _timeoutable(fn: "Callable[P, T]") -> "Callable[P, T]":
     return wrapper
 
 
-timeoutable: Any = _timeoutable
+timeoutable: "Callable[[T], T]" = _timeoutable

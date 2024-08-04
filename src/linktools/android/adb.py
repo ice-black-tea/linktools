@@ -200,9 +200,9 @@ class Device(BaseDevice):
         :param path_or_url: apk文件路径
         :param opts: 安装参数
         """
-        environ.logger.info(f"Install apk url: {path_or_url}")
+        _logger.info(f"Install apk url: {path_or_url}")
         apk_path = environ.get_url_file(path_or_url).download()
-        environ.logger.info(f"Local apk path: {apk_path}")
+        _logger.debug(f"Local apk path: {apk_path}")
 
         remote_name = f"installed_{int(time.time())}.apk"
         remote_path = self.push_file(apk_path, self.get_data_path("apk"), remote_name, **kwargs)

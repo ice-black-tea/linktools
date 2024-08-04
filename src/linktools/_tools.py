@@ -28,11 +28,12 @@
 """
 
 import os
+import pathlib
 import pickle
 import shutil
 import sys
 import warnings
-from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Type, Optional, Generator
+from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Type, Generator
 
 from . import utils
 from .decorator import cached_property, timeoutable
@@ -180,7 +181,7 @@ class Tool(metaclass=ToolMeta):
     version: str = ToolProperty(default="", raw=True)
     depends_on: tuple = ToolProperty(default=[], internal=True)
     download_url: str = ToolProperty(default=__missing__)
-    target_path: bool = ToolProperty(default=__missing__, internal=True)
+    target_path: str = ToolProperty(default=__missing__, internal=True)
     root_path: str = ToolProperty(default=__missing__, internal=True)
     unpack_path: str = ToolProperty(default=__missing__, internal=True)
     absolute_path: str = ToolProperty(default=__missing__, internal=True)
@@ -330,10 +331,6 @@ class Tool(metaclass=ToolMeta):
         return True if self.absolute_path and os.path.exists(self.absolute_path) else False
 
     @property
-    def dirname(self) -> Optional[str]:
-        return None if not self.absolute_path else os.path.dirname(self.absolute_path)
-
-    @property
     def executable(self) -> bool:
         cmdline = self.executable_cmdline
         path = cmdline[0] if cmdline else ""
@@ -341,6 +338,14 @@ class Tool(metaclass=ToolMeta):
             if self.root_path == os.path.commonpath([self.root_path, path]):
                 return True
         return False
+
+    @cached_property
+    def stub(self) -> pathlib.Path:
+        return self._tools.stub / (
+            f"{self.name}.bat" if
+            self._tools.environ.system == "windows"
+            else f"{self.name}"
+        )
 
     def get(self, key: str, default: Any = None) -> Any:
         value = self.config.get(key, default)
@@ -377,12 +382,29 @@ class Tool(metaclass=ToolMeta):
                 os.makedirs(self.root_path, exist_ok=True)
                 shutil.move(temp_path, self.absolute_path)
 
+        if not os.access(self.stub, os.X_OK):
+            from linktools.cli.commands.common import tools as cmd
+            self._tools.logger.debug(f"Create stub {self.stub}")
+            self.stub.parent.mkdir(parents=True, exist_ok=True)
+            if utils.get_system() == "windows":
+                with open(self.stub, "wt") as fd:
+                    fd.write(f"@echo off\n")
+                    fd.write(f"{sys.executable} -m {cmd.__name__} --set cmdline='' {self.name} %*\n")
+            else:
+                with open(self.stub, "wt") as fd:
+                    fd.write(f"#!{shutil.which('sh')}\n")
+                    fd.write(f"{sys.executable} -m {cmd.__name__} --set cmdline='' {self.name} $@\n")
+            os.chmod(self.stub, 0o0755)
+
         # change tool file mode
         if self.executable and not os.access(self.absolute_path, os.X_OK):
             self._tools.logger.debug(f"Chmod 755 {self.absolute_path}")
             os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
+        if self.stub:
+            self._tools.logger.debug(f"Delete {self.stub}")
+            utils.ignore_error(os.remove, args=(self.stub,))
         if not self.exists:
             self._tools.logger.debug(f"{self} does not exist, skip")
             return
@@ -469,15 +491,9 @@ class Tools(object):
         self.config = environ.wrap_config(env_prefix="")
         self.all = self._parse_items(config)
 
-    @property
-    def env_path(self) -> List[str]:
-        paths = []
-        for tool in self:
-            if tool.executable:
-                path = tool.dirname
-                if path and path not in paths:
-                    paths.append(path)
-        return paths
+    @cached_property
+    def stub(self) -> pathlib.Path:
+        return self.environ.get_data_path("tools", "stub", utils.get_md5(sys.executable))
 
     def keys(self) -> Generator[str, None, None]:
         for k, v in self.all.items():
