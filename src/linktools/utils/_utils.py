@@ -569,37 +569,34 @@ def get_machine():
 
 if SYSTEM in ("darwin", "linux"):
 
+    import pwd
+
+
     def get_user(uid: int = None):
         """
         获取用户名，如果没有指定uid则返回当前用户名
         """
-        if uid is not None:
-            import pwd
-            return pwd.getpwuid(int(uid))
-        else:
-            return getpass.getuser()
+        return pwd.getpwuid(int(uid)) \
+            if uid is not None \
+            else getpass.getuser()
 
 
     def get_uid(user: str = None):
         """
         获取用户ID，如果没有指定用户则返回当前用户ID
         """
-        if user:
-            import pwd
-            return pwd.getpwnam(str(user)).pw_uid
-        else:
-            return os.getuid()
+        return pwd.getpwnam(str(user)).pw_uid \
+            if user is not None \
+            else os.getuid()
 
 
     def get_gid(user: str = None):
         """
         获取用户组ID，如果没有指定用户则返回当前用户组ID
         """
-        if user:
-            import pwd
-            return pwd.getpwnam(str(user)).pw_gid
-        else:
-            return os.getgid()
+        return pwd.getpwnam(str(user)).pw_gid \
+            if user is not None \
+            else os.getgid()
 
 
     def get_shell_path():
@@ -611,7 +608,6 @@ if SYSTEM in ("darwin", "linux"):
             if shell_path and os.path.exists(shell_path):
                 return shell_path
         try:
-            import pwd
             return pwd.getpwnam(get_user()).pw_shell
         except:
             return shutil.which("zsh") or shutil.which("bash") or shutil.which("sh")
@@ -620,21 +616,21 @@ elif SYSTEM in ("windows",):
 
     def get_user(uid: int = None):
         """
-        获取当前用户，固定为当前用户名
+        获取当前用户，windows固定为当前用户名
         """
         return getpass.getuser()
 
 
     def get_uid(user: str = None):
         """
-        获取用户ID，固定为0
+        获取用户ID，windows固定为0
         """
         return 0
 
 
     def get_gid(user: str = None):
         """
-        获取用户组ID，固定为0
+        获取用户组ID，windows固定为0
         """
         return 0
 
@@ -643,27 +639,42 @@ elif SYSTEM in ("windows",):
         """
         获取当前用户shell路径
         """
+        shell_path = shutil.which("powershell") or shutil.which("cmd")
+        if shell_path:
+            return shell_path
         if "ComSpec" in os.environ:
             shell_path = os.environ["ComSpec"]
             if shell_path and os.path.exists(shell_path):
                 return shell_path
-        return shutil.which("powershell") or shutil.which("cmd")
+        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
 
 else:
 
     def get_user(uid: int = None):
+        """
+        获取用户名，如果没有指定uid则返回当前用户名，windows固定为当前用户名
+        """
         raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
 
 
     def get_uid(user: str = None):
+        """
+        获取用户ID，如果没有指定用户则返回当前用户ID，windows固定为0
+        """
         raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
 
 
     def get_gid(user: str = None):
+        """
+        获取用户组ID，如果没有指定用户则返回当前用户组ID，windows固定为0
+        """
         raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
 
 
     def get_shell_path():
+        """
+        获取当前用户shell路径
+        """
         raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
 
 

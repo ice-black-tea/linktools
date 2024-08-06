@@ -57,9 +57,9 @@ class InitCommand(BaseCommandGroup):
             self.logger.warning(f"initialize adb failed: {e}")
 
         try:
-            from linktools.frida.android import AndroidFridaServer
+            from linktools.frida import FridaAndroidServer
             self.logger.info("initialize android frida server ...")
-            AndroidFridaServer.setup(abis=["arm", "arm64"])
+            FridaAndroidServer.setup(abis=["arm", "arm64"])
         except Exception as e:
             self.logger.warning(f"initialize android frida server failed: {e}")
 
@@ -171,8 +171,8 @@ class Command(BaseCommandGroup):
     @subcommand_argument("version", metavar="VERSION", nargs="?",
                          help="java version, such as 11.0.23 / 17.0.11 / 22.0.1")
     def on_java_home(self, version: str = None, shell: str = DEFAULT_SHELL):
-        from linktools.cli.commands.common import tools
-        cmdline = list2cmdline([sys.executable, "-m", tools.__name__, "java"])
+        from linktools.cli import stub
+        cmdline = list2cmdline([sys.executable, "-m", stub.__name__, "tool", "java"])
 
         java = self.environ.tools["java"]
         if version:
@@ -181,26 +181,22 @@ class Command(BaseCommandGroup):
         lines = []
         if shell in ("bash", "zsh"):
             lines.append(f"alias java='{cmdline}'")
-            lines.append(f"export JAVA_CMDLINE=''")
             lines.append(f"export JAVA_VERSION='{java.get('version')}'")
             lines.append(f"export JAVA_HOME='{java.get('home_path')}'")
             lines.append(f"export PATH=\"$JAVA_HOME/bin:$PATH\"")
         elif shell in ("fish",):
             lines.append(f"alias java '{cmdline}'")
-            lines.append(f"set -x JAVA_CMDLINE ''")
             lines.append(f"set -x JAVA_VERSION '{java.get('version')}'")
             lines.append(f"set -x JAVA_HOME '{java.get('home_path')}'")
             lines.append(f"set -x PATH \"$JAVA_HOME/bin\" \"$PATH\"")
         elif shell in ("tcsh",):
             lines.append(f"alias java '{cmdline}'")
-            lines.append(f"setenv JAVA_CMDLINE ''")
             lines.append(f"setenv JAVA_VERSION '{java.get('version')}'")
             lines.append(f"setenv JAVA_HOME '{java.get('home_path')}'")
             lines.append(f"setenv PATH \"$JAVA_HOME/bin:$PATH\"")
         elif shell in ("powershell",):
             lines.append(f"function __tool_java__ {{ {cmdline} $args }}")
             lines.append(f"Set-Alias -Name java -Value __tool_java__")
-            lines.append(f"$env:JAVA_CMDLINE=' '")
             lines.append(f"$env:JAVA_VERSION='{java.get('version')}'")
             lines.append(f"$env:JAVA_HOME='{java.get('home_path')}'")
             lines.append(f"$env:PATH=\"$env:JAVA_HOME\\bin;$env:PATH\"")
