@@ -7,14 +7,14 @@ import queue
 import shlex
 import subprocess
 import threading
-from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union, List
+from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union, List, Iterable
 
 from .._environ import environ
 from ..decorator import cached_property, timeoutable
 from ..types import TimeoutType
 
 
-def list2cmdline(args: List[str]) -> str:
+def list2cmdline(args: Iterable[str]) -> str:
     return subprocess.list2cmdline(args)
 
 

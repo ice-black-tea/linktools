@@ -300,7 +300,7 @@ class Tool(metaclass=ToolMeta):
 
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
-        if not utils.is_empty(cmdline):
+        if not utils.is_empty(cmdline) and cmdline != str(self.stub):
             config["absolute_path"] = cmdline
             config["executable_cmdline"] = [cmdline]
         else:
@@ -383,17 +383,18 @@ class Tool(metaclass=ToolMeta):
                 shutil.move(temp_path, self.absolute_path)
 
         if not os.access(self.stub, os.X_OK):
-            from linktools.cli.commands.common import tools as cmd
+            from linktools.cli import stub
             self._tools.logger.debug(f"Create stub {self.stub}")
             self.stub.parent.mkdir(parents=True, exist_ok=True)
+            cmdline = utils.list2cmdline([sys.executable, "-m", stub.__name__, "tool", self.name])
             if utils.get_system() == "windows":
                 with open(self.stub, "wt") as fd:
                     fd.write(f"@echo off\n")
-                    fd.write(f"{sys.executable} -m {cmd.__name__} --set cmdline='' {self.name} %*\n")
+                    fd.write(f"{cmdline} %*\n")
             else:
                 with open(self.stub, "wt") as fd:
                     fd.write(f"#!{shutil.which('sh')}\n")
-                    fd.write(f"{sys.executable} -m {cmd.__name__} --set cmdline='' {self.name} $@\n")
+                    fd.write(f"{cmdline} $@\n")
             os.chmod(self.stub, 0o0755)
 
         # change tool file mode
