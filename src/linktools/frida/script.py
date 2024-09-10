@@ -132,7 +132,7 @@ class FridaShareScript(FridaUserScript):
             # 如果是本地文件，直接就返回了
             if file.is_local:
                 _logger.info(f"Load local {self}")
-                source = utils.read_file(file.download(), text=True)
+                source = utils.read_file(file.save(), text=True)
                 return source
 
             # 判断是否需要情况缓存
@@ -140,7 +140,7 @@ class FridaShareScript(FridaUserScript):
                 file.clear()
 
             _logger.info(f"Download {self}")
-            dest_path = file.download()
+            dest_path = file.save()
 
             source = utils.read_file(dest_path, text=True)
             if self._trusted:

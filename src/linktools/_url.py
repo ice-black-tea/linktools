@@ -64,29 +64,10 @@ class UrlFile(metaclass=abc.ABCMeta):
         return False
 
     @timeoutable
-    def download(self, retry: int = 2, timeout: TimeoutType = None, **kwargs) -> str:
-        """
-        从指定url下载文件到临时目录
-        :param timeout: 超时时间
-        :param retry: 重试次数
-        :return: 文件路径
-        """
-        try:
-            self._acquire(timeout=timeout.remain)
-            local_path, local_name = self._download(retry, timeout, **kwargs)
-            return local_path
-        except DownloadError:
-            raise
-        except Exception as e:
-            raise DownloadError(e)
-        finally:
-            ignore_error(self._release)
-
-    @timeoutable
-    def save(self, dir: PathType, name: str = None, timeout: TimeoutType = None, retry: int = 2, **kwargs) -> str:
+    def save(self, dir: PathType = None, name: str = None, timeout: TimeoutType = None, retry: int = 2, **kwargs) -> str:
         """
         从指定url下载文件
-        :param dir: 文件路径
+        :param dir: 文件路径，如果为空，则会返回临时文件路径
         :param name: 文件名，如果为空，则默认为下载的文件名
         :param timeout: 超时时间
         :param retry: 重试次数
@@ -95,7 +76,9 @@ class UrlFile(metaclass=abc.ABCMeta):
         try:
             self._acquire(timeout=timeout.remain)
 
-            local_path, local_name = self._download(retry, timeout, **kwargs)
+            temp_path, temp_name = self._download(retry, timeout, **kwargs)
+            if not dir:
+                return temp_path
 
             # 先创建文件夹
             if not os.path.exists(dir):
@@ -103,9 +86,9 @@ class UrlFile(metaclass=abc.ABCMeta):
                 os.makedirs(dir, exist_ok=True)
 
             # 然后把文件保存到指定路径下
-            dest_path = os.path.join(dir, name or local_name)
-            self._environ.logger.debug(f"Copy {local_path} to {dest_path}")
-            shutil.copy(local_path, dest_path)
+            dest_path = os.path.join(dir, name or temp_name)
+            self._environ.logger.debug(f"Copy {temp_path} to {dest_path}")
+            shutil.copy(temp_path, dest_path)
 
             # 把文件移动到指定目录之后，就可以清理缓存文件了
             self.clear(timeout=timeout.remain)

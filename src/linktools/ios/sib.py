@@ -131,7 +131,7 @@ class Device(BaseDevice):
     @timeoutable
     def install(self, path_or_url: str, **kwargs) -> str:
         _logger.info(f"Install ipa url: {path_or_url}")
-        ipa_path = environ.get_url_file(path_or_url).download()
+        ipa_path = environ.get_url_file(path_or_url).save()
         _logger.debug(f"Local ipa path: {ipa_path}")
         return self.exec("app", "install", "--path", ipa_path, **kwargs)
 

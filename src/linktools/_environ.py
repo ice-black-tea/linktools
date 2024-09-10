@@ -156,13 +156,15 @@ class BaseEnviron(abc.ABC):
         """
         return utils.get_path(self.temp_path, *paths, create_parent=create_parent)
 
-    def clean_temp_files(self, expire_days: int = 7) -> None:
+    def clean_temp_files(self, *paths: str, expire_days: int = 7) -> None:
         """
         清理临时文件
         """
         current_time = time.time()
         target_time = current_time - expire_days * 24 * 60 * 60
-        for root, dirs, files in os.walk(self.temp_path, topdown=False):
+
+        temp_path = self.get_temp_path(*paths)
+        for root, dirs, files in os.walk(temp_path, topdown=False):
             for name in files:
                 path = os.path.join(root, name)
                 last_time = max(
@@ -186,7 +188,7 @@ class BaseEnviron(abc.ABC):
                         shutil.rmtree(path, ignore_errors=True)
 
     @cached_classproperty
-    def _log_manager(self) -> logging.Manager:
+    def _log_manager(self) -> "logging.Manager":
 
         empty_args = tuple()
 
@@ -223,13 +225,13 @@ class BaseEnviron(abc.ABC):
         return LogManager(logging.root.manager)
 
     @cached_property
-    def logger(self) -> logging.Logger:
+    def logger(self) -> "logging.Logger":
         """
         模块根logger
         """
         return self._log_manager.getLogger(self.name)
 
-    def get_logger(self, name: str = None) -> logging.Logger:
+    def get_logger(self, name: str = None) -> "logging.Logger":
         """
         获取模块名作为前缀的logger
         """

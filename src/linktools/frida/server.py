@@ -262,7 +262,7 @@ class FridaAndroidServer(FridaServer):
             with environ.get_url_file(self.url) as file:
                 if os.path.exists(self.path):
                     return
-                temp_path = file.download()
+                temp_path = file.save()
                 temp_name = utils.guess_file_name(self.url)
                 if temp_name.endswith(".xz"):
                     with lzma.open(temp_path, "rb") as read, open(self.path, "wb") as write:

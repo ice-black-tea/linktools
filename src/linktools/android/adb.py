@@ -201,7 +201,7 @@ class Device(BaseDevice):
         :param opts: 安装参数
         """
         _logger.info(f"Install apk url: {path_or_url}")
-        apk_path = environ.get_url_file(path_or_url).download()
+        apk_path = environ.get_url_file(path_or_url).save()
         _logger.debug(f"Local apk path: {apk_path}")
 
         remote_name = f"installed_{int(time.time())}.apk"

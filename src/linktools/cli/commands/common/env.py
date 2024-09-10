@@ -207,7 +207,7 @@ class Command(BaseCommandGroup):
     @subcommand("clean", help="clean temporary files")
     @subcommand_argument("days", metavar="DAYS", nargs="?", help="expire days")
     def on_clean(self, days: int = 7):
-        self.environ.clean_temp_files(days)
+        self.environ.clean_temp_files(expire_days=days)
 
 
 command = Command()
