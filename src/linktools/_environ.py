@@ -333,13 +333,16 @@ class BaseEnviron(abc.ABC):
             tool = tool.copy(**kwargs)
         return tool
 
-    def get_url_file(self, url: str) -> "UrlFile":
+    def get_url_file(self, url: "PathType") -> "UrlFile":
         """
         获取指定url
         :param url: url地址
         :return: UrlFile对象
         """
         from ._url import HttpFile, LocalFile
+
+        if not isinstance(url, str):
+            url = str(url)
 
         if url.startswith("http://") or url.startswith("https://"):
             return HttpFile(self, url)

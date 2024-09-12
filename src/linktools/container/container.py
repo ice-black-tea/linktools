@@ -450,9 +450,9 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def render_template(self, source: PathType, destination: PathType = None, **kwargs: Any):
         config = self.manager.config
 
-        def mkdir(path: PathType, mode: int = 0o755) -> str:
+        def mkdir(path: PathType) -> str:
             path = config.cast(path, type="path")
-            self.start_hooks.append(lambda: os.makedirs(path, mode=mode, exist_ok=True))
+            self.start_hooks.append(lambda: os.makedirs(path, mode=0o755, exist_ok=True))
             return path
 
         def chown(path: PathType, user: str = None) -> str:
@@ -460,6 +460,11 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
             if user:
                 uid, gid = utils.get_uid(user), utils.get_gid(user)
                 self.start_hooks.append(lambda: self.manager.change_file_owner(path, uid, gid))
+            return path
+
+        def chmod(path: PathType, mode: int = 0o755) -> str:
+            path = config.cast(path, type="path")
+            self.start_hooks.append(lambda: os.chmod(path, mode))
             return path
 
         context = {
@@ -484,6 +489,7 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
 
             mkdir=mkdir,
             chown=chown,
+            chmod=chmod,
         )
 
         context.update(kwargs)
@@ -491,7 +497,8 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         environment = Environment()
         environment.filters.update(
             mkdir=mkdir,
-            chown=chown
+            chown=chown,
+            chmod=chmod,
         )
 
         try:
