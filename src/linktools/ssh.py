@@ -206,6 +206,12 @@ class SSHClient(paramiko.SSHClient):
                 yield scp
 
     def forward(self, forward_host: str, forward_port: int, local_port: int = None):
+        """
+        :param forward_host: The host to forward to.
+        :param forward_port: The port to forward to.
+        :param local_port: The local port to listen on.
+        :return: A Stoppable object.
+        """
 
         if local_port is None:
             local_port = utils.pick_unused_port(range(20000, 30000))
@@ -310,6 +316,12 @@ class SSHClient(paramiko.SSHClient):
         return Forward()
 
     def reverse(self, forward_host: str, forward_port: int, remote_port: int = None):
+        """
+        :param forward_host: The host to forward to.
+        :param forward_port: The port to forward to.
+        :param remote_port: The remote port to listen on.
+        :return: A Stoppable object.
+        """
 
         channels = []
         lock = threading.RLock()

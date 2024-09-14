@@ -12,7 +12,8 @@ from .. import utils
 from .._environ import environ
 from ..decorator import cached_property, timeoutable
 from ..device import BridgeError, Bridge, BaseDevice
-from ..types import Stoppable
+from ..types import Stoppable, TimeoutType
+from ..utils import list2cmdline
 
 if TYPE_CHECKING:
     DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
@@ -238,39 +239,31 @@ class Device(BaseDevice):
 
         return Forward()
 
-    def reverse(self, remote_port: int, local_port: int, *,
-                ssh_port: int = 22, ssh_username: str = "root"):
-
+    def ssh(self, port: int = 22, username: str = "root", password: str = None):
         import paramiko
         from linktools.ssh import SSHClient
 
         forward = self.forward(
             local_port=utils.pick_unused_port(range(20000, 30000)),
-            remote_port=ssh_port,
+            remote_port=port,
         )
 
-        ssh_client = SSHClient()
+        class Client(SSHClient):
+
+            def close(self):
+                super().close()
+                forward.stop()
+
+        ssh_client = Client()
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh_client.connect_with_pwd(
             "localhost",
             port=forward.local_port,
-            username=ssh_username,
-        )
-        reverse = ssh_client.reverse(
-            forward_host="localhost",
-            forward_port=local_port,
-            remote_port=remote_port
+            username=username,
+            password=password,
         )
 
-        class Reverse(Stoppable):
-            local_port = property(lambda self: local_port)
-            remote_port = property(lambda self: reverse.remote_port)
-
-            def stop(self):
-                reverse.stop()
-                forward.stop()
-
-        return Reverse()
+        return ssh_client
 
     def __repr__(self):
         return f"SibDevice<{self.id}>"

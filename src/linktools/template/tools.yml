@@ -275,7 +275,7 @@ TOOL_COMPACT_DEX_CONVERTER:
 # sib
 ############################################################################################
 TOOL_SIB:
-  version: '1.3.20-20240910'
+  version: '1.3.20-20240914'
   download_url:
     when:
       - system: darwin
