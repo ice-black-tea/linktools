@@ -13,8 +13,9 @@ class Objects {
     }
 }
 
-const o = new Objects();
+export const o = new Objects();
 
+const $moduleMap = new ModuleMap();
 const $nativeFunctionCaches = {};
 const $debugSymbolAddressCaches: { [key: string]: DebugSymbol; } = {};
 
@@ -155,6 +156,8 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
         this.method = true;
         this.thread = false;
         this.stack = false;
+        this.symbol = true;
+        this.backtracer = "accurate";
         this.args = false;
         this.extras = {};
         for (const key in options) {
@@ -195,13 +198,12 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
             throw e;
         } finally {
             if (opts.stack !== false) {
-                const stack = [];
-                const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                const stack = event["stack"] = [];
+                const backtracer = opts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
                 const elements = Thread.backtrace(this.context, backtracer);
                 for (let i = 0; i < elements.length; i++) {
-                    stack.push(getDebugSymbolFromAddress(elements[i]).toString());
+                    stack.push(getDescFromAddress(elements[i], opts.symbol !== false));
                 }
-                event["stack"] = stack;
             }
             Log.event(event);
         }
@@ -222,13 +224,12 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
             event["result"] = pretty2Json(ret);
         }
         if (opts.stack !== false) {
-            const stack = [];
-            const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+            const stack = event["stack"] = [];
+            const backtracer = opts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
             const elements = Thread.backtrace(this.context, backtracer);
             for (let i = 0; i < elements.length; i++) {
-                stack.push(getDebugSymbolFromAddress(elements[i]).toString());
+                stack.push(getDescFromAddress(elements[i], opts.symbol !== false));
             }
-            event["stack"] = stack;
         }
         Log.event(event);
     }
@@ -242,4 +243,18 @@ export function getDebugSymbolFromAddress(pointer: NativePointer): DebugSymbol {
         $debugSymbolAddressCaches[key] = DebugSymbol.fromAddress(pointer);
     }
     return $debugSymbolAddressCaches[key];
+}
+
+export function getDescFromAddress(pointer: NativePointer, symbol: boolean) {
+    if (symbol) {
+        const debugSymbol = getDebugSymbolFromAddress(pointer);
+        if (debugSymbol != null) {
+            return debugSymbol.toString();
+        }
+    }
+    const module = $moduleMap.find(pointer);
+    if (module != null) {
+        return `${pointer} ${module.name}!${pointer.sub(module.base)}`;
+    }
+    return `${pointer}`;
 }

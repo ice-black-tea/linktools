@@ -79,6 +79,8 @@ export function getEventImpl(options: HookOpts): HookImpl {
         this.method = true;
         this.thread = false;
         this.stack = false;
+        this.symbol = true;
+        this.backtracer = "accurate";
         this.args = false;
         this.extras = {};
         for (const key in options) {
@@ -127,13 +129,12 @@ export function getEventImpl(options: HookOpts): HookImpl {
             throw e;
         } finally {
             if (opts.stack !== false) {
-                const stack = [];
-                const backtracer = opts.stack !== "fuzzy" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                const stack = event["stack"] = [];
+                const backtracer = opts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
                 const elements = Thread.backtrace(this.context, backtracer);
                 for (let i = 0; i < elements.length; i++) {
-                    stack.push(c.getDebugSymbolFromAddress(elements[i]).toString());
+                    stack.push(c.getDescFromAddress(elements[i], opts.symbol !== false));
                 }
-                event["stack"] = stack;
             }
             Log.event(event);
         }
