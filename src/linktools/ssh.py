@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import contextlib
 import getpass
+import logging
 import os
 import select
 import socket
@@ -9,7 +10,7 @@ import sys
 import threading
 
 import paramiko
-from paramiko.ssh_exception import AuthenticationException, SSHException
+from paramiko.ssh_exception import AuthenticationException
 from scp import SCPClient
 
 from . import utils
@@ -25,8 +26,15 @@ except ImportError:
 
 _logger = environ.get_logger("ssh")
 
+_channel_logger = environ.get_logger("ssh.critical")
+_channel_logger.setLevel(logging.CRITICAL)
+
 
 class SSHClient(paramiko.SSHClient):
+
+    def __init__(self):
+        super().__init__()
+        self.set_log_channel(_channel_logger.name)
 
     def connect_with_pwd(self, hostname, port=22, username=None, password=None, **kwargs):
         if username is None:
@@ -40,9 +48,10 @@ class SSHClient(paramiko.SSHClient):
                 password=password,
                 **kwargs
             )
-        except SSHException:
-
-            if password is not None:
+        except AuthenticationException:
+            if password is None:
+                _logger.debug("Authentication failed, try to input password.")
+            else:
                 raise
 
             transport = self.get_transport()
@@ -64,10 +73,11 @@ class SSHClient(paramiko.SSHClient):
                     auth_exception = None
                     break
                 except AuthenticationException as e:
+                    _logger.warning(f"Authentication (password) failed.")
                     auth_exception = e
 
             if auth_exception is not None:
-                raise auth_exception
+                raise auth_exception from None
 
     def open_shell(self, *args: any):
         if len(args) > 0:

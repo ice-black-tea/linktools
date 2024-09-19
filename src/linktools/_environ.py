@@ -142,19 +142,25 @@ class BaseEnviron(abc.ABC):
         """
         if self.root_path == NotImplemented:
             raise RuntimeError("root_path not implemented")
-        return utils.get_path(self.root_path, *paths)
+        return utils.join_path(self.root_path, *paths)
 
     def get_data_path(self, *paths: str, create_parent: bool = False) -> Path:
         """
         获取数据目录下的子路径
         """
-        return utils.get_path(self.data_path, *paths, create_parent=create_parent)
+        path = utils.join_path(self.data_path, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def get_temp_path(self, *paths: str, create_parent: bool = False) -> Path:
         """
         获取临时文件目录下的子路径
         """
-        return utils.get_path(self.temp_path, *paths, create_parent=create_parent)
+        path = utils.join_path(self.temp_path, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def clean_temp_files(self, *paths: str, expire_days: int = 7) -> None:
         """

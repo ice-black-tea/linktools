@@ -342,49 +342,37 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         ).call()
 
     def get_path(self, *paths: str) -> Path:
-        return utils.get_path(
-            self.root_path,
-            *paths
-        )
+        return utils.join_path(self.root_path, *paths)
 
     def get_app_path(self, *paths: str, create_parent: bool = False) -> Path:
-        return utils.get_path(
-            self.manager.app_path,
-            self.name,
-            *paths,
-            create_parent=create_parent
-        )
+        path = utils.join_path(self.manager.app_path, self.name, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def get_app_data_path(self, *paths: str, create_parent: bool = False) -> Path:
-        return utils.get_path(
-            self.manager.app_data_path,
-            self.name,
-            *paths,
-            create_parent=create_parent
-        )
+        path = utils.join_path(self.manager.app_data_path, self.name, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def get_user_data_path(self, *paths: str, create_parent: bool = False) -> Path:
-        return utils.get_path(
-            self.manager.user_data_path,
-            *paths,
-            create_parent=create_parent
-        )
+        path = utils.join_path(self.manager.user_data_path, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def get_download_path(self, *paths: str, create_parent: bool = False) -> Path:
-        return utils.get_path(
-            self.manager.download_path,
-            *paths,
-            create_parent=create_parent
-        )
+        path = utils.join_path(self.manager.download_path, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def get_temp_path(self, *paths: str, create_parent: bool = False) -> Path:
-        return utils.get_path(
-            self.manager.temp_path,
-            "container",
-            self.name,
-            *paths,
-            create_parent=create_parent
-        )
+        path = utils.join_path(self.manager.temp_path, "container", self.name, *paths)
+        if create_parent:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def choose_service(self) -> Optional[Dict[str, Any]]:
         services = list(self.services.values())
@@ -402,31 +390,17 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
     def get_docker_compose_file(self) -> Optional[Path]:
         destination = None
         if self.docker_compose:
-            destination = utils.get_path(
-                self.manager.temp_path,
-                "compose",
-                f"{self.name}.yml",
-                create_parent=True,
-            )
-            utils.write_file(
-                destination,
-                yaml.dump(self.docker_compose)
-            )
+            destination = utils.join_path(self.manager.temp_path, "compose", f"{self.name}.yml")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            utils.write_file(destination, yaml.dump(self.docker_compose))
         return destination
 
     def get_docker_file_path(self) -> Optional[Path]:
         destination = None
         if self.docker_file:
-            destination = utils.get_path(
-                self.manager.temp_path,
-                "dockerfile",
-                f"{self.name}.Dockerfile",
-                create_parent=True,
-            )
-            utils.write_file(
-                destination,
-                self.docker_file
-            )
+            destination = utils.join_path(self.manager.temp_path, "dockerfile", f"{self.name}.Dockerfile")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            utils.write_file(destination, self.docker_file)
         return destination
 
     def get_docker_context_path(self) -> Path:

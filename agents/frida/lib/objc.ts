@@ -6,7 +6,17 @@
 import * as Log from "./log"
 import * as c from "./c"
 
-type HookOpts = { [name: string]: any; }
+type HookOpts = {
+    method?: boolean;
+    thread?: boolean;
+    stack?: boolean;
+    symbol?: boolean;
+    backtracer?: "accurate" | "fuzzy";
+    args?: boolean;
+    extras?: {
+        [name: string]: any
+    };
+}
 type HookImpl = (obj: any, args: any[]) => any;
 
 /**
@@ -75,39 +85,36 @@ export function hookMethods(
  * @returns hook实现
  */
 export function getEventImpl(options: HookOpts): HookImpl {
-    const opts = new function () {
-        this.method = true;
-        this.thread = false;
-        this.stack = false;
-        this.symbol = true;
-        this.backtracer = "accurate";
-        this.args = false;
-        this.extras = {};
-        for (const key in options) {
-            if (key in this) {
-                this[key] = options[key];
-            } else {
-                this.extras[key] = options[key];
-            }
+    const hookOpts: HookOpts = {};
+    hookOpts.method = parseBoolean(options.method, true);
+    hookOpts.thread = parseBoolean(options.thread, false);
+    hookOpts.stack = parseBoolean(options.stack, false);
+    hookOpts.symbol = parseBoolean(options.symbol, true);
+    hookOpts.backtracer = options.backtracer || "accurate";
+    hookOpts.args = parseBoolean(options.args, false);
+    hookOpts.extras = {};
+    if (options.extras != null) {
+        for (let i in options.extras) {
+            hookOpts.extras[i] = options.extras[i];
         }
-    };
+    }
 
     return function (obj, args) {
 
         const event = {};
-        for (const key in opts.extras) {
-            event[key] = opts.extras[key];
+        for (const key in hookOpts.extras) {
+            event[key] = hookOpts.extras[key];
         }
-        if (opts.method !== false) {
+        if (hookOpts.method !== false) {
             event["class_name"] = new ObjC.Object(obj).$className
             event["method_name"] = this.name;
             event["method_simple_name"] = this.methodName;
         }
-        if (opts.thread !== false) {
+        if (hookOpts.thread !== false) {
             event["thread_id"] = Process.getCurrentThreadId();
             event["thread_name"] = ObjC.classes.NSThread.currentThread().name().toString()
         }
-        if (opts.args !== false) {
+        if (hookOpts.args !== false) {
             const objectArgs = []
             for (let i = 0; i < args.length; i++) {
                 objectArgs.push(convert2ObjcObject(args[i]));
@@ -118,22 +125,22 @@ export function getEventImpl(options: HookOpts): HookImpl {
         }
         try {
             const result = this(obj, args);
-            if (opts.args !== false) {
+            if (hookOpts.args !== false) {
                 event["result"] = pretty2Json(convert2ObjcObject(result));
             }
             return result;
         } catch (e) {
-            if (opts.args !== false) {
+            if (hookOpts.args !== false) {
                 event["error"] = pretty2Json(e);
             }
             throw e;
         } finally {
-            if (opts.stack !== false) {
+            if (hookOpts.stack !== false) {
                 const stack = event["stack"] = [];
-                const backtracer = opts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                const backtracer = hookOpts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
                 const elements = Thread.backtrace(this.context, backtracer);
                 for (let i = 0; i < elements.length; i++) {
-                    stack.push(c.getDescFromAddress(elements[i], opts.symbol !== false));
+                    stack.push(c.getDescFromAddress(elements[i], hookOpts.symbol !== false));
                 }
             }
             Log.event(event);
@@ -251,9 +258,7 @@ function $defineMethodProperties(clazz: ObjC.Object, method: ObjC.ObjectMethod):
  */
 function $hookMethod(method: ObjC.ObjectMethod, impl: HookImpl | HookOpts = null): void {
     if (impl != null) {
-        if (!isFunction(impl)) {
-            impl = getEventImpl(impl);
-        }
+        const hookImpl = isFunction(impl) ? impl as HookImpl : getEventImpl(impl as HookOpts);
         method.implementation = ObjC.implement(method, function () {
             const self = this;
             const args = Array.prototype.slice.call(arguments);
@@ -272,7 +277,7 @@ function $hookMethod(method: ObjC.ObjectMethod, impl: HookImpl | HookOpts = null
                     return target["origImplementation"].apply(null, [].concat(obj, sel, args));
                 }
             });
-            return impl.call(proxy, obj, args);
+            return hookImpl.call(proxy, obj, args);
         });
         Log.i("Hook method: " + method);
     } else {

@@ -24,8 +24,16 @@
 
 import * as Log from "./log"
 
-type HookOpts = { [name: string]: any; }
-type HookImpl<T extends Java.Members<T>> = ((obj: Java.Wrapper<T>, args: any[]) => any);
+type HookOpts = {
+    method?: boolean;
+    thread?: boolean;
+    stack?: boolean;
+    args?: boolean;
+    extras?: {
+        [name: string]: any
+    };
+}
+type HookImpl<T extends Java.Members<T>> = (obj: Java.Wrapper<T>, args: any[]) => any;
 
 class Objects {
 
@@ -343,36 +351,33 @@ export function hookClass<T extends Java.Members<T> = {}>(
  * @returns hook实现
  */
 export function getEventImpl<T extends Java.Members<T> = {}>(options: HookOpts): HookImpl<T> {
-    const opts = new function () {
-        this.method = true;
-        this.thread = false;
-        this.stack = false;
-        this.args = false;
-        this.extras = {};
-        for (const key in options) {
-            if (key in this) {
-                this[key] = options[key];
-            } else {
-                this.extras[key] = options[key];
-            }
+    const hookOpts: HookOpts = {};
+    hookOpts.method = parseBoolean(options.method, true);
+    hookOpts.thread = parseBoolean(options.thread, false);
+    hookOpts.stack = parseBoolean(options.stack, false);
+    hookOpts.args = parseBoolean(options.args, false);
+    hookOpts.extras = {};
+    if (options.extras != null) {
+        for (let i in options.extras) {
+            hookOpts.extras[i] = options.extras[i];
         }
-    };
+    }
 
     return function (obj, args) {
         const event = {};
-        for (const key in opts.extras) {
-            event[key] = opts.extras[key];
+        for (const key in hookOpts.extras) {
+            event[key] = hookOpts.extras[key];
         }
-        if (opts.method !== false) {
+        if (hookOpts.method !== false) {
             event["class_name"] = obj.$className;
             event["method_name"] = this.name;
             event["method_simple_name"] = this.methodName;
         }
-        if (opts.thread !== false) {
+        if (hookOpts.thread !== false) {
             event["thread_id"] = Process.getCurrentThreadId();
             event["thread_name"] = o.threadClass.currentThread().getName();
         }
-        if (opts.args !== false) {
+        if (hookOpts.args !== false) {
             event["args"] = pretty2Json(args);
             event["result"] = null;
             event["error"] = null;
@@ -380,17 +385,17 @@ export function getEventImpl<T extends Java.Members<T> = {}>(options: HookOpts):
 
         try {
             const result = this(obj, args);
-            if (opts.args !== false) {
+            if (hookOpts.args !== false) {
                 event["result"] = pretty2Json(result);
             }
             return result;
         } catch (e) {
-            if (opts.args !== false) {
+            if (hookOpts.args !== false) {
                 event["error"] = pretty2Json(e);
             }
             throw e;
         } finally {
-            if (opts.stack !== false) {
+            if (hookOpts.stack !== false) {
                 event["stack"] = pretty2Json(getStackTrace());
             }
             Log.event(event);
@@ -849,11 +854,9 @@ function $hookMethod<T extends Java.Members<T> = {}>(
                 return target.apply(obj, args);
             }
         });
-        if (!isFunction(impl)) {
-            impl = getEventImpl(impl);
-        }
+        const hookImpl = isFunction(impl) ? impl as HookImpl<T> : getEventImpl(impl as HookOpts);
         method.implementation = function () {
-            return impl.call(proxy, this, Array.prototype.slice.call(arguments));
+            return hookImpl.call(proxy, this, Array.prototype.slice.call(arguments));
         };
         Log.i("Hook method: " + method);
     } else {

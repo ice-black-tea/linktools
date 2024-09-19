@@ -21,8 +21,8 @@ from .script import FridaUserScript, FridaEvalCode, FridaScriptFile
 from .server import FridaServer
 from .. import utils, environ
 from ..decorator import timeoutable
-from ..reactor import Reactor
 from ..metadata import __release__
+from ..reactor import Reactor
 from ..types import TimeoutType, Event
 
 if TYPE_CHECKING:
@@ -104,7 +104,7 @@ class FridaScript(utils.get_derived_type(Script)):  # proxy for frida.core.Scrip
         return self._session
 
     @property
-    def exports_sync(self):
+    def exports_sync(self) -> "frida.core.ScriptExportsSync":
         if hasattr(self.__super__, "exports_sync"):
             return self.__super__.exports_sync
         return self.__super__.exports
@@ -767,11 +767,13 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         session = self._attach_session(process_id, process_name)
         self._unload_script(session)
 
-        kw = {}
+        kwargs = {}
         if utils.parse_version(frida.__version__) < (14,):
-            kw["runtime"] = "v8"
-        script = session.create_script(self._internal_script.source, **kw)
-        script = FridaScript(session, script)
+            kwargs["runtime"] = "v8"
+        script = FridaScript(
+            session,
+            session.create_script(self._internal_script.source, **kwargs)
+        )
         self._manager.add_script_handler(script, self)
 
         try:
@@ -890,6 +892,13 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         for session in self.sessions.values():
             self.load_script(session.pid)
 
+    def _resume(self, process_id: int, process_name: str):
+        try:
+            # 可能ios设备可能会出错: https://github.com/frida/frida-core/issues/462
+            self.device.resume(process_id)
+        except Exception as e:
+            _logger.warning(f"Resume process `{process_name}` with pid {process_id} failed: {e}")
+
     def on_spawn_added(self, spawn: "_frida.Spawn"):
         """
         spaw进程添加回调，默认resume所有spawn进程
@@ -902,10 +911,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
                 if identifier.search(spawn.identifier):
                     self.load_script(spawn.pid, spawn.identifier, resume=True)
                     return
-        try:
-            self.device.resume(spawn.pid)
-        except Exception as e:
-            _logger.error(f"{e}")
+        self._reactor.schedule(lambda: self._resume(spawn.pid, spawn.identifier))
 
     def on_child_added(self, child: "_frida.Child"):
         """
@@ -913,7 +919,13 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         :param child: 子进程信息
         """
         _logger.debug(f"{child} added")
-        self.device.resume(child.pid)
+
+        if child and child.identifier:
+            for identifier in self._target_identifiers:
+                if identifier.search(child.identifier):
+                    self.load_script(child.pid, child.identifier, resume=True)
+                    return
+        self._reactor.schedule(lambda: self._resume(child.pid, child.identifier))
 
     def on_script_loaded(self, script: FridaScript):
         """
@@ -929,17 +941,20 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         :param event: 事件消息
         :param data: 事件数据
         """
-        group = FridaEventCounter.Group(accept_empty=False)
-        count = self._event_counter.increase(
-            group.add(
+        pid_count = self._event_counter.increase(
+            FridaEventCounter.Group(accept_empty=False).add(
+                pid=script.session.pid,
+            )
+        )
+        pid_method_count = self._event_counter.increase(
+            FridaEventCounter.Group(accept_empty=False).add(
                 pid=script.session.pid,
                 method=utils.get_item(event, "method_name"),
             )
         )
-
         # 日志展示当前进程当前方法一共出现的次数和具体详情
         _logger.info(
-            f"{script} event count={count} {os.linesep}"
+            f"{script} event pid@index={pid_count} pid+method@index={pid_method_count} {os.linesep}"
             f"{json.dumps(event, indent=2, ensure_ascii=False)}",
         )
 

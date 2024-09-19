@@ -397,7 +397,9 @@ Java.perform(function () {
             stack: true,                            // 打印堆栈
             args: true,                             // 打印参数返回值
             thread: false,
-            customKey1: "自定义参数",                 // 自定义参数，会回显日志中
+            extras: {                               // 自定义参数，会回显日志中
+                customKey1: "自定义参数",
+            }
         })
     );
     

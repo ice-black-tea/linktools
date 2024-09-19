@@ -106,7 +106,12 @@ class Command(BaseCommandGroup):
             self.logger.warning("argcomplete module not found")
             return
 
-        path = self.environ.get_data_path("scripts", f"completion_{self.environ.version}", create_parent=True)
+        path = self.environ.get_data_path(
+            "scripts",
+            utils.get_md5(sys.executable),
+            f"completion_{self.environ.version}",
+            create_parent=True
+        )
         if not sync and os.path.exists(path):
             self.logger.info(f"Found complete script: {path}")
             print(utils.read_file(path, text=True), flush=True)
@@ -134,7 +139,12 @@ class Command(BaseCommandGroup):
                          choices=["bash", "zsh", "tcsh", "fish", "powershell"])
     @subcommand_argument("--sync", action="store_true", help="sync alias script")
     def on_alias(self, shell: str = DEFAULT_SHELL, sync: bool = False):
-        path = self.environ.get_data_path("scripts", f"alias_{self.environ.version}", create_parent=True)
+        path = self.environ.get_data_path(
+            "scripts",
+            utils.get_md5(sys.executable),
+            f"alias_{self.environ.version}",
+            create_parent=True
+        )
         if not sync and os.path.exists(path):
             self.logger.info(f"Found alias script: {path}")
             print(utils.read_file(path, text=True), flush=True)

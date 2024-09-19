@@ -297,7 +297,7 @@ def gzip_compress(data: Union[str, bytes]) -> bytes:
     return gzip.compress(data)
 
 
-def get_path(root_path: PathType, *paths: [str], create_parent: bool = False) -> Path:
+def join_path(root_path: PathType, *paths: [str]) -> Path:
     target_path = Path(root_path)
     for path in paths:
         parent_path = target_path
@@ -306,8 +306,6 @@ def get_path(root_path: PathType, *paths: [str], create_parent: bool = False) ->
             target_path.relative_to(parent_path)
         except ValueError:
             raise Exception(f"Unsafe path \"{path}\"")
-    if create_parent:
-        target_path.parent.mkdir(parents=True, exist_ok=True)
     return target_path
 
 

@@ -494,7 +494,11 @@ class Tools(object):
 
     @cached_property
     def stub(self) -> pathlib.Path:
-        return self.environ.get_data_path("tools", "stub", utils.get_md5(sys.executable))
+        return self.environ.get_data_path(
+            "tool",
+            f"stub_v{self.environ.version}",
+            utils.get_md5(sys.executable)
+        )
 
     def keys(self) -> Generator[str, None, None]:
         for k, v in self.all.items():

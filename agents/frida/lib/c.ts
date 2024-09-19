@@ -4,8 +4,18 @@
 
 import * as Log from "./log"
 
-type HookOpts = { [name: string]: any; }
-type HookImpl = ((args: any[]) => any);
+type HookOpts = {
+    method?: boolean;
+    thread?: boolean;
+    stack?: boolean;
+    symbol?: boolean;
+    backtracer?: "accurate" | "fuzzy";
+    args?: boolean;
+    extras?: {
+        [name: string]: any
+    };
+}
+type HookImpl = (args: any[]) => any;
 
 class Objects {
     get dlopen(): NativeFunction<NativePointer, [NativePointerValue, number]> {
@@ -114,10 +124,8 @@ export function hookFunction<RetType extends NativeFunctionReturnType, ArgTypes 
     if (func === null) {
         throw Error("cannot find " + exportName);
     }
-    if (!isFunction(impl)) {
-        impl = getEventImpl(impl);
-    }
 
+    const hookImpl = isFunction(impl) ? impl as HookImpl : getEventImpl(impl as HookOpts);
     const callbackArgTypes: any = argTypes;
     Interceptor.replace(func, new NativeCallback(function () {
         const self: any = this;
@@ -140,7 +148,7 @@ export function hookFunction<RetType extends NativeFunctionReturnType, ArgTypes 
                 return f.apply(null, argArray[0]);
             }
         });
-        return impl.call(proxy, targetArgs);
+        return hookImpl.call(proxy, targetArgs);
     }, retType, callbackArgTypes));
 
     Log.i("Hook function: " + exportName + " (" + func + ")");
@@ -152,57 +160,54 @@ export function hookFunction<RetType extends NativeFunctionReturnType, ArgTypes 
  * @returns hook实现
  */
 export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & HookImpl {
-    const opts = new function () {
-        this.method = true;
-        this.thread = false;
-        this.stack = false;
-        this.symbol = true;
-        this.backtracer = "accurate";
-        this.args = false;
-        this.extras = {};
-        for (const key in options) {
-            if (key in this) {
-                this[key] = options[key];
-            } else {
-                this.extras[key] = options[key];
-            }
+    const hookOpts: HookOpts = {};
+    hookOpts.method = parseBoolean(options.method, true);
+    hookOpts.thread = parseBoolean(options.thread, false);
+    hookOpts.stack = parseBoolean(options.stack, false);
+    hookOpts.symbol = parseBoolean(options.symbol, true);
+    hookOpts.backtracer = options.backtracer || "accurate";
+    hookOpts.args = parseBoolean(options.args, false);
+    hookOpts.extras = {};
+    if (options.extras != null) {
+        for (let i in options.extras) {
+            hookOpts.extras[i] = options.extras[i];
         }
-    };
+    }
 
     const result = function (args) {
         const event = {};
-        for (const key in opts.extras) {
-            event[key] = opts.extras[key];
+        for (const key in hookOpts.extras) {
+            event[key] = hookOpts.extras[key];
         }
-        if (opts.method !== false) {
+        if (hookOpts.method !== false) {
             event["method_name"] = this.name;
         }
-        if (opts.thread !== false) {
+        if (hookOpts.thread !== false) {
             event["thread_id"] = Process.getCurrentThreadId();
         }
-        if (opts.args !== false) {
+        if (hookOpts.args !== false) {
             event["args"] = pretty2Json(args);
             event["result"] = null;
             event["error"] = null;
         }
         try {
             const result = this(args);
-            if (opts.args !== false) {
+            if (hookOpts.args !== false) {
                 event["result"] = pretty2Json(result);
             }
             return result;
         } catch (e) {
-            if (opts.args !== false) {
+            if (hookOpts.args !== false) {
                 event["error"] = pretty2Json(e);
             }
             throw e;
         } finally {
-            if (opts.stack !== false) {
+            if (hookOpts.stack !== false) {
                 const stack = event["stack"] = [];
-                const backtracer = opts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+                const backtracer = hookOpts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
                 const elements = Thread.backtrace(this.context, backtracer);
                 for (let i = 0; i < elements.length; i++) {
-                    stack.push(getDescFromAddress(elements[i], opts.symbol !== false));
+                    stack.push(getDescFromAddress(elements[i], hookOpts.symbol !== false));
                 }
             }
             Log.event(event);
@@ -211,24 +216,24 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
 
     result["onLeave"] = function (ret) {
         const event = {};
-        for (const key in opts.extras) {
-            event[key] = opts.extras[key];
+        for (const key in hookOpts.extras) {
+            event[key] = hookOpts.extras[key];
         }
-        if (opts.method !== false) {
+        if (hookOpts.method !== false) {
             event["method_name"] = this.name;
         }
-        if (opts.thread !== false) {
+        if (hookOpts.thread !== false) {
             event["thread_id"] = Process.getCurrentThreadId();
         }
-        if (opts.args !== false) {
+        if (hookOpts.args !== false) {
             event["result"] = pretty2Json(ret);
         }
-        if (opts.stack !== false) {
+        if (hookOpts.stack !== false) {
             const stack = event["stack"] = [];
-            const backtracer = opts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
+            const backtracer = hookOpts.backtracer === "accurate" ? Backtracer.ACCURATE : Backtracer.FUZZY;
             const elements = Thread.backtrace(this.context, backtracer);
             for (let i = 0; i < elements.length; i++) {
-                stack.push(getDescFromAddress(elements[i], opts.symbol !== false));
+                stack.push(getDescFromAddress(elements[i], hookOpts.symbol !== false));
             }
         }
         Log.event(event);
