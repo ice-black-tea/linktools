@@ -263,28 +263,31 @@ def get_list_item(obj: Any, *keys: Any, type: "Type[T]" = None, default: "List[T
     return result
 
 
-def get_md5(data: Union[str, bytes]) -> str:
+def get_hash(data: Union[str, bytes], algorithm: "Literal['md5', 'sha1', 'sha256']" = "md5") -> str:
     if isinstance(data, str):
         data = bytes(data, "utf8")
-    m = hashlib.md5()
+    m = getattr(hashlib, algorithm)()
     m.update(data)
     return m.hexdigest()
 
 
-def get_sha1(data: Union[str, bytes]) -> str:
-    if isinstance(data, str):
-        data = bytes(data, "utf8")
-    s1 = hashlib.sha1()
-    s1.update(data)
-    return s1.hexdigest()
+def get_file_hash(path: "PathType", algorithm: "Literal['md5', 'sha1', 'sha256']" = "md5") -> str:
+    m = getattr(hashlib, algorithm)()
+    with open(path, "rb") as fd:
+        while True:
+            data = fd.read(4096 << 4)
+            if not data:
+                break
+            m.update(data)
+    return m.hexdigest()
 
 
-def get_sha256(data: Union[str, bytes]) -> str:
-    if isinstance(data, str):
-        data = bytes(data, "utf8")
-    s1 = hashlib.sha256()
-    s1.update(data)
-    return s1.hexdigest()
+def get_md5(data: Union[str, bytes]) -> str:
+    return get_hash(data, algorithm="md5")
+
+
+def get_file_md5(path: "PathType"):
+    return get_file_hash(path, algorithm="md5")
 
 
 def make_uuid() -> str:

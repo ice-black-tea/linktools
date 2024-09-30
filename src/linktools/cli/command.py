@@ -789,7 +789,7 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                         handler.show_level = value
                     environ.set_config("SHOW_LOG_LEVEL", value)
 
-        group = parser.add_argument_group(title="log options").add_mutually_exclusive_group()
+        group = parser.add_argument_group(title="log options")
         group.add_argument(f"{prefix}{prefix}verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
                            help="increase log verbosity")
         group.add_argument(f"{prefix}{prefix}silent", action=SilentAction, nargs=0, const=True, dest=SUPPRESS,
