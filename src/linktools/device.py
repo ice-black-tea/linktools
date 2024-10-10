@@ -51,7 +51,7 @@ class Bridge:
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
         :param log_output: 把输出打印到logger中
-        :return: 如果是不是守护进程，返回输出结果；如果是守护进程，则返回Popen对象
+        :return: 返回输出结果
         """
         if self._tool is None:
             raise self._error_type("tool not found")

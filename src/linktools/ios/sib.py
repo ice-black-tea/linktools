@@ -12,8 +12,7 @@ from .. import utils
 from .._environ import environ
 from ..decorator import cached_property, timeoutable
 from ..device import BridgeError, Bridge, BaseDevice
-from ..types import Stoppable, TimeoutType
-from ..utils import list2cmdline
+from ..types import Stoppable
 
 if TYPE_CHECKING:
     DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
@@ -56,6 +55,8 @@ class Device(BaseDevice):
     def __init__(self, id: str = None, info: Dict = None, sib: Sib = None):
         """
         :param id: 设备号
+        :param info: 设备信息
+        :param sib: sib对象
         """
         self._sib = sib or Sib()
         if id is None:
@@ -80,14 +81,26 @@ class Device(BaseDevice):
 
     @property
     def name(self) -> str:
+        """
+        获取设备名称
+        :return: 设备名称
+        """
         return self.detail.get("deviceName")
 
     @property
     def version(self) -> str:
+        """
+        获取系统版本
+        :return: 系统版本
+        """
         return self.detail.get("productVersion")
 
     @property
     def address(self) -> str:
+        """
+        获取设备地址
+        :return: 设备地址
+        """
         return self.info.get("remoteAddr")
 
     @cached_property
@@ -105,9 +118,18 @@ class Device(BaseDevice):
 
     @cached_property
     def detail(self) -> dict:
+        """
+        获取设备详细信息
+        :return: 设备详细信息
+        """
         return self.info.get("deviceDetail")
 
     def copy(self, type: "Callable[[str, Dict, Sib], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
+        """
+        生成一个新的设备对象
+        :param type: 设备类型
+        :return: 新的设备对象
+        """
         return (type or Device)(self._id, self._info, self._sib)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:
@@ -131,6 +153,11 @@ class Device(BaseDevice):
 
     @timeoutable
     def install(self, path_or_url: str, **kwargs) -> str:
+        """
+        安装应用
+        :param path_or_url: 本地路径或者url
+        :return: sib输出结果
+        """
         _logger.info(f"Install ipa url: {path_or_url}")
         ipa_path = environ.get_url_file(path_or_url).save()
         _logger.debug(f"Local ipa path: {ipa_path}")
@@ -138,10 +165,20 @@ class Device(BaseDevice):
 
     @timeoutable
     def uninstall(self, bundle_id: str, **kwargs) -> str:
+        """
+        卸载应用
+        :param bundle_id: 包名
+        :return: sib输出结果
+        """
         return self.exec("app", "uninstall", "--bundleId", bundle_id, **kwargs)
 
     @timeoutable
     def kill(self, bundle_id: str, **kwargs) -> str:
+        """
+        结束应用
+        :param bundle_id: 包名
+        :return: sib输出结果
+        """
         return self.exec("app", "kill", "--bundleId", bundle_id, **kwargs)
 
     @timeoutable
@@ -196,6 +233,10 @@ class Device(BaseDevice):
 
     @timeoutable
     def get_processes(self, **kwargs):
+        """
+        获取进程列表
+        :return: 进程列表
+        """
         result = []
         objs = json.loads(self.exec("ps", "-f", **kwargs))
         for obj in objs:
@@ -203,6 +244,12 @@ class Device(BaseDevice):
         return result
 
     def forward(self, local_port: int, remote_port: int):
+        """
+        创建端口转发
+        :param local_port: 本地端口
+        :param remote_port: 远程端口
+        :return: 端口转发对象
+        """
         process = self.popen(
             "proxy",
             "--local-port", local_port,
@@ -240,6 +287,13 @@ class Device(BaseDevice):
         return Forward()
 
     def ssh(self, port: int = 22, username: str = "root", password: str = None):
+        """
+        创建ssh连接，需要ios设备已完成越狱
+        :param port: ssh端口
+        :param username: 用户名
+        :param password: 密码
+        :return: ssh连接
+        """
         import paramiko
         from linktools.ssh import SSHClient
 

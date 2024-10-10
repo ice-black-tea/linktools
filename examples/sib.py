@@ -30,6 +30,7 @@ import time
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
+from linktools import utils
 from linktools.cli import subcommand, subcommand_argument, IOSCommand
 from linktools.ios import Device
 
@@ -51,7 +52,7 @@ class Command(IOSCommand):
     @subcommand_argument("--remote-port")
     def on_forward(self, args: Namespace, local_port: int = None, remote_port: int = 22):
         device: Device = args.device_picker.pick()
-        with device.forward(local_port=local_port, remote_port=remote_port) as forward:
+        with device.forward(local_port=local_port or utils.pick_unused_port(), remote_port=remote_port) as forward:
             self.logger.info(f"Forward port: {forward.local_port}")
             time.sleep(1000)
 

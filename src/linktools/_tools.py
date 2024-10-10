@@ -300,7 +300,13 @@ class Tool(metaclass=ToolMeta):
 
         if not utils.is_empty(cmdline):
             cmdline = shutil.which(cmdline)
-        if not utils.is_empty(cmdline) and cmdline != str(self.stub):
+            if not utils.is_empty(cmdline):
+                try:
+                    if os.path.samefile(cmdline, self.stub):
+                        cmdline = ""
+                except FileNotFoundError:
+                    pass
+        if not utils.is_empty(cmdline):
             config["absolute_path"] = cmdline
             config["executable_cmdline"] = [cmdline]
         else:
@@ -369,18 +375,19 @@ class Tool(metaclass=ToolMeta):
         # download and unzip file
         if not self.exists:
             self._tools.logger.info(f"Download {self}: {self.download_url}")
-            url_file = self._tools.environ.get_url_file(self.download_url)
-            temp_dir = self._tools.environ.get_temp_path("tools", "cache")
-            temp_path = url_file.save(temp_dir)
-            if not utils.is_empty(self.unpack_path):
-                self._tools.logger.debug(f"Unpack {self} to {self.root_path}")
-                os.makedirs(self.root_path, exist_ok=True)
-                shutil.unpack_archive(temp_path, self.root_path)
-                os.remove(temp_path)
-            else:
-                self._tools.logger.debug(f"Move {self} to {self.absolute_path}")
-                os.makedirs(self.root_path, exist_ok=True)
-                shutil.move(temp_path, self.absolute_path)
+            with self._tools.environ.get_url_file(self.download_url) as url_file:
+                if not self.exists:
+                    temp_dir = self._tools.environ.get_temp_path("tools", "cache")
+                    temp_path = url_file.save(temp_dir)
+                    if not utils.is_empty(self.unpack_path):
+                        self._tools.logger.debug(f"Unpack {self} to {self.root_path}")
+                        os.makedirs(self.root_path, exist_ok=True)
+                        shutil.unpack_archive(temp_path, self.root_path)
+                        os.remove(temp_path)
+                    else:
+                        self._tools.logger.debug(f"Move {self} to {self.absolute_path}")
+                        os.makedirs(self.root_path, exist_ok=True)
+                        shutil.move(temp_path, self.absolute_path)
 
         if not os.access(self.stub, os.X_OK):
             from linktools.cli import stub

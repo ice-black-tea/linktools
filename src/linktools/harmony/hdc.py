@@ -72,6 +72,10 @@ class Device(BaseDevice):
 
     @property
     def name(self) -> str:
+        """
+        获取设备名称
+        :return: 设备名称
+        """
         return self.get_prop("const.product.model", timeout=1)
 
     @cached_property
@@ -100,6 +104,11 @@ class Device(BaseDevice):
         return self.get_uid()
 
     def copy(self, type: "Callable[[str, Hdc], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
+        """
+        生成一个新的设备对象
+        :param type: 设备类型
+        :return: 新的设备对象
+        """
         return (type or Device)(self._id, self._hdc)
 
     @timeoutable
@@ -113,6 +122,11 @@ class Device(BaseDevice):
         return self._hdc.exec(*args, **kwargs)
 
     def make_shell_args(self, *args: Any):
+        """
+        生成shell命令参数
+        :param args: shell命令
+        :return: hdc命令参数
+        """
         cmd = utils.list2cmdline([str(arg) for arg in args])
         return ["shell", cmd]
 

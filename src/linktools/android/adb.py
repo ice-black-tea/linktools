@@ -140,6 +140,11 @@ class Device(BaseDevice):
         return self.get_uid()
 
     def copy(self, type: "Callable[[str, Adb], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
+        """
+        生成一个新的设备对象
+        :param type: 设备类型
+        :return: 新的设备对象
+        """
         return (type or Device)(self._id, self._adb)
 
     def popen(self, *args: Any, **kwargs) -> utils.Process:
@@ -162,6 +167,13 @@ class Device(BaseDevice):
         return self._adb.exec(*args, **kwargs)
 
     def make_shell_args(self, *args: Any, privilege: bool = False, user: str = None):
+        """
+        生成shell参数
+        :param args: 参数
+        :param privilege: 是否以root权限运行
+        :param user: 以指定user运行
+        :return: 参数列表
+        """
         cmd = utils.list2cmdline([str(arg) for arg in args])
         if privilege and self.uid != 0:
             args = ["shell", "su", "-c", cmd]
@@ -567,7 +579,7 @@ class Device(BaseDevice):
             **kwargs
     ) -> str:
         """
-        调用辅助apk功能
+        调用辅助agent功能
         :param args: 参数
         :param app_name: 伪造的包名
         :param app_path: 伪造的包路径

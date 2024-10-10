@@ -13,7 +13,7 @@ from linktools.cli import IOSCommand
 from linktools.ios import Device
 from linktools.ssh import SSHClient
 
-_REMOTE_PATH_PREFIX = "@"
+_REMOTE_PATH_PREFIX = ":"
 
 
 class SCPFile(os.PathLike):

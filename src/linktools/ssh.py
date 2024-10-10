@@ -8,9 +8,10 @@ import select
 import socket
 import sys
 import threading
+import time
 
 import paramiko
-from paramiko.ssh_exception import AuthenticationException
+from paramiko.ssh_exception import AuthenticationException, SSHException
 from scp import SCPClient
 
 from . import utils
@@ -26,7 +27,7 @@ except ImportError:
 
 _logger = environ.get_logger("ssh")
 
-_channel_logger = environ.get_logger("ssh.critical")
+_channel_logger = environ.get_logger("ssh.channel")
 _channel_logger.setLevel(logging.CRITICAL)
 
 
@@ -45,15 +46,10 @@ class SSHClient(paramiko.SSHClient):
                 hostname,
                 port=port,
                 username=username,
-                password=password,
+                # password=password,
                 **kwargs
             )
-        except AuthenticationException:
-            if password is None:
-                _logger.debug("Authentication failed, try to input password.")
-            else:
-                raise
-
+        except SSHException:
             transport = self.get_transport()
             if transport is None:
                 raise
@@ -62,22 +58,30 @@ class SSHClient(paramiko.SSHClient):
             elif transport.is_authenticated():
                 raise
 
-            auth_exception = None
-            for i in range(3):
-                password = prompt(
-                    f"{username}@{hostname}'s password",
-                    password=True
-                )
+            if password is not None:
                 try:
                     transport.auth_password(username, password)
-                    auth_exception = None
-                    break
                 except AuthenticationException as e:
                     _logger.warning(f"Authentication (password) failed.")
-                    auth_exception = e
+                    raise e from None
 
-            if auth_exception is not None:
-                raise auth_exception from None
+            else:
+                auth_exception = None
+                for i in range(3):
+                    password = prompt(
+                        f"{username}@{hostname}'s password",
+                        password=True
+                    )
+                    try:
+                        transport.auth_password(username, password)
+                        auth_exception = None
+                        break
+                    except AuthenticationException as e:
+                        _logger.warning(f"Authentication (password) failed.")
+                        auth_exception = e
+
+                if auth_exception is not None:
+                    raise auth_exception from None
 
     def open_shell(self, *args: any):
         if len(args) > 0:
@@ -102,16 +106,27 @@ class SSHClient(paramiko.SSHClient):
                 thread.join()
 
         else:
+            shell = None
+
+            if shell is None:
+                try:
+                    import msvcrt
+                    shell = self._windows_shell
+                except ImportError:
+                    pass
+
+            if shell is None:
+                try:
+                    import termios
+                    import tty
+                    shell = self._posix_shell
+                except ImportError:
+                    pass
+
+            if shell is None:
+                raise SSHException("No shell available on this platform")
+
             chan = self.invoke_shell()
-            shell = self._windows_shell
-
-            try:
-                import termios
-                import tty
-                shell = self._posix_shell
-            except ImportError:
-                pass
-
             try:
                 shell(chan)
             finally:
@@ -135,7 +150,7 @@ class SSHClient(paramiko.SSHClient):
 
         try:
             channel.settimeout(0.0)
-            while True:
+            while not channel.closed:
                 rlist, wlist, xlist = select.select([channel, sys.stdin], [], [], 1.0)
                 if channel in rlist:
                     try:
@@ -151,6 +166,8 @@ class SSHClient(paramiko.SSHClient):
                     if len(data) == 0:
                         break
                     channel.send(data)
+        except OSError:
+            pass
         finally:
             if orig_tty:
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_tty)
@@ -158,9 +175,10 @@ class SSHClient(paramiko.SSHClient):
     @classmethod
     def _windows_shell(cls, channel: "paramiko.Channel"):
         import threading
+        import msvcrt
 
         def write_all(sock):
-            while True:
+            while not channel.closed:
                 try:
                     data = sock.recv(1024)
                     if len(data) == 0:
@@ -174,15 +192,24 @@ class SSHClient(paramiko.SSHClient):
         write_thread = threading.Thread(target=write_all, args=(channel,))
         write_thread.start()
 
-        stdin_fileno = sys.stdin.fileno()
-        while True:
-            try:
-                data = os.read(stdin_fileno, 1)
-                if len(data) == 0:
-                    break
-                channel.send(data)
-            except OSError:
-                break
+        try:
+            delay = 0.001
+            while not channel.closed:
+                if not msvcrt.kbhit():
+                    delay = min(delay * 2, 0.1)
+                    time.sleep(delay)
+                    continue
+                delay = 0.001
+                char = msvcrt.getch()
+                if char == b"\xe0":
+                    char = b"\x1b"
+                buff = char
+                while msvcrt.kbhit():
+                    char = msvcrt.getch()
+                    buff += char
+                channel.send(buff)
+        except OSError:
+            pass
 
     def get_file(self, remote_path: str, local_path: str):
         with self._open_scp() as scp:
@@ -194,6 +221,8 @@ class SSHClient(paramiko.SSHClient):
 
     @contextlib.contextmanager
     def _open_scp(self):
+
+        self.open_sftp().put()
 
         with create_progress() as progress:
             tasks = {}
@@ -215,7 +244,7 @@ class SSHClient(paramiko.SSHClient):
             with SCPClient(self.get_transport(), progress=update_progress) as scp:
                 yield scp
 
-    def forward(self, forward_host: str, forward_port: int, local_port: int = None):
+    def forward(self, forward_host: str, forward_port: int, local_port: int = None) -> "SSHForward":
         """
         :param forward_host: The host to forward to.
         :param forward_port: The port to forward to.
@@ -226,13 +255,33 @@ class SSHClient(paramiko.SSHClient):
         if local_port is None:
             local_port = utils.pick_unused_port(range(20000, 30000))
 
-        class ForwardServer(SocketServer.ThreadingTCPServer):
-            daemon_threads = True
-            allow_reuse_address = True
+        return SSHForward(self, "", local_port, forward_host, forward_port)
 
-        channels = []
-        lock = threading.RLock()
-        transport = self.get_transport()
+    def reverse(self, forward_host: str, forward_port: int, remote_port: int = None):
+        """
+        :param forward_host: The host to forward to.
+        :param forward_port: The port to forward to.
+        :param remote_port: The remote port to listen on.
+        :return: A Stoppable object.
+        """
+        return SSHReverse(self, forward_host, forward_port, "", remote_port)
+
+
+class SSHForward(Stoppable):
+    local_host = property(lambda self: self._local_host)
+    local_port = property(lambda self: self._local_port)
+    forward_host = property(lambda self: self._forward_host)
+    forward_port = property(lambda self: self._forward_port)
+
+    def __init__(self, client: SSHClient, local_host: str, local_port: int, forward_host: str, forward_port: int):
+        self._local_host = local_host
+        self._local_port = local_port
+        self._forward_host = forward_host
+        self._forward_port = forward_port
+
+        self._lock = lock = threading.RLock()
+        self._channels = channels = []
+        self._transport = transport = client.get_transport()
 
         class ForwardHandler(SocketServer.BaseRequestHandler):
 
@@ -244,32 +293,24 @@ class SSHClient(paramiko.SSHClient):
                         self.request.getpeername(),
                     )
                 except Exception as e:
-                    _logger.error(
-                        "Incoming request to %s:%d failed: %s"
-                        % (forward_host, forward_port, repr(e))
-                    )
+                    _logger.error(f"Incoming request to {forward_host}:{forward_port} failed: {e}")
                     return
 
                 if channel is None:
-                    _logger.error(
-                        "Incoming request to %s:%d was rejected by the SSH server."
-                        % (forward_host, forward_port)
-                    )
+                    _logger.error(f"Incoming request to {forward_host}:{forward_port} was rejected by the SSH server.")
                     return
+
+                _logger.debug(
+                    f"Connected!  Tunnel open "
+                    f"{self.request.getpeername()} -> "
+                    f"{channel.getpeername()} -> "
+                    f"{(forward_host, forward_port)}")
 
                 with lock:
                     channels.append(channel)
 
                 try:
-                    _logger.debug(
-                        "Connected!  Tunnel open %r -> %r -> %r"
-                        % (
-                            self.request.getpeername(),
-                            channel.getpeername(),
-                            (forward_host, forward_port),
-                        )
-                    )
-                    while True:
+                    while not channel.closed:
                         r, w, x = select.select([self.request, channel], [], [])
                         if self.request in r:
                             data = self.request.recv(1024)
@@ -282,61 +323,56 @@ class SSHClient(paramiko.SSHClient):
                                 break
                             self.request.send(data)
                 except Exception as e:
-                    _logger.debug(
-                        "Forwarding request to %s:%d failed: %r"
-                        % (forward_host, forward_port, e)
-                    )
+                    _logger.debug(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
                 finally:
                     peername = utils.ignore_error(self.request.getpeername)
                     utils.ignore_error(channel.close)
                     utils.ignore_error(self.request.close)
-                    _logger.debug(
-                        "Tunnel closed from %r" %
-                        (peername,)
-                    )
+                    _logger.debug(f"Tunnel closed from {peername}")
 
                     with lock:
                         channels.remove(channel)
 
-        forward_server = ForwardServer(("", local_port), ForwardHandler)
-        forward_thread = threading.Thread(target=forward_server.serve_forever)
-        forward_thread.daemon = True
-        forward_thread.start()
+        class ForwardServer(SocketServer.ThreadingTCPServer):
+            daemon_threads = True
+            allow_reuse_address = True
 
-        class Forward(Stoppable):
+        self._forward_server = ForwardServer((self._local_host, local_port), ForwardHandler)
+        self._forward_thread = threading.Thread(target=self._forward_server.serve_forever)
+        self._forward_thread.daemon = True
+        self._forward_thread.start()
 
-            local_port = property(lambda self: local_port)
-            forward_host = property(lambda self: forward_host)
-            forward_port = property(lambda self: forward_port)
+    def stop(self):
+        try:
+            self._forward_server.shutdown()
+            self._forward_thread.join()
+        except Exception as e:
+            _logger.error("Cancel port forward failed: %r" % e)
 
-            def stop(self):
-                try:
-                    forward_server.shutdown()
-                    forward_thread.join()
-                except Exception as e:
-                    _logger.error(
-                        "Cancel port forward failed: %r"
-                        % e
-                    )
+        with self._lock:
+            for channel in self._channels:
+                utils.ignore_error(channel.close)
+            self._channels = []
 
-                with lock:
-                    for channel in channels:
-                        utils.ignore_error(channel.close)
 
-        return Forward()
+class SSHReverse(Stoppable):
+    remote_host = property(lambda self: self._remote_host)
+    remote_port = property(lambda self: self._remote_port)
+    forward_host = property(lambda self: self._forward_host)
+    forward_port = property(lambda self: self._forward_port)
 
-    def reverse(self, forward_host: str, forward_port: int, remote_port: int = None):
-        """
-        :param forward_host: The host to forward to.
-        :param forward_port: The port to forward to.
-        :param remote_port: The remote port to listen on.
-        :return: A Stoppable object.
-        """
+    def __init__(self, client: SSHClient, forward_host: str, forward_port: int, remote_host: str, remote_port: int):
+        self._remote_host = remote_host
+        # self._remote_port = remote_port
+        self._forward_host = forward_host
+        self._forward_port = forward_port
 
-        channels = []
-        lock = threading.RLock()
+        self._lock = lock = threading.RLock()
+        self._channels = channels = []
+        self._transport = transport = client.get_transport()
+        self._remote_port = self._transport.request_port_forward(remote_host, remote_port or 0)
 
-        def forward_handler(channel):
+        def forward_handler(channel: paramiko.Channel):
 
             sock = socket.socket()
             try:
@@ -344,21 +380,20 @@ class SSHClient(paramiko.SSHClient):
             except Exception as e:
                 utils.ignore_error(channel.close)
                 utils.ignore_error(sock.close)
-                _logger.error(
-                    "Forwarding request to %s:%d failed: %r"
-                    % (forward_host, forward_port, e)
-                )
+                _logger.error(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
                 return
+
+            _logger.debug(
+                f"Connected!  Tunnel open "
+                f"{channel.origin_addr} -> "
+                f"{channel.getpeername()} -> "
+                f"{(forward_host, forward_port)}")
 
             with lock:
                 channels.append(channel)
 
             try:
-                _logger.debug(
-                    "Connected!  Tunnel open %r -> %r -> %r"
-                    % (channel.origin_addr, channel.getpeername(), (forward_host, forward_port))
-                )
-                while True:
+                while not channel.closed:
                     r, w, x = select.select([sock, channel], [], [])
                     if sock in r:
                         data = sock.recv(1024)
@@ -371,17 +406,11 @@ class SSHClient(paramiko.SSHClient):
                             break
                         sock.send(data)
             except Exception as e:
-                _logger.debug(
-                    "Forwarding request to %s:%d failed: %r"
-                    % (forward_host, forward_port, e)
-                )
+                _logger.debug(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
             finally:
                 utils.ignore_error(channel.close)
                 utils.ignore_error(sock.close)
-                _logger.debug(
-                    "Tunnel closed from %r"
-                    % (channel.origin_addr,)
-                )
+                _logger.debug(f"Tunnel closed from {channel.origin_addr}")
 
                 with lock:
                     channels.remove(channel)
@@ -406,32 +435,19 @@ class SSHClient(paramiko.SSHClient):
             def shutdown(self):
                 self.event.set()
 
-        transport = self.get_transport()
-        remote_port = transport.request_port_forward("", remote_port or 0)
+        self._forward_thread = ForwardThread()
+        self._forward_thread.daemon = True
+        self._forward_thread.start()
 
-        forward_thread = ForwardThread()
-        forward_thread.daemon = True
-        forward_thread.start()
+    def stop(self):
+        try:
+            self._transport.cancel_port_forward(self._remote_host, self._remote_port)
+            self._forward_thread.shutdown()
+            self._forward_thread.join()
+        except Exception as e:
+            _logger.error(f"Cancel port forward failed: {e}")
 
-        class Reverse(Stoppable):
-
-            remote_port = property(lambda self: remote_port)
-            forward_host = property(lambda self: forward_host)
-            forward_port = property(lambda self: forward_port)
-
-            def stop(self):
-                try:
-                    transport.cancel_port_forward("", remote_port)
-                    forward_thread.shutdown()
-                    forward_thread.join()
-                except Exception as e:
-                    _logger.error(
-                        f"Cancel port forward failed: %r"
-                        % e
-                    )
-
-                with lock:
-                    for channel in channels:
-                        utils.ignore_error(channel.close)
-
-        return Reverse()
+        with self._lock:
+            for channel in self._channels:
+                utils.ignore_error(channel.close)
+            self._channels = []
