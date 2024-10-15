@@ -33,7 +33,8 @@ import pickle
 import shutil
 import sys
 import warnings
-from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Type, Generator
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Generator
 
 from . import utils
 from .decorator import cached_property, timeoutable
@@ -448,7 +449,9 @@ class Tool(metaclass=ToolMeta):
             timeout: TimeoutType = None,
             ignore_errors: bool = False,
             log_output: bool = False,
-            error_type: Type[Exception] = ToolExecError
+            on_stdout: Callable[[str], None] = None,
+            on_stderr: Callable[[str], None] = None,
+            error_type: Callable[[str], Exception] = ToolExecError
     ) -> str:
         """
         执行命令
@@ -456,6 +459,8 @@ class Tool(metaclass=ToolMeta):
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
         :param log_output: 把输出打印到logger中
+        :param on_stdout: stdout输出回调，只有log_output为True时有效
+        :param on_stderr: stderr输出回调，只有log_output为True时有效
         :param error_type: 抛出异常类型
         :return: 返回stdout输出内容
         """
@@ -464,8 +469,8 @@ class Tool(metaclass=ToolMeta):
         try:
             out, err = process.exec(
                 timeout=timeout,
-                on_stdout=self._tools.logger.info if log_output else None,
-                on_stderr=self._tools.logger.error if log_output else None
+                on_stdout=(on_stdout or self._tools.logger.info) if log_output else None,
+                on_stderr=(on_stderr or self._tools.logger.error) if log_output else None
             )
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):

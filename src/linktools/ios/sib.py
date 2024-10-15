@@ -15,9 +15,9 @@ from ..device import BridgeError, Bridge, BaseDevice
 from ..types import Stoppable
 
 if TYPE_CHECKING:
-    DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
+    DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="SibDevice")
 
-_logger = environ.get_logger("android.adb")
+_logger = environ.get_logger("ios.sib")
 
 
 class SibError(BridgeError):
@@ -33,7 +33,7 @@ class Sib(Bridge):
             error_type=SibError
         )
 
-    def list_devices(self, alive: bool = None) -> Generator["Device", None, None]:
+    def list_devices(self, alive: bool = None) -> Generator["SibDevice", None, None]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
@@ -45,12 +45,12 @@ class Sib(Bridge):
             id = utils.get_item(info, "serialNumber")
             status = utils.get_item(info, "status")
             if alive is None:
-                yield Device(id, info)
+                yield SibDevice(id, info, sib=self)
             elif alive == (status in ("online",)):
-                yield Device(id, info)
+                yield SibDevice(id, info, sib=self)
 
 
-class Device(BaseDevice):
+class SibDevice(BaseDevice):
 
     def __init__(self, id: str = None, info: Dict = None, sib: Sib = None):
         """
@@ -106,8 +106,8 @@ class Device(BaseDevice):
     @cached_property
     def info(self) -> dict:
         """
-        获取设备abi类型
-        :return: abi类型
+        获取设备详细信息
+        :return: 设备信息
         """
         if self._info is not None:
             return self._info
@@ -130,7 +130,7 @@ class Device(BaseDevice):
         :param type: 设备类型
         :return: 新的设备对象
         """
-        return (type or Device)(self._id, self._info, self._sib)
+        return (type or SibDevice)(self._id, self._info, self._sib)
 
     def popen(self, *args: [Any], **kwargs) -> utils.Process:
         """

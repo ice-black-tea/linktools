@@ -30,11 +30,11 @@ import os
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools.android import Device
+from linktools.android import AdbDevice
 from linktools.cli import AndroidCommand, CommandError
 
 
-class AgentDevice(Device):
+class AgentDevice(AdbDevice):
 
     def get_agent_path(self, *name: str) -> str:
         return self.get_data_path("agent", *name)

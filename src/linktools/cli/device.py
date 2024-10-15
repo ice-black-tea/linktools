@@ -35,16 +35,17 @@ from typing import Optional, Callable, List, Type, Generic
 
 from . import BaseCommand
 from .. import utils
-from ..android import Adb, AdbError, Device as AdbDevice
+from ..android import Adb, AdbError, AdbDevice
 from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
-from ..ios import Sib, SibError, Device as SibDevice
+from ..ios import Sib, SibError, SibDevice
 from ..rich import choose
+from ..types import PathType
 from ..utils import ignore_error
 
 
 class DeviceCache:
 
-    def __init__(self, path: str):
+    def __init__(self, path: PathType):
         self.path = path
 
     def read(self) -> Optional[str]:

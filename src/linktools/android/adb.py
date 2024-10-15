@@ -40,7 +40,7 @@ from ..device import BridgeError, Bridge, BaseDevice
 from ..types import TimeoutType, Stoppable
 
 if TYPE_CHECKING:
-    DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="Device")
+    DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="AdbDevice")
 
 _logger = environ.get_logger("android.adb")
 _agent_output_pattern = re.compile(
@@ -64,7 +64,7 @@ class Adb(Bridge):
             error_type=AdbError
         )
 
-    def list_devices(self, alive: bool = None) -> Generator["Device", None, None]:
+    def list_devices(self, alive: bool = None) -> Generator["AdbDevice", None, None]:
         """
         获取所有设备列表
         :param alive: 只显示在线的设备
@@ -76,12 +76,12 @@ class Adb(Bridge):
             if len(splits) >= 2:
                 device, status = splits
                 if alive is None:
-                    yield Device(device, adb=self)
+                    yield AdbDevice(device, adb=self)
                 elif alive == (status in ("bootloader", "device", "recovery", "sideload")):
-                    yield Device(device, adb=self)
+                    yield AdbDevice(device, adb=self)
 
 
-class Device(BaseDevice):
+class AdbDevice(BaseDevice):
 
     def __init__(self, id: str = None, adb: Adb = None):
         """
@@ -111,6 +111,7 @@ class Device(BaseDevice):
         """
         获取设备名
         :return: 设备名
+        :raise AdbError: 获取设备名失败
         """
         return self.get_prop("ro.product.model", timeout=1)
 
@@ -119,6 +120,7 @@ class Device(BaseDevice):
         """
         获取设备abi类型
         :return: abi类型
+        :raise AdbError: 获取abi类型失败
         """
         result = self.get_prop("ro.product.cpu.abi")
         if result.find("arm64") >= 0:
@@ -145,7 +147,7 @@ class Device(BaseDevice):
         :param type: 设备类型
         :return: 新的设备对象
         """
-        return (type or Device)(self._id, self._adb)
+        return (type or AdbDevice)(self._id, self._adb)
 
     def popen(self, *args: Any, **kwargs) -> utils.Process:
         """
