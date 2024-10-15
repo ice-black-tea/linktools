@@ -10,7 +10,7 @@ from paramiko.ssh_exception import SSHException
 
 from linktools import utils
 from linktools.cli import IOSCommand
-from linktools.ios import Device
+from linktools.ios import SibDevice
 from linktools.ssh import SSHClient
 
 _REMOTE_PATH_PREFIX = ":"
@@ -56,7 +56,7 @@ class Command(IOSCommand):
                             help=f"target file path, remote path needs to be prefixed with \"{_REMOTE_PATH_PREFIX}\"")
 
     def run(self, args: Namespace) -> Optional[int]:
-        device: Device = args.device_picker.pick()
+        device: SibDevice = args.device_picker.pick()
 
         local_port = utils.pick_unused_port()
         with device.forward(local_port, args.port):

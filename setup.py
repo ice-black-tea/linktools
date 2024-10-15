@@ -35,11 +35,12 @@ from jinja2 import Template
 from setuptools import setup
 
 
-def get_path(*paths):
-    return os.path.join(
-        os.path.abspath(os.path.dirname(__file__)),
-        *paths
-    )
+def get_root_path(*paths):
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), *paths)
+
+
+def get_src_path(*paths):
+    return get_root_path("src", "linktools", *paths)
 
 
 class ConsoleScripts(list):
@@ -65,8 +66,8 @@ if __name__ == '__main__':
     if version.startswith("v"):
         version = version[len("v"):]
 
-    with open(get_path("src", "linktools", "template", "tools.yml"), "rb") as fd_in, \
-            open(get_path("src", "linktools", "assets", "tools.json"), "wt") as fd_out:
+    with open(get_src_path("template", "tools.yml"), "rb") as fd_in, \
+            open(get_src_path("assets", "tools.json"), "wt") as fd_out:
         json.dump(
             {
                 key: value
@@ -76,17 +77,16 @@ if __name__ == '__main__':
             fd_out
         )
 
-    with open(get_path("src", "linktools", "template", "metadata"), "rt", encoding="utf-8") as fd_in, \
-            open(get_path("src", "linktools", "metadata.py"), "wt", encoding="utf-8") as fd_out:
-        template = Template(fd_in.read())
+    with open(get_src_path("template", "metadata"), "rt", encoding="utf-8") as fd_in, \
+            open(get_src_path("metadata.py"), "wt", encoding="utf-8") as fd_out:
         fd_out.write(
-            template.render(
-                release="True" if release else "False",
+            Template(fd_in.read()).render(
+                release=release,
                 version=version,
             )
         )
 
-    with open(get_path("requirements.yml"), "rt", encoding="utf-8") as fd:
+    with open(get_root_path("requirements.yml"), "rt", encoding="utf-8") as fd:
         data = yaml.safe_load(fd)
         # install_requires = dependencies + dev-dependencies
         install_requires = data.get("dependencies")
@@ -103,15 +103,15 @@ if __name__ == '__main__':
         script_name="lt",
         module_name="linktools.__main__",
     ).append_module(
-        get_path("src", "linktools", "cli", "commands", "common"),
+        get_src_path("cli", "commands", "common"),
         module_prefix="linktools.cli.commands.common",
         script_prefix="ct",
     ).append_module(
-        get_path("src", "linktools", "cli", "commands", "android"),
+        get_src_path("cli", "commands", "android"),
         module_prefix="linktools.cli.commands.android",
         script_prefix="at",
     ).append_module(
-        get_path("src", "linktools", "cli", "commands", "ios"),
+        get_src_path("cli", "commands", "ios"),
         module_prefix="linktools.cli.commands.ios",
         script_prefix="it",
     )

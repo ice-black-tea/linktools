@@ -151,14 +151,13 @@ class Device(BaseDevice):
 
     @timeoutable
     def get_uid(self, timeout: TimeoutType = None) -> int:
-        default = -1
         out = self.shell("id", "-u", timeout=timeout)
-        uid = utils.int(out.strip(), default=default)
-        if uid != default:
+        uid = utils.int(out.strip(), default=-1)
+        if uid >= 0:
             return uid
         out = self.shell("echo", "-n", "${USER_ID}", timeout=timeout)
-        uid = utils.int(out.strip(), default=default)
-        if uid != default:
+        uid = utils.int(out.strip(), default=-1)
+        if uid >= 0:
             return uid
         raise HdcError("unknown hdc uid: %s" % out)
 

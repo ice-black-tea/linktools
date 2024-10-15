@@ -8,4 +8,5 @@
 # Project   : link
 
 from .ipa import IPA, IPAError
-from .sib import SibError, Sib, Device
+from .sib import SibError, Sib, SibDevice
+from .ios import GoIOSError, GoIOS, GoIOSDevice

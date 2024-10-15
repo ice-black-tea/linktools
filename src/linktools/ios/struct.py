@@ -49,7 +49,7 @@ class Process:
         self.pid = utils.get_item(obj, "pid", type=int, default=0)
         self.name = utils.get_item(obj, "name", type=str, default=0)
         self.real_app_name = utils.get_item(obj, "realAppName", type=str, default="")
-        self.is_application = utils.get_item(obj, "isApplication", type=bool, default=0)
+        self.is_application = utils.get_item(obj, "isApplication", type=bool, default=False)
         self.start_date = utils.get_item(obj, "startDate", type=str, default="")
 
     def __repr__(self):

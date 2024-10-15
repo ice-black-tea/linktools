@@ -35,7 +35,7 @@ class __MissingType:
 
 
 __name__ = "linktools"
-__release__ = {{ release }}
+__release__ = {{ "True" if release else "False" }}
 __version__ = "{{ version }}"
 __missing__ = __MissingType()
 __description__ = f"""\

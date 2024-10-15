@@ -26,7 +26,7 @@ class Command(IOSCommand):
         return super().main(*args, **kwargs)
 
     def init_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument('sib_args', nargs='...', metavar="args", help="sib args")
+        parser.add_argument("sib_args", nargs="...", metavar="args", help="sib args")
 
     def run(self, args: Namespace) -> Optional[int]:
         if args.sib_args and args.sib_args[0] not in self._GENERAL_COMMANDS:

@@ -35,16 +35,17 @@ from typing import Optional, Callable, List, Type, Generic
 
 from . import BaseCommand
 from .. import utils
-from ..android import Adb, AdbError, Device as AdbDevice
-from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType
-from ..ios import Sib, SibError, Device as SibDevice
+from ..android import Adb, AdbError, AdbDevice
+from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType, list_devices
+from ..ios import Sib, SibError, SibDevice
 from ..rich import choose
+from ..types import PathType
 from ..utils import ignore_error
 
 
 class DeviceCache:
 
-    def __init__(self, path: str):
+    def __init__(self, path: PathType):
         self.path = path
 
     def read(self) -> Optional[str]:
@@ -74,8 +75,8 @@ class DevicePicker(Generic[BridgeType, DeviceType]):
         self._const = True
 
     @property
-    def bridge(self) -> BridgeType:
-        return Bridge(options=self.options)
+    def bridge(self) -> Optional[BridgeType]:
+        return None
 
     def pick(self) -> DeviceType:
         return self.func(self.bridge)
@@ -86,23 +87,23 @@ class DevicePicker(Generic[BridgeType, DeviceType]):
     @classmethod
     def copy_on_write(cls, namespace: Namespace, dest: str) -> "DevicePicker":
         if hasattr(namespace, dest):
-            parser: DevicePicker = getattr(namespace, dest)
-            if not parser:
-                parser = cls()
-                parser._const = False
-                setattr(namespace, dest, parser)
-            elif parser._const:
+            picker: DevicePicker = getattr(namespace, dest)
+            if not picker:
+                picker = cls()
+                picker._const = False
+                setattr(namespace, dest, picker)
+            elif picker._const:
                 new_parser = cls()
-                new_parser.func = parser.func
-                new_parser.options = list(parser.options)
+                new_parser.func = picker.func
+                new_parser.options = list(picker.options)
                 new_parser._const = False
                 setattr(namespace, dest, new_parser)
-                return new_parser
+                picker = new_parser
         else:
-            parser = cls()
-            parser._const = False
-            setattr(namespace, dest, parser)
-        return parser
+            picker = cls()
+            picker._const = False
+            setattr(namespace, dest, picker)
+        return picker
 
 
 class AndroidPicker(DevicePicker[Adb, AdbDevice]):
@@ -135,7 +136,7 @@ class DeviceCommandMixin:
 
         @cache
         def pick(bridge: Bridge):
-            devices = tuple(bridge.list_devices(alive=True))
+            devices = tuple(list_devices(alive=True))
             if len(devices) == 0:
                 raise BridgeError("no devices/emulators found")
 
@@ -164,7 +165,7 @@ class DeviceCommandMixin:
                 @cache
                 def pick(bridge: Bridge):
                     device_id = str(values)
-                    for device in bridge.list_devices():
+                    for device in list_devices():
                         if device.id == device_id:
                             return device
                     raise BridgeError(f"no devices/emulators with {device_id} found")
@@ -178,9 +179,9 @@ class DeviceCommandMixin:
                 @cache
                 def pick(bridge: Bridge):
                     device_id = cache.read()
-                    if device_id:
+                    if not device_id:
                         raise BridgeError("no device used last time")
-                    for device in bridge.list_devices():
+                    for device in list_devices():
                         if device.id == device_id:
                             return device
                     raise BridgeError("no device used last time")

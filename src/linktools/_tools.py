@@ -33,7 +33,8 @@ import pickle
 import shutil
 import sys
 import warnings
-from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Type, Generator
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Generator
 
 from . import utils
 from .decorator import cached_property, timeoutable
@@ -216,6 +217,10 @@ class Tool(metaclass=ToolMeta):
 
     @cached_property
     def config(self) -> dict:
+        """
+        获取工具配置
+        :return: 工具配置
+        """
         config = {
             key: _parse_value(self._raw_config, key)
             for key in self._raw_config
@@ -330,23 +335,24 @@ class Tool(metaclass=ToolMeta):
 
     @property
     def supported(self) -> bool:
-        return True if self.exists or self.absolute_path else False
+        """
+        判断工具是否支持当前系统
+        """
+        return True if self.absolute_path else False
 
     @property
     def exists(self) -> bool:
+        """
+        通过可执行文件是否存在来判断是否存在
+        """
         return True if self.absolute_path and os.path.exists(self.absolute_path) else False
-
-    @property
-    def executable(self) -> bool:
-        cmdline = self.executable_cmdline
-        path = cmdline[0] if cmdline else ""
-        if self.absolute_path == path:
-            if self.root_path == os.path.commonpath([self.root_path, path]):
-                return True
-        return False
 
     @cached_property
     def stub(self) -> pathlib.Path:
+        """
+        获取stub脚本路径
+        :return: stub脚本路径
+        """
         return self._tools.stub / (
             f"{self.name}.bat" if
             self._tools.environ.system == "windows"
@@ -354,15 +360,29 @@ class Tool(metaclass=ToolMeta):
         )
 
     def get(self, key: str, default: Any = None) -> Any:
+        """
+        获取配置值
+        :param key: 键
+        :param default: 默认值
+        :return: 配置值
+        """
         value = self.config.get(key, default)
         if isinstance(value, str):
             value = value.format(tools=self._tools, **self.config)
         return value
 
     def copy(self, **kwargs) -> "Tool":
+        """
+        生成一个新的工具对象
+        :param kwargs: 新的配置
+        :return: 新的工具对象
+        """
         return Tool(self._tools, self.name, self._config, **kwargs)
 
     def prepare(self) -> None:
+        """
+        准备工具，包括下载、解压、创建stub脚本、修改文件权限等
+        """
         if not self.supported:
             raise ToolNotSupport(
                 f"{self} does not support on "
@@ -404,12 +424,18 @@ class Tool(metaclass=ToolMeta):
                     fd.write(f"{cmdline} $@\n")
             os.chmod(self.stub, 0o0755)
 
-        # change tool file mode
-        if self.executable and not os.access(self.absolute_path, os.X_OK):
-            self._tools.logger.debug(f"Chmod 755 {self.absolute_path}")
-            os.chmod(self.absolute_path, 0o0755)
+        # change tool file permission
+        cmdline = self.executable_cmdline
+        path = cmdline[0] if cmdline else ""
+        if self.absolute_path == path and self.root_path == os.path.commonpath([self.root_path, path]):
+            if not os.access(self.absolute_path, os.X_OK):
+                self._tools.logger.debug(f"Chmod 755 {self.absolute_path}")
+                os.chmod(self.absolute_path, 0o0755)
 
     def clear(self) -> None:
+        """
+        清理工具相关文件
+        """
         if self.stub:
             self._tools.logger.debug(f"Delete {self.stub}")
             utils.ignore_error(os.remove, args=(self.stub,))
@@ -423,14 +449,18 @@ class Tool(metaclass=ToolMeta):
             self._tools.logger.debug(f"Delete {self.root_path}")
             shutil.rmtree(self.root_path, ignore_errors=True)
 
-    def popen(self, *args: [Any], **kwargs) -> utils.Process:
+    def popen(self, *args: Any, **kwargs) -> utils.Process:
+        """
+        执行命令
+        :param args: 命令行参数
+        :return: 打开的进程
+        """
         self.prepare()
 
         if self.environment:
-            env = kwargs.get("default_env", {})
+            env = kwargs.setdefault("default_env", {})
             for key, value in self.environment.items():
                 env.setdefault(key, value)
-            kwargs["default_env"] = env
 
         # java or other
         executable_cmdline = self.executable_cmdline
@@ -444,18 +474,20 @@ class Tool(metaclass=ToolMeta):
     @timeoutable
     def exec(
             self,
-            *args: [Any],
+            *args: Any,
             timeout: TimeoutType = None,
             ignore_errors: bool = False,
-            log_output: bool = False,
-            error_type: Type[Exception] = ToolExecError
+            on_stdout: Callable[[str], None] = None,
+            on_stderr: Callable[[str], None] = None,
+            error_type: Callable[[str], Exception] = ToolExecError
     ) -> str:
         """
         执行命令
         :param args: 命令
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
-        :param log_output: 把输出打印到logger中
+        :param on_stdout: stdout输出回调，只有log_output为True时有效
+        :param on_stderr: stderr输出回调，只有log_output为True时有效
         :param error_type: 抛出异常类型
         :return: 返回stdout输出内容
         """
@@ -464,8 +496,8 @@ class Tool(metaclass=ToolMeta):
         try:
             out, err = process.exec(
                 timeout=timeout,
-                on_stdout=self._tools.logger.info if log_output else None,
-                on_stderr=self._tools.logger.error if log_output else None
+                on_stdout=on_stdout,
+                on_stderr=on_stderr,
             )
             if not ignore_errors and process.poll() not in (0, None):
                 if isinstance(err, bytes):
@@ -501,6 +533,10 @@ class Tools(object):
 
     @cached_property
     def stub(self) -> pathlib.Path:
+        """
+        获取stub脚本路径
+        :return: stub脚本路径
+        """
         return self.environ.get_data_path(
             "tool",
             f"stub_v{self.environ.version}",
@@ -508,16 +544,28 @@ class Tools(object):
         )
 
     def keys(self) -> Generator[str, None, None]:
+        """
+        获取所有支持的工具名称
+        :return: 工具名称
+        """
         for k, v in self.all.items():
             if v.supported:
                 yield k
 
     def values(self) -> Generator[Tool, None, None]:
+        """
+        获取所有支持的工具
+        :return: 工具对象
+        """
         for k, v in self.all.items():
             if v.supported:
                 yield v
 
     def items(self) -> Generator[Tuple[str, Tool], None, None]:
+        """
+        获取所有支持的工具
+        :return: 工具名称 & 工具对象
+        """
         for k, v in self.all.items():
             if v.supported:
                 yield k, v
