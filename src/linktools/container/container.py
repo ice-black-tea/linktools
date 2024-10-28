@@ -30,7 +30,7 @@ import os
 import re
 import textwrap
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Any, List, Optional, Callable
+from typing import TYPE_CHECKING, Dict, Any, List, Optional, Callable, TypeVar
 
 import yaml
 from jinja2 import Environment, TemplateError
@@ -38,11 +38,15 @@ from jinja2 import Environment, TemplateError
 from .. import utils, Config
 from ..cli import subcommand, subcommand_argument
 from ..decorator import cached_property
+from ..metadata import __missing__
 from ..rich import choose
 from ..types import PathType, Error
 
 if TYPE_CHECKING:
     from .manager import ContainerManager
+    from .._config import ConfigType
+
+    T = TypeVar("T")
 
 
 class ExposeCategory:
@@ -340,6 +344,9 @@ class BaseContainer(ExposeMixin, NginxMixin, metaclass=AbstractMetaClass):
         return self.manager.create_docker_process(
             "logs", *options, service.get("container_name")
         ).call()
+
+    def get_config(self, key: str, type: "ConfigType" = None, default: Any = __missing__) -> "T":
+        return self.manager.config.get(key, type=type, default=default)
 
     def get_path(self, *paths: str) -> Path:
         return utils.join_path(self.root_path, *paths)

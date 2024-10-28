@@ -300,13 +300,23 @@ def gzip_compress(data: Union[str, bytes]) -> bytes:
     return gzip.compress(data)
 
 
+def is_sub_path(path: "PathType", root_path: "PathType") -> bool:
+    try:
+        abs_path = os.path.abspath(path)
+        abs_root_path = os.path.abspath(root_path)
+        return os.path.commonpath([abs_path, abs_root_path]) == abs_root_path
+    except ValueError:
+        return False
+
+
 def join_path(root_path: PathType, *paths: [str]) -> Path:
     target_path = Path(root_path)
     for path in paths:
-        parent_path = target_path
-        target_path = parent_path.joinpath(path)
+        parent_path = str(target_path)
+        target_path = target_path.joinpath(path)
         try:
-            target_path.relative_to(parent_path)
+            if os.path.commonpath([target_path, parent_path]) != parent_path:
+                raise Exception(f"Unsafe path \"{path}\"")
         except ValueError:
             raise Exception(f"Unsafe path \"{path}\"")
     return target_path

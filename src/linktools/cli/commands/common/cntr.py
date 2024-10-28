@@ -279,55 +279,60 @@ class Command(BaseCommandGroup):
 
     @subcommand("up", help="deploy installed containers")
     @subcommand_argument("--build", action=BooleanOptionalAction, help="build images before starting")
-    @subcommand_argument("--pull", help="pull image before running", choices=["always", "missing", "never"])
+    @subcommand_argument("--pull", action=BooleanOptionalAction, help="always attempt to pull a newer version of the image")
     @subcommand_argument("name", metavar="CONTAINER", nargs="?", help="container name",
                          choices=utils.lazy_iter(_iter_installed_container_names))
-    def on_command_up(self, name: str = None, build: str = True, pull: str = None):
+    def on_command_up(self, name: str = None, build: bool = True, pull: str = False):
         containers = manager.prepare_installed_containers()
-        target_containers = [c for c in containers if not name or c.name == name]
+        target_containers = [c for c in containers if c.name == name] if name else containers
 
-        options = ["--detach"]
-        if build:
-            options.extend(["--build"])
+        build_options = []
+        up_options = ["--detach", "--no-build"]
         if pull:
-            options.extend(["--pull", pull])
+            build_options.extend(["--pull"])
+            up_options.extend(["--pull", "always"])
+        if not name:
+            up_options.extend(["--remove-orphans"])
 
         services = []
         if name:
             services.extend(manager.containers[name].services.keys())
             if not services:
                 raise ContainerError(f"No service found in container `{name}`")
-        else:
-            options.extend(["--remove-orphans"])
 
         with self._notify_start(target_containers):
+            if build:
+                manager.create_docker_compose_process(
+                    containers,
+                    "build", *build_options, *services,
+                ).check_call()
             manager.create_docker_compose_process(
                 containers,
-                "up", *options, *services
+                "up", *up_options, *services
             ).check_call()
 
     @subcommand("restart", help="restart installed containers")
     @subcommand_argument("--build", action=BooleanOptionalAction, help="build images before starting")
-    @subcommand_argument("--pull", help="pull image before running", choices=["always", "missing", "never"])
+    @subcommand_argument("--pull", action=BooleanOptionalAction, help="always attempt to pull a newer version of the image")
     @subcommand_argument("name", metavar="CONTAINER", nargs="?", help="container name",
                          choices=utils.lazy_iter(_iter_installed_container_names))
-    def on_command_restart(self, name: str = None, build: str = True, pull: str = None):
+    def on_command_restart(self, name: str = None, build: bool = True, pull: str = False):
         containers = manager.prepare_installed_containers()
-        target_containers = [c for c in containers if not name or c.name == name]
+        target_containers = [c for c in containers if c.name == name] if name else containers
 
-        options = ["--detach"]
-        if build:
-            options.extend(["--build"])
+        build_options = []
+        up_options = ["--detach", "--no-build"]
         if pull:
-            options.extend(["--pull", pull])
+            build_options.extend(["--pull"])
+            up_options.extend(["--pull", "always"])
+        if not name:
+            up_options.extend(["--remove-orphans"])
 
         services = []
         if name:
             services.extend(manager.containers[name].services.keys())
             if not services:
                 raise ContainerError(f"No service found in container `{name}`")
-        else:
-            options.extend(["--remove-orphans"])
 
         with self._notify_stop(target_containers):
             manager.create_docker_compose_process(
@@ -336,9 +341,14 @@ class Command(BaseCommandGroup):
             ).check_call()
 
         with self._notify_start(target_containers):
+            if build:
+                manager.create_docker_compose_process(
+                    containers,
+                    "build", *build_options, *services,
+                ).check_call()
             manager.create_docker_compose_process(
                 containers,
-                "up", *options, *services
+                "up", *up_options, *services
             ).check_call()
 
     @subcommand("down", help="stop installed containers")
@@ -346,7 +356,7 @@ class Command(BaseCommandGroup):
                          choices=utils.lazy_iter(_iter_installed_container_names))
     def on_command_down(self, name: str = None):
         containers = manager.prepare_installed_containers()
-        target_containers = [c for c in containers if not name or c.name == name]
+        target_containers = [c for c in containers if c.name == name] if name else containers
 
         services = []
         if name:

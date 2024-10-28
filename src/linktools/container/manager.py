@@ -91,7 +91,7 @@ class ContainerManager:
     @cached_property
     def container_host(self) -> str:
         default = "/var/run/docker.sock"
-        host = self.environ.get_config(
+        host = self.config.get(
             "DOCKER_HOST",
             type=str,
             default=default
@@ -103,7 +103,7 @@ class ContainerManager:
 
     @cached_property
     def host(self) -> str:
-        return self.environ.get_config(
+        return self.config.get(
             "HOST",
             type=str,
             default=Config.Prompt(default=utils.get_lan_ip())
@@ -342,7 +342,12 @@ class ContainerManager:
     ) -> utils.Process:
         if privilege:
             if self.system in ("darwin", "linux") and self.uid != 0:
-                args = ["sudo", *args]
+                envs = ("http_proxy","https_proxy","all_proxy","no_proxy")
+                args = [
+                    "sudo",
+                    f"--preserve-env={','.join([e.lower() for e in envs] + [e.upper() for e in envs])}",
+                    *args
+                ]
         return utils.create_process(*args, **kwargs)
 
     def create_docker_process(

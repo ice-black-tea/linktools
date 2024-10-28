@@ -33,8 +33,7 @@ import pickle
 import shutil
 import sys
 import warnings
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Generator
+from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Generator, Callable
 
 from . import utils
 from .decorator import cached_property, timeoutable
@@ -427,7 +426,7 @@ class Tool(metaclass=ToolMeta):
         # change tool file permission
         cmdline = self.executable_cmdline
         path = cmdline[0] if cmdline else ""
-        if self.absolute_path == path and self.root_path == os.path.commonpath([self.root_path, path]):
+        if self.absolute_path == path and utils.is_sub_path(path, self.root_path):
             if not os.access(self.absolute_path, os.X_OK):
                 self._tools.logger.debug(f"Chmod 755 {self.absolute_path}")
                 os.chmod(self.absolute_path, 0o0755)
