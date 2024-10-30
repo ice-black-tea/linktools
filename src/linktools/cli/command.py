@@ -67,34 +67,36 @@ class SubCommandError(CommandError):
     pass
 
 
-class _CommandModuleInfo:
-    name: str
-    parent_name: str
-    module: ModuleType
-    module_name: str
+class _CommandInfo:
+    id: str
+    parent_id: str
+    module: str
     command: "Optional[BaseCommand]"
     command_name: str
     command_description: str
 
 
-def iter_command_modules(root: ModuleType, *, onerror: "ERROR_HANDLER" = "error"):
+def iter_module_commands(root: ModuleType, *, onerror: "ERROR_HANDLER" = "error") -> Generator[_CommandInfo, Any, Any]:
     prefix = root.__name__ + "."
     for finder, name, is_package in walk_packages(path=root.__path__, prefix=prefix):
         try:
-            info = _CommandModuleInfo()
-            info.name = name[len(prefix):]
-            info.parent_name = name[len(prefix):name.rfind(".")]
-            info.module = module = utils.import_module(name, spec=finder.find_spec(name))
-            info.module_name = module.__name__
+            module = utils.import_module(name, spec=finder.find_spec(name))
+            info = _CommandInfo()
             if is_package:
+                info.id = name[len(prefix):]
+                info.parent_id = getattr(module, "__parent__", None) or name[len(prefix):name.rfind(".")]
+                info.module = module.__name__
                 info.command = None
-                info.command_name = getattr(module, "__command__", None) or info.name[info.name.rfind(".") + 1:]
+                info.command_name = getattr(module, "__command__", None) or info.id[info.id.rfind(".") + 1:]
                 info.command_description = getattr(module, "__description__", None) or ""
                 yield info
-            elif hasattr(info.module, "command") and isinstance(info.module.command, BaseCommand):
-                info.command = info.module.command
-                info.command_name = info.command.name
-                info.command_description = info.command.description
+            elif hasattr(module, "command") and isinstance(module.command, BaseCommand):
+                info.id = name[len(prefix):]
+                info.parent_id = module.command.parent or name[len(prefix):name.rfind(".")]
+                info.module = module.command.module
+                info.command = module.command
+                info.command_name = module.command.name
+                info.command_description = module.command.description
                 yield info
         except Exception as e:
             if callable(onerror):
@@ -104,6 +106,42 @@ def iter_command_modules(root: ModuleType, *, onerror: "ERROR_HANDLER" = "error"
             elif onerror == "warn":
                 environ.logger.warning(
                     f"Ignore {name}, caused by {e.__class__.__name__}: {e}",
+                    exc_info=e if environ.debug else None
+                )
+            elif onerror == "ignore":
+                pass
+
+
+def iter_entry_point_commands(group: str, *, onerror: "ERROR_HANDLER" = "error") -> Generator[_CommandInfo, Any, Any]:
+    try:
+        from importlib.metadata import entry_points
+    except ImportError:
+        from importlib_metadata import entry_points
+
+    eps = entry_points()
+    eps = eps.get(group, []) \
+        if isinstance(eps, dict) \
+        else eps.select(group=group)
+    for ep in eps:
+        try:
+            main = ep.load()
+            if isinstance(main, CommandMain):
+                info = _CommandInfo()
+                info.id = _join_id(main.command.parent, main.command.name)
+                info.parent_id = main.command.parent
+                info.module = main.command.module  # ep.module
+                info.command = main.command
+                info.command_name = main.command.name
+                info.command_description = main.command.description
+                yield info
+        except Exception as e:
+            if callable(onerror):
+                onerror(ep.name, e)
+            elif onerror == "error":
+                raise e
+            elif onerror == "warn":
+                environ.logger.warning(
+                    f"Ignore {ep.name}, caused by {e.__class__.__name__}: {e}",
                     exc_info=e if environ.debug else None
                 )
             elif onerror == "ignore":
@@ -271,9 +309,12 @@ class _SubCommandInfo:
         self.node: SubCommand = subcommand.node if isinstance(subcommand, _SubCommandInfo) else subcommand
         self.children: List[_SubCommandInfo] = []
 
+    def __repr__(self):
+        return f"SubCommandInfo(node={self.node.id})"
+
 
 def _join_id(*ids: str):
-    return "#".join([id for id in ids if id])
+    return "#".join([id for id in ids if id is not None])
 
 
 class SubCommand(metaclass=abc.ABCMeta):
@@ -440,8 +481,8 @@ class SubCommandWrapper(SubCommand):
                  id: str = None, parent_id: str = None,
                  name: str = None, description: str = None):
         super().__init__(
-            id=id,
-            parent_id=parent_id,
+            id=id or _join_id(command.parent, command.name),
+            parent_id=parent_id or _join_id(command.parent),
             name=name or command.name,
             description=description or command.description
         )
@@ -464,6 +505,7 @@ class SubCommandMixin:
         3. 如果target是模块类型，则遍历模块下的所有子命令
         4. 如果target是其他类型，则遍历target下的所有包含@subcommand注解的方法
         """
+
         if isinstance(target, SubCommand):
             yield target
 
@@ -471,17 +513,33 @@ class SubCommandMixin:
             for item in target:
                 yield from self.walk_subcommands(item, parent_id=parent_id)
 
+        elif isinstance(target, _CommandInfo):
+            if target.command:
+                yield SubCommandWrapper(
+                    target.command,
+                    id=_join_id(parent_id, target.id),
+                    parent_id=_join_id(parent_id, target.parent_id)
+                )
+            else:
+                yield SubCommandGroup(
+                    target.command_name, target.command_description,
+                    id=_join_id(parent_id, target.id),
+                    parent_id=_join_id(parent_id, target.parent_id)
+                )
+
         elif isinstance(target, ModuleType):
-            for m in iter_command_modules(target, onerror="warn"):
-                if m.command:
+            for c in iter_module_commands(target, onerror="warn"):
+                if c.command:
                     yield SubCommandWrapper(
-                        m.command,
-                        id=_join_id(parent_id, m.name), parent_id=_join_id(parent_id, m.parent_name)
+                        c.command,
+                        id=_join_id(parent_id, c.id),
+                        parent_id=_join_id(parent_id, c.parent_id)
                     )
                 else:
                     yield SubCommandGroup(
-                        m.command_name, m.command_description,
-                        id=_join_id(parent_id, m.name), parent_id=_join_id(parent_id, m.parent_name)
+                        c.command_name, c.command_description,
+                        id=_join_id(parent_id, c.id),
+                        parent_id=_join_id(parent_id, c.parent_id)
                     )
 
         else:
@@ -511,20 +569,20 @@ class SubCommandMixin:
             self: "BaseCommand",
             parser: ArgumentParser = None,
             target: Any = None,
-            required: bool = False) -> List[_SubCommandInfo]:
+            required: bool = False,
+            sort: bool = False,
+    ) -> List[_SubCommandInfo]:
         """
         向parser中添加子命令，规则参考walk_subcommands方法
         """
-        subcommand_infos: List[_SubCommandInfo] = []
-
         target = target or self
-        parser = parser or self._argument_parser
-        parser.set_defaults(**{f"__subcommands_{id(self):x}__": subcommand_infos})
+        target_parser = parser or self._argument_parser
 
         parsers = {}
         root_parser = parser.add_subparsers(metavar="COMMAND", help="Command Help")
         root_parser.required = required
 
+        subcommand_infos: List[_SubCommandInfo] = []
         for subcommand in self.walk_subcommands(target):
             subcommand_info = _SubCommandInfo(subcommand)
             subcommand_infos.append(subcommand_info)
@@ -551,6 +609,24 @@ class SubCommandMixin:
                     subcommand_info.children.extend(
                         sub_subcommand_infos
                     )
+
+        if sort:
+            map = {info.node.id: info for info in subcommand_infos}
+            groups = {}
+            for info in map.values():
+                group = []
+                parent_id = info.node.parent_id
+                while parent_id in map:
+                    parent = map[info.node.parent_id]
+                    group.append(parent.node.id)
+                    parent_id = parent.node.parent_id
+                groups[info.node.id] = tuple(reversed(group))
+            subcommand_infos = sorted(
+                subcommand_infos,
+                key=lambda x: (groups.get(x.node.id), x.node.name)
+            )
+
+        target_parser.set_defaults(**{f"__subcommands_{id(self):x}__": subcommand_infos})
 
         return subcommand_infos
 
@@ -614,10 +690,10 @@ class SubCommandMixin:
             tree: Tree,
             infos: List[_SubCommandInfo],
             root_id: str,
-            max_level: Optional[int]
+            max_level: Optional[int],
+            sort: bool = False
     ) -> Tree:
         nodes: Dict[str, Tuple[Tree, int]] = {}
-
         for info in infos:
             if info.node.parent_id == root_id:
                 parent_node, parent_node_level = tree, 0
@@ -632,13 +708,17 @@ class SubCommandMixin:
 
             if info.node.is_group or info.children:
                 logo = "📖" if current_node_expanded else "📘"
-                text = f"{logo} [underline red]{info.node.name}[/underline red]"
+                text = f"{logo} [underline red]{info.node.name}[/underline red]" \
+                    if not self.environ.debug \
+                    else f"{logo} [underline red]{info.node.name}[/underline red] [dim](id={info.node.id})[/dim]"
                 if info.node.description:
                     text = f"{text}: {info.node.description}"
                 current_node = parent_node.add(text, expanded=current_node_expanded)
                 nodes[info.node.id] = current_node, current_node_level
             else:
-                text = f"👉 [bold red]{info.node.name}[/bold red]"
+                text = f"👉 [bold red]{info.node.name}[/bold red]" \
+                    if not self.environ.debug \
+                    else f"👉 [bold red]{info.node.name}[/bold red] [dim](id={info.node.id})[/dim]"
                 if info.node.description:
                     text = f"{text}: {info.node.description}"
                 current_node = parent_node.add(text, expanded=current_node_expanded)
@@ -646,7 +726,13 @@ class SubCommandMixin:
 
             if info.children:
                 current_max_level = max_level - current_node_level if max_level is not None else None
-                self._make_subcommand_tree(current_node, info.children, SubCommand.ROOT_ID, current_max_level)
+                self._make_subcommand_tree(
+                    current_node,
+                    info.children,
+                    SubCommand.ROOT_ID,
+                    current_max_level,
+                    info.node.is_group
+                )
 
         return tree
 
@@ -654,15 +740,26 @@ class SubCommandMixin:
 class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
 
     @property
-    def name(self):
+    def module(self) -> str:
+        return self.__module__
+
+    @property
+    def name(self) -> str:
         """
         命令名
         """
-        name = self.__module__
+        name = self.module
         index = name.rfind(".")
         if index >= 0:
             name = name[index + 1:]
         return name
+
+    @property
+    def parent(self) -> Optional[str]:
+        """
+        父命令名
+        """
+        return None
 
     @property
     def environ(self) -> "BaseEnviron":
@@ -826,23 +923,12 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                 datefmt="%H:%M:%S"
             )
 
-    def main(self, *args, **kwargs) -> None:
+    @property
+    def main(self) -> "CommandMain":
         """
         main命令入口
         """
-        self.init_logging()
-
-        try:
-            result = self(*args, **kwargs)
-        except SystemExit as e:
-            result = e.code
-        except:
-            get_console().print_exception(show_locals=True) \
-                if environ.debug \
-                else self.logger.error(traceback.format_exc())
-            result = 1
-
-        sys.exit(result)
+        return CommandMain(self, show_log_level=True, show_log_time=False)
 
     def __call__(self, args: Union[List[str], Namespace] = None) -> int:
         """
@@ -876,7 +962,7 @@ class BaseCommandGroup(BaseCommand, metaclass=abc.ABCMeta):
     def init_arguments(self, parser: ArgumentParser) -> None:
         self.add_subcommands(
             parser=parser,
-            target=self.walk_subcommands(self.init_subcommands())
+            target=self.init_subcommands(),
         )
 
     def run(self, args: Namespace) -> Optional[int]:
@@ -884,3 +970,35 @@ class BaseCommandGroup(BaseCommand, metaclass=abc.ABCMeta):
         if not subcommand or subcommand.is_group:
             return self.print_subcommands(args, subcommand, max_level=2)
         return subcommand.run(args)
+
+
+class CommandMain:
+
+    def __init__(self, command: BaseCommand, *, show_log_level: bool = None, show_log_time: bool = None):
+        self.command = command
+        self.show_log_level = show_log_level
+        self.show_log_time = show_log_time
+
+    def __call__(self, *args, **kwargs):
+        """
+        main命令入口
+        """
+        if self.show_log_level is not None:
+            self.command.environ.config.set("SHOW_LOG_LEVEL", self.show_log_level)
+
+        if self.show_log_time is not None:
+            self.command.environ.config.set("SHOW_LOG_TIME", self.show_log_time)
+
+        self.command.init_logging()
+
+        try:
+            result = self.command(*args, **kwargs)
+        except SystemExit as e:
+            result = e.code
+        except:
+            get_console().print_exception(show_locals=True) \
+                if environ.debug \
+                else self.command.logger.error(traceback.format_exc())
+            result = 1
+
+        sys.exit(result)

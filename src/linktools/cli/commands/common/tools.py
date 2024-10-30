@@ -32,7 +32,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Optional, Type, List
 
 from linktools import ToolError, DownloadError
-from linktools.cli import BaseCommand
+from linktools.cli import BaseCommand, CommandMain
 from linktools.cli.argparse import KeyValueAction
 
 
@@ -41,10 +41,9 @@ class Command(BaseCommand):
     Execute tools directly from remote URLs
     """
 
-    def main(self, *args, **kwargs) -> None:
-        self.environ.config.set("SHOW_LOG_LEVEL", False)
-        self.environ.config.set("SHOW_LOG_TIME", False)
-        return super().main(*args, **kwargs)
+    @property
+    def main(self) -> CommandMain:
+        return CommandMain(self, show_log_level=False, show_log_time=False)
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:

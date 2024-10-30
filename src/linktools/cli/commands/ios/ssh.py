@@ -33,7 +33,7 @@ import paramiko
 from paramiko.ssh_exception import SSHException
 
 from linktools import utils
-from linktools.cli import IOSCommand
+from linktools.cli import IOSCommand, CommandMain
 from linktools.ssh import SSHClient
 
 
@@ -42,10 +42,9 @@ class Command(IOSCommand):
     Remotely login to jailbroken iOS devices using the OpenSSH client
     """
 
-    def main(self, *args, **kwargs) -> None:
-        self.environ.config.set("SHOW_LOG_LEVEL", False)
-        self.environ.config.set("SHOW_LOG_TIME", False)
-        return super().main(*args, **kwargs)
+    @property
+    def main(self) -> CommandMain:
+        return CommandMain(self, show_log_level=False, show_log_time=False)
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:
@@ -58,7 +57,7 @@ class Command(IOSCommand):
                             help="iOS ssh port (default: 22)")
         parser.add_argument("--password", action="store",
                             help="iOS ssh password")
-        parser.add_argument('ssh_args', nargs='...', help="ssh args")
+        parser.add_argument("ssh_args", nargs="...", help="ssh args")
 
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()

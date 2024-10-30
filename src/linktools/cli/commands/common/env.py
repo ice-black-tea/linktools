@@ -32,8 +32,9 @@ from typing import Any
 
 from linktools import utils
 from linktools.cli import subcommand, subcommand_argument, SubCommandWrapper, BaseCommandGroup, \
-    iter_command_modules, commands
+    iter_module_commands, commands, iter_entry_point_commands
 from linktools.cli.argparse import auto_complete
+from linktools.metadata import __ep_group__
 from linktools.utils import get_system, list2cmdline
 
 DEFAULT_SHELL = "bash" if get_system() != "windows" else "powershell"
@@ -118,13 +119,19 @@ class Command(BaseCommandGroup):
             return 0
 
         executables = []
-        modules = {c.name: c for c in iter_command_modules(commands, onerror="warn")}
-        for module in modules.values():
-            if module.command:
-                temp = module
-                names = [module.command_name]
-                while temp.parent_name in modules:
-                    temp = modules[temp.parent_name]
+        cmds = {
+            c.id: c
+            for c in (
+                *iter_module_commands(commands, onerror="warn"),
+                *iter_entry_point_commands(__ep_group__, onerror="warn")
+            )
+        }
+        for cmd in cmds.values():
+            if cmd.command:
+                temp = cmd
+                names = [cmd.command_name]
+                while temp.parent_id in cmds:
+                    temp = cmds[temp.parent_id]
                     names.append(temp.command_name)
                 executable = "-".join(reversed(names))
                 executables.append(executable)
@@ -151,16 +158,22 @@ class Command(BaseCommandGroup):
             return 0
 
         lines = []
-        modules = {c.name: c for c in iter_command_modules(commands, onerror="warn")}
+        modules = {
+            m.id: m
+            for m in (
+                *iter_module_commands(commands, onerror="warn"),
+                *iter_entry_point_commands(__ep_group__, onerror="warn")
+            )
+        }
         for module in modules.values():
             if module.command:
                 temp = module
                 names = [module.command_name]
-                while temp.parent_name in modules:
-                    temp = modules[temp.parent_name]
+                while temp.parent_id in modules:
+                    temp = modules[temp.parent_id]
                     names.append(temp.command_name)
                 executable = "-".join(reversed(names))
-                cmdline = list2cmdline([sys.executable, "-m", module.module.__name__])
+                cmdline = list2cmdline([sys.executable, "-m", module.module])
                 self.logger.info(f"Found alias: {executable} -> {cmdline}")
 
                 if shell in ("bash", "zsh"):

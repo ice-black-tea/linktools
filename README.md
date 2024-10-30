@@ -71,7 +71,6 @@ $ python3 -m linktools
 │   ├── 👉 pidcat: Filter logcat by package name
 │   └── 👉 top: Fetch basic information about the currently running application
 ├── 📖 ct: Common scripts
-│   ├── 📘 cntr: Deploy and manage Docker/Podman containers with ease
 │   ├── 📘 env: Manage and configure the Linktools environment
 │   ├── 👉 grep: Search and match files using regular expressions
 │   └── 👉 tools: Execute tools directly from remote URLs
@@ -149,18 +148,6 @@ $ ct-tools --daemon apktool
 # 修改apktool版本号
 $ ct-tools --set version=2.5.0 apktool
 ```
-
-</details>
-
-#### 👉 ct-cntr
-
-<details>
-<summary>docker/pod容器一键部署工具，集成了包括nginx、nextcloud、redorid等等容器</summary>
-
-##### 参考
-
-1. [搭建homelab](https://github.com/ice-black-tea/cntr-homelab)
-2. [搭建redroid](https://github.com/redroid-rockchip)
 
 </details>
 

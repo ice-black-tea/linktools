@@ -26,15 +26,24 @@
   / ==ooooooooooooooo==.o.  ooo= //   ,``--{)B     ,"
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
-from typing import Any
+from argparse import ArgumentParser
 
 from .cli import commands, BaseCommandGroup
+from .cli import iter_module_commands, iter_entry_point_commands
+from .metadata import __ep_group__
 
 
 class Command(BaseCommandGroup):
 
-    def init_subcommands(self) -> Any:
-        return commands
+    def init_arguments(self, parser: ArgumentParser) -> None:
+        self.add_subcommands(
+            parser=parser,
+            target=(
+                iter_module_commands(commands, onerror="warn"),
+                iter_entry_point_commands(__ep_group__, onerror="warn")
+            ),
+            sort=True
+        )
 
 
 command = Command()

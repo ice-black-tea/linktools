@@ -33,7 +33,8 @@ from .command import \
     BaseCommand, BaseCommandGroup, CommandError, \
     SubCommand, SubCommandGroup, SubCommandWrapper, \
     subcommand, subcommand_argument, SubCommandError, \
-    iter_command_modules
+    iter_module_commands, iter_entry_point_commands, \
+    CommandMain
 
 from .device import \
     DeviceCommandMixin, AndroidCommandMixin, IOSCommandMixin, \

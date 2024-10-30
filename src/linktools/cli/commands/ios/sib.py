@@ -4,7 +4,7 @@
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools.cli import IOSCommand
+from linktools.cli import IOSCommand, CommandMain
 
 
 class Command(IOSCommand):
@@ -20,10 +20,9 @@ class Command(IOSCommand):
         "remote",
     ]
 
-    def main(self, *args, **kwargs) -> None:
-        self.environ.config.set("SHOW_LOG_LEVEL", False)
-        self.environ.config.set("SHOW_LOG_TIME", False)
-        return super().main(*args, **kwargs)
+    @property
+    def main(self) -> CommandMain:
+        return CommandMain(self, show_log_level=False, show_log_time=False)
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("sib_args", nargs="...", metavar="args", help="sib args")

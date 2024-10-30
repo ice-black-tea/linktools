@@ -31,7 +31,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Optional, List, Type
 
 from linktools import utils, DownloadError
-from linktools.cli import CommandError, AndroidCommand
+from linktools.cli import CommandError, AndroidCommand, CommandMain
 from linktools.cli.argparse import range_type, KeyValueAction, BooleanOptionalAction
 from linktools.frida import FridaApplication, FridaShareScript, FridaScriptFile, FridaEvalCode, FridaAndroidServer
 
@@ -41,10 +41,9 @@ class Command(AndroidCommand):
     Use Frida for dynamic analysis on rooted Android devices
     """
 
-    def main(self, *args, **kwargs) -> None:
-        self.environ.config.set("SHOW_LOG_LEVEL", True)
-        self.environ.config.set("SHOW_LOG_TIME", True)
-        return super().main(*args, **kwargs)
+    @property
+    def main(self) -> CommandMain:
+        return CommandMain(self, show_log_level=True, show_log_time=True)
 
     @property
     def known_errors(self) -> List[Type[BaseException]]:

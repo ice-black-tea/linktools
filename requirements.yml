@@ -1,6 +1,7 @@
 dependencies:
   - rich
   - filelock>=3.4.0
+  - importlib-metadata; python_version < '3.8'
 
 dev-dependencies:
   - pyyaml
@@ -45,9 +46,7 @@ optional-dependencies:
   # 用于docker/podman容器管理
   # Used for docker/podman container management
   container:
-    - GitPython
-    - jinja2
-    - pyyaml
+    - linktools-cntr
 
   # 命令行自动补全
   # Command line auto-completion

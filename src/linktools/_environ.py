@@ -251,7 +251,7 @@ class BaseEnviron(abc.ABC):
             self,
             ConfigDict(
                 DEBUG=False,
-                SHOW_LOG_LEVEL=True,
+                SHOW_LOG_LEVEL=False,
                 SHOW_LOG_TIME=False,
             ),
             namespace="MAIN",

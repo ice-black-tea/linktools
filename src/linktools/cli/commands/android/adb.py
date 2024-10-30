@@ -29,7 +29,7 @@
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
-from linktools.cli import AndroidCommand
+from linktools.cli import AndroidCommand, CommandMain
 
 
 class Command(AndroidCommand):
@@ -52,10 +52,9 @@ class Command(AndroidCommand):
         "detach",
     ]
 
-    def main(self, *args, **kwargs) -> None:
-        self.environ.config.set("SHOW_LOG_LEVEL", False)
-        self.environ.config.set("SHOW_LOG_TIME", False)
-        return super().main(*args, **kwargs)
+    @property
+    def main(self) -> CommandMain:
+        return CommandMain(self, show_log_time=False, show_log_level=False)
 
     def init_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("adb_args", nargs="...", metavar="args", help="adb args")
