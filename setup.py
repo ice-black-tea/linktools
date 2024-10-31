@@ -90,8 +90,7 @@ if __name__ == '__main__':
         data = yaml.safe_load(fd)
         # install_requires = dependencies + dev-dependencies
         install_requires = data.get("dependencies")
-        if not release:
-            install_requires.extend(data.get("dev-dependencies"))
+        install_requires.extend(data.get("release-dependencies") if release else data.get("dev-dependencies"))
         # extras_require = optional-dependencies
         extras_require = data.get("optional-dependencies")
         all_requires = []
