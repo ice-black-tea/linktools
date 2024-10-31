@@ -314,7 +314,7 @@ class _SubCommandInfo:
 
 
 def _join_id(*ids: str):
-    return "#".join([id for id in ids if id is not None])
+    return "#".join([id for id in ids if id])
 
 
 class SubCommand(metaclass=abc.ABCMeta):
@@ -710,7 +710,7 @@ class SubCommandMixin:
                 logo = "📖" if current_node_expanded else "📘"
                 text = f"{logo} [underline red]{info.node.name}[/underline red]" \
                     if not self.environ.debug \
-                    else f"{logo} [underline red]{info.node.name}[/underline red] [dim](id={info.node.id})[/dim]"
+                    else f"{logo} [underline red]{info.node.name}[/underline red] [dim](group={info.node.is_group}, id={info.node.id})[/dim]"
                 if info.node.description:
                     text = f"{text}: {info.node.description}"
                 current_node = parent_node.add(text, expanded=current_node_expanded)
@@ -718,7 +718,7 @@ class SubCommandMixin:
             else:
                 text = f"👉 [bold red]{info.node.name}[/bold red]" \
                     if not self.environ.debug \
-                    else f"👉 [bold red]{info.node.name}[/bold red] [dim](id={info.node.id})[/dim]"
+                    else f"👉 [bold red]{info.node.name}[/bold red] [dim](group={info.node.is_group}, id={info.node.id})[/dim]"
                 if info.node.description:
                     text = f"{text}: {info.node.description}"
                 current_node = parent_node.add(text, expanded=current_node_expanded)
