@@ -71,7 +71,7 @@ class Adb(Bridge):
         :return: 设备号数组
         """
         result = self.exec("devices")
-        for line in result.splitlines():
+        for line in result.splitlines()[1:]:
             splits = line.split(maxsplit=1)
             if len(splits) >= 2:
                 device, status = splits
@@ -445,7 +445,7 @@ class AdbDevice(BaseDevice):
         return self.shell(*args, **kwargs).rstrip()
 
     @timeoutable
-    def start(self, package_name: str, activity_name: str = None, **kwargs) -> str:
+    def start(self, package_name: str, activity_name: str = None, timeout: TimeoutType = None, **kwargs) -> str:
         """
         启动app的launcher页面
         :param package_name: 包名
@@ -453,7 +453,7 @@ class AdbDevice(BaseDevice):
         :return: adb输出结果
         """
         if not activity_name:
-            app = self.get_app(package_name, detail=True, **kwargs)
+            app = self.get_app(package_name, detail=True, timeout=timeout)
             activity = app.get_launch_activity()
             if not activity:
                 raise AdbError(f"App {app.name} does not have a launch activity")

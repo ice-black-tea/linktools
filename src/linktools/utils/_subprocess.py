@@ -11,7 +11,7 @@ from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union, List
 
 from .._environ import environ
 from ..decorator import cached_property, timeoutable
-from ..types import TimeoutType
+from ..types import TimeoutType, PathType
 
 
 def list2cmdline(args: Iterable[str]) -> str:
@@ -175,7 +175,7 @@ def create_process(
         *args: Any,
         capture_output: bool = False,
         stdin: Union[int, IO] = None, stdout: Union[int, IO] = None, stderr: Union[int, IO] = None,
-        shell: bool = False, cwd: str = None,
+        shell: bool = False, cwd: PathType = None,
         env: Dict[str, str] = None, append_env: Dict[str, str] = None, default_env: Dict[str, str] = None,
         **kwargs) -> Process:
     args = [str(arg) for arg in args]
