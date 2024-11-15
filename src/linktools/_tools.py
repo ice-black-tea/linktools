@@ -337,14 +337,21 @@ class Tool(metaclass=ToolMeta):
         """
         判断工具是否支持当前系统
         """
-        return True if self.absolute_path else False
+        if self.exists:
+            return True
+        if self.download_url:
+            return True
+        return False
 
     @property
     def exists(self) -> bool:
         """
         通过可执行文件是否存在来判断是否存在
         """
-        return True if self.absolute_path and os.path.exists(self.absolute_path) else False
+        if self.absolute_path:
+            if os.path.exists(self.absolute_path):
+                return True
+        return False
 
     @cached_property
     def stub(self) -> pathlib.Path:
@@ -468,7 +475,7 @@ class Tool(metaclass=ToolMeta):
             tool = self._tools[executable_cmdline[0]]
             return tool.popen(*args, **kwargs)
 
-        return utils.create_process(*[*executable_cmdline, *args], **kwargs)
+        return utils.popen(*[*executable_cmdline, *args], **kwargs)
 
     @timeoutable
     def exec(
@@ -493,27 +500,39 @@ class Tool(metaclass=ToolMeta):
         process = self.popen(*args, capture_output=True)
 
         try:
-            out, err = process.exec(
-                timeout=timeout,
-                on_stdout=on_stdout,
-                on_stderr=on_stderr,
-            )
+            stdout = stderr = None
+            for out, err in process.fetch(timeout=timeout):
+                if out is not None:
+                    stdout = out if stdout is None else stdout + out
+                    if on_stdout:
+                        data = out.decode(errors="ignore") if isinstance(out, bytes) else out
+                        data = data.rstrip()
+                        if data:
+                            on_stdout(out)
+                if err is not None:
+                    stderr = err if stderr is None else stderr + err
+                    if on_stderr:
+                        data = err.decode(errors="ignore") if isinstance(err, bytes) else err
+                        data = data.rstrip()
+                        if data:
+                            on_stderr(err)
+
             if not ignore_errors and process.poll() not in (0, None):
-                if isinstance(err, bytes):
-                    err = err.decode(errors="ignore")
-                    err = err.strip()
-                elif isinstance(err, str):
-                    err = err.strip()
-                if err:
-                    raise error_type(err)
+                if isinstance(stderr, bytes):
+                    stderr = stderr.decode(errors="ignore")
+                    stderr = stderr.strip()
+                elif isinstance(stderr, str):
+                    stderr = stderr.strip()
+                if stderr:
+                    raise error_type(stderr)
 
-            if isinstance(out, bytes):
-                out = out.decode(errors="ignore")
-                out = out.strip()
-            elif isinstance(out, str):
-                out = out.strip()
+            if isinstance(stdout, bytes):
+                stdout = stdout.decode(errors="ignore")
+                stdout = stdout.strip()
+            elif isinstance(stdout, str):
+                stdout = stdout.strip()
 
-            return out or ""
+            return stdout or ""
 
         finally:
             process.kill()

@@ -7,11 +7,15 @@ import queue
 import shlex
 import subprocess
 import threading
-from typing import AnyStr, Tuple, Optional, IO, Callable, Any, Dict, Union, List, Iterable
+from typing import AnyStr, Optional, IO, Any, Dict, Union, List, Iterable, Generator
 
+from .. import utils
 from .._environ import environ
 from ..decorator import cached_property, timeoutable
-from ..types import TimeoutType, PathType
+from ..types import TimeoutType, PathType, Timeout
+
+STDOUT = 1
+STDERR = 2
 
 
 def list2cmdline(args: Iterable[str]) -> str:
@@ -22,74 +26,111 @@ def cmdline2list(cmdline: str) -> List[str]:
     return shlex.split(cmdline)
 
 
-class Output:
-    STDOUT = 1
-    STDERR = 2
+if utils.is_unix_like():
 
-    def __init__(self, stdout: IO[AnyStr], stderr: IO[AnyStr]):
-        self._queue = queue.Queue()
-        self._stdout_finished = None
-        self._stdout_thread = None
-        self._stderr_finished = None
-        self._stderr_thread = None
-        if stdout:
-            self._stdout_finished = threading.Event()
-            self._stdout_thread = threading.Thread(
-                target=self._iter_lines,
-                args=(stdout, self.STDOUT, self._stdout_finished,)
-            )
-            self._stdout_thread.daemon = True
-            self._stdout_thread.start()
-        if stderr:
-            self._stderr_finished = threading.Event()
-            self._stderr_thread = threading.Thread(
-                target=self._iter_lines,
-                args=(stderr, self.STDERR, self._stderr_finished,)
-            )
-            self._stderr_thread.daemon = True
-            self._stderr_thread.start()
+    class Output:
 
-    @property
-    def is_alive(self):
-        if self._stdout_finished and not self._stdout_finished.is_set():
-            return True
-        if self._stderr_finished and not self._stderr_finished.is_set():
-            return True
-        return False
+        def __init__(self, stdout: IO[AnyStr], stderr: IO[AnyStr]):
+            self._stdout = stdout
+            self._stderr = stderr
 
-    def _iter_lines(self, io: IO[AnyStr], code: int, event: threading.Event):
-        try:
+        def get(self, timeout: Timeout):
+            import select
+
+            fds = []
+            if self._stdout:
+                fds.append(self._stdout)
+            if self._stderr:
+                fds.append(self._stderr)
+
+            while len(fds) > 0:
+                remain = utils.coalesce(timeout.remain, 1)
+                if remain <= 0:  # 超时
+                    break
+                rlist, wlist, xlist = select.select(fds, [], [], min(remain, 1))
+                if self._stdout and self._stdout in rlist:
+                    data = self._stdout.readline()
+                    if len(data) == 0:
+                        fds.remove(self._stdout)
+                    else:
+                        yield STDOUT, data
+                if self._stderr and self._stderr in rlist:
+                    data = self._stderr.readline()
+                    if len(data) == 0:
+                        fds.remove(self._stderr)
+                    else:
+                        yield STDERR, data
+
+else:
+
+    class Output:
+
+        def __init__(self, stdout: IO[AnyStr], stderr: IO[AnyStr]):
+            self._queue = queue.Queue()
+            self._stdout_finished = None
+            self._stdout_thread = None
+            self._stderr_finished = None
+            self._stderr_thread = None
+            if stdout:
+                self._stdout_finished = threading.Event()
+                self._stdout_thread = threading.Thread(
+                    target=self._iter_lines,
+                    args=(stdout, STDOUT, self._stdout_finished,)
+                )
+                self._stdout_thread.daemon = True
+                self._stdout_thread.start()
+            if stderr:
+                self._stderr_finished = threading.Event()
+                self._stderr_thread = threading.Thread(
+                    target=self._iter_lines,
+                    args=(stderr, STDERR, self._stderr_finished,)
+                )
+                self._stderr_thread.daemon = True
+                self._stderr_thread.start()
+
+        @property
+        def is_alive(self):
+            if self._stdout_finished and not self._stdout_finished.is_set():
+                return True
+            if self._stderr_finished and not self._stderr_finished.is_set():
+                return True
+            return False
+
+        def _iter_lines(self, io: IO[AnyStr], code: int, event: threading.Event):
+            try:
+                while True:
+                    data = io.readline()
+                    if not data:
+                        break
+                    self._queue.put((code, data))
+            except OSError as e:
+                if e.errno != errno.EBADF:
+                    environ.logger.debug(f"Handle output error: {e}")
+            finally:
+                event.set()
+                self._queue.put((None, None))
+
+        def get(self, timeout: Timeout):
+            while self.is_alive:
+                remain = utils.coalesce(timeout.remain, 1)
+                if remain <= 0:  # 超时
+                    break
+                try:
+                    # 给个1秒超时时间防止有多个线程消费的时候死锁
+                    code, data = self._queue.get(timeout=min(remain, 1))
+                    if code is not None:
+                        yield code, data
+                except queue.Empty:
+                    pass
+
             while True:
-                data = io.readline()
-                if not data:
+                try:
+                    # 需要把剩余可消费的数据消费完
+                    code, data = self._queue.get_nowait()
+                    if code is not None:
+                        yield code, data
+                except queue.Empty:
                     break
-                self._queue.put((code, data))
-        except OSError as e:
-            if e.errno != errno.EBADF:
-                environ.logger.debug(f"Handle output error: {e}")
-        finally:
-            event.set()
-            self._queue.put((None, None))
-
-    def get_lines(self, timeout: TimeoutType):
-        while self.is_alive:
-            try:
-                # 给个1秒超时时间防止有多个线程消费的时候死锁
-                code, data = self._queue.get(timeout=min(timeout.remain or 1, 1))
-                if code is not None:
-                    yield code, data
-            except queue.Empty:
-                if not timeout.check():
-                    break
-
-        while True:
-            try:
-                # 需要把剩余可消费的数据消费完
-                code, data = self._queue.get_nowait()
-                if code is not None:
-                    yield code, data
-            except queue.Empty:
-                break
 
 
 class Process(subprocess.Popen):
@@ -104,13 +145,6 @@ class Process(subprocess.Popen):
                 raise
 
     @timeoutable
-    def call_as_daemon(self, timeout: TimeoutType = None) -> int:
-        try:
-            return self.wait(timeout=timeout.remain or .1)
-        except subprocess.TimeoutExpired:
-            return 0
-
-    @timeoutable
     def check_call(self, timeout: TimeoutType = None) -> int:
         with self:
             try:
@@ -123,40 +157,22 @@ class Process(subprocess.Popen):
                 raise
 
     @timeoutable
-    def exec(
-            self,
-            timeout: TimeoutType = None,
-            on_stdout: Callable[[str], Any] = None,
-            on_stderr: Callable[[str], Any] = None
-    ) -> Tuple[Optional[AnyStr], Optional[AnyStr]]:
+    def fetch(self, timeout: TimeoutType = None) -> Generator[tuple[Optional[AnyStr], Optional[AnyStr]], Any, Any]:
         """
-        执行命令
+        获取进程的输出内容
         :param timeout: 超时时间
-        :param on_stdout: 把输出打印到logger中
-        :param on_stderr: 把输出打印到logger中
-        :return: 返回stdout输出内容
+        :return: 返回stdout输出内容和stderr错误内容
         """
-
-        out = err = None
-
         if self.stdout or self.stderr:
 
-            for code, data in self._output.get_lines(timeout):
-                if code == self._output.STDOUT:
-                    out = data if out is None else out + data
-                    if on_stdout:
-                        data = data.decode(errors="ignore") if isinstance(data, bytes) else data
-                        data = data.rstrip()
-                        if data:
-                            on_stdout(data)
-
-                elif code == self._output.STDERR:
-                    err = data if err is None else err + data
-                    if on_stderr:
-                        data = data.decode(errors="ignore") if isinstance(data, bytes) else data
-                        data = data.rstrip()
-                        if data:
-                            on_stderr(data)
+            for code, data in self._output.get(timeout):
+                out = err = None
+                if code == STDOUT:
+                    out = data
+                elif code == STDERR:
+                    err = data
+                if out is not None or err is not None:
+                    yield out, err
         else:
 
             try:
@@ -164,14 +180,12 @@ class Process(subprocess.Popen):
             except subprocess.TimeoutExpired:
                 pass
 
-        return out, err
-
     @cached_property
     def _output(self):
         return Output(self.stdout, self.stderr)
 
 
-def create_process(
+def popen(
         *args: Any,
         capture_output: bool = False,
         stdin: Union[int, IO] = None, stdout: Union[int, IO] = None, stderr: Union[int, IO] = None,

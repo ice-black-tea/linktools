@@ -92,11 +92,9 @@ class Command(BaseCommandGroup):
             raise NotImplementedError(f"Not found shell path")
 
         if command:
-            process = utils.create_process(command, shell=True)
-            return process.call()
+            return utils.popen(command, shell=True).call()
 
-        process = shell.popen()
-        return process.call()
+        return shell.popen().call()
 
     @subcommand("completion", help="generate shell auto complete script")
     @subcommand_argument("-s", "--shell", help="output code for the specified shell",

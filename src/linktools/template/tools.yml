@@ -402,3 +402,40 @@ TOOL_FLINUX:
       - system: windows
         then: 'flinux.exe'
       - else: ~
+
+############################################################################################
+# ffmpeg
+############################################################################################
+TOOL_FFMPEG:
+  version:
+    when:
+      - system: darwin
+        then: '6.1.1'
+      - system: linux
+        then: '6.0.1'
+      - system: windows
+        then: '6.1.1'
+      - else: ~
+  download_url:
+    when:
+      - system: darwin
+        machine: [arm64, x86_64]
+        then: 'https://evermeet.cx/ffmpeg/ffmpeg-{version}.zip'
+      - system: linux
+        machine: x86_64
+        then: 'https://www.johnvansickle.com/ffmpeg/old-releases/ffmpeg-{version}-amd64-static.tar.xz'
+      - system: windows
+        machine: amd64
+        then: 'https://github.com/GyanD/codexffmpeg/releases/download/{version}/ffmpeg-{version}-full_build-shared.zip'
+      - else: ~
+  unpack_path: 'ffmpeg-{version}'
+  target_path:
+    when:
+      - system: darwin
+        then: 'ffmpeg'
+      - system: linux
+        machine: x86_64
+        then: 'ffmpeg-{version}-amd64-static/ffmpeg'
+      - system: windows
+        then: 'ffmpeg-{version}-full_build-shared\bin\ffmpeg.exe'
+      - else: ~

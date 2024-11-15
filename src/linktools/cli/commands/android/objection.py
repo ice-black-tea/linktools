@@ -115,9 +115,9 @@ class Command(AndroidCommand):
                 port = args.redirect_port or 8080
                 uid = device.get_uid(package)
                 with device.redirect(address, port, uid):
-                    return utils.create_process(*objection_args).call()
+                    return utils.popen(*objection_args).call()
             else:
-                return utils.create_process(*objection_args).call()
+                return utils.popen(*objection_args).call()
 
 
 command = Command()

@@ -46,14 +46,7 @@ if TYPE_CHECKING:
 _logger = environ.get_logger("ios.go-ios")
 
 
-def _load_json(line: str, default: Union[Tuple, Dict] = None) -> Any:
-    try:
-        return json.loads(line)
-    except:
-        return default
-
-
-def _is_log_data(data: Any) -> bool:
+def _is_log(data: Any) -> bool:
     return isinstance(data, dict) and "level" in data and "msg" in data
 
 
@@ -75,8 +68,8 @@ class GoIOS(Bridge):
     @classmethod
     def _on_log(cls, message: str):
         for line in message.splitlines():
-            data = _load_json(line)
-            if _is_log_data(data):
+            data = utils.ignore_error(json.loads, args=(line,), default=None)
+            if _is_log(data):
                 level = data.get("level")
                 if level in ("error", "fatal"):
                     _logger.error(data.get("msg"))
@@ -90,8 +83,8 @@ class GoIOS(Bridge):
     @classmethod
     def _on_error(cls, message: str):
         for line in message.splitlines():
-            data = _load_json(line)
-            if _is_log_data(data):
+            data = utils.ignore_error(json.loads, args=(line,), default=None)
+            if _is_log(data):
                 level = data.get("level")
                 if level in ("fatal",):
                     return GoIOSError(data.get("msg"))
@@ -105,7 +98,7 @@ class GoIOS(Bridge):
         """
         result = self.exec("list")
         for line in result.splitlines():
-            data = _load_json(line)
+            data = utils.ignore_error(json.loads, args=(line,), default=None)
             if isinstance(data, dict) and "deviceList" in data:
                 for id in data["deviceList"]:
                     if alive is None:
@@ -171,7 +164,7 @@ class GoIOSDevice(BaseDevice):
         :return: 设备类型
         """
         for line in self.exec("info").splitlines():
-            return _load_json(line, {})
+            return utils.ignore_error(json.loads, args=(line,), default={})
         raise GoIOSError("get device info failed")
 
     def copy(self, type: "Callable[[str, GoIOS], DEVICE_TYPE]" = None) -> "DEVICE_TYPE":
@@ -294,21 +287,23 @@ class Forward(Stoppable):
             stderr=subprocess.PIPE,
         )
 
-        for i in range(10):
-            out, err = self._process.exec(timeout=1)
-            for line in (out or "").splitlines() + (err or "").splitlines():
-                data = _load_json(line)
-                if _is_log_data(data):
-                    level = data.get("level")
-                    if level in ("fatal",):
-                        utils.ignore_error(self._process.kill)
-                        raise GoIOSError(data.get("msg"))
-                    elif "Start listening on port" in data["msg"]:
-                        time.sleep(.01)
-                        _logger.debug(f"Capture ios forward process output: {data['msg']}")
-                        return
-
-        raise GoIOSError("Run ios forward failed")
+        try:
+            for out, err in self._process.fetch(timeout=10):
+                for line in (out or "").splitlines() + (err or "").splitlines():
+                    data = utils.ignore_error(json.loads, args=(line,), default=None)
+                    if _is_log(data):
+                        level = data.get("level")
+                        if level in ("fatal",):
+                            utils.ignore_error(self._process.kill)
+                            raise GoIOSError(data.get("msg"))
+                        elif "Start listening on port" in data["msg"]:
+                            time.sleep(.01)
+                            _logger.debug(f"Capture ios forward process output: {data['msg']}")
+                            return
+            raise GoIOSError("Run ios forward failed")
+        except:
+            self.stop()
+            raise
 
     def stop(self):
         try:

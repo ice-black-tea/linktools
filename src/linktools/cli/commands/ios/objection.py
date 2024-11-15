@@ -99,7 +99,7 @@ class Command(IOSCommand):
             if args.plugin_folder:
                 objection_args += ["--plugin-folder", args.plugin_folder]
 
-            return utils.create_process(*objection_args).call()
+            return utils.popen(*objection_args).call()
 
 
 command = Command()

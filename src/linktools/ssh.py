@@ -9,6 +9,7 @@ import socket
 import sys
 import threading
 import time
+from typing import Any
 
 import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
@@ -18,7 +19,7 @@ from . import utils
 from ._environ import environ
 from .rich import create_progress, prompt
 from .types import Stoppable
-from .utils import list2cmdline, ignore_error
+from .utils import list2cmdline, ignore_error, is_unix_like
 
 try:
     import SocketServer
@@ -83,7 +84,7 @@ class SSHClient(paramiko.SSHClient):
                 if auth_exception is not None:
                     raise auth_exception from None
 
-    def open_shell(self, *args: any):
+    def open_shell(self, *args: Any):
         if len(args) > 0:
             stdin, stdout, stderr = self.exec_command(
                 list2cmdline([str(arg) for arg in args]),
@@ -104,112 +105,99 @@ class SSHClient(paramiko.SSHClient):
 
             for thread in threads:
                 thread.join()
-
         else:
-            shell = None
-
-            if shell is None:
-                try:
-                    import msvcrt
-                    shell = self._windows_shell
-                except ImportError:
-                    pass
-
-            if shell is None:
-                try:
-                    import termios
-                    import tty
-                    shell = self._posix_shell
-                except ImportError:
-                    pass
-
-            if shell is None:
-                raise SSHException("No shell available on this platform")
-
             chan = self.invoke_shell()
             try:
-                shell(chan)
+                self._open_shell(chan)
             finally:
                 ignore_error(chan.close)
 
-    @classmethod
-    def _posix_shell(cls, channel: "paramiko.Channel"):
-        import select
-        import termios
-        import tty
+    if utils.is_windows():
 
-        orig_tty = None
-        stdin_fileno = sys.stdin.fileno()
+        @classmethod
+        def _open_shell(cls, channel: "paramiko.Channel"):
+            import msvcrt
 
-        try:
-            orig_tty = termios.tcgetattr(stdin_fileno)
-            tty.setraw(stdin_fileno)
-            tty.setcbreak(stdin_fileno)
-        except Exception as e:
-            _logger.debug(f"Set tty error: {e}")
-
-        try:
-            channel.settimeout(0.0)
-            while not channel.closed:
-                rlist, wlist, xlist = select.select([channel, sys.stdin], [], [], 1.0)
-                if channel in rlist:
+            def write_all(sock):
+                while not channel.closed:
                     try:
-                        data = channel.recv(1024)
+                        data = sock.recv(1024)
                         if len(data) == 0:
+                            sys.stdout.flush()
                             break
                         sys.stdout.write(data.decode())
                         sys.stdout.flush()
-                    except socket.timeout:
-                        pass
-                if sys.stdin in rlist:
-                    data = os.read(stdin_fileno, 1)
-                    if len(data) == 0:
+                    except OSError:
                         break
-                    channel.send(data)
-        except OSError:
-            pass
-        finally:
-            if orig_tty:
-                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_tty)
 
-    @classmethod
-    def _windows_shell(cls, channel: "paramiko.Channel"):
-        import threading
-        import msvcrt
+            write_thread = threading.Thread(target=write_all, args=(channel,))
+            write_thread.start()
 
-        def write_all(sock):
-            while not channel.closed:
-                try:
-                    data = sock.recv(1024)
-                    if len(data) == 0:
-                        sys.stdout.flush()
-                        break
-                    sys.stdout.write(data.decode())
-                    sys.stdout.flush()
-                except OSError:
-                    break
-
-        write_thread = threading.Thread(target=write_all, args=(channel,))
-        write_thread.start()
-
-        try:
-            delay = 0.001
-            while not channel.closed:
-                if not msvcrt.kbhit():
-                    delay = min(delay * 2, 0.1)
-                    time.sleep(delay)
-                    continue
+            try:
                 delay = 0.001
-                char = msvcrt.getch()
-                if char == b"\xe0":
-                    char = b"\x1b"
-                buff = char
-                while msvcrt.kbhit():
+                while not channel.closed:
+                    if not msvcrt.kbhit():
+                        delay = min(delay * 2, 0.1)
+                        time.sleep(delay)
+                        continue
+                    delay = 0.001
                     char = msvcrt.getch()
-                    buff += char
-                channel.send(buff)
-        except OSError:
-            pass
+                    if char == b"\xe0":
+                        char = b"\x1b"
+                    buff = char
+                    while msvcrt.kbhit():
+                        char = msvcrt.getch()
+                        buff += char
+                    channel.send(buff)
+            except OSError:
+                pass
+
+    elif is_unix_like():
+
+        @classmethod
+        def _open_shell(cls, channel: "paramiko.Channel"):
+            import select
+            import termios
+            import tty
+
+            orig_tty = None
+            stdin_fileno = sys.stdin.fileno()
+
+            try:
+                orig_tty = termios.tcgetattr(stdin_fileno)
+                tty.setraw(stdin_fileno)
+                tty.setcbreak(stdin_fileno)
+            except Exception as e:
+                _logger.debug(f"Set tty error: {e}")
+
+            try:
+                channel.settimeout(0.0)
+                while not channel.closed:
+                    rlist, wlist, xlist = select.select([channel, sys.stdin], [], [], 1.0)
+                    if channel in rlist:
+                        try:
+                            data = channel.recv(1024)
+                            if len(data) == 0:
+                                break
+                            sys.stdout.write(data.decode())
+                            sys.stdout.flush()
+                        except socket.timeout:
+                            pass
+                    if sys.stdin in rlist:
+                        data = os.read(stdin_fileno, 1)
+                        if len(data) == 0:
+                            break
+                        channel.send(data)
+            except OSError:
+                pass
+            finally:
+                if orig_tty:
+                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_tty)
+
+    else:
+
+        def _open_shell(self, channel: "paramiko.Channel"):
+            raise NotImplementedError("Unsupported platform")
 
     def get_file(self, remote_path: str, local_path: str):
         with self._open_scp() as scp:
@@ -221,8 +209,6 @@ class SSHClient(paramiko.SSHClient):
 
     @contextlib.contextmanager
     def _open_scp(self):
-
-        self.open_sftp().put()
 
         with create_progress() as progress:
             tasks = {}

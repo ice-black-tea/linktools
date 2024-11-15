@@ -39,12 +39,13 @@ from ._utils import (
     parse_version, get_char_width,
     make_url, parse_header, parser_cookie, guess_file_name, user_agent,
     get_system, get_machine, get_user, get_uid, get_gid, get_shell_path,
+    is_unix_like, is_windows,
     import_module, import_module_file,
     get_derived_type, lazy_load, lazy_iter, lazy_raise
 )
 
 from ._subprocess import (
-    Process, create_process,
+    Process, popen, popen as create_process,
     list2cmdline, cmdline2list,
 )
 

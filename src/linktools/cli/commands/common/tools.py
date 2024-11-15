@@ -97,7 +97,10 @@ class Command(BaseCommand):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            return process.call_as_daemon()
+            try:
+                return process.wait(timeout=.1)
+            except subprocess.TimeoutExpired:
+                return None
 
         else:
             process = tool.popen(*tool_args)

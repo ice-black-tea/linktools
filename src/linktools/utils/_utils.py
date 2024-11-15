@@ -50,7 +50,7 @@ from .._environ import environ
 from ..decorator import singleton
 from ..metadata import __missing__
 from ..references.fake_useragent import UserAgent
-from ..types import PathType, QueryType, Proxy, IterProxy
+from ..types import PathType, QueryType, Proxy, IterProxy, Error
 
 if TYPE_CHECKING:
     from typing import ParamSpec, Literal
@@ -59,20 +59,25 @@ if TYPE_CHECKING:
     P = ParamSpec("P")
 
 DEFAULT_ENCODING = "utf-8"
-SYSTEM = platform.system().lower()
-MACHINE = platform.machine().lower()
+
+_SYSTEM = None
+_MACHINE = None
 
 
 def ignore_error(
         fn: "Callable[P, T]", *,
         args: "P.args" = None, kwargs: "P.kwargs" = None,
-        default: "T" = None) -> "T":
+        default: "T" = None
+) -> "T":
     try:
-        if args is None:
-            args = tuple()
-        if kwargs is None:
-            kwargs = dict()
-        return fn(*args, **kwargs)
+        if args is not None:
+            return fn(*args, **kwargs) \
+                if kwargs is not None \
+                else fn(*args)
+        else:
+            return fn(**kwargs) \
+                if kwargs is not None \
+                else fn()
     except:
         return default
 
@@ -302,8 +307,8 @@ def gzip_compress(data: Union[str, bytes]) -> bytes:
 
 def is_sub_path(path: "PathType", root_path: "PathType") -> bool:
     try:
-        abs_path = os.path.abspath(path)
-        abs_root_path = os.path.abspath(root_path)
+        abs_path = os.path.abspath(os.path.expanduser(path))
+        abs_root_path = os.path.abspath(os.path.expanduser(root_path))
         return os.path.commonpath([abs_path, abs_root_path]) == abs_root_path
     except ValueError:
         return False
@@ -316,9 +321,9 @@ def join_path(root_path: PathType, *paths: [str]) -> Path:
         target_path = target_path.joinpath(path)
         try:
             if os.path.commonpath([target_path, parent_path]) != parent_path:
-                raise Exception(f"Unsafe path \"{path}\"")
+                raise Error(f"Unsafe path \"{path}\"")
         except ValueError:
-            raise Exception(f"Unsafe path \"{path}\"")
+            raise Error(f"Unsafe path \"{path}\"")
     return target_path
 
 
@@ -564,21 +569,41 @@ def parser_cookie(cookie: str) -> Dict[str, str]:
     return cookies
 
 
-def get_system():
+def get_system() -> str:
     """
     获取系统类型
     """
-    return SYSTEM
+    global _SYSTEM
+    if _SYSTEM is None:
+        _SYSTEM = platform.system().lower()
+    return _SYSTEM
 
 
-def get_machine():
+def get_machine() -> str:
     """
     获取机器类型
     """
-    return MACHINE
+    global _MACHINE
+    if _MACHINE is None:
+        _MACHINE = platform.machine().lower()
+    return _MACHINE
 
 
-if SYSTEM in ("darwin", "linux"):
+def is_unix_like() -> bool:
+    """
+    是否为类Unix系统
+    """
+    return get_system() in ("darwin", "linux")
+
+
+def is_windows() -> bool:
+    """
+    是否为Windows系统
+    """
+    return get_system() == "windows"
+
+
+if is_unix_like():
 
     import pwd
 
@@ -623,7 +648,7 @@ if SYSTEM in ("darwin", "linux"):
         except:
             return shutil.which("zsh") or shutil.which("bash") or shutil.which("sh")
 
-elif SYSTEM in ("windows",):
+elif is_windows():
 
     def get_user(uid: int = None):
         """
@@ -657,7 +682,7 @@ elif SYSTEM in ("windows",):
             shell_path = os.environ["ComSpec"]
             if shell_path and os.path.exists(shell_path):
                 return shell_path
-        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+        raise NotImplementedError(f"Unsupported system `{get_system()}`")
 
 else:
 
@@ -665,28 +690,28 @@ else:
         """
         获取用户名，如果没有指定uid则返回当前用户名，windows固定为当前用户名
         """
-        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+        raise NotImplementedError(f"Unsupported system `{get_system()}`")
 
 
     def get_uid(user: str = None):
         """
         获取用户ID，如果没有指定用户则返回当前用户ID，windows固定为0
         """
-        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+        raise NotImplementedError(f"Unsupported system `{get_system()}`")
 
 
     def get_gid(user: str = None):
         """
         获取用户组ID，如果没有指定用户则返回当前用户组ID，windows固定为0
         """
-        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+        raise NotImplementedError(f"Unsupported system `{get_system()}`")
 
 
     def get_shell_path():
         """
         获取当前用户shell路径
         """
-        raise NotImplementedError(f"Unsupported system `{SYSTEM}`")
+        raise NotImplementedError(f"Unsupported system `{get_system()}`")
 
 
 def import_module(name: str, spec: ModuleSpec = None) -> "T":

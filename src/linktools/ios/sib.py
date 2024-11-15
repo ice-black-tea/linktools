@@ -15,6 +15,8 @@ from ..device import BridgeError, Bridge, BaseDevice
 from ..types import Stoppable
 
 if TYPE_CHECKING:
+    from linktools.ssh import SSHClient
+
     DEVICE_TYPE = TypeVar("DEVICE_TYPE", bound="SibDevice")
 
 _logger = environ.get_logger("ios.sib")
@@ -243,50 +245,16 @@ class SibDevice(BaseDevice):
             result.append(Process(obj))
         return result
 
-    def forward(self, local_port: int, remote_port: int):
+    def forward(self, local_port: int, remote_port: int) -> "Forward":
         """
         创建端口转发
         :param local_port: 本地端口
         :param remote_port: 远程端口
         :return: 端口转发对象
         """
-        process = self.popen(
-            "proxy",
-            "--local-port", local_port,
-            "--remote-port", remote_port,
-            text=True,
-            bufsize=1,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        return Forward(self, local_port, remote_port)
 
-        for i in range(10):
-            if process.poll() is not None:
-                break
-            out, err = process.exec(timeout=1, on_stderr=_logger.error)
-            if out:
-                if isinstance(out, bytes):
-                    out = out.decode(errors="ignore")
-                if "Listen on:" in out:
-                    time.sleep(.1)
-                    _logger.debug(f"Capture sib proxy process output: {out.rstrip()}")
-                    break
-
-        class Forward(Stoppable):
-            local_port = property(lambda self: local_port)
-            remote_port = property(lambda self: remote_port)
-
-            def stop(self):
-                try:
-                    _logger.debug(f"Kill sib proxy process")
-                    process.kill()
-                    process.wait(5)
-                except TimeoutExpired:
-                    _logger.error(f"Proxy process did not finish normally")
-
-        return Forward()
-
-    def ssh(self, port: int = 22, username: str = "root", password: str = None):
+    def ssh(self, port: int = 22, username: str = "root", password: str = None) -> "SSHClient":
         """
         创建ssh连接，需要ios设备已完成越狱
         :param port: ssh端口
@@ -321,3 +289,42 @@ class SibDevice(BaseDevice):
 
     def __repr__(self):
         return f"SibDevice<{self.id}>"
+
+
+class Forward(Stoppable):
+    local_port = property(lambda self: self._local_port)
+    remote_port = property(lambda self: self._remote_port)
+
+    def __init__(self, device: SibDevice, local_port: int, remote_port: int):
+        self._local_port = local_port
+        self._remote_port = remote_port
+        self._process = device.popen(
+            "proxy",
+            "--local-port", local_port,
+            "--remote-port", remote_port,
+            text=True,
+            bufsize=1,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        try:
+            for out, err in self._process.fetch(timeout=10):
+                if out and "Listen on:" in out:
+                    time.sleep(.1)
+                    _logger.debug(f"Capture ios forward process output: {out.rstrip()}")
+                    return
+                if err:
+                    raise SibError(f"Run ios forward failed: {err.strip()}")
+            raise SibError("Run ios forward failed")
+        except:
+            self.stop()
+            raise
+
+    def stop(self):
+        try:
+            _logger.debug(f"Kill sib proxy process")
+            self._process.kill()
+            self._process.wait(5)
+        except TimeoutExpired:
+            _logger.error(f"Proxy process did not finish normally")
