@@ -135,7 +135,18 @@ TOOL_JAR2DEX:
 ############################################################################################
 TOOL_ADB: &TOOL_ADB
   version: 'latest'
-  download_url: 'https://dl.google.com/android/repository/platform-tools-{version}-{system}.zip'
+  download_url:
+    when:
+      - system: darwin
+        machine: [arm64, x86_64]
+        then: 'https://dl.google.com/android/repository/platform-tools-{version}-{system}.zip'
+      - system: linux
+        machine: x86_64
+        then: 'https://dl.google.com/android/repository/platform-tools-{version}-{system}.zip'
+      - system: windows
+        machine: amd64
+        then: 'https://dl.google.com/android/repository/platform-tools-{version}-{system}.zip'
+      - else: ~
   unpack_path: 'platform-tools-{version}'
   target_path:
     when:
@@ -157,10 +168,13 @@ TOOL_AAPT: &TOOL_AAPT
   download_url:
     when:
       - system: darwin
+        machine: [arm64, x86_64]
         then: 'https://dl.google.com/android/repository/build-tools_{version}-macosx.zip'
       - system: linux
+        machine: x86_64
         then: 'https://dl.google.com/android/repository/build-tools_{version}-linux.zip'
       - system: windows
+        machine: amd64
         then: 'https://dl.google.com/android/repository/build-tools_{version}-windows.zip'
       - else: ~
   unpack_path: 'build-tools-{version}'
@@ -249,7 +263,7 @@ TOOL_COMPACT_DEX_CONVERTER:
   target_path:
     when:
       - system: darwin
-        machine: [x86_64, arm64]
+        machine: [arm64, x86_64]
         then: 'compact_dex_converter_mac'
       - system: linux
         machine: x86_64
@@ -303,6 +317,7 @@ TOOL_IOS:
   download_url:
     when:
       - system: darwin
+        machine: [arm64, x86_64]
         then: 'https://github.com/danielpaulus/go-ios/releases/download/v{version}/go-ios-mac.zip'
       - system: linux
         machine: x86_64
@@ -401,41 +416,4 @@ TOOL_FLINUX:
     when:
       - system: windows
         then: 'flinux.exe'
-      - else: ~
-
-############################################################################################
-# ffmpeg
-############################################################################################
-TOOL_FFMPEG:
-  version:
-    when:
-      - system: darwin
-        then: '6.1.1'
-      - system: linux
-        then: '6.0.1'
-      - system: windows
-        then: '6.1.1'
-      - else: ~
-  download_url:
-    when:
-      - system: darwin
-        machine: [arm64, x86_64]
-        then: 'https://evermeet.cx/ffmpeg/ffmpeg-{version}.zip'
-      - system: linux
-        machine: x86_64
-        then: 'https://www.johnvansickle.com/ffmpeg/old-releases/ffmpeg-{version}-amd64-static.tar.xz'
-      - system: windows
-        machine: amd64
-        then: 'https://github.com/GyanD/codexffmpeg/releases/download/{version}/ffmpeg-{version}-full_build-shared.zip'
-      - else: ~
-  unpack_path: 'ffmpeg-{version}'
-  target_path:
-    when:
-      - system: darwin
-        then: 'ffmpeg'
-      - system: linux
-        machine: x86_64
-        then: 'ffmpeg-{version}-amd64-static/ffmpeg'
-      - system: windows
-        then: 'ffmpeg-{version}-full_build-shared\bin\ffmpeg.exe'
       - else: ~
