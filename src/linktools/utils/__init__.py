@@ -50,7 +50,6 @@ from ._subprocess import (
 )
 
 from ._port import (
-    is_port_free,
-    pick_unused_port,
+    is_port_free, get_free_port,
     NoFreePortFoundError,
 )

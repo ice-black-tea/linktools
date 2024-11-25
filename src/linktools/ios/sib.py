@@ -265,27 +265,38 @@ class SibDevice(BaseDevice):
         import paramiko
         from linktools.ssh import SSHClient
 
-        forward = self.forward(
-            local_port=utils.pick_unused_port(range(20000, 30000)),
-            remote_port=port,
-        )
+        forward = None
+        client = None
+        try:
+            forward = self.forward(
+                local_port=utils.get_free_port(),
+                remote_port=port,
+            )
 
-        class Client(SSHClient):
+            class Client(SSHClient):
 
-            def close(self):
-                super().close()
+                def close(self):
+                    try:
+                        super().close()
+                    finally:
+                        forward.stop()
+
+            client = Client()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect_with_pwd(
+                "localhost",
+                port=forward.local_port,
+                username=username,
+                password=password,
+            )
+        except:
+            if client is not None:
+                utils.ignore_error(client.close)
+            elif forward is not None:
                 forward.stop()
+            raise
 
-        ssh_client = Client()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect_with_pwd(
-            "localhost",
-            port=forward.local_port,
-            username=username,
-            password=password,
-        )
-
-        return ssh_client
+        return client
 
     def __repr__(self):
         return f"SibDevice<{self.id}>"
@@ -298,17 +309,18 @@ class Forward(Stoppable):
     def __init__(self, device: SibDevice, local_port: int, remote_port: int):
         self._local_port = local_port
         self._remote_port = remote_port
-        self._process = device.popen(
-            "proxy",
-            "--local-port", local_port,
-            "--remote-port", remote_port,
-            text=True,
-            bufsize=1,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        self._process = None
 
-        try:
+        def start():
+            self._process = device.popen(
+                "proxy",
+                "--local-port", local_port,
+                "--remote-port", remote_port,
+                text=True,
+                bufsize=1,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
             for out, err in self._process.fetch(timeout=10):
                 if out and "Listen on:" in out:
                     time.sleep(.1)
@@ -317,14 +329,14 @@ class Forward(Stoppable):
                 if err:
                     raise SibError(f"Run ios forward failed: {err.strip()}")
             raise SibError("Run ios forward failed")
-        except:
-            self.stop()
-            raise
+
+        self._stop_on_error(start)
 
     def stop(self):
-        try:
-            _logger.debug(f"Kill sib proxy process")
-            self._process.kill()
-            self._process.wait(5)
-        except TimeoutExpired:
-            _logger.error(f"Proxy process did not finish normally")
+        if self._process is not None:
+            try:
+                _logger.debug(f"Kill sib proxy process")
+                self._process.kill()
+                self._process.wait(5)
+            except TimeoutExpired:
+                _logger.error(f"Proxy process did not finish normally")

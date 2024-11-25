@@ -69,7 +69,7 @@ class Command(IOSCommand):
 
         server = FridaIOSServer(
             device=device,
-            local_port=args.local_port or utils.pick_unused_port(),
+            local_port=args.local_port or utils.get_free_port(),
             remote_port=args.remote_port,
         )
 

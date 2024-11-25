@@ -323,56 +323,25 @@ class AdbDevice(BaseDevice):
             self.exec("pull", self.join_path(src_dir, "."), dest_dir, **kwargs)
         return dest_dir
 
-    def forward(self, local: str, remote: str):
+    def forward(self, local: str, remote: str) -> "AdbForward":
         """
         端口转发
         :param local: 本地端口
         :param remote: 远程端口
         :return: 可关闭对象
         """
-        result = self.exec("forward", local, remote)
-        if local == "tcp:0":
-            local = f"tcp:{result}"
+        return AdbForward(self, local, remote)
 
-        _local = local.split(":", maxsplit=1)
-        _remote = remote.split(":", maxsplit=1)
-
-        # noinspection PyPropertyDefinition,PyMethodParameters
-        class Forward(Stoppable):
-            local = property(fget=lambda _: _local)
-            remote = property(fget=lambda _: _remote)
-
-            def stop(_):
-                self.exec("forward", "--remove", local, ignore_errors=True)
-
-        return Forward()
-
-    def reverse(self, remote: str, local: str):
+    def reverse(self, remote: str, local: str) -> "AdbReverse":
         """
         端口转发
         :param remote: 远程端口
         :param local: 本地端口
         :return: 可关闭对象
         """
+        return AdbReverse(self, remote, local)
 
-        result = self.exec("reverse", remote, local)
-        if remote == "tcp:0":
-            remote = f"tcp:{result}"
-
-        _local = local.split(":", maxsplit=1)
-        _remote = remote.split(":", maxsplit=1)
-
-        # noinspection PyPropertyDefinition,PyMethodParameters
-        class Reverse(Stoppable):
-            local = property(fget=lambda _: _local)
-            remote = property(fget=lambda _: _remote)
-
-            def stop(_):
-                self.exec("reverse", "--remove", remote, ignore_errors=True)
-
-        return Reverse()
-
-    def redirect(self, address: str = None, port: int = None, uid: int = None):
+    def redirect(self, address: str = None, port: int = None, uid: int = None) -> "AdbRedirect":
         """
         将手机流量重定向到本地指定端口
         :param address: 本地监听地址，不填默认本机
@@ -380,49 +349,10 @@ class AdbDevice(BaseDevice):
         :param uid: 监听目标uid
         :return: 重定向对象
         """
-
-        remote_port = None
-
         if not port:
-            port = utils.pick_unused_port()
+            port = utils.get_free_port()
 
-        if not address:
-            # 如果没有指定目标地址，则通过reverse端口访问
-            remote_port = self.exec("reverse", f"tcp:0", f"tcp:{port}").strip()
-            address = "127.0.0.1"
-            destination = f"{address}:{remote_port}"
-            _logger.debug(f"Not found redirect address, use {destination} instead")
-        else:
-            # 指定了目标地址那就直接用目标地址
-            destination = f"{address}:{port}"
-            _logger.debug(f"Found redirect address {destination}")
-
-        # 配置iptables规则，首先清除之前的规则，然后再把流量转发到目标端口上
-        self.sudo("iptables", "-t", "nat", "-F")
-
-        args = ["-A", "OUTPUT", "-p", "tcp"]  # 添加一条tcp协议的转发规则
-        args += ["!", "-o", "lo"]  # 过滤localhost
-        if uid is not None:
-            args += ["-m", "owner", "--uid-owner", uid]  # 指定要重定向流量的uid
-        args += ["-j", "DNAT", "--to-destination", destination]  # 转发到指定端口
-        self.sudo("iptables", "-t", "nat", *args)
-
-        # noinspection PyMethodParameters
-        class Redirect(Stoppable):
-
-            def __init__(self):
-                self.local_port = port
-                self.local_address = address
-                self.remote_port = remote_port
-
-            def stop(_):
-                # 清空iptables -t nat配置
-                self.sudo("iptables", "-t", "nat", "-F", ignore_errors=True)
-                # 如果占用reverse端口，则释放端口
-                if remote_port:
-                    self.exec("reverse", "--remove", f"tcp:{remote_port}", ignore_errors=True)
-
-        return Redirect()
+        return AdbRedirect(self, address, port, uid)
 
     @timeoutable
     def get_prop(self, prop: str, **kwargs) -> str:
@@ -888,3 +818,100 @@ class AdbDevice(BaseDevice):
 
     def __repr__(self):
         return f"AdbDevice<{self.id}>"
+
+
+class AdbForward(Stoppable):
+    local = property(fget=lambda self: self._local)
+    local_port = property(fget=lambda self: int(self._local[1]))
+    remote = property(fget=lambda self: self._remote)
+    remote_port = property(fget=lambda self: int(self._remote[1]))
+
+    def __init__(self, device: AdbDevice, local: str, remote: str):
+        self._device = device
+        self._local = None
+        self._remote = None
+
+        def start():
+            nonlocal local
+            result = self._device.exec("forward", local, remote)
+            if local == "tcp:0":
+                local = f"tcp:{result}"
+            self._local = local.split(":", maxsplit=1)
+            self._remote = remote.split(":", maxsplit=1)
+
+        self._stop_on_error(start)
+
+    def stop(self):
+        if self._local is not None:
+            self._device.exec("forward", "--remove", ":".join(self._local), ignore_errors=True)
+
+
+class AdbReverse(Stoppable):
+    local = property(fget=lambda self: self._local)
+    local_port = property(fget=lambda self: int(self._local[1]))
+    remote = property(fget=lambda self: self._remote)
+    remote_port = property(fget=lambda self: int(self._remote[1]))
+
+    def __init__(self, device: AdbDevice, remote: str, local: str):
+        self._device = device
+        self._local = None
+        self._remote = None
+
+        def start():
+            nonlocal remote
+            result = self._device.exec("reverse", remote, local)
+            if remote == "tcp:0":
+                remote = f"tcp:{result}"
+            self._local = local.split(":", maxsplit=1)
+            self._remote = remote.split(":", maxsplit=1)
+            return self
+
+        self._stop_on_error(start)
+
+    def stop(self):
+        if self._remote is not None:
+            self._device.exec("reverse", "--remove", ":".join(self._remote), ignore_errors=True)
+
+
+class AdbRedirect(Stoppable):
+    address = property(fget=lambda self: self._address)
+    port = property(fget=lambda self: self._port)
+
+    def __init__(self, device: AdbDevice, address: str, port: int, uid: int):
+        self._device = device
+        self._address = None
+        self._port = None
+        self._reverse_port = None
+
+        def start():
+            self._port = port
+            if not address:
+                # 如果没有指定目标地址，则通过reverse端口访问
+                self._reverse_port = self._device.exec("reverse", f"tcp:0", f"tcp:{port}").strip()
+                self._address = "127.0.0.1"
+                destination = f"{self._address}:{self._reverse_port}"
+            else:
+                # 指定了目标地址那就直接用目标地址
+                self._address = address
+                destination = f"{address}:{port}"
+
+            _logger.debug(f"Redirect all traffic to {destination}")
+
+            # 配置iptables规则，首先清除之前的规则，然后再把流量转发到目标端口上
+            self._device.sudo("iptables", "-t", "nat", "-F")
+
+            args = ["-A", "OUTPUT", "-p", "tcp"]  # 添加一条tcp协议的转发规则
+            args += ["!", "-o", "lo"]  # 过滤localhost
+            if uid is not None:
+                args += ["-m", "owner", "--uid-owner", uid]  # 指定要重定向流量的uid
+            args += ["-j", "DNAT", "--to-destination", destination]  # 转发到指定端口
+            self._device.sudo("iptables", "-t", "nat", *args)
+
+        self._stop_on_error(start)
+
+    def stop(self):
+        # 清空iptables -t nat配置
+        self._device.sudo("iptables", "-t", "nat", "-F", ignore_errors=True)
+        # 如果占用reverse端口，则释放端口
+        if self._reverse_port:
+            self._device.exec("reverse", "--remove", f"tcp:{self._reverse_port}", ignore_errors=True)

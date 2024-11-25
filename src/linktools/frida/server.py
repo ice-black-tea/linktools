@@ -186,7 +186,7 @@ class FridaAndroidServer(FridaServer):
 
     @cached_classproperty
     def _server_info(self) -> "List[Dict[str, str]]":
-        server_path = environ.get_asset_path("android-frida.json")
+        server_path = environ.get_asset_path("android-tools.json")
         server_data = json.loads(utils.read_file(server_path, text=True))
         return server_data["FRIDA_SERVER"]
 

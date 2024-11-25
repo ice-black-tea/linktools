@@ -62,7 +62,7 @@ class Command(IOSCommand):
     def run(self, args: Namespace) -> Optional[int]:
         device = args.device_picker.pick()
 
-        local_port = utils.pick_unused_port()
+        local_port = utils.get_free_port()
         with device.forward(local_port, args.port):
             with SSHClient() as client:
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

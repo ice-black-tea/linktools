@@ -30,7 +30,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, List, Dict, Type, TypeVar, TextIO, Iterable
+from typing import TYPE_CHECKING, Optional, Union, List, Dict, Type, TypeVar, TextIO, Iterable, Any
 
 import rich
 from rich.console import ConsoleRenderable, Console
@@ -45,20 +45,44 @@ from rich.text import Text, TextType
 from .metadata import __missing__
 
 if TYPE_CHECKING:
-    from ._environ import BaseEnviron
+    T = TypeVar("T")
 
 
 def is_terminal() -> bool:
     return rich.get_console().is_terminal
 
 
+def init_logging(level: int = logging.INFO, show_level: bool = False, show_time: bool = False, force: bool = False):
+    if is_terminal():
+        logging.basicConfig(
+            level=level,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[LogHandler(show_level=show_level, show_time=show_time)],
+            force=force,
+        )
+    else:
+        items = []
+        if show_time:
+            items.append("[%(asctime)s]")
+        if show_level:
+            items.append("%(levelname)s")
+        items.extend(["%(module)s", "%(funcName)s", "%(message)s"])
+        logging.basicConfig(
+            level=level,
+            format=" ".join(items),
+            datefmt="%H:%M:%S",
+            force=force,
+        )
+
+
 class LogHandler(RichHandler):
 
-    def __init__(self, environ: "BaseEnviron"):
+    def __init__(self, show_level: bool, show_time: bool):
         super().__init__(
             show_path=False,
-            show_level=environ.get_config("SHOW_LOG_LEVEL", type=bool),
-            show_time=environ.get_config("SHOW_LOG_TIME", type=bool),
+            show_level=show_level,
+            show_time=show_time,
             omit_repeated_times=False,
             log_time_format=self.make_time_text
             # markup=True,
@@ -330,42 +354,47 @@ def prompt(
 
 def choose(
         prompt: str,
-        choices: Iterable[str],
+        choices: "Union[Iterable[T], Dict[T, Any]]",
         title: str = None,
-        default: Union[int, str] = __missing__,
+        default: "T" = __missing__,
         show_default: bool = True,
         show_choices: bool = True
-) -> int:
-    choices = tuple(choices)
+) -> "T":
+    if isinstance(choices, dict):
+        keys = tuple(choices.keys())
+        texts = [str(choices[key]) for key in keys]
+    else:
+        keys = tuple(choices)
+        texts = [str(choice) for choice in choices]
 
-    if isinstance(default, str):
-        default = choices.index(default) \
-            if default in choices \
-            else __missing__
-    index = default \
-        if default != __missing__ and 0 <= default < len(choices) \
-        else 0
+    tip_id = 0
+    default_id = None
+    if default != __missing__ and default in keys:
+        tip_id = default_id = keys.index(default)
 
-    begin = 1
+    begin_id = 1
     text = Text()
     if title:
         text.append(f"{title}{os.linesep}")
-    for i in range(len(choices)):
-        text.append(f"{'>> ' if i == index else '   '}")
-        text.append(f"{f'{i + begin}:':2} ", "prompt.choices")
-        text.append(f"{choices[i]}{os.linesep}")
+    for i in range(len(texts)):
+        text.append(f"{'>> ' if i == tip_id else '   '}")
+        text.append(f"{f'{i + begin_id}:':2} ", "prompt.choices")
+        text.append(f"{texts[i]}{os.linesep}")
     text.append(prompt)
     if show_choices:
         text.append(" ")
-        text.append(f"[{begin}~{len(choices) + begin - 1}]" if len(choices) > 1 else f"[{begin}]", "prompt.choices")
+        text.append(f"[{begin_id}~{len(texts) + begin_id - 1}]" if len(texts) > 1 else f"[{begin_id}]",
+                    "prompt.choices")
 
-    return _create_prompt_class(int, allow_empty=False).ask(
+    index = _create_prompt_class(int, allow_empty=False).ask(
         text,
-        choices=[str(i) for i in range(begin, len(choices) + begin, 1)],
-        default=default + begin if default != __missing__ else ...,
+        choices=[str(i) for i in range(begin_id, len(texts) + begin_id, 1)],
+        default=default_id + begin_id if default_id is not None else ...,
         show_default=show_default,
         show_choices=False,
-    ) - begin
+    ) - begin_id
+
+    return keys[index]
 
 
 def confirm(

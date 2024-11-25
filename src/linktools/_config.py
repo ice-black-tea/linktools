@@ -559,7 +559,7 @@ class Config:
                 self,
                 prompt: str = None,
                 password: bool = False,
-                choices: Optional[List[str]] = None,
+                choices: "Union[List[str], Dict[str, str]]" = None,
                 type: "Union[Type[Union[str, int, float]], LiteralType]" = str,
                 default: Any = __missing__,
                 cached: bool = False,
@@ -590,20 +590,18 @@ class Config:
                 default = config.cast(default, self.type)
 
             if self.choices:
-                index = choose(
+                return choose(
                     self.prompt or f"Please choose {key}",
                     choices=self.choices,
                     default=default,
                     show_default=True,
                     show_choices=True
                 )
-                return self.choices[index]
 
             return prompt(
                 self.prompt or f"Please input {key}",
                 type=self.type if not isinstance(self.type, str) else str,
                 password=self.password,
-                choices=self.choices,
                 default=default,
                 allow_empty=self.allow_empty,
                 show_default=True,

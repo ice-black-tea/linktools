@@ -129,10 +129,20 @@ class Event(_threading.Event):
 
 
 class Stoppable(_abc.ABC):
+    """
+    Stoppable interface
+    """
 
     @_abc.abstractmethod
     def stop(self):
         pass
+
+    def _stop_on_error(self, callback: "_t.Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs") -> "T":
+        try:
+            return callback(*args, **kwargs)
+        except:
+            self.stop()
+            raise
 
     def __enter__(self):
         return self

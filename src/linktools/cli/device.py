@@ -40,7 +40,6 @@ from ..device import Bridge, BridgeError, BaseDevice, BridgeType, DeviceType, li
 from ..ios import Sib, SibError, SibDevice
 from ..rich import choose
 from ..types import PathType
-from ..utils import ignore_error
 
 
 class DeviceCache:
@@ -143,21 +142,12 @@ class DeviceCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            choices = []
-            for i in range(len(devices)):
-                choices.append(
-                    f"{ignore_error(lambda: devices[i].id)} "
-                    f"{ignore_error(lambda: f'({devices[i].name})') or ''}"
-                )
-
-            index = choose(
+            return choose(
                 "Choose device",
                 title="More than one device/emulator",
-                choices=choices,
-                default=0
+                choices={device: device.pretty_id for device in devices},
+                default=devices[0]
             )
-
-            return devices[index]
 
         class IDAction(Action):
 
@@ -222,21 +212,12 @@ class AndroidCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            choices = []
-            for i in range(len(devices)):
-                choices.append(
-                    f"{ignore_error(lambda: devices[i].id)} "
-                    f"{ignore_error(lambda: f'({devices[i].name})') or ''}"
-                )
-
-            index = choose(
+            return choose(
                 "Choose device",
                 title="More than one device/emulator",
-                choices=choices,
-                default=0
+                choices={device: device.pretty_id for device in devices},
+                default=devices[0]
             )
-
-            return devices[index]
 
         class SerialAction(Action):
 
@@ -311,22 +292,29 @@ class AndroidCommandMixin:
         option_group = parser.add_argument_group(title="adb options")
         option_group.set_defaults(device_picker=AndroidPicker(pick))
 
-        option_group.add_argument(f"{prefix}a", f"{prefix}{prefix}all-interfaces", dest="device_picker", nargs=0, action=OptionAction,
+        option_group.add_argument(f"{prefix}a", f"{prefix}{prefix}all-interfaces", dest="device_picker", nargs=0,
+                                  action=OptionAction,
                                   help="listen on all network interfaces, not just localhost (adb -a option)")
 
         device_group = option_group.add_mutually_exclusive_group()
-        device_group.add_argument(f"{prefix}d", f"{prefix}{prefix}device", dest="device_picker", nargs=0, action=DeviceAction,
+        device_group.add_argument(f"{prefix}d", f"{prefix}{prefix}device", dest="device_picker", nargs=0,
+                                  action=DeviceAction,
                                   help="use USB device (adb -d option)")
-        device_group.add_argument(f"{prefix}s", f"{prefix}{prefix}serial", metavar="SERIAL", dest="device_picker", action=SerialAction,
+        device_group.add_argument(f"{prefix}s", f"{prefix}{prefix}serial", metavar="SERIAL", dest="device_picker",
+                                  action=SerialAction,
                                   help="use device with given serial (adb -s option)")
-        device_group.add_argument(f"{prefix}e", f"{prefix}{prefix}emulator", dest="device_picker", nargs=0, action=EmulatorAction,
+        device_group.add_argument(f"{prefix}e", f"{prefix}{prefix}emulator", dest="device_picker", nargs=0,
+                                  action=EmulatorAction,
                                   help="use TCP/IP device (adb -e option)")
-        device_group.add_argument(f"{prefix}c", f"{prefix}{prefix}connect", metavar="IP[:PORT]", dest="device_picker", action=ConnectAction,
+        device_group.add_argument(f"{prefix}c", f"{prefix}{prefix}connect", metavar="IP[:PORT]", dest="device_picker",
+                                  action=ConnectAction,
                                   help="use device with TCP/IP")
-        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0, action=LastAction,
+        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0,
+                                  action=LastAction,
                                   help="use last device")
 
-        option_group.add_argument(f"{prefix}t", f"{prefix}{prefix}transport", metavar="ID", dest="device_picker", action=OptionAction,
+        option_group.add_argument(f"{prefix}t", f"{prefix}{prefix}transport", metavar="ID", dest="device_picker",
+                                  action=OptionAction,
                                   help="use device with given transport ID (adb -t option)")
         option_group.add_argument(f"{prefix}H", metavar="HOST", dest="device_picker", action=OptionAction,
                                   help="name of adb server host [default=localhost] (adb -H option)")
@@ -359,21 +347,12 @@ class IOSCommandMixin:
             if len(devices) == 1:
                 return devices[0]
 
-            choices = []
-            for i in range(len(devices)):
-                choices.append(
-                    f"{ignore_error(lambda: devices[i].id)} "
-                    f"{ignore_error(lambda: f'({devices[i].name})') or ''}"
-                )
-
-            index = choose(
+            return choose(
                 "Choose device",
                 title="More than one device/emulator",
-                choices=choices,
-                default=0
+                choices={device: device.pretty_id for device in devices},
+                default=devices[0]
             )
-
-            return devices[index]
 
         class UdidAction(Action):
 
@@ -417,11 +396,14 @@ class IOSCommandMixin:
         option_group.set_defaults(device_picker=IOSPicker(pick))
 
         device_group = option_group.add_mutually_exclusive_group()
-        device_group.add_argument(f"{prefix}u", f"{prefix}{prefix}udid", metavar="UDID", dest="device_picker", action=UdidAction,
+        device_group.add_argument(f"{prefix}u", f"{prefix}{prefix}udid", metavar="UDID", dest="device_picker",
+                                  action=UdidAction,
                                   help="specify unique device identifier")
-        device_group.add_argument(f"{prefix}c", f"{prefix}{prefix}connect", metavar="IP:PORT", dest="device_picker", action=ConnectAction,
+        device_group.add_argument(f"{prefix}c", f"{prefix}{prefix}connect", metavar="IP:PORT", dest="device_picker",
+                                  action=ConnectAction,
                                   help="use device with TCP/IP")
-        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0, const=True, action=LastAction,
+        device_group.add_argument(f"{prefix}l", f"{prefix}{prefix}last", dest="device_picker", nargs=0, const=True,
+                                  action=LastAction,
                                   help="use last device")
 
 

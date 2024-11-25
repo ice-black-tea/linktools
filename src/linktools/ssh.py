@@ -239,7 +239,7 @@ class SSHClient(paramiko.SSHClient):
         """
 
         if local_port is None:
-            local_port = utils.pick_unused_port(range(20000, 30000))
+            local_port = utils.get_free_port()
 
         return SSHForward(self, "", local_port, forward_host, forward_port)
 
@@ -269,71 +269,80 @@ class SSHForward(Stoppable):
         self._channels = channels = []
         self._transport = transport = client.get_transport()
 
-        class ForwardHandler(SocketServer.BaseRequestHandler):
+        self._forward_server = None
+        self._forward_thread = None
 
-            def handle(self):
-                try:
-                    channel = transport.open_channel(
-                        "direct-tcpip",
-                        (forward_host, forward_port),
-                        self.request.getpeername(),
-                    )
-                except Exception as e:
-                    _logger.error(f"Incoming request to {forward_host}:{forward_port} failed: {e}")
-                    return
+        def start():
 
-                if channel is None:
-                    _logger.error(f"Incoming request to {forward_host}:{forward_port} was rejected by the SSH server.")
-                    return
+            class ForwardHandler(SocketServer.BaseRequestHandler):
 
-                _logger.debug(
-                    f"Connected!  Tunnel open "
-                    f"{self.request.getpeername()} -> "
-                    f"{channel.getpeername()} -> "
-                    f"{(forward_host, forward_port)}")
+                def handle(self):
+                    try:
+                        channel = transport.open_channel(
+                            "direct-tcpip",
+                            (forward_host, forward_port),
+                            self.request.getpeername(),
+                        )
+                    except Exception as e:
+                        _logger.error(f"Incoming request to {forward_host}:{forward_port} failed: {e}")
+                        return
 
-                with lock:
-                    channels.append(channel)
+                    if channel is None:
+                        _logger.error(f"Incoming request to {forward_host}:{forward_port} was rejected by the SSH server.")
+                        return
 
-                try:
-                    while not channel.closed:
-                        r, w, x = select.select([self.request, channel], [], [])
-                        if self.request in r:
-                            data = self.request.recv(1024)
-                            if len(data) == 0:
-                                break
-                            channel.send(data)
-                        if channel in r:
-                            data = channel.recv(1024)
-                            if len(data) == 0:
-                                break
-                            self.request.send(data)
-                except Exception as e:
-                    _logger.debug(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
-                finally:
-                    peername = utils.ignore_error(self.request.getpeername)
-                    utils.ignore_error(channel.close)
-                    utils.ignore_error(self.request.close)
-                    _logger.debug(f"Tunnel closed from {peername}")
+                    _logger.debug(
+                        f"Connected!  Tunnel open "
+                        f"{self.request.getpeername()} -> "
+                        f"{channel.getpeername()} -> "
+                        f"{(forward_host, forward_port)}")
 
                     with lock:
-                        channels.remove(channel)
+                        channels.append(channel)
 
-        class ForwardServer(SocketServer.ThreadingTCPServer):
-            daemon_threads = True
-            allow_reuse_address = True
+                    try:
+                        while not channel.closed:
+                            r, w, x = select.select([self.request, channel], [], [])
+                            if self.request in r:
+                                data = self.request.recv(1024)
+                                if len(data) == 0:
+                                    break
+                                channel.send(data)
+                            if channel in r:
+                                data = channel.recv(1024)
+                                if len(data) == 0:
+                                    break
+                                self.request.send(data)
+                    except Exception as e:
+                        _logger.debug(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
+                    finally:
+                        peername = utils.ignore_error(self.request.getpeername)
+                        utils.ignore_error(channel.close)
+                        utils.ignore_error(self.request.close)
+                        _logger.debug(f"Tunnel closed from {peername}")
 
-        self._forward_server = ForwardServer((self._local_host, local_port), ForwardHandler)
-        self._forward_thread = threading.Thread(target=self._forward_server.serve_forever)
-        self._forward_thread.daemon = True
-        self._forward_thread.start()
+                        with lock:
+                            channels.remove(channel)
+
+            class ForwardServer(SocketServer.ThreadingTCPServer):
+                daemon_threads = True
+                allow_reuse_address = True
+
+            self._forward_server = ForwardServer((self._local_host, local_port), ForwardHandler)
+            self._forward_thread = threading.Thread(target=self._forward_server.serve_forever)
+            self._forward_thread.daemon = True
+            self._forward_thread.start()
+
+        self._stop_on_error(start)
 
     def stop(self):
-        try:
-            self._forward_server.shutdown()
-            self._forward_thread.join()
-        except Exception as e:
-            _logger.error("Cancel port forward failed: %r" % e)
+        if self._forward_server is not None:
+            try:
+                self._forward_server.shutdown()
+                if self._forward_thread is not None:
+                    self._forward_thread.join()
+            except Exception as e:
+                _logger.error("Cancel port forward failed: %r" % e)
 
         with self._lock:
             for channel in self._channels:
@@ -349,89 +358,99 @@ class SSHReverse(Stoppable):
 
     def __init__(self, client: SSHClient, forward_host: str, forward_port: int, remote_host: str, remote_port: int):
         self._remote_host = remote_host
-        # self._remote_port = remote_port
+        self._remote_port = None
         self._forward_host = forward_host
         self._forward_port = forward_port
-
         self._lock = lock = threading.RLock()
         self._channels = channels = []
         self._transport = transport = client.get_transport()
-        self._remote_port = self._transport.request_port_forward(remote_host, remote_port or 0)
+        self._forward_thread = None
 
-        def forward_handler(channel: paramiko.Channel):
+        def start():
+            self._remote_port = self._transport.request_port_forward(remote_host, remote_port or 0)
 
-            sock = socket.socket()
-            try:
-                sock.connect((forward_host, forward_port))
-            except Exception as e:
-                utils.ignore_error(channel.close)
-                utils.ignore_error(sock.close)
-                _logger.error(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
-                return
+            def forward_handler(channel: paramiko.Channel):
 
-            _logger.debug(
-                f"Connected!  Tunnel open "
-                f"{channel.origin_addr} -> "
-                f"{channel.getpeername()} -> "
-                f"{(forward_host, forward_port)}")
+                sock = socket.socket()
+                try:
+                    sock.connect((forward_host, forward_port))
+                except Exception as e:
+                    utils.ignore_error(channel.close)
+                    utils.ignore_error(sock.close)
+                    _logger.error(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
+                    return
 
-            with lock:
-                channels.append(channel)
-
-            try:
-                while not channel.closed:
-                    r, w, x = select.select([sock, channel], [], [])
-                    if sock in r:
-                        data = sock.recv(1024)
-                        if len(data) == 0:
-                            break
-                        channel.send(data)
-                    if channel in r:
-                        data = channel.recv(1024)
-                        if len(data) == 0:
-                            break
-                        sock.send(data)
-            except Exception as e:
-                _logger.debug(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
-            finally:
-                utils.ignore_error(channel.close)
-                utils.ignore_error(sock.close)
-                _logger.debug(f"Tunnel closed from {channel.origin_addr}")
+                _logger.debug(
+                    f"Connected!  Tunnel open "
+                    f"{channel.origin_addr} -> "
+                    f"{channel.getpeername()} -> "
+                    f"{(forward_host, forward_port)}")
 
                 with lock:
-                    channels.remove(channel)
+                    channels.append(channel)
 
-        class ForwardThread(threading.Thread):
+                try:
+                    while not channel.closed:
+                        r, w, x = select.select([sock, channel], [], [])
+                        if sock in r:
+                            data = sock.recv(1024)
+                            if len(data) == 0:
+                                break
+                            channel.send(data)
+                        if channel in r:
+                            data = channel.recv(1024)
+                            if len(data) == 0:
+                                break
+                            sock.send(data)
+                except Exception as e:
+                    _logger.debug(f"Forwarding request to {forward_host}:{forward_port} failed: {e}")
+                finally:
+                    utils.ignore_error(channel.close)
+                    utils.ignore_error(sock.close)
+                    _logger.debug(f"Tunnel closed from {channel.origin_addr}")
 
-            def __init__(self):
-                super().__init__()
-                self.event = threading.Event()
+                    with lock:
+                        channels.remove(channel)
 
-            def run(self):
-                while not self.event.is_set():
-                    channel = transport.accept(.5)
-                    if channel is None:
-                        continue
-                    thread = threading.Thread(
-                        target=forward_handler, args=(channel,)
-                    )
-                    thread.daemon = True
-                    thread.start()
+            class ForwardThread(threading.Thread):
 
-            def shutdown(self):
-                self.event.set()
+                def __init__(self):
+                    super().__init__()
+                    self.event = threading.Event()
 
-        self._forward_thread = ForwardThread()
-        self._forward_thread.daemon = True
-        self._forward_thread.start()
+                def run(self):
+                    while not self.event.is_set():
+                        channel = transport.accept(.5)
+                        if channel is None:
+                            continue
+                        thread = threading.Thread(
+                            target=forward_handler, args=(channel,)
+                        )
+                        thread.daemon = True
+                        thread.start()
+
+                def shutdown(self):
+                    self.event.set()
+
+            self._forward_thread = ForwardThread()
+            self._forward_thread.daemon = True
+            self._forward_thread.start()
+
+        self._stop_on_error(start)
 
     def stop(self):
-        try:
-            self._transport.cancel_port_forward(self._remote_host, self._remote_port)
-            self._forward_thread.shutdown()
-            self._forward_thread.join()
-        except Exception as e:
-            _logger.error(f"Cancel port forward failed: {e}")
+        if self._remote_port is not None:
+            try:
+                self._transport.cancel_port_forward(self._remote_host, self._remote_port)
+            except Exception as e:
+                _logger.warning(f"Cancel port forward failed: {e}")
+
+        if self._forward_thread is not None:
+            try:
+                self._forward_thread.shutdown()
+                self._forward_thread.join()
+            except Exception as e:
+                _logger.warning(f"Sutdown forward thread failed: {e}")
 
         with self._lock:
             for channel in self._channels:

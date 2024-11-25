@@ -10,12 +10,12 @@ from collections import deque
 from typing import Optional, Callable, Any, Coroutine
 
 from ._environ import environ
-from .types import Event, Stoppable
+from .types import Event
 
 _logger = environ.get_logger("reactor")
 
 
-class Reactor(Stoppable):
+class Reactor:
     """
     Code stolen from frida_tools.application.Reactor
     """

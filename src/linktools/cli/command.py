@@ -48,7 +48,7 @@ from .. import utils
 from .._environ import environ
 from ..decorator import cached_property
 from ..metadata import __missing__
-from ..rich import LogHandler, is_terminal
+from ..rich import LogHandler, init_logging
 from ..types import Error
 
 if TYPE_CHECKING:
@@ -874,7 +874,6 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                     handler = LogHandler.get_instance()
                     if handler:
                         handler.show_time = value
-                    environ.set_config("SHOW_LOG_TIME", value)
 
         class LogLevelAction(BooleanOptionalAction):
 
@@ -884,7 +883,6 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
                     handler = LogHandler.get_instance()
                     if handler:
                         handler.show_level = value
-                    environ.set_config("SHOW_LOG_LEVEL", value)
 
         group = parser.add_argument_group(title="log options")
         group.add_argument(f"{prefix}{prefix}verbose", action=VerboseAction, nargs=0, const=True, dest=SUPPRESS,
@@ -903,24 +901,6 @@ class BaseCommand(SubCommandMixin, metaclass=abc.ABCMeta):
         if self.environ.version != NotImplemented:
             parser.add_argument(
                 f"{prefix}{prefix}version", action="version", version=self.environ.version
-            )
-
-    def init_logging(self):
-        """
-        初始化log
-        """
-        if is_terminal():
-            logging.basicConfig(
-                level=logging.INFO,
-                format="%(message)s",
-                datefmt="[%X]",
-                handlers=[LogHandler(self.environ)]
-            )
-        else:
-            logging.basicConfig(
-                level=logging.INFO,
-                format="[%(asctime)s] %(levelname)s %(module)s %(funcName)s %(message)s",
-                datefmt="%H:%M:%S"
             )
 
     @property
@@ -974,22 +954,26 @@ class BaseCommandGroup(BaseCommand, metaclass=abc.ABCMeta):
 
 class CommandMain:
 
-    def __init__(self, command: BaseCommand, *, show_log_level: bool = None, show_log_time: bool = None):
+    def __init__(self, command: BaseCommand, *, show_log_time: bool = False, show_log_level: bool = False):
         self.command = command
         self.show_log_level = show_log_level
         self.show_log_time = show_log_time
+
+    def init_logging(self):
+        """
+        初始化log
+        """
+        init_logging(
+            level=logging.INFO,
+            show_time=self.show_log_time,
+            show_level=self.show_log_level,
+        )
 
     def __call__(self, *args, **kwargs):
         """
         main命令入口
         """
-        if self.show_log_level is not None:
-            self.command.environ.config.set("SHOW_LOG_LEVEL", self.show_log_level)
-
-        if self.show_log_time is not None:
-            self.command.environ.config.set("SHOW_LOG_TIME", self.show_log_time)
-
-        self.command.init_logging()
+        self.init_logging()
 
         try:
             result = self.command(*args, **kwargs)

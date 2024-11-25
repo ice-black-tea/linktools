@@ -15,13 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-# from: https://github.com/google/python_portpicker
-
+import random
 import socket
-from typing import Iterable
 
 from ..types import Error
+
+
+# from: https://github.com/google/python_portpicker
 
 
 class NoFreePortFoundError(Error):
@@ -78,8 +78,17 @@ def is_port_free(port: int):
            bind(port, socket.SOCK_DGRAM, socket.IPPROTO_UDP) is not None
 
 
-def pick_unused_port(ports: Iterable[int] = range(47134, 52134)):
-    for port in ports:
-        if is_port_free(port):
-            return port
-    raise NoFreePortFoundError()
+def get_free_port():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('127.0.0.1', 0))
+        try:
+            return s.getsockname()[1]
+        finally:
+            s.close()
+    except OSError:
+        for _ in range(20):
+            port = random.randint(30000, 40000)
+            if not is_port_free(port):
+                return port
+        raise NoFreePortFoundError("No free port found")
