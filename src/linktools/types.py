@@ -27,14 +27,16 @@
  /_==__==========__==_ooo__ooo=_/'   /___________,"
 """
 import abc as _abc
+import collections as _collections
 import threading as _threading
 import time as _time
 import types as _types
 import typing as _t
 from pathlib import Path as _Path
 
+T = _t.TypeVar("T")
+
 if _t.TYPE_CHECKING:
-    T = _t.TypeVar("T")
     P = _t.ParamSpec("P")
 
 PathType = _t.Union[str, _Path]
@@ -149,6 +151,80 @@ class Stoppable(_abc.ABC):
 
     def __exit__(self, *args, **kwargs):
         self.stop()
+
+
+class CacheQueue(_t.Generic[T]):
+    """
+    A thread-safe, generic data queue for producer-consumer patterns.
+    """
+
+    def __init__(self, size: int):
+        self._lock = _threading.RLock()  # Recursive lock for thread-safe operations
+        self._size = size
+        self._queue = _collections.deque([])
+        self._put_ts = 0  # Timestamp of the last put operation
+        self._get_ts = 0  # Timestamp of the last get operation
+
+    def put(self, item: T) -> _t.Optional[T]:
+        """
+        Store an item in the queue and update the put timestamp.
+        """
+        with self._lock:
+            result = None
+            if 0 <= self._size <= len(self._queue):
+                result = self._queue.popleft()
+            self._queue.append(item)
+            self._put_ts = int(_time.time())
+            return result
+
+    def get(self) -> _t.Optional[T]:
+        """
+        Retrieve the item from the queue if available and update the get timestamp.
+        """
+        with self._lock:
+            if len(self._queue) > 0:
+                self._get_ts = int(_time.time())
+                return self._queue.popleft()
+            return None
+
+    def peek(self) -> _t.Optional[T]:
+        """
+        View the current item in the queue without updating the get timestamp.
+        """
+        with self._lock:
+            if len(self._queue) > 0:
+                return self._queue[0]
+            return None
+
+    def is_backlog(self, timeout: int) -> bool:
+        """
+        Check if the item in the queue has been waiting for more than the given timeout.
+        """
+        with self._lock:
+            return self._get_ts + timeout < int(_time.time())
+
+    def is_starve(self, timeout: int) -> bool:
+        """
+        Check if the queue has not received new items for more than the given timeout.
+        """
+        with self._lock:
+            return self._put_ts + timeout < int(_time.time())
+
+    def is_empty(self) -> bool:
+        """
+        Check if the queue is empty.
+        """
+        with self._lock:
+            return len(self._queue) == 0
+
+    def clear(self) -> None:
+        """
+        Clear the queue.
+        """
+        with self._lock:
+            self._queue.clear()
+            self._put_ts = 0
+            self._get_ts = 0
 
 
 # Code stolen from celery.local.Proxy: https://github.com/celery/celery/blob/main/celery/local.py

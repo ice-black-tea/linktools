@@ -46,7 +46,7 @@ _logger = environ.get_logger("android.adb")
 _agent_output_pattern = re.compile(
     r"┌──+──┐[^\n]*\n"
     r"│[^|]*│[^\n]*\n"
-    r"└──+──┘[^\n]*\n",
+    r"└──+──┘[^\n]*\n?",
     re.MULTILINE
 )
 
@@ -769,6 +769,20 @@ class AdbDevice(BaseDevice):
         for obj in objs:
             result.append(File(obj))
         return result
+
+    @timeoutable
+    def get_clipboard(self, **kwargs) -> str:
+        """
+        获取剪切板内容
+        """
+        return self.call_agent("common", "--get-clipboard", **kwargs)
+
+    @timeoutable
+    def set_clipboard(self, text, **kwargs) -> str:
+        """
+        设置剪切板内容
+        """
+        return self.call_agent("common", "--set-clipboard", text, **kwargs)
 
     @cached_property
     def _data_path(self):

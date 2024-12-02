@@ -31,15 +31,18 @@ import contextlib
 import os
 import shelve
 import shutil
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple, Union, Iterable, TypeVar
 
 from .decorator import cached_property, timeoutable
 from .rich import create_progress
 from .types import TimeoutType, Error, PathType, Timeout
-from .utils import get_md5, ignore_error, parse_header, guess_file_name, user_agent
+from .utils import get_md5, get_file_hash, ignore_error, parse_header, guess_file_name, user_agent
 
 if TYPE_CHECKING:
+    from typing import Literal
     from ._environ import BaseEnviron
+
+    ValidatorsType = TypeVar("ValidatorsType", bound="Union[UrlFile.Validator, Iterable[UrlFile.Validator]]")
 
 
 class DownloadError(Error):
@@ -64,19 +67,23 @@ class UrlFile(metaclass=abc.ABCMeta):
         return False
 
     @timeoutable
-    def save(self, dir: PathType = None, name: str = None, timeout: TimeoutType = None, retry: int = 2, **kwargs) -> str:
+    def save(self, dir: PathType = None, name: str = None,
+             timeout: TimeoutType = None, retry: int = 2,
+             validators: "Union[Validator, Iterable[Validator]]" = None,
+             **kwargs) -> str:
         """
         从指定url下载文件
         :param dir: 文件路径，如果为空，则会返回临时文件路径
         :param name: 文件名，如果为空，则默认为下载的文件名
         :param timeout: 超时时间
         :param retry: 重试次数
+        :param validators: 校验文件完整性
         :return: 文件路径
         """
         try:
             self._acquire(timeout=timeout.remain)
 
-            temp_path, temp_name = self._download(retry, timeout, **kwargs)
+            temp_path, temp_name = self._download(retry=retry, timeout=timeout, validators=validators, **kwargs)
             if not dir:
                 return temp_path
 
@@ -114,7 +121,7 @@ class UrlFile(metaclass=abc.ABCMeta):
             self._release()
 
     @abc.abstractmethod
-    def _download(self, retry: int, timeout: Timeout, **kwargs) -> Tuple[str, str]:
+    def _download(self, retry: int, timeout: Timeout, validators: "ValidatorsType", **kwargs) -> Tuple[str, str]:
         pass
 
     @abc.abstractmethod
@@ -134,6 +141,34 @@ class UrlFile(metaclass=abc.ABCMeta):
     def __exit__(self, *args, **kwargs):
         self._release()
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._url})"
+
+    class Validator(abc.ABC):
+
+        @abc.abstractmethod
+        def validate(self, file: "UrlFile", path: str):
+            pass
+
+    class HashValidator(Validator):
+
+        def __init__(self, algorithm: "Literal['md5', 'sha1', 'sha256']", hash: str):
+            self._algorithm = algorithm
+            self._hash = hash
+
+        def validate(self, file: "UrlFile", path: str):
+            if get_file_hash(path, self._algorithm) != self._hash:
+                raise DownloadError(f"{file} {self._algorithm} hash does not match {self._hash}")
+
+    class SizeValidator(Validator):
+
+        def __init__(self, size: int):
+            self._size = size
+
+        def validate(self, file: "UrlFile", path: str):
+            if os.path.getsize(path) != self._size:
+                raise DownloadError(f"{file} size does not match {self._size}")
+
 
 class LocalFile(UrlFile):
 
@@ -147,10 +182,16 @@ class LocalFile(UrlFile):
     def is_local(self):
         return True
 
-    def _download(self, *args, **kwargs) -> Tuple[str, str]:
+    def _download(self, validators: "ValidatorsType", **kwargs) -> Tuple[str, str]:
         src_path = self._url
         if not os.path.exists(src_path):
             raise DownloadError(f"{src_path} does not exist")
+        # 校验文件完整性
+        if isinstance(validators, UrlFile.Validator):
+            validators.validate(self, src_path)
+        elif isinstance(validators, Iterable):
+            for validator in validators:
+                validator.validate(self, src_path)
         return src_path, guess_file_name(src_path)
 
     def _clear(self):
@@ -173,7 +214,7 @@ class HttpFile(UrlFile):
             self._environ.get_temp_path("download", "lock", self._ident, create_parent=True)
         )
 
-    def _download(self, retry: int, timeout: Timeout, **kwargs) -> Tuple[str, str]:
+    def _download(self, retry: int, timeout: Timeout, validators: "ValidatorsType", **kwargs) -> Tuple[str, str]:
         if not os.path.exists(self._root_path):
             os.makedirs(self._root_path, exist_ok=True)
 
@@ -203,7 +244,22 @@ class HttpFile(UrlFile):
                             self._environ.logger.warning(
                                 f"Download retry {max_times - i}, "
                                 f"{last_error.__class__.__name__}: {last_error}")
+                        # 正式下载文件
                         context.download(timeout)
+                        # 校验文件完整性
+                        try:
+                            if isinstance(validators, UrlFile.Validator):
+                                validators.validate(self, self._local_path)
+                            elif isinstance(validators, Iterable):
+                                for validator in validators:
+                                    validator.validate(self, self._local_path)
+                        except Exception:
+                            # 完整性校验有问题，得把文件删了重新下载
+                            self._environ.logger.debug(
+                                f"Validate failed, remove {self._local_path}")
+                            os.remove(self._local_path)
+                            raise
+                        # 下载完成打标结束
                         context.completed = True
                         break
                     except Exception as e:

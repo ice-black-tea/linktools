@@ -492,47 +492,47 @@ class Tool(metaclass=ToolMeta):
         :param args: 命令
         :param timeout: 超时时间
         :param ignore_errors: 忽略错误，报错不会抛异常
-        :param on_stdout: stdout输出回调，只有log_output为True时有效
-        :param on_stderr: stderr输出回调，只有log_output为True时有效
+        :param on_stdout: stdout输出回调
+        :param on_stderr: stderr输出回调
         :param error_type: 抛出异常类型
         :return: 返回stdout输出内容
         """
         process = self.popen(*args, capture_output=True)
 
         try:
-            stdout = stderr = None
-            for out, err in process.fetch(timeout=timeout):
-                if out is not None:
-                    stdout = out if stdout is None else stdout + out
+            out = err = None
+            for _out, _err in process.fetch(timeout=timeout):
+                if _out is not None:
+                    out = _out if out is None else out + _out
                     if on_stdout:
-                        data = out.decode(errors="ignore") if isinstance(out, bytes) else out
+                        data: str = _out.decode(errors="ignore") if isinstance(_out, bytes) else _out
                         data = data.rstrip()
                         if data:
-                            on_stdout(out)
-                if err is not None:
-                    stderr = err if stderr is None else stderr + err
+                            on_stdout(data)
+                if _err is not None:
+                    err = _err if err is None else err + _err
                     if on_stderr:
-                        data = err.decode(errors="ignore") if isinstance(err, bytes) else err
+                        data: str = _err.decode(errors="ignore") if isinstance(_err, bytes) else _err
                         data = data.rstrip()
                         if data:
-                            on_stderr(err)
+                            on_stderr(data)
 
             if not ignore_errors and process.poll() not in (0, None):
-                if isinstance(stderr, bytes):
-                    stderr = stderr.decode(errors="ignore")
-                    stderr = stderr.strip()
-                elif isinstance(stderr, str):
-                    stderr = stderr.strip()
-                if stderr:
-                    raise error_type(stderr)
+                if isinstance(err, bytes):
+                    err = err.decode(errors="ignore")
+                    err = err.strip()
+                elif isinstance(err, str):
+                    err = err.strip()
+                if err:
+                    raise error_type(err)
 
-            if isinstance(stdout, bytes):
-                stdout = stdout.decode(errors="ignore")
-                stdout = stdout.strip()
-            elif isinstance(stdout, str):
-                stdout = stdout.strip()
+            if isinstance(out, bytes):
+                out = out.decode(errors="ignore")
+                out = out.strip()
+            elif isinstance(out, str):
+                out = out.strip()
 
-            return stdout or ""
+            return out or ""
 
         finally:
             process.kill()
