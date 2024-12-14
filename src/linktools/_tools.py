@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Generator, C
 from . import utils
 from .decorator import cached_property, timeoutable
 from .metadata import __missing__
-from .types import TimeoutType, Error
+from .types import TimeoutType, Error, PathType
 
 if TYPE_CHECKING:
     from ._environ import BaseEnviron
@@ -306,7 +306,7 @@ class Tool(metaclass=ToolMeta):
             cmdline = shutil.which(cmdline)
             if not utils.is_empty(cmdline):
                 try:
-                    if os.path.samefile(cmdline, self.stub):
+                    if os.path.samefile(cmdline, self.stub_path):
                         cmdline = ""
                 except FileNotFoundError:
                     pass
@@ -354,16 +354,12 @@ class Tool(metaclass=ToolMeta):
         return False
 
     @cached_property
-    def stub(self) -> pathlib.Path:
+    def stub_path(self) -> pathlib.Path:
         """
         获取stub脚本路径
         :return: stub脚本路径
         """
-        return self._tools.stub / (
-            f"{self.name}.bat" if
-            self._tools.environ.system == "windows"
-            else f"{self.name}"
-        )
+        return self._tools.stub_path / self.get_stub_name(self.name, system=self.system)
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -415,20 +411,15 @@ class Tool(metaclass=ToolMeta):
                         os.makedirs(self.root_path, exist_ok=True)
                         shutil.move(temp_path, self.absolute_path)
 
-        if not os.access(self.stub, os.X_OK):
+        if not os.access(self.stub_path, os.X_OK):
             from linktools.cli import stub
-            self._tools.logger.debug(f"Create stub {self.stub}")
-            self.stub.parent.mkdir(parents=True, exist_ok=True)
-            cmdline = utils.list2cmdline([sys.executable, "-m", stub.__name__, "tool", self.name])
-            if utils.get_system() == "windows":
-                with open(self.stub, "wt") as fd:
-                    fd.write(f"@echo off\n")
-                    fd.write(f"{cmdline} %*\n")
-            else:
-                with open(self.stub, "wt") as fd:
-                    fd.write(f"#!{shutil.which('sh')}\n")
-                    fd.write(f"{cmdline} $@\n")
-            os.chmod(self.stub, 0o0755)
+            self._tools.logger.debug(f"Create stub {self.stub_path}")
+            self.stub_path.parent.mkdir(parents=True, exist_ok=True)
+            self.create_stub_file(
+                self.stub_path,
+                utils.list2cmdline([sys.executable, "-m", stub.__name__, "tool", self.name]),
+                system=self.system
+            )
 
         # change tool file permission
         cmdline = self.executable_cmdline
@@ -442,9 +433,9 @@ class Tool(metaclass=ToolMeta):
         """
         清理工具相关文件
         """
-        if self.stub:
-            self._tools.logger.debug(f"Delete {self.stub}")
-            utils.ignore_error(os.remove, args=(self.stub,))
+        if self.stub_path:
+            self._tools.logger.debug(f"Delete {self.stub_path}")
+            utils.ignore_error(os.remove, args=(self.stub_path,))
         if not self.exists:
             self._tools.logger.debug(f"{self} does not exist, skip")
             return
@@ -540,6 +531,24 @@ class Tool(metaclass=ToolMeta):
     def __repr__(self):
         return f"Tool<{self.name}>"
 
+    @classmethod
+    def get_stub_name(cls, name: str, system: str = None) -> str:
+        return f"{name}.bat" \
+            if (system or utils.get_system()) == "windows" \
+            else name
+
+    @classmethod
+    def create_stub_file(cls, path: PathType, cmdline: str, system: str = None) -> PathType:
+        with open(path, "wt") as fd:
+            if (system or utils.get_system()) == "windows":
+                fd.write(f"@echo off\n")
+                fd.write(f"{cmdline} %*\n")
+            else:
+                fd.write(f"#!{shutil.which('sh')}\n")
+                fd.write(f"{cmdline} $@\n")
+        os.chmod(path, 0o755)
+        return path
+
 
 class Tools(object):
 
@@ -550,13 +559,13 @@ class Tools(object):
         self.all = self._parse_items(config)
 
     @cached_property
-    def stub(self) -> pathlib.Path:
+    def stub_path(self) -> pathlib.Path:
         """
         获取stub脚本路径
         :return: stub脚本路径
         """
         return self.environ.get_data_path(
-            "tool",
+            "tools",
             f"stub_v{self.environ.version}",
             utils.get_md5(sys.executable)
         )

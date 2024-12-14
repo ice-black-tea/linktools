@@ -27,10 +27,8 @@ python3 -m pip install -U "linktools[all]"
 # 对于未正确设置PATH环境变量，或者使用venv安装模块，会出现命令找不到的情况（command not found: ct-env）
 # 可通过以下命令生成alias脚本添加相关命令
 # 需要注意此处python3需要替换成自己安装环境下的interpreter，比如~/projects/linktools/venv/bin/python
+# ps. 如果已安装argcomplete库，还可以生成自动补全脚本
 eval "$(python3 -m linktools.cli.commands.common.env --silent alias --shell bash)"
-
-# 给命令添加自动补全功能
-eval "$(ct-env --silent completion --shell bash)"  
 
 # 配置全局java环境，指定java版本号（如：11.0.23/17.0.11/21.0.3）
 # 可通过 https://sap.github.io/SapMachine/#download 查找LTS版本号
