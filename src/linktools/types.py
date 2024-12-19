@@ -37,12 +37,16 @@ from pathlib import Path as _Path
 T = _t.TypeVar("T")
 
 if _t.TYPE_CHECKING:
+    import logging as _logging
+
     P = _t.ParamSpec("P")
 
 PathType = _t.Union[str, _Path]
 QueryDataType = _t.Union[str, int, float]
 QueryType = _t.Union[QueryDataType, _t.List[QueryDataType], _t.Tuple[QueryDataType]]
 TimeoutType = _t.Union["Timeout", float, int, None]
+
+_cached_property_lock = _threading.RLock()
 
 
 class Error(Exception):
@@ -111,25 +115,6 @@ class Timeout:
         return f"Timeout(timeout={self._timeout})"
 
 
-class Event(_threading.Event):
-    """
-    解决 Windows 上 event.wait 不支持 ctrl+c 中断的问题
-    """
-
-    def wait(self, timeout: TimeoutType = None):
-        timeout = Timeout(timeout)
-        interval = 1
-        wait = super().wait
-        while True:
-            t = timeout.remain
-            if t is None:
-                t = interval
-            elif t <= 0:
-                break
-            if wait(min(t, interval)):
-                break
-
-
 class Stoppable(_abc.ABC):
     """
     Stoppable interface
@@ -151,6 +136,87 @@ class Stoppable(_abc.ABC):
 
     def __exit__(self, *args, **kwargs):
         self.stop()
+
+
+class _EventHandler(dict):
+
+    def __init__(self):
+        from ._environ import environ
+        super().__init__()
+        self._lock = _threading.RLock()
+        self._logger = environ.get_logger("event")
+
+    @property
+    def lock(self) -> _threading.RLock():
+        return self._lock
+
+    @property
+    def logger(self) -> "_logging.Logger":
+        return self._logger
+
+
+_event_handler_name = "__EventHandlerMixin_event_handler"
+
+
+class EventHandlerMixin(object):
+
+    @property
+    def _event_handler(self) -> "_EventHandler":
+        value = getattr(self, _event_handler_name, None)
+        if value is None:
+            with _cached_property_lock:
+                value = getattr(self, _event_handler_name, None)
+                if value is None:
+                    value = _EventHandler()
+                    setattr(self, _event_handler_name, value)
+        return value
+
+    def on(self, event: str, callback: "_t.Callable[..., _t.Any]", times: int = None):
+        handler = self._event_handler
+        with handler.lock:
+            handler.logger.debug(f"Register event handler {callback} for event {event}")
+            callbacks = handler.get(event, None)
+            if callbacks is None:
+                callbacks = handler[event] = dict()
+            callbacks[callback] = {
+                "time": 0,
+                "max_times": times,
+            }
+
+    def off(self, event: str, callback: "_t.Callable[..., _t.Any]"):
+        handler = self._event_handler
+        with handler.lock:
+            handler.logger.debug(f"Unregister event handler {callback} for event {event}")
+            if event in handler:
+                callbacks = handler.get(event)
+                try:
+                    callbacks.pop(callback)
+                except KeyError:
+                    pass
+
+    def once(self, event: str, callback: "_t.Callable[..., _t.Any]"):
+        self.on(event, callback, 1)
+
+    def trigger(self, event: str, *args: _t.Any, **kwargs: _t.Any):
+        handler = self._event_handler
+        invoke_list, remove_list = [], []
+        with handler.lock:
+            if event in handler:
+                callbacks = handler.get(event)
+                for callback, info in callbacks.items():
+                    invoke_list.append(callback)
+                    info["time"] += 1
+                    if info["max_times"] is not None and info["times"] >= info["max_times"]:
+                        remove_list.append(callback)
+            for callback in remove_list:
+                callbacks.pop(callback)
+            del remove_list
+        handler.logger.debug(f"Event {event} invoke {len(invoke_list)} callbacks")
+        for callback in invoke_list:
+            try:
+                callback(*args, **kwargs)
+            except Exception as e:
+                handler.logger.warning(f"Event handler {callback} error: {e}")
 
 
 class CacheQueue(_t.Generic[T]):

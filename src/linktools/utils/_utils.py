@@ -37,6 +37,7 @@ import re
 import shutil
 import socket
 import sys
+import threading
 import uuid
 from collections.abc import Iterable, Sized
 from importlib.machinery import ModuleSpec
@@ -47,10 +48,10 @@ from urllib import parse
 from urllib.request import urlopen
 
 from .._environ import environ
-from ..decorator import singleton
+from ..decorator import singleton, timeoutable
 from ..metadata import __missing__
 from ..references.fake_useragent import UserAgent
-from ..types import PathType, QueryType, Proxy, IterProxy, Error
+from ..types import PathType, QueryType, Proxy, IterProxy, Error, TimeoutType
 
 if TYPE_CHECKING:
     from typing import ParamSpec, Literal
@@ -814,3 +815,33 @@ def raise_error(e: BaseException):
 
 def lazy_raise(e: BaseException) -> "T":
     return lazy_load(raise_error, e)
+
+
+@timeoutable
+def wait_event(event: threading.Event, timeout: TimeoutType) -> bool:
+    interval = 1
+    while True:
+        t = timeout.remain
+        if t is None:
+            t = interval
+        elif t <= 0:
+            return False
+        if event.wait(min(t, interval)):
+            return True
+
+
+@timeoutable
+def wait_thread(thread: threading.Thread, timeout: TimeoutType) -> bool:
+    interval = 1
+    while True:
+        t = timeout.remain
+        if t is None:
+            t = interval
+        elif t <= 0:
+            return False
+        try:
+            thread.join(min(t, interval))
+        except:
+            pass
+        if not thread.is_alive():
+            return True

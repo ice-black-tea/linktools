@@ -29,6 +29,7 @@ type HookOpts = {
     thread?: boolean;
     stack?: boolean;
     args?: boolean;
+    result?: boolean;
     extras?: {
         [name: string]: any
     };
@@ -356,6 +357,7 @@ export function getEventImpl<T extends Java.Members<T> = {}>(options: HookOpts):
     hookOpts.thread = parseBoolean(options.thread, false);
     hookOpts.stack = parseBoolean(options.stack, false);
     hookOpts.args = parseBoolean(options.args, false);
+    hookOpts.result = parseBoolean(options.result, hookOpts.args);
     hookOpts.extras = {};
     if (options.extras != null) {
         for (let i in options.extras) {
@@ -379,18 +381,21 @@ export function getEventImpl<T extends Java.Members<T> = {}>(options: HookOpts):
         }
         if (hookOpts.args !== false) {
             event["args"] = pretty2Json(args);
+        }
+        if (hookOpts.result !== false) {
             event["result"] = null;
+        }
+        if (hookOpts.args !== false || hookOpts.result !== false) {
             event["error"] = null;
         }
-
         try {
             const result = this(obj, args);
-            if (hookOpts.args !== false) {
+            if (hookOpts.result !== false) {
                 event["result"] = pretty2Json(result);
             }
             return result;
         } catch (e) {
-            if (hookOpts.args !== false) {
+            if (hookOpts.args !== false || hookOpts.result !== false) {
                 event["error"] = pretty2Json(e);
             }
             throw e;

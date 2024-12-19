@@ -23,7 +23,7 @@ from .. import utils, environ
 from ..decorator import timeoutable
 from ..metadata import __release__
 from ..reactor import Reactor
-from ..types import TimeoutType, Event
+from ..types import TimeoutType, Stoppable
 
 if TYPE_CHECKING:
     import _frida
@@ -496,7 +496,7 @@ class FridaManager:
         return key
 
 
-class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandler, FridaFileHandler):
+class FridaApplication(Stoppable, FridaDeviceHandler, FridaSessionHandler, FridaScriptHandler, FridaFileHandler):
     """
     ----------------------------------------------------------------------
 
@@ -547,8 +547,7 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
 
         # 初始化运行环境
         self._last_error = None
-        self._stop_request = Event()
-        self._finished = Event()
+        self._stop_request = threading.Event()
         self._reactor = FridaReactor(on_stop=self._on_stop, on_error=self._on_error)
         self._manager = FridaManager(self._reactor)
 
@@ -602,7 +601,8 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
         for user_script in self._user_scripts:
             user_script.load()
 
-        self._finished.clear()
+        self._stop_request.clear()
+
         self._manager.add_file_handler(self._user_files, self)
         self._manager.add_device_handler(self.device, self)
 
@@ -622,43 +622,50 @@ class FridaApplication(FridaDeviceHandler, FridaSessionHandler, FridaScriptHandl
 
         self._manager.remove_device_handler(self.device)
         self._manager.remove_file_handler(self._user_files)
-        self._finished.set()
 
     @property
     def is_running(self) -> bool:
         return self._reactor.is_running()
+
+    def start(self):
+        assert not self.is_running
+        try:
+            self._init()
+            self._reactor.start()
+        except:
+            self.stop()
+            raise
 
     @timeoutable
     def run(self, timeout: TimeoutType = None):
         assert not self.is_running
         try:
             self._init()
-            with self._reactor:
-                self._stop_request.wait(timeout)
+            self._reactor.start()
+            utils.wait_event(self._stop_request, timeout)
         finally:
-            self._deinit()
+            self.stop()
 
     @timeoutable
     def wait(self, timeout: TimeoutType = None) -> bool:
-        return self._finished.wait(timeout)
+        return utils.wait_event(self._stop_request, timeout)
 
     def stop(self):
+        self._reactor.signal_stop()
+        if not self._reactor.wait(5):
+            _logger.warning("Worker did not finish normally")
+        self._deinit()
+
+    def signal_stop(self):
         self._stop_request.set()
+        self._reactor.signal_stop()
 
     def __enter__(self):
         assert not self.is_running
-        try:
-            self._init()
-            self._reactor.run()
-            return self
-        except Exception as e:
-            self._deinit()
-            raise e
+        self.start()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._reactor.stop()
-        self._reactor.wait()
-        self._deinit()
+        self.stop()
 
     def schedule(self, fn: Callable[[], any], delay: float = None):
         self._reactor.schedule(fn, delay)

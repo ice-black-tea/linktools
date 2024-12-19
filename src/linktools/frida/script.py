@@ -69,7 +69,7 @@ class FridaUserScript(metaclass=abc.ABCMeta):
         pass
 
     def as_dict(self) -> dict:
-        return {"filename": self.filename, "source": self.source}
+        return {"filename": str(self.filename), "source": self.source}
 
     def as_json(self) -> str:
         return json.dumps(self.as_dict())

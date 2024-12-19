@@ -11,6 +11,7 @@ type HookOpts = {
     symbol?: boolean;
     backtracer?: "accurate" | "fuzzy";
     args?: boolean;
+    result?: boolean;
     extras?: {
         [name: string]: any
     };
@@ -167,6 +168,7 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
     hookOpts.symbol = parseBoolean(options.symbol, true);
     hookOpts.backtracer = options.backtracer || "accurate";
     hookOpts.args = parseBoolean(options.args, false);
+    hookOpts.result = parseBoolean(options.result, hookOpts.args);
     hookOpts.extras = {};
     if (options.extras != null) {
         for (let i in options.extras) {
@@ -187,17 +189,21 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
         }
         if (hookOpts.args !== false) {
             event["args"] = pretty2Json(args);
+        }
+        if (hookOpts.result !== false) {
             event["result"] = null;
+        }
+        if (hookOpts.args !== false || hookOpts.result !== false) {
             event["error"] = null;
         }
         try {
             const result = this(args);
-            if (hookOpts.args !== false) {
+            if (hookOpts.result !== false) {
                 event["result"] = pretty2Json(result);
             }
             return result;
         } catch (e) {
-            if (hookOpts.args !== false) {
+            if (hookOpts.args !== false || hookOpts.result !== false) {
                 event["error"] = pretty2Json(e);
             }
             throw e;
@@ -225,7 +231,7 @@ export function getEventImpl(options: HookOpts): InvocationListenerCallbacks & H
         if (hookOpts.thread !== false) {
             event["thread_id"] = Process.getCurrentThreadId();
         }
-        if (hookOpts.args !== false) {
+        if (hookOpts.result !== false) {
             event["result"] = pretty2Json(ret);
         }
         if (hookOpts.stack !== false) {

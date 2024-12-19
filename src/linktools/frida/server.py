@@ -46,7 +46,7 @@ from ..types import Timeout, Stoppable
 _logger = environ.get_logger("frida.server")
 
 
-class FridaServer(utils.get_derived_type(frida.core.Device), metaclass=abc.ABCMeta):  # proxy for frida.core.Device
+class FridaServer(utils.get_derived_type(frida.core.Device), Stoppable, metaclass=abc.ABCMeta):  # proxy for frida.core.Device
 
     def __init__(self, device: frida.core.Device):
         super().__init__(device)

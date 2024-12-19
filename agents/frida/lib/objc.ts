@@ -13,6 +13,7 @@ type HookOpts = {
     symbol?: boolean;
     backtracer?: "accurate" | "fuzzy";
     args?: boolean;
+    result?: boolean;
     extras?: {
         [name: string]: any
     };
@@ -92,6 +93,7 @@ export function getEventImpl(options: HookOpts): HookImpl {
     hookOpts.symbol = parseBoolean(options.symbol, true);
     hookOpts.backtracer = options.backtracer || "accurate";
     hookOpts.args = parseBoolean(options.args, false);
+    hookOpts.result = parseBoolean(options.result, hookOpts.args);
     hookOpts.extras = {};
     if (options.extras != null) {
         for (let i in options.extras) {
@@ -123,14 +125,20 @@ export function getEventImpl(options: HookOpts): HookImpl {
             event["result"] = null;
             event["error"] = null;
         }
+        if (hookOpts.result !== false) {
+            event["result"] = null;
+        }
+        if (hookOpts.args !== false || hookOpts.result !== false) {
+            event["error"] = null;
+        }
         try {
             const result = this(obj, args);
-            if (hookOpts.args !== false) {
+            if (hookOpts.result !== false) {
                 event["result"] = pretty2Json(convert2ObjcObject(result));
             }
             return result;
         } catch (e) {
-            if (hookOpts.args !== false) {
+            if (hookOpts.args !== false || hookOpts.result !== false) {
                 event["error"] = pretty2Json(e);
             }
             throw e;
