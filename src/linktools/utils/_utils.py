@@ -63,6 +63,7 @@ DEFAULT_ENCODING = "utf-8"
 
 _SYSTEM = None
 _MACHINE = None
+_INTERPRETER = None
 
 
 def ignore_error(
@@ -568,6 +569,16 @@ def parser_cookie(cookie: str) -> Dict[str, str]:
         key_value = item.split("=", 1)
         cookies[key_value[0].strip()] = key_value[1].strip() if len(key_value) > 1 else ''
     return cookies
+
+
+def get_interpreter():
+    """
+    获取当前python解释器的绝对路径
+    """
+    global _INTERPRETER
+    if _INTERPRETER is None:
+        _INTERPRETER = sys.executable
+    return _INTERPRETER
 
 
 def get_system() -> str:

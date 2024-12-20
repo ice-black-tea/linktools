@@ -7,7 +7,7 @@ import queue
 import shlex
 import subprocess
 import threading
-from typing import AnyStr, Optional, IO, Any, Dict, Union, List, Iterable, Generator
+from typing import AnyStr, Optional, IO, Any, Dict, Union, List, Iterable, Generator, Tuple
 
 from .. import utils
 from .._environ import environ
@@ -49,14 +49,24 @@ if utils.is_unix_like():
                     break
                 rlist, wlist, xlist = select.select(fds, [], [], min(remain, 1))
                 if self._stdout and self._stdout in rlist:
-                    data = self._stdout.readline()
-                    if len(data) == 0:
+                    try:
+                        data = self._stdout.readline()
+                    except OSError as e:
+                        if e.errno != errno.EBADF:
+                            environ.logger.debug(f"Handle output error: {e}")
+                        data = None
+                    if not data:
                         fds.remove(self._stdout)
                     else:
                         yield STDOUT, data
                 if self._stderr and self._stderr in rlist:
-                    data = self._stderr.readline()
-                    if len(data) == 0:
+                    try:
+                        data = self._stderr.readline()
+                    except OSError as e:
+                        if e.errno != errno.EBADF:
+                            environ.logger.debug(f"Handle output error: {e}")
+                        data = None
+                    if not data:
                         fds.remove(self._stderr)
                     else:
                         yield STDERR, data
@@ -157,7 +167,7 @@ class Process(subprocess.Popen):
                 raise
 
     @timeoutable
-    def fetch(self, timeout: TimeoutType = None) -> Generator[tuple[Optional[AnyStr], Optional[AnyStr]], Any, Any]:
+    def fetch(self, timeout: TimeoutType = None) -> "Generator[Tuple[Optional[AnyStr], Optional[AnyStr]], Any, Any]":
         """
         获取进程的输出内容
         :param timeout: 超时时间

@@ -31,7 +31,6 @@ import os
 import pathlib
 import pickle
 import shutil
-import sys
 import warnings
 from typing import TYPE_CHECKING, Dict, Iterator, Any, Tuple, List, Generator, Callable
 
@@ -412,12 +411,11 @@ class Tool(metaclass=ToolMeta):
                         shutil.move(temp_path, self.absolute_path)
 
         if not os.access(self.stub_path, os.X_OK):
-            from linktools.cli import stub
             self._tools.logger.debug(f"Create stub {self.stub_path}")
             self.stub_path.parent.mkdir(parents=True, exist_ok=True)
             self.create_stub_file(
                 self.stub_path,
-                utils.list2cmdline([sys.executable, "-m", stub.__name__, "tool", self.name]),
+                self.make_stub_cmdline(self.name),
                 system=self.system
             )
 
@@ -545,9 +543,14 @@ class Tool(metaclass=ToolMeta):
                 fd.write(f"{cmdline} %*\n")
             else:
                 fd.write(f"#!{shutil.which('sh')}\n")
-                fd.write(f"{cmdline} $@\n")
+                fd.write(f"{cmdline} \"$@\"\n")
         os.chmod(path, 0o755)
         return path
+
+    @classmethod
+    def make_stub_cmdline(cls, name: str) -> str:
+        from .cli import env
+        return utils.list2cmdline([utils.get_interpreter(), "-m", env.__name__, "tool", name])
 
 
 class Tools(object):
@@ -567,7 +570,7 @@ class Tools(object):
         return self.environ.get_data_path(
             "tools",
             f"stub_v{self.environ.version}",
-            utils.get_md5(sys.executable)
+            utils.get_md5(utils.get_interpreter())
         )
 
     def keys(self) -> Generator[str, None, None]:
@@ -624,7 +627,7 @@ class Tools(object):
             }),
             "python": Tool(self, "python", {
                 "cmdline": None,
-                "absolute_path": sys.executable,
+                "absolute_path": utils.get_interpreter(),
             }),
         }
 

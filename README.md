@@ -28,7 +28,7 @@ python3 -m pip install -U "linktools[all]"
 # 可通过以下命令生成alias脚本添加相关命令
 # 需要注意此处python3需要替换成自己安装环境下的interpreter，比如~/projects/linktools/venv/bin/python
 # ps. 如果已安装argcomplete库，还可以生成自动补全脚本
-eval "$(python3 -m linktools.cli.commands.common.env --silent alias --shell bash)"
+eval "$(python3 -m linktools.cli.env alias --shell bash)"
 
 # 配置全局java环境，指定java版本号（如：11.0.23/17.0.11/21.0.3）
 # 可通过 https://sap.github.io/SapMachine/#download 查找LTS版本号
